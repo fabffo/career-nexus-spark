@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Plus } from 'lucide-react';
+import { Edit, Trash2, Plus, Video, ExternalLink } from 'lucide-react';
 import { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -23,9 +23,12 @@ interface RdvWithRelations {
   client_id: string;
   recruteur_id?: string;
   referent_id?: string;
+  teams_link?: string;
+  teams_meeting_id?: string;
   candidats?: {
     nom: string;
     prenom: string;
+    email?: string;
   };
   clients?: {
     raison_sociale: string;
@@ -58,7 +61,7 @@ export default function RendezVous() {
         .from('rdvs')
         .select(`
           *,
-          candidats(nom, prenom),
+          candidats(nom, prenom, email),
           clients(raison_sociale),
           profiles:recruteur_id(nom, prenom),
           referents:referent_id(nom, prenom)
@@ -179,6 +182,26 @@ export default function RendezVous() {
           'ANNULE': 'destructive',
         };
         return <Badge variant={variants[statut] || 'outline'}>{statut}</Badge>;
+      },
+    },
+    {
+      id: 'teams',
+      header: 'Teams',
+      cell: ({ row }) => {
+        if (row.original.type_rdv === 'TEAMS' && row.original.teams_link) {
+          return (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => window.open(row.original.teams_link, '_blank')}
+              className="gap-2"
+            >
+              <Video className="h-4 w-4" />
+              <ExternalLink className="h-3 w-3" />
+            </Button>
+          );
+        }
+        return null;
       },
     },
     {

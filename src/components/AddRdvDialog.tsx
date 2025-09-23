@@ -22,6 +22,7 @@ import { format } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { RdvType } from '@/types/database';
+import { Video } from 'lucide-react';
 
 interface AddRdvDialogProps {
   onSuccess: () => void;
@@ -35,6 +36,7 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
   const [clients, setClients] = useState<any[]>([]);
   const [referents, setReferents] = useState<any[]>([]);
   const [recruteurs, setRecruteurs] = useState<any[]>([]);
+  const [creatingTeamsMeeting, setCreatingTeamsMeeting] = useState(false);
   
   const [formData, setFormData] = useState({
     candidat_id: '',
@@ -112,6 +114,76 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
     }
   };
 
+  const createTeamsMeetingIfNeeded = async (rdvId: string, rdvData: any) => {
+    if (rdvData.type_rdv !== 'TEAMS') {
+      return null;
+    }
+
+    setCreatingTeamsMeeting(true);
+    try {
+      // Get candidat and client emails
+      const candidat = candidats.find(c => c.id === rdvData.candidat_id);
+      const client = clients.find(c => c.id === rdvData.client_id);
+      
+      const attendees = [];
+      if (candidat?.email) attendees.push(candidat.email);
+      
+      // Add referent email if RDV type is CLIENT
+      if (rdvData.rdv_type === 'CLIENT' && rdvData.referent_id) {
+        const referent = referents.find(r => r.id === rdvData.referent_id);
+        if (referent?.email) attendees.push(referent.email);
+      }
+
+      // Calculate end time (1 hour after start)
+      const startDate = new Date(rdvData.date);
+      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+
+      const meetingDetails = {
+        rdvId,
+        startDateTime: startDate.toISOString(),
+        endDateTime: endDate.toISOString(),
+        subject: `Entretien - ${candidat?.prenom} ${candidat?.nom} - ${client?.raison_sociale}`,
+        attendees
+      };
+
+      console.log('Creating Teams meeting with details:', meetingDetails);
+
+      const { data, error } = await supabase.functions.invoke('create-teams-meeting', {
+        body: meetingDetails
+      });
+
+      if (error) {
+        console.error('Error creating Teams meeting:', error);
+        toast({
+          title: "Avertissement",
+          description: "Le RDV a été créé mais le lien Teams n'a pas pu être généré. Vous pouvez le créer manuellement.",
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      if (data?.joinUrl) {
+        toast({
+          title: "Lien Teams créé",
+          description: "Le lien de réunion Teams a été généré avec succès.",
+        });
+        return data.joinUrl;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error in Teams meeting creation:', error);
+      toast({
+        title: "Avertissement",
+        description: "Le RDV a été créé mais le lien Teams n'a pas pu être généré.",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setCreatingTeamsMeeting(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!formData.candidat_id || !formData.client_id || !formData.date || !formData.time) {
       toast({
@@ -149,11 +221,18 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
         referent_id: formData.rdv_type === 'CLIENT' ? formData.referent_id : null,
       };
 
-      const { error } = await supabase
+      const { data: newRdv, error } = await supabase
         .from('rdvs')
-        .insert([rdvData]);
+        .insert([rdvData])
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Create Teams meeting if needed
+      if (formData.type_rdv === 'TEAMS' && newRdv) {
+        await createTeamsMeetingIfNeeded(newRdv.id, rdvData);
+      }
 
       toast({
         title: "Succès",
@@ -352,11 +431,21 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="TEAMS">Microsoft Teams</SelectItem>
+                    <SelectItem value="TEAMS">
+                      <div className="flex items-center gap-2">
+                        <Video className="h-4 w-4" />
+                        Microsoft Teams
+                      </div>
+                    </SelectItem>
                     <SelectItem value="PRESENTIEL_CLIENT">Présentiel chez le client</SelectItem>
                     <SelectItem value="TELEPHONE">Téléphonique</SelectItem>
                   </SelectContent>
                 </Select>
+                {formData.type_rdv === 'TEAMS' && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Un lien Teams sera automatiquement créé
+                  </p>
+                )}
               </div>
 
               <div>
@@ -411,8 +500,8 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
             <Button variant="outline" onClick={() => setIsOpen(false)}>
               Annuler
             </Button>
-            <Button onClick={handleSubmit} disabled={isLoading}>
-              {isLoading ? 'Création...' : 'Créer le rendez-vous'}
+            <Button onClick={handleSubmit} disabled={isLoading || creatingTeamsMeeting}>
+              {isLoading ? 'Création...' : creatingTeamsMeeting ? 'Génération du lien Teams...' : 'Créer le rendez-vous'}
             </Button>
           </DialogFooter>
         </DialogContent>

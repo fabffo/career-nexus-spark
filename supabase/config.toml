@@ -73,3 +73,6 @@ backend = "postgres"
 
 [functions.teams-integration]
 verify_jwt = true
+
+[functions.create-teams-meeting]
+verify_jwt = true
