@@ -1,78 +1,184 @@
 import { useState, useEffect } from 'react';
-import { rdvService, candidatService, clientService } from '@/services';
-import { Rdv, Candidat, Client } from '@/types/models';
+import { supabase } from '@/integrations/supabase/client';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, Plus } from 'lucide-react';
 import { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import TeamsIntegration from '@/components/TeamsIntegration';
-import AddRdvDialog from '@/components/AddRdvDialog';
+import { toast } from '@/hooks/use-toast';
+import { AddRdvDialog } from '@/components/AddRdvDialog';
+import { useAuth } from '@/contexts/AuthContext';
+
+interface RdvWithRelations {
+  id: string;
+  date: string;
+  type_rdv: string;
+  rdv_type: 'RECRUTEUR' | 'CLIENT';
+  statut: string;
+  lieu?: string;
+  notes?: string;
+  candidat_id: string;
+  client_id: string;
+  recruteur_id?: string;
+  referent_id?: string;
+  candidats?: {
+    nom: string;
+    prenom: string;
+  };
+  clients?: {
+    raison_sociale: string;
+  };
+  profiles?: {
+    nom: string;
+    prenom: string;
+  };
+  referents?: {
+    nom: string;
+    prenom: string;
+  };
+  created_at?: string;
+  updated_at?: string;
+}
 
 export default function RendezVous() {
-  const [rdvs, setRdvs] = useState<Rdv[]>([]);
-  const [candidats, setCandidats] = useState<Candidat[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
+  const [rdvs, setRdvs] = useState<RdvWithRelations[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { profile } = useAuth();
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
-    const [rdvData, candidatData, clientData] = await Promise.all([
-      rdvService.getAll(),
-      candidatService.getAll(),
-      clientService.getAll()
-    ]);
-    setRdvs(rdvData);
-    setCandidats(candidatData);
-    setClients(clientData);
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('rdvs')
+        .select(`
+          *,
+          candidats(nom, prenom),
+          clients(raison_sociale),
+          profiles:recruteur_id(nom, prenom),
+          referents:referent_id(nom, prenom)
+        `)
+        .order('date', { ascending: false });
+
+      if (error) throw error;
+      setRdvs(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getCandidat = (id: string) => candidats.find(c => c.id === id);
-  const getClient = (id: string) => clients.find(c => c.id === id);
+  const handleDelete = async (id: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce rendez-vous ?')) return;
 
-  const columns: ColumnDef<Rdv>[] = [
+    try {
+      const { error } = await supabase
+        .from('rdvs')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      toast({ title: "Rendez-vous supprimé avec succès" });
+      loadData();
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const columns: ColumnDef<RdvWithRelations>[] = [
     {
       accessorKey: 'date',
-      header: 'Date',
+      header: 'Date & Heure',
       cell: ({ row }) => format(new Date(row.original.date), 'dd/MM/yyyy HH:mm', { locale: fr }),
     },
     {
       id: 'candidat',
       header: 'Candidat',
       cell: ({ row }) => {
-        const candidat = getCandidat(row.original.candidatId);
+        const candidat = row.original.candidats;
         return candidat ? `${candidat.prenom} ${candidat.nom}` : '-';
       },
     },
     {
       id: 'client',
       header: 'Client',
+      cell: ({ row }) => row.original.clients?.raison_sociale || '-',
+    },
+    {
+      accessorKey: 'rdv_type',
+      header: 'Type RDV',
       cell: ({ row }) => {
-        const client = getClient(row.original.clientId);
-        return client ? client.raisonSociale : '-';
+        const type = row.original.rdv_type;
+        return (
+          <Badge variant={type === 'CLIENT' ? 'default' : 'secondary'}>
+            {type}
+          </Badge>
+        );
       },
     },
     {
-      accessorKey: 'typeRdv',
-      header: 'Type',
-      cell: ({ row }) => <Badge variant="outline">{row.original.typeRdv}</Badge>,
+      id: 'contact',
+      header: 'Contact',
+      cell: ({ row }) => {
+        if (row.original.rdv_type === 'CLIENT' && row.original.referents) {
+          const ref = row.original.referents;
+          return (
+            <div>
+              <span className="text-xs text-muted-foreground">Référent:</span><br/>
+              {ref.prenom} {ref.nom}
+            </div>
+          );
+        }
+        if (row.original.profiles) {
+          const rec = row.original.profiles;
+          return (
+            <div>
+              <span className="text-xs text-muted-foreground">Recruteur:</span><br/>
+              {rec.prenom} {rec.nom}
+            </div>
+          );
+        }
+        return '-';
+      },
+    },
+    {
+      accessorKey: 'type_rdv',
+      header: 'Modalité',
+      cell: ({ row }) => {
+        const typeLabels: Record<string, string> = {
+          'TEAMS': 'Teams',
+          'PRESENTIEL_CLIENT': 'Présentiel',
+          'TELEPHONE': 'Téléphone'
+        };
+        return <Badge variant="outline">{typeLabels[row.original.type_rdv || ''] || row.original.type_rdv}</Badge>;
+      },
     },
     {
       accessorKey: 'statut',
       header: 'Statut',
       cell: ({ row }) => {
         const statut = row.original.statut;
-        const colors = {
-          'ENCOURS': 'bg-blue-100 text-blue-800',
-          'REALISE': 'bg-green-100 text-green-800',
-          'TERMINE': 'bg-gray-100 text-gray-800',
-          'ANNULE': 'bg-red-100 text-red-800',
+        const variants: Record<string, any> = {
+          'ENCOURS': 'default',
+          'REALISE': 'secondary',
+          'TERMINE': 'outline',
+          'ANNULE': 'destructive',
         };
-        return <Badge className={colors[statut] || ''}>{statut}</Badge>;
+        return <Badge variant={variants[statut] || 'outline'}>{statut}</Badge>;
       },
     },
     {
@@ -80,24 +186,10 @@ export default function RendezVous() {
       header: 'Actions',
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
-          {row.original.typeRdv === 'TEAMS' && (
-            <TeamsIntegration rdv={row.original} />
-          )}
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => {
-              // TODO: Implémenter l'édition
-            }}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              // TODO: Implémenter la suppression
-            }}
+            onClick={() => handleDelete(row.original.id)}
           >
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
@@ -110,13 +202,13 @@ export default function RendezVous() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Rendez-vous</h1>
-        <AddRdvDialog 
-          candidats={candidats} 
-          clients={clients} 
-          onSuccess={loadData}
-        />
+        <AddRdvDialog onSuccess={loadData} currentUserId={profile?.id} />
       </div>
-      <DataTable columns={columns} data={rdvs} searchPlaceholder="Rechercher un rendez-vous..." />
+      <DataTable 
+        columns={columns} 
+        data={rdvs} 
+        searchPlaceholder="Rechercher un rendez-vous..." 
+      />
     </div>
   );
 }

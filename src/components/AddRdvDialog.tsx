@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,35 +17,118 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { toast } from 'sonner';
 import { Plus, Calendar, Users, MapPin } from 'lucide-react';
-import { Candidat, Client, Rdv } from '@/types/models';
-import { rdvService } from '@/services';
 import { format } from 'date-fns';
+import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { RdvType } from '@/types/database';
 
 interface AddRdvDialogProps {
-  candidats: Candidat[];
-  clients: Client[];
   onSuccess: () => void;
+  currentUserId?: string;
 }
 
-export default function AddRdvDialog({ candidats, clients, onSuccess }: AddRdvDialogProps) {
+export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [candidats, setCandidats] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [referents, setReferents] = useState<any[]>([]);
+  const [recruteurs, setRecruteurs] = useState<any[]>([]);
+  
   const [formData, setFormData] = useState({
-    candidatId: '',
-    clientId: '',
+    candidat_id: '',
+    client_id: '',
     date: '',
     time: '',
-    typeRdv: 'TEAMS' as Rdv['typeRdv'],
-    statut: 'ENCOURS' as Rdv['statut'],
+    type_rdv: 'TEAMS',
+    rdv_type: 'RECRUTEUR' as RdvType,
+    statut: 'ENCOURS',
     lieu: '',
     notes: '',
+    recruteur_id: currentUserId || '',
+    referent_id: '',
   });
 
+  useEffect(() => {
+    if (isOpen) {
+      loadFormData();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    // Charger les référents quand un client est sélectionné et le type est CLIENT
+    if (formData.client_id && formData.rdv_type === 'CLIENT') {
+      loadReferentsForClient(formData.client_id);
+    }
+  }, [formData.client_id, formData.rdv_type]);
+
+  const loadFormData = async () => {
+    try {
+      // Charger les candidats
+      const { data: candidatsData } = await supabase
+        .from('candidats')
+        .select('id, nom, prenom')
+        .order('nom');
+      setCandidats(candidatsData || []);
+
+      // Charger les clients
+      const { data: clientsData } = await supabase
+        .from('clients')
+        .select('id, raison_sociale')
+        .order('raison_sociale');
+      setClients(clientsData || []);
+
+      // Charger les recruteurs (profiles)
+      const { data: recruteursData } = await supabase
+        .from('profiles')
+        .select('id, nom, prenom, role')
+        .order('nom');
+      setRecruteurs(recruteursData || []);
+
+      // Set current user as default recruteur
+      if (currentUserId) {
+        setFormData(prev => ({ ...prev, recruteur_id: currentUserId }));
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadReferentsForClient = async (clientId: string) => {
+    try {
+      const { data } = await supabase
+        .from('referents')
+        .select('id, nom, prenom')
+        .eq('client_id', clientId)
+        .order('nom');
+      setReferents(data || []);
+    } catch (error: any) {
+      console.error('Erreur chargement référents:', error);
+    }
+  };
+
   const handleSubmit = async () => {
-    if (!formData.candidatId || !formData.clientId || !formData.date || !formData.time) {
-      toast.error('Veuillez remplir tous les champs obligatoires');
+    if (!formData.candidat_id || !formData.client_id || !formData.date || !formData.time) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez remplir tous les champs obligatoires",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Vérifier que le référent est sélectionné si type CLIENT
+    if (formData.rdv_type === 'CLIENT' && !formData.referent_id) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez sélectionner un référent pour un RDV client",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -53,23 +136,38 @@ export default function AddRdvDialog({ candidats, clients, onSuccess }: AddRdvDi
     try {
       const datetime = new Date(`${formData.date}T${formData.time}`);
       
-      await rdvService.create({
-        candidatId: formData.candidatId,
-        clientId: formData.clientId,
-        date: datetime,
-        typeRdv: formData.typeRdv,
+      const rdvData: any = {
+        candidat_id: formData.candidat_id,
+        client_id: formData.client_id,
+        date: datetime.toISOString(),
+        type_rdv: formData.type_rdv,
+        rdv_type: formData.rdv_type,
         statut: formData.statut,
-        lieu: formData.lieu || undefined,
-        notes: formData.notes || undefined,
-      });
+        lieu: formData.lieu || null,
+        notes: formData.notes || null,
+        recruteur_id: formData.recruteur_id || null,
+        referent_id: formData.rdv_type === 'CLIENT' ? formData.referent_id : null,
+      };
 
-      toast.success('Rendez-vous créé avec succès');
+      const { error } = await supabase
+        .from('rdvs')
+        .insert([rdvData]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Succès",
+        description: "Rendez-vous créé avec succès",
+      });
       setIsOpen(false);
       resetForm();
       onSuccess();
-    } catch (error) {
-      toast.error('Erreur lors de la création du rendez-vous');
-      console.error('Erreur:', error);
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -77,15 +175,19 @@ export default function AddRdvDialog({ candidats, clients, onSuccess }: AddRdvDi
 
   const resetForm = () => {
     setFormData({
-      candidatId: '',
-      clientId: '',
+      candidat_id: '',
+      client_id: '',
       date: '',
       time: '',
-      typeRdv: 'TEAMS',
+      type_rdv: 'TEAMS',
+      rdv_type: 'RECRUTEUR',
       statut: 'ENCOURS',
       lieu: '',
       notes: '',
+      recruteur_id: currentUserId || '',
+      referent_id: '',
     });
+    setReferents([]);
   };
 
   return (
@@ -96,7 +198,7 @@ export default function AddRdvDialog({ candidats, clients, onSuccess }: AddRdvDi
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[700px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
@@ -105,12 +207,33 @@ export default function AddRdvDialog({ candidats, clients, onSuccess }: AddRdvDi
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
+            {/* Type de RDV */}
+            <div>
+              <Label htmlFor="rdv_type">Type de rendez-vous *</Label>
+              <Select
+                value={formData.rdv_type}
+                onValueChange={(value: RdvType) => {
+                  setFormData({ ...formData, rdv_type: value, referent_id: '' });
+                  setReferents([]);
+                }}
+              >
+                <SelectTrigger id="rdv_type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="RECRUTEUR">RDV Recruteur</SelectItem>
+                  <SelectItem value="CLIENT">RDV Client</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Candidat et Client */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="candidat">Candidat *</Label>
                 <Select
-                  value={formData.candidatId}
-                  onValueChange={(value) => setFormData({ ...formData, candidatId: value })}
+                  value={formData.candidat_id}
+                  onValueChange={(value) => setFormData({ ...formData, candidat_id: value })}
                 >
                   <SelectTrigger id="candidat">
                     <SelectValue placeholder="Sélectionner un candidat" />
@@ -128,8 +251,8 @@ export default function AddRdvDialog({ candidats, clients, onSuccess }: AddRdvDi
               <div>
                 <Label htmlFor="client">Client *</Label>
                 <Select
-                  value={formData.clientId}
-                  onValueChange={(value) => setFormData({ ...formData, clientId: value })}
+                  value={formData.client_id}
+                  onValueChange={(value) => setFormData({ ...formData, client_id: value })}
                 >
                   <SelectTrigger id="client">
                     <SelectValue placeholder="Sélectionner un client" />
@@ -137,7 +260,7 @@ export default function AddRdvDialog({ candidats, clients, onSuccess }: AddRdvDi
                   <SelectContent>
                     {clients.map((client) => (
                       <SelectItem key={client.id} value={client.id}>
-                        {client.raisonSociale}
+                        {client.raison_sociale}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -145,6 +268,55 @@ export default function AddRdvDialog({ candidats, clients, onSuccess }: AddRdvDi
               </div>
             </div>
 
+            {/* Recruteur ou Référent selon le type */}
+            {formData.rdv_type === 'RECRUTEUR' ? (
+              <div>
+                <Label htmlFor="recruteur">Recruteur *</Label>
+                <Select
+                  value={formData.recruteur_id}
+                  onValueChange={(value) => setFormData({ ...formData, recruteur_id: value })}
+                >
+                  <SelectTrigger id="recruteur">
+                    <SelectValue placeholder="Sélectionner un recruteur" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {recruteurs.map((recruteur) => (
+                      <SelectItem key={recruteur.id} value={recruteur.id}>
+                        {recruteur.prenom} {recruteur.nom} ({recruteur.role})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div>
+                <Label htmlFor="referent">Référent client *</Label>
+                <Select
+                  value={formData.referent_id}
+                  onValueChange={(value) => setFormData({ ...formData, referent_id: value })}
+                  disabled={!formData.client_id}
+                >
+                  <SelectTrigger id="referent">
+                    <SelectValue placeholder={
+                      !formData.client_id 
+                        ? "Sélectionnez d'abord un client" 
+                        : referents.length === 0 
+                          ? "Aucun référent pour ce client"
+                          : "Sélectionner un référent"
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {referents.map((referent) => (
+                      <SelectItem key={referent.id} value={referent.id}>
+                        {referent.prenom} {referent.nom}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Date et Heure */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="date">Date *</Label>
@@ -168,12 +340,13 @@ export default function AddRdvDialog({ candidats, clients, onSuccess }: AddRdvDi
               </div>
             </div>
 
+            {/* Modalité et Statut */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="type">Type de rendez-vous *</Label>
+                <Label htmlFor="type">Modalité *</Label>
                 <Select
-                  value={formData.typeRdv}
-                  onValueChange={(value) => setFormData({ ...formData, typeRdv: value as Rdv['typeRdv'] })}
+                  value={formData.type_rdv}
+                  onValueChange={(value) => setFormData({ ...formData, type_rdv: value })}
                 >
                   <SelectTrigger id="type">
                     <SelectValue />
@@ -190,7 +363,7 @@ export default function AddRdvDialog({ candidats, clients, onSuccess }: AddRdvDi
                 <Label htmlFor="statut">Statut *</Label>
                 <Select
                   value={formData.statut}
-                  onValueChange={(value) => setFormData({ ...formData, statut: value as Rdv['statut'] })}
+                  onValueChange={(value) => setFormData({ ...formData, statut: value })}
                 >
                   <SelectTrigger id="statut">
                     <SelectValue />
@@ -205,21 +378,23 @@ export default function AddRdvDialog({ candidats, clients, onSuccess }: AddRdvDi
               </div>
             </div>
 
-            {(formData.typeRdv === 'PRESENTIEL_CLIENT' || formData.typeRdv === 'TELEPHONE') && (
+            {/* Lieu */}
+            {(formData.type_rdv === 'PRESENTIEL_CLIENT' || formData.type_rdv === 'TELEPHONE') && (
               <div>
                 <Label htmlFor="lieu">
                   <MapPin className="inline h-4 w-4 mr-1" />
-                  Lieu {formData.typeRdv === 'PRESENTIEL_CLIENT' && '*'}
+                  Lieu {formData.type_rdv === 'PRESENTIEL_CLIENT' && '*'}
                 </Label>
                 <Input
                   id="lieu"
                   value={formData.lieu}
                   onChange={(e) => setFormData({ ...formData, lieu: e.target.value })}
-                  placeholder={formData.typeRdv === 'PRESENTIEL_CLIENT' ? 'Adresse du rendez-vous' : 'Optionnel'}
+                  placeholder={formData.type_rdv === 'PRESENTIEL_CLIENT' ? 'Adresse du rendez-vous' : 'Optionnel'}
                 />
               </div>
             )}
 
+            {/* Notes */}
             <div>
               <Label htmlFor="notes">Notes</Label>
               <Textarea
