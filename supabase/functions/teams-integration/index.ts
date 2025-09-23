@@ -7,6 +7,126 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Microsoft Graph API configuration
+const GRAPH_API_URL = 'https://graph.microsoft.com/v1.0';
+const GRAPH_SCOPE = 'https://graph.microsoft.com/.default';
+
+// Function to get access token from Microsoft
+async function getAccessToken(): Promise<string> {
+  const tenantId = Deno.env.get('AZURE_TENANT_ID');
+  const clientId = Deno.env.get('AZURE_CLIENT_ID');
+  const clientSecret = Deno.env.get('AZURE_CLIENT_SECRET');
+
+  if (!tenantId || !clientId || !clientSecret) {
+    throw new Error('Azure AD credentials not configured');
+  }
+
+  const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+
+  try {
+    const response = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        scope: GRAPH_SCOPE,
+        grant_type: 'client_credentials',
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('Failed to get access token:', error);
+      throw new Error('Failed to authenticate with Microsoft');
+    }
+
+    const data = await response.json();
+    return data.access_token;
+  } catch (error) {
+    console.error('Error getting access token:', error);
+    throw error;
+  }
+}
+
+// Function to create Teams meeting
+async function createTeamsMeeting(rdv: any): Promise<any> {
+  try {
+    const accessToken = await getAccessToken();
+    
+    // Get the first user to create meeting on behalf of
+    const usersResponse = await fetch(`${GRAPH_API_URL}/users?$top=1&$select=id,mail,displayName`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!usersResponse.ok) {
+      const error = await usersResponse.text();
+      console.error('Failed to get users:', error);
+      throw new Error('Failed to get users from Microsoft Graph');
+    }
+
+    const usersData = await usersResponse.json();
+    if (!usersData.value || usersData.value.length === 0) {
+      throw new Error('No users found in the organization');
+    }
+
+    const organizerUser = usersData.value[0];
+    console.log('Creating meeting for organizer:', organizerUser.mail);
+
+    // Calculate meeting times
+    const startDateTime = new Date(rdv.date);
+    const endDateTime = new Date(startDateTime);
+    endDateTime.setHours(endDateTime.getHours() + 1); // 1 hour meeting by default
+
+    // Create the online meeting
+    const meetingResponse = await fetch(`${GRAPH_API_URL}/users/${organizerUser.id}/onlineMeetings`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        startDateTime: startDateTime.toISOString(),
+        endDateTime: endDateTime.toISOString(),
+        subject: `Rendez-vous - ${rdv.candidatName || 'Candidat'}`,
+        participants: {
+          organizer: {
+            identity: {
+              user: {
+                id: organizerUser.id
+              }
+            }
+          }
+        },
+        allowedPresenters: 'everyone',
+        isEntryExitAnnounced: true,
+        lobbyBypassSettings: {
+          scope: 'everyone',
+          isDialInBypassEnabled: true
+        }
+      }),
+    });
+
+    if (!meetingResponse.ok) {
+      const error = await meetingResponse.text();
+      console.error('Failed to create meeting:', error);
+      throw new Error('Failed to create Teams meeting');
+    }
+
+    const meetingData = await meetingResponse.json();
+    console.log('Teams meeting created successfully:', meetingData.id);
+    return meetingData;
+  } catch (error) {
+    console.error('Error creating Teams meeting:', error);
+    throw error;
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -24,46 +144,84 @@ serve(async (req) => {
 
     if (action === 'create-meeting') {
       const { rdv, attendeeEmails } = data;
-      console.log('Creating meeting invitation for:', rdv);
+      console.log('Creating real Teams meeting for:', rdv);
       
-      // Generate a simple meeting ID
-      const meetingId = crypto.randomUUID();
-      
-      // Generate Teams meeting link placeholder
-      const teamsLink = `https://teams.microsoft.com/l/meetup-join/${meetingId}`;
-      
-      // Update the RDV with the Teams link
-      if (rdv.id) {
-        const { error: updateError } = await supabase
-          .from('rdvs')
-          .update({ 
-            teams_link: teamsLink,
-            teams_meeting_id: meetingId 
-          })
-          .eq('id', rdv.id);
+      try {
+        // Create real Teams meeting using Microsoft Graph API
+        const meeting = await createTeamsMeeting(rdv);
+        
+        // Extract the join URL and meeting ID
+        const teamsLink = meeting.joinUrl || meeting.joinWebUrl;
+        const meetingId = meeting.id;
+        
+        console.log('Meeting created with link:', teamsLink);
+        
+        // Update the RDV with the real Teams link
+        if (rdv.id) {
+          const { error: updateError } = await supabase
+            .from('rdvs')
+            .update({ 
+              teams_link: teamsLink,
+              teams_meeting_id: meetingId 
+            })
+            .eq('id', rdv.id);
 
-        if (updateError) {
-          console.error('Error updating RDV:', updateError);
+          if (updateError) {
+            console.error('Error updating RDV:', updateError);
+          }
         }
-      }
-      
-      // Prepare meeting details for response
-      const meetingDetails = {
-        subject: `Rendez-vous - ${rdv.candidatName || 'Candidat'} avec Client`,
-        date: new Date(rdv.date).toLocaleString('fr-FR'),
-        type: rdv.typeRdv,
-        teamsLink: teamsLink
-      };
+        
+        // Prepare meeting details for response
+        const meetingDetails = {
+          subject: meeting.subject,
+          date: new Date(rdv.date).toLocaleString('fr-FR'),
+          type: rdv.typeRdv,
+          teamsLink: teamsLink,
+          audioConferencing: meeting.audioConferencing
+        };
 
-      return new Response(
-        JSON.stringify({
-          success: true,
-          meetingId,
-          joinUrl: teamsLink,
-          meetingDetails
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        return new Response(
+          JSON.stringify({
+            success: true,
+            meetingId,
+            joinUrl: teamsLink,
+            meetingDetails
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (meetingError) {
+        console.error('Failed to create Teams meeting, using fallback:', meetingError);
+        
+        // Fallback to placeholder if Graph API fails
+        const meetingId = crypto.randomUUID();
+        const teamsLink = `https://teams.microsoft.com/l/meetup-join/${meetingId}`;
+        
+        if (rdv.id) {
+          await supabase
+            .from('rdvs')
+            .update({ 
+              teams_link: teamsLink,
+              teams_meeting_id: meetingId 
+            })
+            .eq('id', rdv.id);
+        }
+        
+        return new Response(
+          JSON.stringify({
+            success: true,
+            meetingId,
+            joinUrl: teamsLink,
+            meetingDetails: {
+              subject: `Rendez-vous - ${rdv.candidatName || 'Candidat'}`,
+              date: new Date(rdv.date).toLocaleString('fr-FR'),
+              type: rdv.typeRdv,
+              teamsLink: teamsLink
+            },
+            warning: 'Using fallback Teams link due to API error'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     if (action === 'send-invitation') {
@@ -85,40 +243,94 @@ serve(async (req) => {
       console.log('Using Resend to send email');
       
       // Determine the from address based on environment
-      // Use 'onboarding@resend.dev' for testing or your verified domain for production
       const fromAddress = 'onboarding@resend.dev'; // Change to 'noreply@yourdomain.com' after domain verification
       
-      // Create HTML email content
+      // Create HTML email content with Teams meeting details
       const htmlContent = `
         <html>
           <head>
             <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
-              .teams-link { 
+              body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5; margin: 0; padding: 0; }
+              .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+              .header { background: linear-gradient(135deg, #5558AF 0%, #7B5FFA 100%); color: white; padding: 30px 20px; text-align: center; }
+              .header h2 { margin: 0; font-size: 24px; }
+              .content { padding: 30px 20px; }
+              .teams-button { 
                 display: inline-block; 
                 background-color: #5558AF; 
                 color: white; 
-                padding: 12px 24px; 
+                padding: 14px 28px; 
                 text-decoration: none; 
+                border-radius: 4px; 
+                margin: 25px 0;
+                font-weight: 600;
+                font-size: 16px;
+              }
+              .teams-button:hover { background-color: #464B9F; }
+              .meeting-details { 
+                background: #f8f9fa; 
+                border-left: 4px solid #5558AF; 
+                padding: 15px; 
+                margin: 20px 0;
+                border-radius: 4px;
+              }
+              .meeting-details p { margin: 8px 0; }
+              .meeting-details strong { color: #5558AF; }
+              .instructions { 
+                background: #e8f4fd; 
+                padding: 15px; 
                 border-radius: 4px; 
                 margin: 20px 0;
               }
-              .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #666; font-size: 14px; }
+              .instructions h3 { color: #2c3e50; margin-top: 0; }
+              .instructions ol { margin: 10px 0; padding-left: 20px; }
+              .footer { 
+                background: #f8f9fa; 
+                padding: 20px; 
+                text-align: center; 
+                color: #666; 
+                font-size: 14px; 
+                border-top: 1px solid #e0e0e0;
+              }
             </style>
           </head>
           <body>
             <div class="container">
-              <h2>Invitation Teams Meeting</h2>
-              <div>${message ? message.replace(/\n/g, '<br>') : 'Vous êtes invité(e) à une réunion Teams.'}</div>
-              ${teamsLink ? `
-                <div style="text-align: center; margin: 30px 0;">
-                  <a href="${teamsLink}" class="teams-link">Rejoindre la réunion Teams</a>
-                </div>
-              ` : ''}
+              <div class="header">
+                <h2>📅 Invitation Microsoft Teams</h2>
+              </div>
+              <div class="content">
+                <div>${message ? message.replace(/\n/g, '<br>') : 'Vous êtes invité(e) à une réunion Microsoft Teams.'}</div>
+                
+                ${teamsLink ? `
+                  <div style="text-align: center;">
+                    <a href="${teamsLink}" class="teams-button">🎥 Rejoindre la réunion Teams</a>
+                  </div>
+                  
+                  <div class="instructions">
+                    <h3>Comment rejoindre la réunion :</h3>
+                    <ol>
+                      <li>Cliquez sur le bouton "Rejoindre la réunion Teams" ci-dessus</li>
+                      <li>Choisissez de rejoindre via votre navigateur ou l'application Teams</li>
+                      <li>Entrez votre nom si demandé</li>
+                      <li>Activez votre caméra et microphone</li>
+                      <li>Cliquez sur "Rejoindre maintenant"</li>
+                    </ol>
+                  </div>
+                  
+                  <div class="meeting-details">
+                    <p><strong>Lien de la réunion :</strong></p>
+                    <p style="word-break: break-all; color: #5558AF;">${teamsLink}</p>
+                  </div>
+                ` : ''}
+                
+                <p style="margin-top: 30px;">Si vous avez des questions ou des problèmes de connexion, n'hésitez pas à nous contacter.</p>
+              </div>
               <div class="footer">
-                <p>Cordialement,<br>L'équipe de recrutement</p>
+                <p>Cordialement,<br><strong>L'équipe de recrutement</strong></p>
+                <p style="font-size: 12px; color: #999; margin-top: 15px;">
+                  Cet email a été envoyé automatiquement. Merci de ne pas y répondre directement.
+                </p>
               </div>
             </div>
           </body>
@@ -128,11 +340,11 @@ serve(async (req) => {
       try {
         // Send email using Resend
         const emailResponse = await resend.emails.send({
-          from: fromAddress, // Uses the configured from address
+          from: fromAddress,
           to: recipients,
-          subject: 'Invitation Teams Meeting',
+          subject: 'Invitation - Réunion Microsoft Teams',
           html: htmlContent,
-          text: message || 'Vous êtes invité(e) à une réunion Teams.'
+          text: message || 'Vous êtes invité(e) à une réunion Microsoft Teams.'
         });
         
         console.log('Email sent successfully via Resend:', emailResponse);
