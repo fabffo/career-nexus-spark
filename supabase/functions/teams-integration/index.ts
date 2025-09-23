@@ -72,30 +72,97 @@ serve(async (req) => {
       case 'send-invitation': {
         const { rdv, recipients, message } = data;
         
-        // For demonstration, we'll log the invitation details
-        // In production, you would send actual emails using a service like SendGrid or Resend
         console.log('Sending invitation to:', recipients);
         console.log('Message:', message);
         
-        // Store the invitation in the database for tracking
+        // Send real email using Mailtrap
+        const mailtrapApiKey = Deno.env.get('MAILTRAP_API_KEY');
+        
+        if (!mailtrapApiKey) {
+          throw new Error('MAILTRAP_API_KEY not configured');
+        }
+
+        // Prepare email data for Mailtrap
+        const emailData = {
+          from: {
+            email: "noreply@demomailtrap.com",
+            name: "Équipe de Recrutement"
+          },
+          to: recipients.map((email: string) => ({ email })),
+          subject: `Invitation Teams - Rendez-vous du ${new Date(rdv.date).toLocaleDateString('fr-FR')}`,
+          text: message,
+          html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+              <div style="max-width: 600px; margin: 20px auto; background-color: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <div style="background-color: #5558DD; color: white; padding: 30px; border-radius: 8px 8px 0 0;">
+                  <h1 style="margin: 0; font-size: 24px;">Invitation Teams</h1>
+                  <p style="margin: 10px 0 0 0; opacity: 0.9;">Rendez-vous de recrutement</p>
+                </div>
+                <div style="padding: 30px;">
+                  <div style="white-space: pre-wrap; line-height: 1.8; color: #333;">${message.replace(/\n/g, '<br>')}</div>
+                  
+                  ${rdv.teams_link ? `
+                    <div style="margin-top: 30px; padding: 20px; background-color: #f0f2ff; border-radius: 8px; border-left: 4px solid #5558DD;">
+                      <h3 style="margin: 0 0 10px 0; color: #5558DD;">Rejoindre la réunion</h3>
+                      <a href="${rdv.teams_link}" style="display: inline-block; padding: 12px 24px; background-color: #5558DD; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Cliquer ici pour rejoindre</a>
+                    </div>
+                  ` : ''}
+                </div>
+                <div style="padding: 20px; background-color: #f8f8f8; border-radius: 0 0 8px 8px; text-align: center; color: #666; font-size: 12px;">
+                  <p style="margin: 0;">Cet email a été envoyé depuis notre plateforme de recrutement</p>
+                  <p style="margin: 5px 0 0 0;">© 2025 - Tous droits réservés</p>
+                </div>
+              </div>
+            </body>
+            </html>
+          `
+        };
+
+        // Send email via Mailtrap API
+        const mailtrapResponse = await fetch('https://send.api.mailtrap.io/api/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Api-Token': mailtrapApiKey,
+          },
+          body: JSON.stringify(emailData),
+        });
+
+        const mailtrapResult = await mailtrapResponse.json();
+        
+        if (!mailtrapResponse.ok) {
+          console.error('Mailtrap API error:', mailtrapResult);
+          throw new Error(`Failed to send email: ${JSON.stringify(mailtrapResult)}`);
+        }
+
+        console.log('Email sent successfully via Mailtrap:', mailtrapResult);
+        
+        // Store invitation record
         const invitationData = {
           rdv_id: rdv.id,
           recipients: recipients,
           message: message,
           sent_at: new Date().toISOString(),
-          status: 'sent'
+          status: 'sent',
+          mailtrap_response: mailtrapResult
         };
         
         console.log('Invitation data:', invitationData);
 
-        // Simulate successful email send
         return new Response(
           JSON.stringify({ 
             success: true, 
-            message: 'Invitation envoyée avec succès (mode simulation)',
+            message: 'Invitation envoyée avec succès via Mailtrap!',
             details: {
               recipients: recipients,
-              rdvDate: new Date(rdv.date).toLocaleString('fr-FR')
+              rdvDate: new Date(rdv.date).toLocaleString('fr-FR'),
+              mailtrap_message_id: mailtrapResult.message_ids
             }
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
