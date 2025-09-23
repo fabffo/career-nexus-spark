@@ -81,6 +81,12 @@ serve(async (req) => {
         if (!mailtrapApiKey) {
           throw new Error('MAILTRAP_API_KEY not configured');
         }
+        
+        // Log the API key info for debugging
+        console.log('MAILTRAP_API_KEY configured:', !!mailtrapApiKey);
+        console.log('Key length:', mailtrapApiKey.length);
+        console.log('Key starts with:', mailtrapApiKey.substring(0, 4));
+        console.log('Key ends with:', mailtrapApiKey.substring(mailtrapApiKey.length - 4));
 
         // Prepare email data for Mailtrap
         const emailData = {
@@ -128,13 +134,16 @@ serve(async (req) => {
         console.log('Sending email with Mailtrap API...');
         console.log('Mailtrap API Key:', mailtrapApiKey ? `${mailtrapApiKey.substring(0, 4)}...${mailtrapApiKey.substring(mailtrapApiKey.length - 4)}` : 'MISSING');
         
-        // Send email via Mailtrap API
-        const mailtrapResponse = await fetch('https://send.api.mailtrap.io/api/send', {
+        // Test with simple fetch to Mailtrap
+        const mailtrapUrl = 'https://send.api.mailtrap.io/api/send';
+        console.log('Calling Mailtrap API at:', mailtrapUrl);
+        
+        const mailtrapResponse = await fetch(mailtrapUrl, {
           method: 'POST',
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
-            'Api-Token': mailtrapApiKey,
+            'Api-Token': mailtrapApiKey.trim(), // Ensure no whitespace
           },
           body: JSON.stringify(emailData),
         });
