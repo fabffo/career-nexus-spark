@@ -7,152 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Microsoft Graph API configuration
-const GRAPH_API_URL = 'https://graph.microsoft.com/v1.0';
-const GRAPH_SCOPE = 'https://graph.microsoft.com/.default';
-
-// Function to get access token from Microsoft
-async function getAccessToken(): Promise<string> {
-  const tenantId = Deno.env.get('AZURE_TENANT_ID');
-  const clientId = Deno.env.get('AZURE_CLIENT_ID');
-  const clientSecret = Deno.env.get('AZURE_CLIENT_SECRET');
-
-  console.log('Azure credentials check:', {
-    tenantId: tenantId ? `${tenantId.substring(0, 8)}...` : 'NOT SET',
-    clientId: clientId ? `${clientId.substring(0, 8)}...` : 'NOT SET',
-    clientSecret: clientSecret ? 'SET (length: ' + clientSecret.length + ')' : 'NOT SET'
-  });
-
-  if (!tenantId || !clientId || !clientSecret) {
-    const missing = [];
-    if (!tenantId) missing.push('AZURE_TENANT_ID');
-    if (!clientId) missing.push('AZURE_CLIENT_ID');
-    if (!clientSecret) missing.push('AZURE_CLIENT_SECRET');
-    throw new Error(`Azure AD credentials missing: ${missing.join(', ')}`);
-  }
-
-  const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
-
-  try {
-    console.log('Requesting token from:', tokenUrl);
-    
-    const response = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        scope: GRAPH_SCOPE,
-        grant_type: 'client_credentials',
-      }),
-    });
-
-    const responseText = await response.text();
-    
-    if (!response.ok) {
-      console.error('Token request failed with status:', response.status);
-      console.error('Error response:', responseText);
-      
-      // Parse error for more details
-      try {
-        const errorData = JSON.parse(responseText);
-        if (errorData.error_description) {
-          throw new Error(`Azure AD: ${errorData.error_description}`);
-        }
-      } catch {
-        // If not JSON, use raw text
-      }
-      
-      throw new Error(`Failed to authenticate with Microsoft: ${responseText}`);
-    }
-
-    const data = JSON.parse(responseText);
-    console.log('Successfully obtained access token');
-    return data.access_token;
-  } catch (error) {
-    console.error('Error getting access token:', error);
-    throw error;
-  }
-}
-
-// Function to create Teams meeting
-async function createTeamsMeeting(rdv: any): Promise<any> {
-  try {
-    const accessToken = await getAccessToken();
-    
-    // Get the first user to create meeting on behalf of
-    const usersResponse = await fetch(`${GRAPH_API_URL}/users?$top=1&$select=id,mail,displayName`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!usersResponse.ok) {
-      const error = await usersResponse.text();
-      console.error('Failed to get users:', error);
-      throw new Error('Failed to get users from Microsoft Graph');
-    }
-
-    const usersData = await usersResponse.json();
-    if (!usersData.value || usersData.value.length === 0) {
-      throw new Error('No users found in the organization');
-    }
-
-    const organizerUser = usersData.value[0];
-    console.log('Creating meeting for organizer:', organizerUser.mail);
-
-    // Calculate meeting times
-    const startDateTime = new Date(rdv.date);
-    const endDateTime = new Date(startDateTime);
-    endDateTime.setHours(endDateTime.getHours() + 1); // 1 hour meeting by default
-
-    // Create the online meeting
-    const meetingResponse = await fetch(`${GRAPH_API_URL}/users/${organizerUser.id}/onlineMeetings`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        startDateTime: startDateTime.toISOString(),
-        endDateTime: endDateTime.toISOString(),
-        subject: `Rendez-vous - ${rdv.candidatName || 'Candidat'}`,
-        participants: {
-          organizer: {
-            identity: {
-              user: {
-                id: organizerUser.id
-              }
-            }
-          }
-        },
-        allowedPresenters: 'everyone',
-        isEntryExitAnnounced: true,
-        lobbyBypassSettings: {
-          scope: 'everyone',
-          isDialInBypassEnabled: true
-        }
-      }),
-    });
-
-    if (!meetingResponse.ok) {
-      const error = await meetingResponse.text();
-      console.error('Failed to create meeting:', error);
-      throw new Error('Failed to create Teams meeting');
-    }
-
-    const meetingData = await meetingResponse.json();
-    console.log('Teams meeting created successfully:', meetingData.id);
-    return meetingData;
-  } catch (error) {
-    console.error('Error creating Teams meeting:', error);
-    throw error;
-  }
-}
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -170,89 +24,65 @@ serve(async (req) => {
 
     if (action === 'create-meeting') {
       const { rdv, attendeeEmails } = data;
-      console.log('Creating real Teams meeting for:', rdv);
+      console.log('Creating Teams meeting for:', rdv);
       
-      try {
-        // Create real Teams meeting using Microsoft Graph API
-        const meeting = await createTeamsMeeting(rdv);
-        
-        // Extract the join URL and meeting ID
-        const teamsLink = meeting.joinUrl || meeting.joinWebUrl;
-        const meetingId = meeting.id;
-        
-        console.log('Meeting created with link:', teamsLink);
-        
-        // Update the RDV with the real Teams link
-        if (rdv.id) {
-          const { error: updateError } = await supabase
-            .from('rdvs')
-            .update({ 
-              teams_link: teamsLink,
-              teams_meeting_id: meetingId 
-            })
-            .eq('id', rdv.id);
+      // Generate a unique meeting ID
+      const meetingId = crypto.randomUUID();
+      
+      // Create a properly formatted Teams meeting link
+      // Note: This creates a link format that Teams recognizes for quick meetings
+      const startDateTime = new Date(rdv.date);
+      const endDateTime = new Date(startDateTime);
+      endDateTime.setHours(endDateTime.getHours() + 1); // 1 hour meeting
+      
+      // Format the meeting subject
+      const subject = encodeURIComponent(`Rendez-vous - ${rdv.candidatName || rdv.candidat?.prenom + ' ' + rdv.candidat?.nom || 'Candidat'}`);
+      const content = encodeURIComponent(`Entretien de recrutement avec ${rdv.candidatName || 'le candidat'}`);
+      
+      // Create Teams meeting URL with deep link format
+      // This will open Teams and prompt to create a meeting
+      const teamsLink = `https://teams.microsoft.com/l/meeting/new?subject=${subject}&content=${content}&startTime=${startDateTime.toISOString()}&endTime=${endDateTime.toISOString()}`;
+      
+      console.log('Generated Teams link:', teamsLink);
+      
+      // Update the RDV with the Teams link
+      if (rdv.id) {
+        const { error: updateError } = await supabase
+          .from('rdvs')
+          .update({ 
+            teams_link: teamsLink,
+            teams_meeting_id: meetingId 
+          })
+          .eq('id', rdv.id);
 
-          if (updateError) {
-            console.error('Error updating RDV:', updateError);
-          }
+        if (updateError) {
+          console.error('Error updating RDV:', updateError);
         }
-        
-        // Prepare meeting details for response
-        const meetingDetails = {
-          subject: meeting.subject,
-          date: new Date(rdv.date).toLocaleString('fr-FR'),
-          type: rdv.typeRdv,
-          teamsLink: teamsLink,
-          audioConferencing: meeting.audioConferencing
-        };
-
-        return new Response(
-          JSON.stringify({
-            success: true,
-            meetingId,
-            joinUrl: teamsLink,
-            meetingDetails
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      } catch (meetingError) {
-        console.error('Failed to create Teams meeting, using fallback:', meetingError);
-        
-        // Fallback to placeholder if Graph API fails
-        const meetingId = crypto.randomUUID();
-        const teamsLink = `https://teams.microsoft.com/l/meetup-join/${meetingId}`;
-        
-        if (rdv.id) {
-          await supabase
-            .from('rdvs')
-            .update({ 
-              teams_link: teamsLink,
-              teams_meeting_id: meetingId 
-            })
-            .eq('id', rdv.id);
-        }
-        
-        return new Response(
-          JSON.stringify({
-            success: true,
-            meetingId,
-            joinUrl: teamsLink,
-            meetingDetails: {
-              subject: `Rendez-vous - ${rdv.candidatName || 'Candidat'}`,
-              date: new Date(rdv.date).toLocaleString('fr-FR'),
-              type: rdv.typeRdv,
-              teamsLink: teamsLink
-            },
-            warning: 'Using fallback Teams link due to API error'
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
       }
+      
+      // Prepare meeting details for response
+      const meetingDetails = {
+        subject: `Rendez-vous - ${rdv.candidatName || 'Candidat'}`,
+        date: new Date(rdv.date).toLocaleString('fr-FR'),
+        type: rdv.typeRdv,
+        teamsLink: teamsLink
+      };
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          meetingId,
+          joinUrl: teamsLink,
+          meetingDetails,
+          info: 'Lien Teams généré. L\'organisateur devra créer la réunion dans Teams.'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     if (action === 'send-invitation') {
       const { rdv, recipients, message } = data;
-      const teamsLink = rdv.teams_link || 'https://teams.microsoft.com/l/meetup-join/placeholder';
+      const teamsLink = rdv.teams_link || `https://teams.microsoft.com/l/meeting/new?subject=${encodeURIComponent('Rendez-vous')}`;
       
       console.log('Sending invitation to:', recipients);
       console.log('Message:', message);
@@ -330,23 +160,22 @@ serve(async (req) => {
                 
                 ${teamsLink ? `
                   <div style="text-align: center;">
-                    <a href="${teamsLink}" class="teams-button">🎥 Rejoindre la réunion Teams</a>
+                    <a href="${teamsLink}" class="teams-button">🎥 Créer/Rejoindre la réunion Teams</a>
                   </div>
                   
                   <div class="instructions">
-                    <h3>Comment rejoindre la réunion :</h3>
+                    <h3>Comment utiliser ce lien :</h3>
                     <ol>
-                      <li>Cliquez sur le bouton "Rejoindre la réunion Teams" ci-dessus</li>
-                      <li>Choisissez de rejoindre via votre navigateur ou l'application Teams</li>
-                      <li>Entrez votre nom si demandé</li>
-                      <li>Activez votre caméra et microphone</li>
-                      <li>Cliquez sur "Rejoindre maintenant"</li>
+                      <li>Cliquez sur le bouton ci-dessus</li>
+                      <li>Teams s'ouvrira (dans votre navigateur ou l'application)</li>
+                      <li>Si vous êtes l'organisateur, créez la réunion avec les participants</li>
+                      <li>Si vous êtes invité, attendez que l'organisateur partage le lien de réunion final</li>
                     </ol>
                   </div>
                   
                   <div class="meeting-details">
-                    <p><strong>Lien de la réunion :</strong></p>
-                    <p style="word-break: break-all; color: #5558AF;">${teamsLink}</p>
+                    <p><strong>Note importante :</strong></p>
+                    <p>Ce lien permet de préparer une réunion Teams. L'organisateur devra finaliser la création dans Teams et partager le lien de réunion définitif avec les participants.</p>
                   </div>
                 ` : ''}
                 
