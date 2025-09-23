@@ -1,31 +1,59 @@
 import { useState, useEffect } from 'react';
-import { rdvService } from '@/services';
-import { Rdv } from '@/types/models';
+import { rdvService, candidatService, clientService } from '@/services';
+import { Rdv, Candidat, Client } from '@/types/models';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus } from 'lucide-react';
+import { Plus, Edit, Trash2, Send } from 'lucide-react';
 import { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import TeamsIntegration from '@/components/TeamsIntegration';
 
 export default function RendezVous() {
   const [rdvs, setRdvs] = useState<Rdv[]>([]);
+  const [candidats, setCandidats] = useState<Candidat[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
 
   useEffect(() => {
-    loadRdvs();
+    loadData();
   }, []);
 
-  const loadRdvs = async () => {
-    const data = await rdvService.getAll();
-    setRdvs(data);
+  const loadData = async () => {
+    const [rdvData, candidatData, clientData] = await Promise.all([
+      rdvService.getAll(),
+      candidatService.getAll(),
+      clientService.getAll()
+    ]);
+    setRdvs(rdvData);
+    setCandidats(candidatData);
+    setClients(clientData);
   };
+
+  const getCandidat = (id: string) => candidats.find(c => c.id === id);
+  const getClient = (id: string) => clients.find(c => c.id === id);
 
   const columns: ColumnDef<Rdv>[] = [
     {
       accessorKey: 'date',
       header: 'Date',
       cell: ({ row }) => format(new Date(row.original.date), 'dd/MM/yyyy HH:mm', { locale: fr }),
+    },
+    {
+      id: 'candidat',
+      header: 'Candidat',
+      cell: ({ row }) => {
+        const candidat = getCandidat(row.original.candidatId);
+        return candidat ? `${candidat.prenom} ${candidat.nom}` : '-';
+      },
+    },
+    {
+      id: 'client',
+      header: 'Client',
+      cell: ({ row }) => {
+        const client = getClient(row.original.clientId);
+        return client ? client.raisonSociale : '-';
+      },
     },
     {
       accessorKey: 'typeRdv',
@@ -45,6 +73,35 @@ export default function RendezVous() {
         };
         return <Badge className={colors[statut] || ''}>{statut}</Badge>;
       },
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          {row.original.typeRdv === 'TEAMS' && (
+            <TeamsIntegration rdv={row.original} />
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              // TODO: Implémenter l'édition
+            }}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              // TODO: Implémenter la suppression
+            }}
+          >
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        </div>
+      ),
     },
   ];
 

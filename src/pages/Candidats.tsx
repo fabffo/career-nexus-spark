@@ -3,7 +3,7 @@ import { candidatService } from '@/services';
 import { Candidat } from '@/types/models';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Eye, Mail, Phone, MapPin } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Mail, Phone, MapPin, FileText, Award, Paperclip } from 'lucide-react';
 import { ColumnDef } from '@tanstack/react-table';
 import {
   Dialog,
@@ -38,6 +38,8 @@ export default function Candidats() {
     mail: '',
     telephone: '',
     adresse: '',
+    cvUrl: '',
+    recommandationUrl: '',
   });
 
   useEffect(() => {
@@ -59,6 +61,8 @@ export default function Candidats() {
         mail: candidat.mail,
         telephone: candidat.telephone,
         adresse: candidat.adresse,
+        cvUrl: candidat.cvUrl || '',
+        recommandationUrl: candidat.recommandationUrl || '',
       });
     } else {
       setSelectedCandidat(null);
@@ -69,6 +73,8 @@ export default function Candidats() {
         mail: '',
         telephone: '',
         adresse: '',
+        cvUrl: '',
+        recommandationUrl: '',
       });
     }
     setIsFormOpen(true);
@@ -139,6 +145,37 @@ export default function Candidats() {
         <div className="flex items-center gap-2">
           <Phone className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm">{row.original.telephone}</span>
+        </div>
+      ),
+    },
+    {
+      id: 'documents',
+      header: 'Documents',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          {row.original.cvUrl && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => window.open(row.original.cvUrl, '_blank')}
+              title="Voir CV"
+            >
+              <FileText className="h-4 w-4" />
+            </Button>
+          )}
+          {row.original.recommandationUrl && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => window.open(row.original.recommandationUrl, '_blank')}
+              title="Voir recommandation"
+            >
+              <Award className="h-4 w-4" />
+            </Button>
+          )}
+          {!row.original.cvUrl && !row.original.recommandationUrl && (
+            <span className="text-sm text-muted-foreground">Aucun</span>
+          )}
         </div>
       ),
     },
@@ -248,6 +285,36 @@ export default function Candidats() {
                 id="adresse"
                 value={formData.adresse}
                 onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="cvUrl">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  URL du CV
+                </div>
+              </Label>
+              <Input
+                id="cvUrl"
+                type="url"
+                placeholder="https://example.com/cv.pdf"
+                value={formData.cvUrl}
+                onChange={(e) => setFormData({ ...formData, cvUrl: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="recommandationUrl">
+                <div className="flex items-center gap-2">
+                  <Award className="h-4 w-4" />
+                  URL de recommandation
+                </div>
+              </Label>
+              <Input
+                id="recommandationUrl"
+                type="url"
+                placeholder="https://example.com/recommandation.pdf"
+                value={formData.recommandationUrl}
+                onChange={(e) => setFormData({ ...formData, recommandationUrl: e.target.value })}
               />
             </div>
           </div>
