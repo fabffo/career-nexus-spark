@@ -85,7 +85,7 @@ serve(async (req) => {
         // Prepare email data for Mailtrap
         const emailData = {
           from: {
-            email: "noreply@demomailtrap.com",
+            email: "hello@demomailtrap.com",
             name: "Équipe de Recrutement"
           },
           to: recipients.map((email: string) => ({ email })),
@@ -121,13 +121,17 @@ serve(async (req) => {
               </div>
             </body>
             </html>
-          `
+          `,
+          category: "Integration Test"
         };
 
+        console.log('Sending email with Mailtrap API...');
+        
         // Send email via Mailtrap API
         const mailtrapResponse = await fetch('https://send.api.mailtrap.io/api/send', {
           method: 'POST',
           headers: {
+            'Accept': 'application/json',
             'Content-Type': 'application/json',
             'Api-Token': mailtrapApiKey,
           },
@@ -138,6 +142,11 @@ serve(async (req) => {
         
         if (!mailtrapResponse.ok) {
           console.error('Mailtrap API error:', mailtrapResult);
+          console.error('Status:', mailtrapResponse.status);
+          console.error('Headers used:', {
+            'Api-Token': mailtrapApiKey ? 'Present' : 'Missing',
+            'Token length': mailtrapApiKey ? mailtrapApiKey.length : 0
+          });
           throw new Error(`Failed to send email: ${JSON.stringify(mailtrapResult)}`);
         }
 
