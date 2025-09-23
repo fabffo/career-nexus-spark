@@ -116,7 +116,7 @@ export type Database = {
           rdv_type: Database["public"]["Enums"]["rdv_type"]
           recruteur_id: string | null
           referent_id: string | null
-          statut: string
+          statut: Database["public"]["Enums"]["rdv_statut"]
           teams_link: string | null
           teams_meeting_id: string | null
           type_rdv: string
@@ -133,7 +133,7 @@ export type Database = {
           rdv_type?: Database["public"]["Enums"]["rdv_type"]
           recruteur_id?: string | null
           referent_id?: string | null
-          statut: string
+          statut: Database["public"]["Enums"]["rdv_statut"]
           teams_link?: string | null
           teams_meeting_id?: string | null
           type_rdv: string
@@ -150,7 +150,7 @@ export type Database = {
           rdv_type?: Database["public"]["Enums"]["rdv_type"]
           recruteur_id?: string | null
           referent_id?: string | null
-          statut?: string
+          statut?: Database["public"]["Enums"]["rdv_statut"]
           teams_link?: string | null
           teams_meeting_id?: string | null
           type_rdv?: string
@@ -236,6 +236,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      rdv_statut: "ENCOURS" | "REALISE" | "TERMINE" | "ANNULE"
       rdv_type: "RECRUTEUR" | "CLIENT"
       user_role: "ADMIN" | "RECRUTEUR"
     }
@@ -365,6 +366,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      rdv_statut: ["ENCOURS", "REALISE", "TERMINE", "ANNULE"],
       rdv_type: ["RECRUTEUR", "CLIENT"],
       user_role: ["ADMIN", "RECRUTEUR"],
     },
