@@ -74,6 +74,36 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          nom: string
+          prenom: string
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id: string
+          nom: string
+          prenom: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          nom?: string
+          prenom?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       rdvs: {
         Row: {
           candidat_id: string | null
@@ -83,6 +113,9 @@ export type Database = {
           id: string
           lieu: string | null
           notes: string | null
+          rdv_type: Database["public"]["Enums"]["rdv_type"]
+          recruteur_id: string | null
+          referent_id: string | null
           statut: string
           teams_link: string | null
           teams_meeting_id: string | null
@@ -97,6 +130,9 @@ export type Database = {
           id?: string
           lieu?: string | null
           notes?: string | null
+          rdv_type?: Database["public"]["Enums"]["rdv_type"]
+          recruteur_id?: string | null
+          referent_id?: string | null
           statut: string
           teams_link?: string | null
           teams_meeting_id?: string | null
@@ -111,6 +147,9 @@ export type Database = {
           id?: string
           lieu?: string | null
           notes?: string | null
+          rdv_type?: Database["public"]["Enums"]["rdv_type"]
+          recruteur_id?: string | null
+          referent_id?: string | null
           statut?: string
           teams_link?: string | null
           teams_meeting_id?: string | null
@@ -132,6 +171,61 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "rdvs_recruteur_id_fkey"
+            columns: ["recruteur_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rdvs_referent_id_fkey"
+            columns: ["referent_id"]
+            isOneToOne: false
+            referencedRelation: "referents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referents: {
+        Row: {
+          client_id: string | null
+          created_at: string | null
+          email: string
+          id: string
+          nom: string
+          prenom: string
+          telephone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          nom: string
+          prenom: string
+          telephone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          nom?: string
+          prenom?: string
+          telephone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -142,7 +236,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      rdv_type: "RECRUTEUR" | "CLIENT"
+      user_role: "ADMIN" | "RECRUTEUR"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -269,6 +364,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      rdv_type: ["RECRUTEUR", "CLIENT"],
+      user_role: ["ADMIN", "RECRUTEUR"],
+    },
   },
 } as const
