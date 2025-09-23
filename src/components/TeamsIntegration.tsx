@@ -3,11 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Send, Users, Calendar } from 'lucide-react';
+import { Send, Users, Calendar, Mail } from 'lucide-react';
 import { Rdv } from '@/types/models';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TeamsIntegrationProps {
   rdv: Rdv;
@@ -17,6 +19,8 @@ interface TeamsIntegrationProps {
 export default function TeamsIntegration({ rdv, onClose }: TeamsIntegrationProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
+  const [recipients, setRecipients] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   
   const generateMeetingInvite = () => {
     const date = format(new Date(rdv.date), 'dd MMMM yyyy à HH:mm', { locale: fr });
@@ -46,35 +50,67 @@ L'équipe de recrutement`;
   };
 
   const handleSendToTeams = async () => {
+    if (!recipients.trim()) {
+      toast.error('Veuillez entrer au moins une adresse email');
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      // Pour l'instant, nous simulons l'envoi
-      // Dans un environnement réel, cela nécessiterait l'API Microsoft Graph
+      // Parse recipient emails
+      const emailList = recipients.split(',').map(email => email.trim()).filter(email => email);
       
-      // Vérifier si nous avons les clés API nécessaires
-      const hasTeamsIntegration = false; // À remplacer par une vraie vérification
-      
-      if (!hasTeamsIntegration) {
-        toast.info('L\'intégration Teams nécessite une configuration avec Lovable Cloud', {
-          description: 'Activez Lovable Cloud pour connecter Microsoft Teams',
-          action: {
-            label: 'Configurer',
-            onClick: () => {
-              // Trigger Lovable Cloud setup
-              toast.info('Contactez votre administrateur pour configurer l\'intégration Teams');
+      // Create Teams meeting if it's a Teams RDV
+      if (rdv.typeRdv === 'TEAMS') {
+        const { data, error } = await supabase.functions.invoke('teams-integration', {
+          body: {
+            action: 'create-meeting',
+            data: {
+              rdv: {
+                ...rdv,
+                candidatName: `${rdv.candidat?.prenom} ${rdv.candidat?.nom}`,
+                clientName: rdv.client?.raisonSociale
+              },
+              attendeeEmails: emailList
             }
           }
         });
-        return;
+
+        if (error) throw error;
+        
+        if (data?.joinUrl) {
+          toast.success('Réunion Teams créée avec succès', {
+            description: 'Le lien de la réunion a été ajouté au rendez-vous'
+          });
+        }
       }
       
-      // Simulation d'envoi
-      toast.success('Invitation Teams envoyée avec succès');
+      // Send invitation email
+      const { error: emailError } = await supabase.functions.invoke('teams-integration', {
+        body: {
+          action: 'send-invitation',
+          data: {
+            rdv,
+            recipients: emailList,
+            message
+          }
+        }
+      });
+
+      if (emailError) throw emailError;
+      
+      toast.success('Invitation envoyée avec succès');
       setIsOpen(false);
+      setRecipients('');
       if (onClose) onClose();
       
     } catch (error) {
-      toast.error('Erreur lors de l\'envoi de l\'invitation');
+      toast.error('Erreur lors de l\'envoi de l\'invitation', {
+        description: error.message
+      });
       console.error('Erreur Teams:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -119,12 +155,24 @@ L'équipe de recrutement`;
             </div>
 
             <div>
+              <Label htmlFor="recipients">Destinataires (emails séparés par des virgules)</Label>
+              <Input
+                id="recipients"
+                type="text"
+                value={recipients}
+                onChange={(e) => setRecipients(e.target.value)}
+                placeholder="email1@example.com, email2@example.com"
+                className="mt-2"
+              />
+            </div>
+
+            <div>
               <Label htmlFor="message">Message d'invitation</Label>
               <Textarea
                 id="message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                rows={12}
+                rows={10}
                 className="mt-2"
               />
             </div>
@@ -136,10 +184,17 @@ L'équipe de recrutement`;
             </Button>
             <Button 
               onClick={handleSendToTeams}
+              disabled={isLoading}
               className="bg-gradient-to-r from-primary to-primary-hover"
             >
-              <Send className="mr-2 h-4 w-4" />
-              Envoyer l'invitation
+              {isLoading ? (
+                <>Envoi en cours...</>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Envoyer l'invitation
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

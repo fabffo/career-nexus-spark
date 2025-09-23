@@ -14,7 +14,126 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      candidats: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          nom: string
+          prenom: string
+          telephone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          nom: string
+          prenom: string
+          telephone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          nom?: string
+          prenom?: string
+          telephone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      clients: {
+        Row: {
+          adresse: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          raison_sociale: string
+          telephone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          adresse?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          raison_sociale: string
+          telephone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          adresse?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          raison_sociale?: string
+          telephone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      rdvs: {
+        Row: {
+          candidat_id: string | null
+          client_id: string | null
+          created_at: string | null
+          date: string
+          id: string
+          lieu: string | null
+          notes: string | null
+          statut: string
+          teams_link: string | null
+          teams_meeting_id: string | null
+          type_rdv: string
+          updated_at: string | null
+        }
+        Insert: {
+          candidat_id?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          date: string
+          id?: string
+          lieu?: string | null
+          notes?: string | null
+          statut: string
+          teams_link?: string | null
+          teams_meeting_id?: string | null
+          type_rdv: string
+          updated_at?: string | null
+        }
+        Update: {
+          candidat_id?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          lieu?: string | null
+          notes?: string | null
+          statut?: string
+          teams_link?: string | null
+          teams_meeting_id?: string | null
+          type_rdv?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rdvs_candidat_id_fkey"
+            columns: ["candidat_id"]
+            isOneToOne: false
+            referencedRelation: "candidats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rdvs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -4,11 +4,12 @@ import { Rdv, Candidat, Client } from '@/types/models';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Send } from 'lucide-react';
+import { Edit, Trash2 } from 'lucide-react';
 import { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import TeamsIntegration from '@/components/TeamsIntegration';
+import AddRdvDialog from '@/components/AddRdvDialog';
 
 export default function RendezVous() {
   const [rdvs, setRdvs] = useState<Rdv[]>([]);
@@ -109,10 +110,11 @@ export default function RendezVous() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Rendez-vous</h1>
-        <Button className="bg-gradient-to-r from-primary to-primary-hover">
-          <Plus className="mr-2 h-4 w-4" />
-          Nouveau RDV
-        </Button>
+        <AddRdvDialog 
+          candidats={candidats} 
+          clients={clients} 
+          onSuccess={loadData}
+        />
       </div>
       <DataTable columns={columns} data={rdvs} searchPlaceholder="Rechercher un rendez-vous..." />
     </div>
