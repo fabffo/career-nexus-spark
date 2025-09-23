@@ -84,6 +84,10 @@ serve(async (req) => {
       
       console.log('Using Resend to send email');
       
+      // Determine the from address based on environment
+      // Use 'onboarding@resend.dev' for testing or your verified domain for production
+      const fromAddress = 'onboarding@resend.dev'; // Change to 'noreply@yourdomain.com' after domain verification
+      
       // Create HTML email content
       const htmlContent = `
         <html>
@@ -124,7 +128,7 @@ serve(async (req) => {
       try {
         // Send email using Resend
         const emailResponse = await resend.emails.send({
-          from: 'onboarding@resend.dev', // Use Resend's test domain or your verified domain
+          from: fromAddress, // Uses the configured from address
           to: recipients,
           subject: 'Invitation Teams Meeting',
           html: htmlContent,
