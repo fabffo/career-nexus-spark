@@ -126,6 +126,7 @@ serve(async (req) => {
         };
 
         console.log('Sending email with Mailtrap API...');
+        console.log('Mailtrap API Key:', mailtrapApiKey ? `${mailtrapApiKey.substring(0, 4)}...${mailtrapApiKey.substring(mailtrapApiKey.length - 4)}` : 'MISSING');
         
         // Send email via Mailtrap API
         const mailtrapResponse = await fetch('https://send.api.mailtrap.io/api/send', {
@@ -138,7 +139,17 @@ serve(async (req) => {
           body: JSON.stringify(emailData),
         });
 
-        const mailtrapResult = await mailtrapResponse.json();
+        const responseText = await mailtrapResponse.text();
+        console.log('Mailtrap response status:', mailtrapResponse.status);
+        console.log('Mailtrap response:', responseText);
+        
+        let mailtrapResult;
+        try {
+          mailtrapResult = JSON.parse(responseText);
+        } catch (e) {
+          console.error('Failed to parse Mailtrap response:', responseText);
+          throw new Error(`Invalid Mailtrap response: ${responseText}`);
+        }
         
         if (!mailtrapResponse.ok) {
           console.error('Mailtrap API error:', mailtrapResult);
