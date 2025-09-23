@@ -17,13 +17,25 @@ async function getAccessToken(): Promise<string> {
   const clientId = Deno.env.get('AZURE_CLIENT_ID');
   const clientSecret = Deno.env.get('AZURE_CLIENT_SECRET');
 
+  console.log('Azure credentials check:', {
+    tenantId: tenantId ? `${tenantId.substring(0, 8)}...` : 'NOT SET',
+    clientId: clientId ? `${clientId.substring(0, 8)}...` : 'NOT SET',
+    clientSecret: clientSecret ? 'SET (length: ' + clientSecret.length + ')' : 'NOT SET'
+  });
+
   if (!tenantId || !clientId || !clientSecret) {
-    throw new Error('Azure AD credentials not configured');
+    const missing = [];
+    if (!tenantId) missing.push('AZURE_TENANT_ID');
+    if (!clientId) missing.push('AZURE_CLIENT_ID');
+    if (!clientSecret) missing.push('AZURE_CLIENT_SECRET');
+    throw new Error(`Azure AD credentials missing: ${missing.join(', ')}`);
   }
 
   const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
 
   try {
+    console.log('Requesting token from:', tokenUrl);
+    
     const response = await fetch(tokenUrl, {
       method: 'POST',
       headers: {
@@ -37,13 +49,27 @@ async function getAccessToken(): Promise<string> {
       }),
     });
 
+    const responseText = await response.text();
+    
     if (!response.ok) {
-      const error = await response.text();
-      console.error('Failed to get access token:', error);
-      throw new Error('Failed to authenticate with Microsoft');
+      console.error('Token request failed with status:', response.status);
+      console.error('Error response:', responseText);
+      
+      // Parse error for more details
+      try {
+        const errorData = JSON.parse(responseText);
+        if (errorData.error_description) {
+          throw new Error(`Azure AD: ${errorData.error_description}`);
+        }
+      } catch {
+        // If not JSON, use raw text
+      }
+      
+      throw new Error(`Failed to authenticate with Microsoft: ${responseText}`);
     }
 
-    const data = await response.json();
+    const data = JSON.parse(responseText);
+    console.log('Successfully obtained access token');
     return data.access_token;
   } catch (error) {
     console.error('Error getting access token:', error);
