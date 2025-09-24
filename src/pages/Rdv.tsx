@@ -149,16 +149,21 @@ export default function RendezVous() {
       cell: ({ row }) => format(new Date(row.original.date), 'dd/MM/yyyy HH:mm', { locale: fr }),
     },
     {
-      id: 'candidat',
+      accessorKey: 'candidat',
       header: 'Candidat',
+      accessorFn: (row) => {
+        const candidat = row.candidats;
+        return candidat ? `${candidat.prenom} ${candidat.nom}` : '-';
+      },
       cell: ({ row }) => {
         const candidat = row.original.candidats;
         return candidat ? `${candidat.prenom} ${candidat.nom}` : '-';
       },
     },
     {
-      id: 'client',
+      accessorKey: 'client',
       header: 'Client',
+      accessorFn: (row) => row.clients?.raison_sociale || '-',
       cell: ({ row }) => row.original.clients?.raison_sociale || '-',
     },
     {
@@ -174,8 +179,19 @@ export default function RendezVous() {
       },
     },
     {
-      id: 'contact',
+      accessorKey: 'contact',
       header: 'Contact',
+      accessorFn: (row) => {
+        if (row.rdv_type === 'CLIENT' && row.referents) {
+          const ref = row.referents;
+          return `${ref.prenom} ${ref.nom}`;
+        }
+        if (row.profiles) {
+          const rec = row.profiles;
+          return `${rec.prenom} ${rec.nom}`;
+        }
+        return '-';
+      },
       cell: ({ row }) => {
         if (row.original.rdv_type === 'CLIENT' && row.original.referents) {
           const ref = row.original.referents;
