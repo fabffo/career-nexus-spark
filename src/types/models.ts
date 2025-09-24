@@ -17,6 +17,7 @@ export interface Candidat extends AuditFields {
   adresse: string;
   cvUrl?: string;
   recommandationUrl?: string;
+  detail_cv?: string;
 }
 
 // Client model

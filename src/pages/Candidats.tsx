@@ -59,6 +59,7 @@ export default function Candidats() {
     adresse: '',
     cvUrl: '',
     recommandationUrl: '',
+    detail_cv: '',
   });
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [recommandationFile, setRecommandationFile] = useState<File | null>(null);
@@ -88,6 +89,7 @@ export default function Candidats() {
         adresse: candidat.adresse,
         cvUrl: candidat.cvUrl || '',
         recommandationUrl: candidat.recommandationUrl || '',
+        detail_cv: candidat.detail_cv || '',
       });
     } else {
       setSelectedCandidat(null);
@@ -100,6 +102,7 @@ export default function Candidats() {
         adresse: '',
         cvUrl: '',
         recommandationUrl: '',
+        detail_cv: '',
       });
       setCvFile(null);
       setRecommandationFile(null);
@@ -176,6 +179,7 @@ export default function Candidats() {
         adresse: candidat.adresse,
         cvUrl: candidat.cvUrl || '',
         recommandationUrl: candidat.recommandationUrl || '',
+        detail_cv: candidat.detail_cv || '',
       };
       await candidatService.create(newCandidat);
       toast.success('Candidat dupliqué avec succès');
@@ -525,6 +529,17 @@ export default function Candidats() {
                 id="adresse"
                 value={formData.adresse}
                 onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="detail_cv">Détail CV</Label>
+              <textarea
+                id="detail_cv"
+                value={formData.detail_cv}
+                onChange={(e) => setFormData({ ...formData, detail_cv: e.target.value })}
+                className="w-full min-h-[100px] px-3 py-2 text-sm rounded-md border border-input bg-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="Ajoutez des détails sur le CV du candidat..."
               />
             </div>
             

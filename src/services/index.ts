@@ -29,6 +29,7 @@ class CandidatService implements CrudOperations<Candidat> {
       adresse: '',
       cvUrl: item.cv_url || '',
       recommandationUrl: item.recommandation_url || '',
+      detail_cv: item.detail_cv || '',
       createdAt: new Date(item.created_at),
       updatedAt: new Date(item.updated_at),
     }));
@@ -54,6 +55,7 @@ class CandidatService implements CrudOperations<Candidat> {
       adresse: '',
       cvUrl: data.cv_url || '',
       recommandationUrl: data.recommandation_url || '',
+      detail_cv: data.detail_cv || '',
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };
@@ -66,7 +68,8 @@ class CandidatService implements CrudOperations<Candidat> {
       email: item.mail || '',
       telephone: item.telephone || '',
       cv_url: item.cvUrl || null,
-      recommandation_url: item.recommandationUrl || null
+      recommandation_url: item.recommandationUrl || null,
+      detail_cv: item.detail_cv || null
     };
     
     const { data, error } = await supabase
@@ -87,6 +90,7 @@ class CandidatService implements CrudOperations<Candidat> {
       adresse: item.adresse || '',
       cvUrl: data.cv_url || '',
       recommandationUrl: data.recommandation_url || '',
+      detail_cv: data.detail_cv || '',
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };
@@ -100,6 +104,7 @@ class CandidatService implements CrudOperations<Candidat> {
     if (item.telephone !== undefined) updateData.telephone = item.telephone;
     if (item.cvUrl !== undefined) updateData.cv_url = item.cvUrl;
     if (item.recommandationUrl !== undefined) updateData.recommandation_url = item.recommandationUrl;
+    if (item.detail_cv !== undefined) updateData.detail_cv = item.detail_cv;
     
     const { data, error } = await supabase
       .from('candidats')
@@ -120,6 +125,7 @@ class CandidatService implements CrudOperations<Candidat> {
       adresse: item.adresse || '',
       cvUrl: data.cv_url || '',
       recommandationUrl: data.recommandation_url || '',
+      detail_cv: data.detail_cv || '',
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };
