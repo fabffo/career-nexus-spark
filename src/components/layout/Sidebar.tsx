@@ -58,7 +58,7 @@ export function Sidebar() {
         <div className="flex h-full flex-col">
           <div className="flex h-16 items-center border-b border-border px-6">
             <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Recruitment Manager
+              TalentWave
             </h1>
           </div>
 
