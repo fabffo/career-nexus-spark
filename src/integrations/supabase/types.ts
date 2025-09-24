@@ -66,11 +66,14 @@ export type Database = {
           detail_cv: string | null
           email: string | null
           id: string
+          invitation_sent_at: string | null
+          invitation_token: string | null
           nom: string
           prenom: string
           recommandation_url: string | null
           telephone: string | null
           updated_at: string | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -78,11 +81,14 @@ export type Database = {
           detail_cv?: string | null
           email?: string | null
           id?: string
+          invitation_sent_at?: string | null
+          invitation_token?: string | null
           nom: string
           prenom: string
           recommandation_url?: string | null
           telephone?: string | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -90,11 +96,14 @@ export type Database = {
           detail_cv?: string | null
           email?: string | null
           id?: string
+          invitation_sent_at?: string | null
+          invitation_token?: string | null
           nom?: string
           prenom?: string
           recommandation_url?: string | null
           telephone?: string | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -410,12 +419,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_invitation_token: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       rdv_statut: "ENCOURS" | "REALISE" | "TERMINE" | "ANNULE"
       rdv_type: "RECRUTEUR" | "CLIENT"
-      user_role: "ADMIN" | "RECRUTEUR"
+      user_role: "ADMIN" | "RECRUTEUR" | "CANDIDAT"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -545,7 +557,7 @@ export const Constants = {
     Enums: {
       rdv_statut: ["ENCOURS", "REALISE", "TERMINE", "ANNULE"],
       rdv_type: ["RECRUTEUR", "CLIENT"],
-      user_role: ["ADMIN", "RECRUTEUR"],
+      user_role: ["ADMIN", "RECRUTEUR", "CANDIDAT"],
     },
   },
 } as const
