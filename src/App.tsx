@@ -14,6 +14,7 @@ import Referents from "./pages/Referents";
 import Postes from "./pages/Postes";
 import RendezVous from "./pages/Rdv";
 import Recherche from "./pages/Recherche";
+import Matching from "./pages/Matching";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
               <Route path="referents" element={<Referents />} />
               <Route path="postes" element={<Postes />} />
               <Route path="rdv" element={<RendezVous />} />
+              <Route path="matching" element={<Matching />} />
               <Route path="commentaires" element={<Dashboard />} />
             </Route>
             <Route path="*" element={<NotFound />} />

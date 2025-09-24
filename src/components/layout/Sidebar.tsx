@@ -10,6 +10,7 @@ import {
   Menu,
   X,
   Search,
+  BrainCircuit,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ const menuItems = [
   { path: '/rdv', label: 'Rendez-vous', icon: Calendar },
   { path: '/postes', label: 'Postes', icon: Briefcase },
   { path: '/recherche', label: 'Recherche', icon: Search },
+  { path: '/matching', label: 'Matching IA', icon: BrainCircuit },
   { path: '/commentaires', label: 'Commentaires', icon: MessageSquare },
 ];
 
