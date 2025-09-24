@@ -202,13 +202,15 @@ export default function Candidats() {
       setAnalyzeProgress(30);
       
       // Call edge function to analyze CV
-      const { data, error } = await supabase.functions.invoke('analyze-cv', {
+      const response = await supabase.functions.invoke('analyze-cv', {
         body: {
           fileContent,
           fileName: file.name,
           fileType: file.type
         }
       });
+
+      const { data, error } = response;
 
       setAnalyzeProgress(80);
 
@@ -226,9 +228,10 @@ export default function Candidats() {
       } else {
         throw new Error(data?.error || 'Erreur lors de l\'analyse du CV');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error analyzing CV:', error);
-      toast.error('Erreur lors de l\'analyse du CV');
+      const errorMessage = error?.message || 'Erreur lors de l\'analyse du CV';
+      toast.error(errorMessage);
       setIsAnalyzing(false);
       setAnalyzeProgress(0);
     }
