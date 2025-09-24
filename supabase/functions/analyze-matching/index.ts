@@ -25,14 +25,27 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Extract the file path from the full URL
+    let filePath = cvUrl;
+    
+    // If cvUrl is a full URL, extract just the path
+    if (cvUrl.includes('storage/v1/object/public/candidats-files/')) {
+      filePath = cvUrl.split('storage/v1/object/public/candidats-files/')[1];
+    } else if (cvUrl.includes('/candidats-files/')) {
+      filePath = cvUrl.split('/candidats-files/')[1];
+    }
+    
+    console.log('CV file path:', filePath);
+
     // Fetch CV content from storage
     const { data: cvData, error: cvError } = await supabase
       .storage
       .from('candidats-files')
-      .download(cvUrl.replace('candidats-files/', ''));
+      .download(filePath);
 
     if (cvError) {
       console.error('Error fetching CV:', cvError);
+      console.error('Attempted path:', filePath);
       throw new Error('Impossible de récupérer le CV');
     }
 
