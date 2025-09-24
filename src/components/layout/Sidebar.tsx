@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Menu,
   X,
+  Search,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ const menuItems = [
   { path: '/clients', label: 'Clients', icon: Building2 },
   { path: '/rdv', label: 'Rendez-vous', icon: Calendar },
   { path: '/postes', label: 'Postes', icon: Briefcase },
+  { path: '/recherche', label: 'Recherche', icon: Search },
   { path: '/commentaires', label: 'Commentaires', icon: MessageSquare },
 ];
 
