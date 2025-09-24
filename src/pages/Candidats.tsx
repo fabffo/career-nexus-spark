@@ -473,193 +473,200 @@ export default function Candidats() {
 
       {/* Form Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {selectedCandidat ? 'Modifier le candidat' : 'Nouveau candidat'}
             </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="flex-1 overflow-y-auto px-1">
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="nom">Nom</Label>
+                  <Input
+                    id="nom"
+                    value={formData.nom}
+                    onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="prenom">Prénom</Label>
+                  <Input
+                    id="prenom"
+                    value={formData.prenom}
+                    onChange={(e) => setFormData({ ...formData, prenom: e.target.value })}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="mail">Email</Label>
+                  <Input
+                    id="mail"
+                    type="email"
+                    value={formData.mail}
+                    onChange={(e) => setFormData({ ...formData, mail: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="telephone">Téléphone</Label>
+                  <Input
+                    id="telephone"
+                    value={formData.telephone}
+                    onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
+                  />
+                </div>
+              </div>
+              
               <div>
-                <Label htmlFor="nom">Nom</Label>
+                <Label htmlFor="metier">Métier</Label>
                 <Input
-                  id="nom"
-                  value={formData.nom}
-                  onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+                  id="metier"
+                  value={formData.metier}
+                  onChange={(e) => setFormData({ ...formData, metier: e.target.value })}
                 />
               </div>
+              
               <div>
-                <Label htmlFor="prenom">Prénom</Label>
+                <Label htmlFor="adresse">Adresse</Label>
                 <Input
-                  id="prenom"
-                  value={formData.prenom}
-                  onChange={(e) => setFormData({ ...formData, prenom: e.target.value })}
+                  id="adresse"
+                  value={formData.adresse}
+                  onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
                 />
               </div>
-            </div>
-            <div>
-              <Label htmlFor="metier">Métier</Label>
-              <Input
-                id="metier"
-                value={formData.metier}
-                onChange={(e) => setFormData({ ...formData, metier: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="mail">Email</Label>
-              <Input
-                id="mail"
-                type="email"
-                value={formData.mail}
-                onChange={(e) => setFormData({ ...formData, mail: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="telephone">Téléphone</Label>
-              <Input
-                id="telephone"
-                value={formData.telephone}
-                onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="adresse">Adresse</Label>
-              <Input
-                id="adresse"
-                value={formData.adresse}
-                onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="detail_cv">Détail CV</Label>
-              <textarea
-                id="detail_cv"
-                value={formData.detail_cv}
-                onChange={(e) => setFormData({ ...formData, detail_cv: e.target.value })}
-                className="w-full min-h-[100px] px-3 py-2 text-sm rounded-md border border-input bg-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="Ajoutez des détails sur le CV du candidat..."
-              />
-            </div>
-            
-            {/* CV Upload */}
-            <div className="space-y-2">
-              <Label>CV</Label>
-              <input
-                ref={cvInputRef}
-                type="file"
-                accept=".pdf,.doc,.docx"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) setCvFile(file);
-                }}
-                className="hidden"
-              />
-              <div className="flex items-center gap-2">
-                {formData.cvUrl || cvFile ? (
-                  <>
-                    <div className="flex-1 flex items-center gap-2 p-2 rounded-md border border-border bg-muted/50">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground truncate">
-                        {cvFile ? cvFile.name : 'CV existant'}
-                      </span>
-                    </div>
-                    {formData.cvUrl && !cvFile && (
+              
+              <div>
+                <Label htmlFor="detail_cv">Détail CV</Label>
+                <textarea
+                  id="detail_cv"
+                  value={formData.detail_cv}
+                  onChange={(e) => setFormData({ ...formData, detail_cv: e.target.value })}
+                  className="w-full min-h-[100px] px-3 py-2 text-sm rounded-md border border-input bg-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+                  placeholder="Ajoutez des détails sur le CV du candidat..."
+                />
+              </div>
+              
+              {/* CV Upload */}
+              <div className="space-y-2">
+                <Label>CV</Label>
+                <input
+                  ref={cvInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) setCvFile(file);
+                  }}
+                  className="hidden"
+                />
+                <div className="flex items-center gap-2">
+                  {formData.cvUrl || cvFile ? (
+                    <>
+                      <div className="flex-1 flex items-center gap-2 p-2 rounded-md border border-border bg-muted/50 min-w-0">
+                        <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm text-muted-foreground truncate">
+                          {cvFile ? cvFile.name : 'CV existant'}
+                        </span>
+                      </div>
+                      {formData.cvUrl && !cvFile && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => window.open(formData.cvUrl, '_blank')}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="outline"
                         size="icon"
-                        onClick={() => window.open(formData.cvUrl, '_blank')}
+                        onClick={() => {
+                          setCvFile(null);
+                          setFormData({ ...formData, cvUrl: '' });
+                          if (cvInputRef.current) cvInputRef.current.value = '';
+                        }}
                       >
-                        <Eye className="h-4 w-4" />
+                        <X className="h-4 w-4" />
                       </Button>
-                    )}
+                    </>
+                  ) : (
                     <Button
                       type="button"
                       variant="outline"
-                      size="icon"
-                      onClick={() => {
-                        setCvFile(null);
-                        setFormData({ ...formData, cvUrl: '' });
-                        if (cvInputRef.current) cvInputRef.current.value = '';
-                      }}
+                      onClick={() => cvInputRef.current?.click()}
+                      className="w-full"
+                      disabled={isUploading}
                     >
-                      <X className="h-4 w-4" />
+                      <Upload className="h-4 w-4 mr-2" />
+                      Télécharger CV
                     </Button>
-                  </>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => cvInputRef.current?.click()}
-                    className="w-full"
-                    disabled={isUploading}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Télécharger CV
-                  </Button>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* Recommendation Upload */}
-            <div className="space-y-2">
-              <Label>Lettre de recommandation</Label>
-              <input
-                ref={recommandationInputRef}
-                type="file"
-                accept=".pdf,.doc,.docx"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) setRecommandationFile(file);
-                }}
-                className="hidden"
-              />
-              <div className="flex items-center gap-2">
-                {formData.recommandationUrl || recommandationFile ? (
-                  <>
-                    <div className="flex-1 flex items-center gap-2 p-2 rounded-md border border-border bg-muted/50">
-                      <Award className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground truncate">
-                        {recommandationFile ? recommandationFile.name : 'Recommandation existante'}
-                      </span>
-                    </div>
-                    {formData.recommandationUrl && !recommandationFile && (
+              {/* Recommendation Upload */}
+              <div className="space-y-2">
+                <Label>Lettre de recommandation</Label>
+                <input
+                  ref={recommandationInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) setRecommandationFile(file);
+                  }}
+                  className="hidden"
+                />
+                <div className="flex items-center gap-2">
+                  {formData.recommandationUrl || recommandationFile ? (
+                    <>
+                      <div className="flex-1 flex items-center gap-2 p-2 rounded-md border border-border bg-muted/50 min-w-0">
+                        <Award className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm text-muted-foreground truncate">
+                          {recommandationFile ? recommandationFile.name : 'Recommandation existante'}
+                        </span>
+                      </div>
+                      {formData.recommandationUrl && !recommandationFile && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => window.open(formData.recommandationUrl, '_blank')}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="outline"
                         size="icon"
-                        onClick={() => window.open(formData.recommandationUrl, '_blank')}
+                        onClick={() => {
+                          setRecommandationFile(null);
+                          setFormData({ ...formData, recommandationUrl: '' });
+                          if (recommandationInputRef.current) recommandationInputRef.current.value = '';
+                        }}
                       >
-                        <Eye className="h-4 w-4" />
+                        <X className="h-4 w-4" />
                       </Button>
-                    )}
+                    </>
+                  ) : (
                     <Button
                       type="button"
                       variant="outline"
-                      size="icon"
-                      onClick={() => {
-                        setRecommandationFile(null);
-                        setFormData({ ...formData, recommandationUrl: '' });
-                        if (recommandationInputRef.current) recommandationInputRef.current.value = '';
-                      }}
+                      onClick={() => recommandationInputRef.current?.click()}
+                      className="w-full"
+                      disabled={isUploading}
                     >
-                      <X className="h-4 w-4" />
+                      <Upload className="h-4 w-4 mr-2" />
+                      Télécharger recommandation
                     </Button>
-                  </>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => recommandationInputRef.current?.click()}
-                    className="w-full"
-                    disabled={isUploading}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Télécharger recommandation
-                  </Button>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>
