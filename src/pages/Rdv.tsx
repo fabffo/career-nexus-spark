@@ -3,13 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Plus, Video, ExternalLink } from 'lucide-react';
+import { Edit, Trash2, Plus, Video, ExternalLink, Eye, Copy } from 'lucide-react';
 import { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
 import { AddRdvDialog } from '@/components/AddRdvDialog';
 import { EditRdvDialog } from '@/components/EditRdvDialog';
+import { ViewRdvDialog } from '@/components/ViewRdvDialog';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface RdvWithRelations {
@@ -49,6 +50,8 @@ interface RdvWithRelations {
 export default function RendezVous() {
   const [rdvs, setRdvs] = useState<RdvWithRelations[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedRdv, setSelectedRdv] = useState<RdvWithRelations | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const { profile } = useAuth();
 
   useEffect(() => {
@@ -101,6 +104,42 @@ export default function RendezVous() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleCopy = async (rdv: RdvWithRelations) => {
+    try {
+      const newRdv = {
+        date: rdv.date,
+        type_rdv: rdv.type_rdv,
+        rdv_type: rdv.rdv_type,
+        statut: 'ENCOURS' as const,
+        lieu: rdv.lieu,
+        notes: rdv.notes,
+        candidat_id: rdv.candidat_id,
+        client_id: rdv.client_id,
+        recruteur_id: rdv.recruteur_id,
+        referent_id: rdv.referent_id,
+      };
+
+      const { error } = await supabase
+        .from('rdvs')
+        .insert(newRdv);
+
+      if (error) throw error;
+      toast({ title: "Rendez-vous dupliqué avec succès" });
+      loadData();
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleView = (rdv: RdvWithRelations) => {
+    setSelectedRdv(rdv);
+    setViewDialogOpen(true);
   };
 
   const columns: ColumnDef<RdvWithRelations>[] = [
@@ -209,12 +248,29 @@ export default function RendezVous() {
       id: 'actions',
       header: 'Actions',
       cell: ({ row }) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleView(row.original)}
+            title="Visualiser"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleCopy(row.original)}
+            title="Copier"
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
           <EditRdvDialog rdv={row.original} onSuccess={loadData} />
           <Button
             variant="ghost"
             size="icon"
             onClick={() => handleDelete(row.original.id)}
+            title="Supprimer"
           >
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
@@ -233,6 +289,11 @@ export default function RendezVous() {
         columns={columns} 
         data={rdvs} 
         searchPlaceholder="Rechercher un rendez-vous..." 
+      />
+      <ViewRdvDialog 
+        rdv={selectedRdv} 
+        open={viewDialogOpen} 
+        onOpenChange={setViewDialogOpen} 
       />
     </div>
   );
