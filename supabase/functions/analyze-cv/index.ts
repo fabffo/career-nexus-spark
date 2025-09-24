@@ -27,35 +27,33 @@ serve(async (req) => {
     console.log('Analyzing CV with Parseur:', fileName);
     console.log('File type:', fileType);
 
-    // Convert base64 to file for Parseur API
-    let fileBlob: Blob;
+    // Convert base64 to raw data for Parseur API
+    let fileData: string;
     if (fileContent.includes('base64,')) {
-      const base64Data = fileContent.split('base64,')[1];
-      const byteCharacters = atob(base64Data);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      fileBlob = new Blob([byteArray], { type: fileType || 'application/pdf' });
+      // Keep base64 data for Parseur
+      fileData = fileContent.split('base64,')[1];
     } else {
-      // If it's plain text
-      fileBlob = new Blob([fileContent], { type: 'text/plain' });
+      // Convert text to base64
+      fileData = btoa(fileContent);
     }
-
-    // Create FormData for Parseur API
-    const formData = new FormData();
-    formData.append('file', fileBlob, fileName || 'cv.pdf');
 
     console.log('Sending CV to Parseur API...');
 
-    // Call Parseur API to analyze the CV
-    const response = await fetch('https://api.parseur.com/v1/documents', {
+    // Create document in Parseur
+    const parseurPayload = {
+      file_content: fileData,
+      file_name: fileName || 'cv.pdf',
+      media_type: fileType || 'application/pdf'
+    };
+
+    // Call Parseur API to create and parse the document
+    const response = await fetch('https://api.parseur.com/v1/document', {
       method: 'POST',
       headers: {
         'Authorization': `Token ${parseurApiKey}`,
+        'Content-Type': 'application/json',
       },
-      body: formData
+      body: JSON.stringify(parseurPayload)
     });
 
     if (!response.ok) {
@@ -67,7 +65,7 @@ serve(async (req) => {
     const parseurData = await response.json();
     console.log('Parseur response:', parseurData);
 
-    // Wait for document to be processed
+    // Extract data from Parseur response
     let extractedData = {
       nom: '',
       prenom: '',
@@ -75,37 +73,58 @@ serve(async (req) => {
       telephone: ''
     };
 
-    // Check document status and get parsed data
-    if (parseurData.id) {
-      // Wait a bit for processing
-      await new Promise(resolve => setTimeout(resolve, 3000));
+    // Check if Parseur returned parsed data
+    if (parseurData && parseurData.parsed_data) {
+      const parsed = parseurData.parsed_data;
       
-      // Get the parsed document
-      const parsedResponse = await fetch(`https://api.parseur.com/v1/documents/${parseurData.id}/parsed_data`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Token ${parseurApiKey}`,
-        }
-      });
+      // Map common field names from Parseur
+      extractedData = {
+        nom: parsed.last_name || parsed.nom || parsed.surname || parsed.family_name || '',
+        prenom: parsed.first_name || parsed.prenom || parsed.given_name || parsed.firstname || '',
+        email: parsed.email || parsed.email_address || parsed.mail || '',
+        telephone: parsed.phone || parsed.telephone || parsed.mobile || parsed.phone_number || ''
+      };
 
-      if (parsedResponse.ok) {
-        const parsedData = await parsedResponse.json();
-        console.log('Parsed data from Parseur:', parsedData);
-        
-        // Map Parseur fields to our format
-        extractedData = {
-          nom: parsedData.last_name || parsedData.nom || parsedData.surname || '',
-          prenom: parsedData.first_name || parsedData.prenom || parsedData.given_name || '',
-          email: parsedData.email || parsedData.email_address || '',
-          telephone: parsedData.phone || parsedData.telephone || parsedData.mobile || ''
-        };
+      // Try to extract from full name if individual fields are missing
+      if (!extractedData.nom && !extractedData.prenom && parsed.name) {
+        const nameParts = parsed.name.split(' ');
+        if (nameParts.length >= 2) {
+          extractedData.prenom = nameParts[0];
+          extractedData.nom = nameParts.slice(1).join(' ');
+        }
+      }
+
+      // Look for alternative field names
+      for (const key in parsed) {
+        const lowerKey = key.toLowerCase();
+        if (!extractedData.email && (lowerKey.includes('email') || lowerKey.includes('mail'))) {
+          extractedData.email = parsed[key];
+        }
+        if (!extractedData.telephone && (lowerKey.includes('phone') || lowerKey.includes('tel') || lowerKey.includes('mobile'))) {
+          extractedData.telephone = parsed[key];
+        }
       }
     }
 
     console.log('Extracted data:', extractedData);
 
-    // Upload the CV file to Supabase Storage (reuse the fileBlob from above)
+    // Upload the CV file to Supabase Storage
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+    
+    // Convert base64 back to blob for storage
+    let fileBlob: Blob;
+    if (fileContent.includes('base64,')) {
+      const base64Data = fileContent.split('base64,')[1];
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      fileBlob = new Blob([byteArray], { type: fileType || 'application/pdf' });
+    } else {
+      fileBlob = new Blob([fileContent], { type: 'text/plain' });
+    }
 
     // Generate unique filename
     const timestamp = Date.now();
