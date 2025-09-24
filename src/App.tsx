@@ -13,6 +13,7 @@ import Clients from "./pages/Clients";
 import Referents from "./pages/Referents";
 import Postes from "./pages/Postes";
 import RendezVous from "./pages/Rdv";
+import Recherche from "./pages/Recherche";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route index element={<Dashboard />} />
+              <Route path="recherche" element={<Recherche />} />
               <Route path="candidats" element={<Candidats />} />
               <Route path="clients" element={<Clients />} />
               <Route path="referents" element={<Referents />} />
