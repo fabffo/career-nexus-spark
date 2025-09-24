@@ -70,6 +70,16 @@ export function ViewCandidatDialog({ candidat, open, onOpenChange }: ViewCandida
             )}
           </div>
 
+          {/* Détail CV */}
+          {candidat.detail_cv && (
+            <div className="space-y-3">
+              <h4 className="font-medium text-sm">Détail CV</h4>
+              <div className="ml-2 p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm whitespace-pre-wrap">{candidat.detail_cv}</p>
+              </div>
+            </div>
+          )}
+
           {/* Documents */}
           {(candidat.cvUrl || candidat.recommandationUrl) && (
             <div className="space-y-3">
