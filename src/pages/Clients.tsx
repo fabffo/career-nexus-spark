@@ -126,6 +126,7 @@ export default function Clients() {
   const handleView = (client: Client) => {
     setSelectedClient(client);
     setViewDialogOpen(true);
+  };
 
   const columns: ColumnDef<Client>[] = [
     {

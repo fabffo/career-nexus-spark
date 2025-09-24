@@ -134,6 +134,7 @@ export default function Candidats() {
   const handleView = (candidat: Candidat) => {
     setSelectedCandidat(candidat);
     setViewDialogOpen(true);
+  };
 
   const columns: ColumnDef<Candidat>[] = [
     {

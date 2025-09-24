@@ -132,6 +132,7 @@ export default function Postes() {
   const handleView = (poste: PosteClient) => {
     setSelectedPoste(poste);
     setViewDialogOpen(true);
+  };
 
   const getStatusBadge = (statut: PosteClient['statut']) => {
     const variants = {
