@@ -18,54 +18,66 @@ serve(async (req) => {
   }
 
   try {
-    const { candidatId, posteId, cvUrl, posteDetails, userId } = await req.json();
+    const { candidatId, posteId, cvUrl, detailCv, posteDetails, userId } = await req.json();
     
     console.log('Starting matching analysis for:', { candidatId, posteId });
 
     // Initialize Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Extract the file path from the full URL
-    let filePath = cvUrl;
-    
-    // If cvUrl is a full URL, extract just the path
-    if (cvUrl.includes('storage/v1/object/public/candidats-files/')) {
-      filePath = cvUrl.split('storage/v1/object/public/candidats-files/')[1];
-    } else if (cvUrl.includes('/candidats-files/')) {
-      filePath = cvUrl.split('/candidats-files/')[1];
-    }
-    
-    console.log('CV file path:', filePath);
-
-    // Fetch CV content from storage
-    const { data: cvData, error: cvError } = await supabase
-      .storage
-      .from('candidats-files')
-      .download(filePath);
-
-    if (cvError) {
-      console.error('Error fetching CV:', cvError);
-      console.error('Attempted path:', filePath);
-      throw new Error('Impossible de récupérer le CV');
-    }
-
-    // Convert CV to text - try to parse as PDF first
     let cvText = '';
-    try {
-      // Try to read as text first
-      cvText = await cvData.text();
+    
+    // First check if we have detail_cv
+    if (detailCv) {
+      console.log('Using detail_cv field directly');
+      cvText = detailCv;
+    } else if (cvUrl) {
+      // Fallback to fetching CV file if detail_cv is not available
+      console.log('Fetching CV file from storage');
       
-      // If the text looks like binary data (PDF), try to extract text differently
-      if (cvText.includes('%PDF') || cvText.length < 100) {
-        console.log('PDF detected, attempting to extract text...');
-        // For now, we'll use a simple approach - in production, use a proper PDF parser
-        // Extract any readable text from the binary
-        const textMatch = cvText.match(/[\x20-\x7E\n\r\t]+/g);
-        cvText = textMatch ? textMatch.join(' ') : '';
+      // Extract the file path from the full URL
+      let filePath = cvUrl;
+      
+      // If cvUrl is a full URL, extract just the path
+      if (cvUrl.includes('storage/v1/object/public/candidats-files/')) {
+        filePath = cvUrl.split('storage/v1/object/public/candidats-files/')[1];
+      } else if (cvUrl.includes('/candidats-files/')) {
+        filePath = cvUrl.split('/candidats-files/')[1];
       }
-    } catch (error) {
-      console.error('Error parsing CV:', error);
-      cvText = 'Unable to extract text from CV';
+      
+      console.log('CV file path:', filePath);
+
+      // Fetch CV content from storage
+      const { data: cvData, error: cvError } = await supabase
+        .storage
+        .from('candidats-files')
+        .download(filePath);
+
+      if (cvError) {
+        console.error('Error fetching CV:', cvError);
+        console.error('Attempted path:', filePath);
+        throw new Error('Impossible de récupérer le CV');
+      }
+
+      // Convert CV to text - try to parse as PDF first
+      try {
+        // Try to read as text first
+        cvText = await cvData.text();
+        
+        // If the text looks like binary data (PDF), try to extract text differently
+        if (cvText.includes('%PDF') || cvText.length < 100) {
+          console.log('PDF detected, attempting to extract text...');
+          // For now, we'll use a simple approach - in production, use a proper PDF parser
+          // Extract any readable text from the binary
+          const textMatch = cvText.match(/[\x20-\x7E\n\r\t]+/g);
+          cvText = textMatch ? textMatch.join(' ') : '';
+        }
+      } catch (error) {
+        console.error('Error parsing CV:', error);
+        cvText = 'Unable to extract text from CV';
+      }
+    } else {
+      throw new Error('Aucun CV ou détail CV disponible pour ce candidat');
     }
     
     console.log('CV text length:', cvText.length);

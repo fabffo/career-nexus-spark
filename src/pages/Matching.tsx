@@ -25,12 +25,12 @@ export default function Matching() {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Fetch candidats with CV
+  // Fetch candidats with CV or detail_cv
   const { data: candidats, isLoading: candidatsLoading } = useQuery({
     queryKey: ["candidats-with-cv"],
     queryFn: async () => {
       const allCandidats = await candidatService.getAll();
-      return allCandidats.filter(c => c.cvUrl);
+      return allCandidats.filter(c => c.cvUrl || c.detail_cv);
     },
   });
 
@@ -77,10 +77,10 @@ export default function Matching() {
       return;
     }
 
-    if (!selectedCandidatData?.cvUrl) {
+    if (!selectedCandidatData?.cvUrl && !selectedCandidatData?.detail_cv) {
       toast({
         title: "CV manquant",
-        description: "Le candidat sélectionné n'a pas de CV",
+        description: "Le candidat sélectionné n'a pas de CV ni de détails CV",
         variant: "destructive",
       });
       return;
@@ -95,6 +95,7 @@ export default function Matching() {
           candidatId: selectedCandidat,
           posteId: selectedPoste,
           cvUrl: selectedCandidatData.cvUrl,
+          detailCv: selectedCandidatData.detail_cv,
           posteDetails: {
             titre: selectedPosteData?.nomPoste,
             description: selectedPosteData?.detail,
@@ -190,7 +191,11 @@ export default function Matching() {
                     <p className="text-sm text-muted-foreground">{selectedCandidatData.metier}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <FileText className="h-3 w-3" />
-                      <span className="text-xs">CV disponible</span>
+                      <span className="text-xs">
+                        {selectedCandidatData.cvUrl && "CV disponible"}
+                        {selectedCandidatData.cvUrl && selectedCandidatData.detail_cv && " | "}
+                        {selectedCandidatData.detail_cv && "Détails CV disponibles"}
+                      </span>
                     </div>
                   </div>
                 </AlertDescription>
