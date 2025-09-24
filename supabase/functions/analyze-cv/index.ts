@@ -38,6 +38,14 @@ serve(async (req) => {
     Si une information n'est pas trouvée, mets une chaîne vide.
     Ne mets aucun texte avant ou après le JSON.`;
 
+    // Truncate file content if it's too large (limit to ~8000 characters for safety)
+    const maxContentLength = 8000;
+    const truncatedContent = fileContent.length > maxContentLength 
+      ? fileContent.substring(0, maxContentLength) + '...[contenu tronqué]'
+      : fileContent;
+
+    console.log('Content length:', fileContent.length, 'Truncated:', fileContent.length > maxContentLength);
+
     // Call OpenAI API to analyze the CV
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -46,7 +54,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-mini-2025-08-07',
+        model: 'gpt-4o-mini',  // Using gpt-4o-mini which handles tokens better
         messages: [
           { 
             role: 'system', 
@@ -54,10 +62,10 @@ serve(async (req) => {
           },
           { 
             role: 'user', 
-            content: `Voici le contenu du CV à analyser:\n\n${fileContent}` 
+            content: `Voici le contenu du CV à analyser:\n\n${truncatedContent}` 
           }
         ],
-        max_completion_tokens: 500,
+        max_tokens: 500,
         response_format: { type: "json_object" }
       }),
     });
