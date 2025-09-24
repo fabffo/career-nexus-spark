@@ -50,6 +50,7 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
     notes: '',
     recruteur_id: currentUserId || '',
     referent_id: '',
+    teamsEmails: '',
   });
 
   useEffect(() => {
@@ -132,6 +133,15 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
       if (rdvData.rdv_type === 'CLIENT' && rdvData.referent_id) {
         const referent = referents.find(r => r.id === rdvData.referent_id);
         if (referent?.email) attendees.push(referent.email);
+      }
+      
+      // Add additional emails from the Teams emails field
+      if (formData.teamsEmails) {
+        const additionalEmails = formData.teamsEmails
+          .split(/[,;\n]/)
+          .map(email => email.trim())
+          .filter(email => email && email.includes('@'));
+        attendees.push(...additionalEmails);
       }
 
       // Calculate end time (1 hour after start)
@@ -265,6 +275,7 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
       notes: '',
       recruteur_id: currentUserId || '',
       referent_id: '',
+      teamsEmails: '',
     });
     setReferents([]);
   };
@@ -466,6 +477,27 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
                 </Select>
               </div>
             </div>
+
+            {/* Emails pour Teams */}
+            {formData.type_rdv === 'TEAMS' && (
+              <div>
+                <Label htmlFor="teamsEmails">
+                  <Users className="inline h-4 w-4 mr-1" />
+                  Emails des participants supplémentaires
+                </Label>
+                <Textarea
+                  id="teamsEmails"
+                  value={formData.teamsEmails}
+                  onChange={(e) => setFormData({ ...formData, teamsEmails: e.target.value })}
+                  placeholder="Entrez les emails des participants (séparés par des virgules, points-virgules ou retours à la ligne)"
+                  rows={2}
+                  className="text-sm"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Exemple: personne1@example.com, personne2@example.com
+                </p>
+              </div>
+            )}
 
             {/* Lieu */}
             {(formData.type_rdv === 'PRESENTIEL_CLIENT' || formData.type_rdv === 'TELEPHONE') && (

@@ -47,8 +47,13 @@ async function getAccessToken() {
 async function createTeamsMeeting(accessToken: string, meetingDetails: any) {
   const { startDateTime, endDateTime, subject, attendees } = meetingDetails
   
+  // Filter out empty or invalid emails
+  const validAttendees = (attendees || []).filter((email: string) => 
+    email && email.includes('@')
+  )
+  
   // Format the attendees for the Teams meeting
-  const attendeesList = attendees.map((email: string) => ({
+  const attendeesList = validAttendees.map((email: string) => ({
     emailAddress: {
       address: email
     },
@@ -69,9 +74,9 @@ async function createTeamsMeeting(accessToken: string, meetingDetails: any) {
 
   console.log('Creating Teams meeting with details:', JSON.stringify(meeting, null, 2))
 
-  // Use the first attendee as the organizer for now
+  // Use the first valid attendee as the organizer for now
   // In a real scenario, you'd use a service account or delegated permissions
-  const organizerEmail = attendees[0] || 'admin@yourdomain.com'
+  const organizerEmail = validAttendees[0] || 'admin@yourdomain.com'
   
   const response = await fetch(`https://graph.microsoft.com/v1.0/users/${organizerEmail}/calendar/events`, {
     method: 'POST',
