@@ -71,14 +71,7 @@ export default function RendezVous() {
           *,
           candidats(nom, prenom, email),
           clients(raison_sociale),
-          postes(titre),
-          profiles:recruteur_id(nom, prenom),
-          referents:referent_id(nom, prenom)
-        `)
-        .select(`
-          *,
-          candidats(nom, prenom, email),
-          clients(raison_sociale),
+          postes:poste_id(titre),
           profiles:recruteur_id(nom, prenom),
           referents:referent_id(nom, prenom)
         `)

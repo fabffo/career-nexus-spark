@@ -96,6 +96,19 @@ export function ViewRdvDialog({ rdv, open, onOpenChange }: ViewRdvDialogProps) {
             </div>
           )}
 
+          {/* Poste */}
+          {rdv.postes && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Poste</span>
+              </div>
+              <div className="ml-6">
+                <p className="font-medium text-primary">{rdv.postes.titre}</p>
+              </div>
+            </div>
+          )}
+
           {/* Contact (Recruteur ou Référent) */}
           {(rdv.profiles || rdv.referents) && (
             <div className="space-y-2">
