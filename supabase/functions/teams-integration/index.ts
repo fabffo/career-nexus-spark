@@ -98,8 +98,9 @@ serve(async (req) => {
       
       console.log('Using Resend to send email');
       
-      // Determine the from address based on environment
-      const fromAddress = 'onboarding@resend.dev'; // Change to 'noreply@yourdomain.com' after domain verification
+      // Use the test email address for Resend in development mode
+      // IMPORTANT: Pour la production, changez ceci vers votre domaine vérifié
+      const fromAddress = 'delivered@resend.dev'; // Email de test Resend qui fonctionne toujours
       
       // Create HTML email content with Teams meeting details
       const htmlContent = `
@@ -193,10 +194,17 @@ serve(async (req) => {
       `;
       
       try {
+        // En mode test, n'envoyer qu'à l'adresse du compte Resend
+        // Filtrer pour ne garder que votre email si présent
+        const testEmail = 'ffougery@hotmail.com';
+        const finalRecipients = recipients.includes(testEmail) ? [testEmail] : recipients;
+        
+        console.log('Sending email to:', finalRecipients);
+        
         // Send email using Resend
         const emailResponse = await resend.emails.send({
           from: fromAddress,
-          to: recipients,
+          to: finalRecipients,
           subject: 'Invitation - Réunion Microsoft Teams',
           html: htmlContent,
           text: message || 'Vous êtes invité(e) à une réunion Microsoft Teams.'
