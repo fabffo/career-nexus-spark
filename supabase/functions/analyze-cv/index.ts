@@ -25,28 +25,60 @@ serve(async (req) => {
     }
 
     console.log('Analyzing CV:', fileName);
+    console.log('File type:', fileType);
 
-    // Prepare the prompt for OpenAI
-    const systemPrompt = `Tu es un assistant RH expert en analyse de CV. 
-    Analyse le CV fourni et extrais les informations suivantes en format JSON:
-    - nom (string): Le nom de famille du candidat
-    - prenom (string): Le prénom du candidat
-    - email (string): L'adresse email du candidat
-    - telephone (string): Le numéro de téléphone du candidat
+    // Extract text content from base64 PDF or text
+    let textContent = '';
     
-    Cherche bien ces informations dans tout le document. Les noms sont souvent en haut du CV en gros caractères.
+    if (fileContent.includes('base64,')) {
+      // For PDF files, we need to extract text differently
+      // For now, we'll try to decode and use the raw content
+      const base64Data = fileContent.split('base64,')[1];
+      
+      // Try to decode as text first (for text-based PDFs)
+      try {
+        const decodedBytes = atob(base64Data);
+        // Try to extract readable text from the PDF content
+        textContent = decodedBytes.replace(/[^\x20-\x7E\n\r\t\xC0-\xFF]/g, ' ');
+        // Clean up excessive spaces
+        textContent = textContent.replace(/\s+/g, ' ').trim();
+      } catch (e) {
+        console.error('Error decoding PDF content:', e);
+        textContent = fileContent;
+      }
+    } else {
+      textContent = fileContent;
+    }
+
+    console.log('Text content length:', textContent.length);
+    console.log('First 500 chars of extracted text:', textContent.substring(0, 500));
+
+    // Prepare the prompt for OpenAI with more guidance
+    const systemPrompt = `Tu es un expert en analyse de CV. Extrais les informations suivantes du texte fourni.
     
-    Retourne UNIQUEMENT un objet JSON valide avec ces champs. 
-    Si une information n'est pas trouvée, mets une chaîne vide.
-    Ne mets aucun texte avant ou après le JSON.`;
+    INSTRUCTIONS IMPORTANTES:
+    1. Cherche le nom et prénom en haut du document (souvent en gros caractères)
+    2. L'email contient @ et se termine par .com, .fr, etc.
+    3. Le téléphone commence souvent par 06, 07, 01, 02, +33 ou contient 10 chiffres
+    4. Si le texte est mal formaté, essaie quand même d'identifier ces informations
+    
+    Retourne UNIQUEMENT un objet JSON avec ces champs:
+    {
+      "nom": "nom de famille",
+      "prenom": "prénom", 
+      "email": "adresse@email.com",
+      "telephone": "numéro de téléphone"
+    }
+    
+    Si une information n'est pas trouvée, mets une chaîne vide.`;
 
-    // Truncate file content if it's too large (limit to ~8000 characters for safety)
-    const maxContentLength = 8000;
-    const truncatedContent = fileContent.length > maxContentLength 
-      ? fileContent.substring(0, maxContentLength) + '...[contenu tronqué]'
-      : fileContent;
+    // Truncate content if too large
+    const maxContentLength = 6000;
+    const truncatedContent = textContent.length > maxContentLength 
+      ? textContent.substring(0, maxContentLength)
+      : textContent;
 
-    console.log('Content length:', fileContent.length, 'Truncated:', fileContent.length > maxContentLength);
+    console.log('Sending to OpenAI, content length:', truncatedContent.length);
 
     // Call OpenAI API to analyze the CV
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -56,7 +88,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',  // Using gpt-4o-mini which handles tokens better
+        model: 'gpt-4o-mini',
         messages: [
           { 
             role: 'system', 
@@ -64,10 +96,11 @@ serve(async (req) => {
           },
           { 
             role: 'user', 
-            content: `Voici le contenu du CV à analyser:\n\n${truncatedContent}` 
+            content: `Voici le contenu du CV à analyser. Extrais le nom, prénom, email et téléphone:\n\n${truncatedContent}` 
           }
         ],
         max_tokens: 500,
+        temperature: 0.3,
         response_format: { type: "json_object" }
       }),
     });
