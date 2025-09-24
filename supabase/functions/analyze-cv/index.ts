@@ -2,7 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const parseurApiKey = Deno.env.get('PARSEUR_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -24,103 +24,10 @@ serve(async (req) => {
       throw new Error('Le contenu du fichier est requis');
     }
 
-    console.log('Analyzing CV:', fileName);
+    console.log('Analyzing CV with Parseur:', fileName);
     console.log('File type:', fileType);
 
-    // Extract text content from base64 PDF or text
-    let textContent = '';
-    
-    if (fileContent.includes('base64,')) {
-      // For PDF files, we need to extract text differently
-      // For now, we'll try to decode and use the raw content
-      const base64Data = fileContent.split('base64,')[1];
-      
-      // Try to decode as text first (for text-based PDFs)
-      try {
-        const decodedBytes = atob(base64Data);
-        // Try to extract readable text from the PDF content
-        textContent = decodedBytes.replace(/[^\x20-\x7E\n\r\t\xC0-\xFF]/g, ' ');
-        // Clean up excessive spaces
-        textContent = textContent.replace(/\s+/g, ' ').trim();
-      } catch (e) {
-        console.error('Error decoding PDF content:', e);
-        textContent = fileContent;
-      }
-    } else {
-      textContent = fileContent;
-    }
-
-    console.log('Text content length:', textContent.length);
-    console.log('First 500 chars of extracted text:', textContent.substring(0, 500));
-
-    // Prepare the prompt for OpenAI with more guidance
-    const systemPrompt = `Tu es un expert en analyse de CV. Extrais les informations suivantes du texte fourni.
-    
-    INSTRUCTIONS IMPORTANTES:
-    1. Cherche le nom et prénom en haut du document (souvent en gros caractères)
-    2. L'email contient @ et se termine par .com, .fr, etc.
-    3. Le téléphone commence souvent par 06, 07, 01, 02, +33 ou contient 10 chiffres
-    4. Si le texte est mal formaté, essaie quand même d'identifier ces informations
-    
-    Retourne UNIQUEMENT un objet JSON avec ces champs:
-    {
-      "nom": "nom de famille",
-      "prenom": "prénom", 
-      "email": "adresse@email.com",
-      "telephone": "numéro de téléphone"
-    }
-    
-    Si une information n'est pas trouvée, mets une chaîne vide.`;
-
-    // Truncate content if too large
-    const maxContentLength = 6000;
-    const truncatedContent = textContent.length > maxContentLength 
-      ? textContent.substring(0, maxContentLength)
-      : textContent;
-
-    console.log('Sending to OpenAI, content length:', truncatedContent.length);
-
-    // Call OpenAI API to analyze the CV
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { 
-            role: 'system', 
-            content: systemPrompt 
-          },
-          { 
-            role: 'user', 
-            content: `Voici le contenu du CV à analyser. Extrais le nom, prénom, email et téléphone:\n\n${truncatedContent}` 
-          }
-        ],
-        max_tokens: 500,
-        temperature: 0.3,
-        response_format: { type: "json_object" }
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('OpenAI API error:', error);
-      throw new Error('Erreur lors de l\'analyse du CV');
-    }
-
-    const data = await response.json();
-    console.log('OpenAI response:', data);
-
-    const extractedData = JSON.parse(data.choices[0].message.content);
-    console.log('Extracted data:', extractedData);
-
-    // Upload the CV file to Supabase Storage
-    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
-    
-    // Convert base64 to blob if needed
+    // Convert base64 to file for Parseur API
     let fileBlob: Blob;
     if (fileContent.includes('base64,')) {
       const base64Data = fileContent.split('base64,')[1];
@@ -135,6 +42,70 @@ serve(async (req) => {
       // If it's plain text
       fileBlob = new Blob([fileContent], { type: 'text/plain' });
     }
+
+    // Create FormData for Parseur API
+    const formData = new FormData();
+    formData.append('file', fileBlob, fileName || 'cv.pdf');
+
+    console.log('Sending CV to Parseur API...');
+
+    // Call Parseur API to analyze the CV
+    const response = await fetch('https://api.parseur.com/v1/documents', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${parseurApiKey}`,
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('Parseur API error:', error);
+      throw new Error('Erreur lors de l\'analyse du CV avec Parseur');
+    }
+
+    const parseurData = await response.json();
+    console.log('Parseur response:', parseurData);
+
+    // Wait for document to be processed
+    let extractedData = {
+      nom: '',
+      prenom: '',
+      email: '',
+      telephone: ''
+    };
+
+    // Check document status and get parsed data
+    if (parseurData.id) {
+      // Wait a bit for processing
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Get the parsed document
+      const parsedResponse = await fetch(`https://api.parseur.com/v1/documents/${parseurData.id}/parsed_data`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Token ${parseurApiKey}`,
+        }
+      });
+
+      if (parsedResponse.ok) {
+        const parsedData = await parsedResponse.json();
+        console.log('Parsed data from Parseur:', parsedData);
+        
+        // Map Parseur fields to our format
+        extractedData = {
+          nom: parsedData.last_name || parsedData.nom || parsedData.surname || '',
+          prenom: parsedData.first_name || parsedData.prenom || parsedData.given_name || '',
+          email: parsedData.email || parsedData.email_address || '',
+          telephone: parsedData.phone || parsedData.telephone || parsedData.mobile || ''
+        };
+      }
+    }
+
+    console.log('Extracted data:', extractedData);
+
+    // Upload the CV file to Supabase Storage (reuse the fileBlob from above)
+    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
     // Generate unique filename
     const timestamp = Date.now();
