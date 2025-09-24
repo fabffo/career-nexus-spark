@@ -204,6 +204,29 @@ serve(async (req) => {
         
         console.log('Email sent successfully via Resend:', emailResponse);
         
+        // Check if there was an error in the response
+        if (emailResponse.error) {
+          console.error('Resend API error:', emailResponse.error);
+          
+          // Check if it's a domain verification issue
+          if (emailResponse.error.message?.includes('verify a domain')) {
+            return new Response(
+              JSON.stringify({
+                success: false,
+                message: 'Configuration email incomplète',
+                details: 'Pour envoyer des emails, vous devez vérifier votre domaine sur https://resend.com/domains',
+                error: emailResponse.error
+              }),
+              { 
+                status: 400,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+              }
+            );
+          }
+          
+          throw new Error(emailResponse.error.message || 'Erreur lors de l\'envoi de l\'email');
+        }
+        
         return new Response(
           JSON.stringify({
             success: true,
