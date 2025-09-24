@@ -15,6 +15,8 @@ import Postes from "./pages/Postes";
 import RendezVous from "./pages/Rdv";
 import Recherche from "./pages/Recherche";
 import Matching from "./pages/Matching";
+import CandidatSignup from "./pages/CandidatSignup";
+import CandidatDashboard from "./pages/CandidatDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +30,7 @@ const App = () => (
           <Sonner />
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/candidat/signup" element={<CandidatSignup />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <MainLayout />
@@ -42,6 +45,7 @@ const App = () => (
               <Route path="rdv" element={<RendezVous />} />
               <Route path="matching" element={<Matching />} />
               <Route path="commentaires" element={<Dashboard />} />
+              <Route path="candidat/dashboard" element={<CandidatDashboard />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

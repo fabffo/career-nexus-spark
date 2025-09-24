@@ -3,7 +3,7 @@ import { candidatService } from '@/services';
 import { Candidat } from '@/types/models';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Eye, Mail, Phone, MapPin, FileText, Award, Paperclip, Copy, History, Upload, X, Sparkles } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Mail, Phone, MapPin, FileText, Award, Paperclip, Copy, History, Upload, X, Sparkles, Send } from 'lucide-react';
 import { ViewCandidatDialog } from '@/components/ViewCandidatDialog';
 import { CandidatHistoryDialog } from '@/components/CandidatHistoryDialog';
 import { ColumnDef } from '@tanstack/react-table';
@@ -197,6 +197,24 @@ export default function Candidats() {
   const handleHistory = (candidat: Candidat) => {
     setSelectedCandidat(candidat);
     setHistoryDialogOpen(true);
+  };
+
+  const handleSendInvitation = async (candidat: Candidat) => {
+    try {
+      const baseUrl = window.location.origin;
+      
+      const { error } = await supabase.functions.invoke('send-candidat-invitation', {
+        body: { candidatId: candidat.id, baseUrl }
+      });
+
+      if (error) throw error;
+
+      toast.success('Invitation envoyée avec succès');
+      loadCandidats();
+    } catch (error: any) {
+      console.error('Error sending invitation:', error);
+      toast.error(error.message || "Impossible d'envoyer l'invitation");
+    }
   };
 
   const handleAnalyzeCV = async (file: File) => {
@@ -408,6 +426,17 @@ export default function Candidats() {
           >
             <History className="h-4 w-4" />
           </Button>
+          {!(row.original as any).user_id && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleSendInvitation(row.original)}
+              title="Envoyer invitation"
+              className="text-primary"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"

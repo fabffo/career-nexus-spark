@@ -11,24 +11,36 @@ import {
   X,
   Search,
   BrainCircuit,
+  User,
+  LogOut,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-
-const menuItems = [
-  { path: '/', label: 'Tableau de bord', icon: LayoutDashboard },
-  { path: '/candidats', label: 'Candidats', icon: Users },
-  { path: '/clients', label: 'Clients', icon: Building2 },
-  { path: '/rdv', label: 'Rendez-vous', icon: Calendar },
-  { path: '/postes', label: 'Postes', icon: Briefcase },
-  { path: '/recherche', label: 'Recherche', icon: Search },
-  { path: '/matching', label: 'Matching IA', icon: BrainCircuit },
-  { path: '/commentaires', label: 'Commentaires', icon: MessageSquare },
-];
+import { useAuth } from '@/contexts/AuthContext';
 
 export function Sidebar() {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const { profile, signOut } = useAuth();
+
+  // Navigation pour les recruteurs et admins
+  const recruiterMenuItems = [
+    { path: '/', label: 'Tableau de bord', icon: LayoutDashboard },
+    { path: '/candidats', label: 'Candidats', icon: Users },
+    { path: '/clients', label: 'Clients', icon: Building2 },
+    { path: '/rdv', label: 'Rendez-vous', icon: Calendar },
+    { path: '/postes', label: 'Postes', icon: Briefcase },
+    { path: '/recherche', label: 'Recherche', icon: Search },
+    { path: '/matching', label: 'Matching IA', icon: BrainCircuit },
+    { path: '/commentaires', label: 'Commentaires', icon: MessageSquare },
+  ];
+
+  // Navigation pour les candidats
+  const candidatMenuItems = [
+    { path: '/candidat/dashboard', label: 'Mon Espace', icon: User },
+  ];
+
+  const menuItems = profile?.role === 'CANDIDAT' ? candidatMenuItems : recruiterMenuItems;
 
   return (
     <>
@@ -88,10 +100,22 @@ export function Sidebar() {
             })}
           </nav>
 
-          <div className="border-t border-border p-4">
+          <div className="border-t border-border p-4 space-y-3">
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-muted-foreground hover:text-foreground"
+              onClick={signOut}
+            >
+              <LogOut className="h-5 w-5 mr-3" />
+              Déconnexion
+            </Button>
             <div className="rounded-lg bg-secondary p-3">
-              <p className="text-xs text-muted-foreground">Version 1.0.0</p>
-              <p className="text-xs text-muted-foreground mt-1">© 2024 Recruitment Solutions</p>
+              <p className="text-xs text-muted-foreground">
+                {profile?.prenom} {profile?.nom}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {profile?.role === 'CANDIDAT' ? 'Candidat' : profile?.role}
+              </p>
             </div>
           </div>
         </div>

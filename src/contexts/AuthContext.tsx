@@ -8,7 +8,7 @@ interface Profile {
   email: string;
   nom: string;
   prenom: string;
-  role: 'ADMIN' | 'RECRUTEUR';
+  role: 'ADMIN' | 'RECRUTEUR' | 'CANDIDAT';
 }
 
 interface AuthContextType {
