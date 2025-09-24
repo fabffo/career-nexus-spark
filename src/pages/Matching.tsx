@@ -315,16 +315,16 @@ export default function Matching() {
                         CV de {analysisResult.candidat?.prenom} {analysisResult.candidat?.nom}
                       </h3>
                     </div>
-                    <ScrollArea className="h-[400px] w-full rounded-md border p-4">
-                      <pre className="text-sm whitespace-pre-wrap font-mono">
-                        {analysisResult.cvExtract || "Le contenu du CV sera affiché ici après l'analyse"}
+                    <ScrollArea className="h-[600px] w-full rounded-md border p-4">
+                      <pre className="text-sm whitespace-pre-wrap font-mono break-words">
+                        {analysisResult.cvExtract || analysisResult.candidat?.detail_cv || "Le contenu du CV sera affiché ici après l'analyse"}
                       </pre>
                     </ScrollArea>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="poste" className="mt-4">
-                  <ScrollArea className="h-[400px] w-full">
+                  <ScrollArea className="h-[600px] w-full">
                     <div className="space-y-4 p-4">
                       <div className="flex items-center gap-2">
                         <Briefcase className="h-5 w-5 text-primary" />
@@ -342,7 +342,7 @@ export default function Matching() {
 
                       <div>
                         <h4 className="font-semibold text-sm mb-2">Description</h4>
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
                           {analysisResult.poste?.detail}
                         </p>
                       </div>
