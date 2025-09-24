@@ -3,7 +3,7 @@ import { candidatService } from '@/services';
 import { Candidat } from '@/types/models';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Eye, Mail, Phone, MapPin, FileText, Award, Paperclip, Copy, History, Upload, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Mail, Phone, MapPin, FileText, Award, Paperclip, Copy, History, Upload, X, Sparkles } from 'lucide-react';
 import { ViewCandidatDialog } from '@/components/ViewCandidatDialog';
 import { CandidatHistoryDialog } from '@/components/CandidatHistoryDialog';
 import { ColumnDef } from '@tanstack/react-table';
@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,14 +29,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Progress } from '@/components/ui/progress';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Candidats() {
   const [candidats, setCandidats] = useState<Candidat[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isAnalyzeOpen, setIsAnalyzeOpen] = useState(false);
   const [selectedCandidat, setSelectedCandidat] = useState<Candidat | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyzeProgress, setAnalyzeProgress] = useState(0);
   const [formData, setFormData] = useState({
     nom: '',
     prenom: '',
@@ -51,6 +57,7 @@ export default function Candidats() {
   const { uploadFile, deleteFile, isUploading } = useFileUpload();
   const cvInputRef = useRef<HTMLInputElement>(null);
   const recommandationInputRef = useRef<HTMLInputElement>(null);
+  const analyzeCvInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadCandidats();
@@ -178,6 +185,53 @@ export default function Candidats() {
   const handleHistory = (candidat: Candidat) => {
     setSelectedCandidat(candidat);
     setHistoryDialogOpen(true);
+  };
+
+  const handleAnalyzeCV = async (file: File) => {
+    setIsAnalyzing(true);
+    setAnalyzeProgress(10);
+    
+    try {
+      // Read file content
+      const reader = new FileReader();
+      const fileContent = await new Promise<string>((resolve) => {
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.readAsDataURL(file);
+      });
+
+      setAnalyzeProgress(30);
+      
+      // Call edge function to analyze CV
+      const { data, error } = await supabase.functions.invoke('analyze-cv', {
+        body: {
+          fileContent,
+          fileName: file.name,
+          fileType: file.type
+        }
+      });
+
+      setAnalyzeProgress(80);
+
+      if (error) throw error;
+
+      if (data?.success && data?.candidat) {
+        toast.success('CV analysé et candidat créé avec succès !');
+        setAnalyzeProgress(100);
+        setTimeout(() => {
+          setIsAnalyzeOpen(false);
+          setIsAnalyzing(false);
+          setAnalyzeProgress(0);
+          loadCandidats();
+        }, 1000);
+      } else {
+        throw new Error(data?.error || 'Erreur lors de l\'analyse du CV');
+      }
+    } catch (error) {
+      console.error('Error analyzing CV:', error);
+      toast.error('Erreur lors de l\'analyse du CV');
+      setIsAnalyzing(false);
+      setAnalyzeProgress(0);
+    }
   };
 
   const columns: ColumnDef<Candidat>[] = [
@@ -327,10 +381,19 @@ export default function Candidats() {
             Gérez votre base de candidats
           </p>
         </div>
-        <Button onClick={() => handleOpenForm()} className="bg-gradient-to-r from-primary to-primary-hover">
-          <Plus className="mr-2 h-4 w-4" />
-          Nouveau candidat
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => setIsAnalyzeOpen(true)} 
+            className="bg-gradient-to-r from-primary to-primary-hover"
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            Analyser un CV
+          </Button>
+          <Button onClick={() => handleOpenForm()} variant="outline">
+            <Plus className="mr-2 h-4 w-4" />
+            Nouveau candidat
+          </Button>
+        </div>
       </div>
 
       <DataTable
@@ -562,6 +625,70 @@ export default function Candidats() {
         open={historyDialogOpen}
         onOpenChange={setHistoryDialogOpen}
       />
+
+      {/* Analyze CV Dialog */}
+      <Dialog open={isAnalyzeOpen} onOpenChange={setIsAnalyzeOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Analyser un CV avec l'IA</DialogTitle>
+            <DialogDescription>
+              Uploadez un CV pour extraire automatiquement les informations du candidat
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {!isAnalyzing ? (
+              <>
+                <input
+                  ref={analyzeCvInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleAnalyzeCV(file);
+                    }
+                  }}
+                  className="hidden"
+                />
+                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
+                  <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-medium mb-2">Télécharger un CV</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Formats acceptés : PDF, DOC, DOCX, TXT
+                  </p>
+                  <Button
+                    onClick={() => analyzeCvInputRef.current?.click()}
+                    variant="outline"
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    Sélectionner un fichier
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-center">
+                  <Sparkles className="h-12 w-12 text-primary animate-pulse" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-medium mb-2">Analyse en cours...</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    L'IA extrait les informations du CV
+                  </p>
+                </div>
+                <Progress value={analyzeProgress} className="w-full" />
+              </div>
+            )}
+          </div>
+          {!isAnalyzing && (
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAnalyzeOpen(false)}>
+                Annuler
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
