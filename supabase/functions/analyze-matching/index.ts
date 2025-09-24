@@ -206,7 +206,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         ...analysisResult,
-        cvExtract: cvText.substring(0, 500) // Return a preview of what was analyzed
+        cvExtract: fullCvContent // Return the full CV content that was analyzed
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

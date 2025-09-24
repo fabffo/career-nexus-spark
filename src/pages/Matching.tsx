@@ -337,7 +337,7 @@ export default function Matching() {
                     </div>
                     <ScrollArea className="h-[600px] w-full rounded-md border p-4">
                       <pre className="text-sm whitespace-pre-wrap font-mono break-words">
-                        {analysisResult.cvExtract || analysisResult.candidat?.detail_cv || "Le contenu du CV sera affiché ici après l'analyse"}
+                        {analysisResult.candidat?.detail_cv || analysisResult.cvExtract || "Le contenu du CV sera affiché ici après l'analyse"}
                       </pre>
                     </ScrollArea>
                   </div>
