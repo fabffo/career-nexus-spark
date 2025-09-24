@@ -3,6 +3,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -97,6 +98,9 @@ export function CandidatHistoryDialog({ candidat, open, onOpenChange }: Candidat
           <DialogTitle className="text-2xl font-bold">
             Historique de {candidat.prenom} {candidat.nom}
           </DialogTitle>
+          <DialogDescription>
+            Consultez l'historique complet des rendez-vous et le statut du candidat pour chaque poste
+          </DialogDescription>
           <div className="flex items-center gap-4 mt-2">
             <Badge variant="outline" className="text-sm">
               <Briefcase className="h-3 w-3 mr-1" />
