@@ -1,0 +1,25 @@
+/* Responsive table styles */
+@media (max-width: 1024px) {
+  .data-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .data-table-wrapper table {
+    min-width: 800px;
+  }
+}
+
+/* Ensure text doesn't overflow in cells */
+.table-cell-truncate {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .table-cell-truncate {
+    max-width: 120px;
+  }
+}

@@ -185,27 +185,38 @@ export default function Candidats() {
       accessorKey: 'nom',
       header: 'Nom',
       cell: ({ row }) => (
-        <div className="font-medium">{row.original.nom}</div>
+        <div className="font-medium truncate max-w-[150px]" title={row.original.nom}>
+          {row.original.nom}
+        </div>
       ),
     },
     {
       accessorKey: 'prenom',
       header: 'Prénom',
+      cell: ({ row }) => (
+        <div className="truncate max-w-[150px]" title={row.original.prenom}>
+          {row.original.prenom}
+        </div>
+      ),
     },
     {
       accessorKey: 'metier',
       header: 'Métier',
       cell: ({ row }) => (
-        <div className="text-sm text-muted-foreground">{row.original.metier}</div>
+        <div className="text-sm text-muted-foreground truncate max-w-[150px]" title={row.original.metier}>
+          {row.original.metier}
+        </div>
       ),
     },
     {
       accessorKey: 'mail',
       header: 'Email',
       cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <Mail className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm">{row.original.mail}</span>
+        <div className="flex items-center gap-2 max-w-[200px]">
+          <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <span className="text-sm truncate" title={row.original.mail}>
+            {row.original.mail}
+          </span>
         </div>
       ),
     },
@@ -213,9 +224,11 @@ export default function Candidats() {
       accessorKey: 'telephone',
       header: 'Téléphone',
       cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <Phone className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm">{row.original.telephone}</span>
+        <div className="flex items-center gap-2 max-w-[150px]">
+          <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <span className="text-sm truncate" title={row.original.telephone}>
+            {row.original.telephone}
+          </span>
         </div>
       ),
     },
@@ -253,6 +266,7 @@ export default function Candidats() {
     {
       id: 'actions',
       header: 'Actions',
+      size: 180,
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
           <Button
