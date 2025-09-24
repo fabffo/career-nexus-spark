@@ -193,6 +193,7 @@ export type Database = {
           description: string | null
           id: string
           localisation: string | null
+          pourvu_par: string | null
           salaire_max: number | null
           salaire_min: number | null
           statut: string | null
@@ -207,6 +208,7 @@ export type Database = {
           description?: string | null
           id?: string
           localisation?: string | null
+          pourvu_par?: string | null
           salaire_max?: number | null
           salaire_min?: number | null
           statut?: string | null
@@ -221,6 +223,7 @@ export type Database = {
           description?: string | null
           id?: string
           localisation?: string | null
+          pourvu_par?: string | null
           salaire_max?: number | null
           salaire_min?: number | null
           statut?: string | null

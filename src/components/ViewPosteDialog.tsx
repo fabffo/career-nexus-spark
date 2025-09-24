@@ -46,6 +46,17 @@ export function ViewPosteDialog({ poste, client, open, onOpenChange }: ViewPoste
             {getStatusBadge(poste.statut)}
           </div>
 
+          {/* Pourvu par */}
+          {(poste.pourvuPar || poste.pourvu_par) && (
+            <div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                <Briefcase className="h-4 w-4" />
+                <span>Pourvu par</span>
+              </div>
+              <p className="ml-6 font-medium">{poste.pourvuPar || poste.pourvu_par}</p>
+            </div>
+          )}
+
           {/* Client */}
           {client && (
             <div>

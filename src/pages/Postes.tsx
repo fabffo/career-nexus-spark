@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { posteService, clientService } from '@/services';
-import { PosteClient, Client } from '@/types/models';
+import { posteService, clientService, candidatService } from '@/services';
+import { PosteClient, Client, Candidat } from '@/types/models';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils';
 export default function Postes() {
   const [postes, setPostes] = useState<PosteClient[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [candidats, setCandidats] = useState<Candidat[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedPoste, setSelectedPoste] = useState<PosteClient | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -43,6 +44,7 @@ export default function Postes() {
     dateEcheance: '',
     statut: 'ENCOURS' as PosteClient['statut'],
     detail: '',
+    pourvuPar: '',
   });
 
   useEffect(() => {
@@ -50,12 +52,14 @@ export default function Postes() {
   }, []);
 
   const loadData = async () => {
-    const [postesData, clientsData] = await Promise.all([
+    const [postesData, clientsData, candidatsData] = await Promise.all([
       posteService.getAll(),
       clientService.getAll(),
+      candidatService.getAll(),
     ]);
     setPostes(postesData);
     setClients(clientsData);
+    setCandidats(candidatsData);
   };
 
   const handleOpenForm = (poste?: PosteClient) => {
@@ -67,6 +71,7 @@ export default function Postes() {
         dateEcheance: poste.dateEcheance ? format(new Date(poste.dateEcheance), 'yyyy-MM-dd') : '',
         statut: poste.statut,
         detail: poste.detail,
+        pourvuPar: (poste as any).pourvuPar || '',
       });
     } else {
       setSelectedPoste(null);
@@ -76,6 +81,7 @@ export default function Postes() {
         dateEcheance: '',
         statut: 'ENCOURS',
         detail: '',
+        pourvuPar: '',
       });
     }
     setIsFormOpen(true);
@@ -83,6 +89,12 @@ export default function Postes() {
 
   const handleSubmit = async () => {
     try {
+      // Validate that pourvuPar is filled when status is REALISE
+      if (formData.statut === 'REALISE' && !formData.pourvuPar) {
+        toast.error('Le champ "Pourvu par" est obligatoire quand le statut est "Réalisé"');
+        return;
+      }
+
       const data = {
         ...formData,
         dateCreation: selectedPoste?.dateCreation || new Date(),
@@ -327,6 +339,32 @@ export default function Postes() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div>
+              <Label htmlFor="pourvuPar">
+                Pourvu par {formData.statut === 'REALISE' && <span className="text-destructive">*</span>}
+              </Label>
+              <Select
+                value={formData.pourvuPar}
+                onValueChange={(value) => setFormData({ ...formData, pourvuPar: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un candidat ou candidat externe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Candidat externe">Candidat externe</SelectItem>
+                  {candidats.map((candidat) => (
+                    <SelectItem key={candidat.id} value={`${candidat.nom} ${candidat.prenom}`}>
+                      {candidat.nom} {candidat.prenom}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formData.statut === 'REALISE' && !formData.pourvuPar && (
+                <p className="text-sm text-destructive mt-1">
+                  Ce champ est obligatoire quand le statut est "Réalisé"
+                </p>
+              )}
             </div>
             <div>
               <Label htmlFor="detail">Détails du poste</Label>

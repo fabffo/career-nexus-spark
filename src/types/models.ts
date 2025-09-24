@@ -74,6 +74,7 @@ export interface PosteClient extends AuditFields {
   statut: StatutPoste;
   detail: string;
   pieceJointes?: string[];
+  pourvuPar?: string;
   client?: Client;
   rdvs?: Rdv[];
 }
