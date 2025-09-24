@@ -21,6 +21,7 @@ export function EditRdvDialog({ rdv, onSuccess }: EditRdvDialogProps) {
   const [loading, setLoading] = useState(false);
   const [candidats, setCandidats] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
+  const [postes, setPostes] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [referents, setReferents] = useState<any[]>([]);
   const [formData, setFormData] = useState({
@@ -29,6 +30,7 @@ export function EditRdvDialog({ rdv, onSuccess }: EditRdvDialogProps) {
     rdv_type: '',
     candidat_id: '',
     client_id: '',
+    poste_id: '',
     lieu: '',
     notes: '',
     recruteur_id: '',
@@ -48,6 +50,7 @@ export function EditRdvDialog({ rdv, onSuccess }: EditRdvDialogProps) {
         rdv_type: rdv.rdv_type || 'RECRUTEUR',
         candidat_id: rdv.candidat_id || '',
         client_id: rdv.client_id || '',
+        poste_id: rdv.poste_id || '',
         lieu: rdv.lieu || '',
         notes: rdv.notes || '',
         recruteur_id: rdv.recruteur_id || '',
@@ -69,6 +72,16 @@ export function EditRdvDialog({ rdv, onSuccess }: EditRdvDialogProps) {
       if (candidatsRes.data) setCandidats(candidatsRes.data);
       if (clientsRes.data) setClients(clientsRes.data);
       if (profilesRes.data) setProfiles(profilesRes.data.filter(p => p.role === 'RECRUTEUR'));
+      
+      // Load postes for the current client if any
+      if (rdv.client_id) {
+        const { data: postesData } = await supabase
+          .from('postes')
+          .select('id, titre, statut')
+          .eq('client_id', rdv.client_id)
+          .order('titre');
+        setPostes(postesData || []);
+      }
     } catch (error: any) {
       toast({
         title: "Erreur",
@@ -94,6 +107,14 @@ export function EditRdvDialog({ rdv, onSuccess }: EditRdvDialogProps) {
       if (!existingReferentInNewClient) {
         setFormData(prev => ({ ...prev, referent_id: '' }));
       }
+      
+      // Load postes for this client
+      const { data: postesData } = await supabase
+        .from('postes')
+        .select('id, titre, statut')
+        .eq('client_id', clientId)
+        .order('titre');
+      setPostes(postesData || []);
     } catch (error: any) {
       toast({
         title: "Erreur",
@@ -152,6 +173,7 @@ L'équipe de recrutement`;
         rdv_type: formData.rdv_type,
         candidat_id: formData.candidat_id || null,
         client_id: formData.client_id || null,
+        poste_id: formData.poste_id || null,
         lieu: formData.lieu || null,
         notes: formData.notes || null,
         statut: formData.statut,

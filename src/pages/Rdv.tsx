@@ -23,6 +23,7 @@ interface RdvWithRelations {
   notes?: string;
   candidat_id: string;
   client_id: string;
+  poste_id?: string;
   recruteur_id?: string;
   referent_id?: string;
   teams_link?: string;
@@ -34,6 +35,9 @@ interface RdvWithRelations {
   };
   clients?: {
     raison_sociale: string;
+  };
+  postes?: {
+    titre: string;
   };
   profiles?: {
     nom: string;
@@ -63,6 +67,14 @@ export default function RendezVous() {
     try {
       const { data, error } = await supabase
         .from('rdvs')
+        .select(`
+          *,
+          candidats(nom, prenom, email),
+          clients(raison_sociale),
+          postes(titre),
+          profiles:recruteur_id(nom, prenom),
+          referents:referent_id(nom, prenom)
+        `)
         .select(`
           *,
           candidats(nom, prenom, email),

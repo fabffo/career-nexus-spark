@@ -74,6 +74,59 @@ export type Database = {
         }
         Relationships: []
       }
+      postes: {
+        Row: {
+          client_id: string | null
+          competences: string[] | null
+          created_at: string | null
+          description: string | null
+          id: string
+          localisation: string | null
+          salaire_max: number | null
+          salaire_min: number | null
+          statut: string | null
+          titre: string
+          type_contrat: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          competences?: string[] | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          localisation?: string | null
+          salaire_max?: number | null
+          salaire_min?: number | null
+          statut?: string | null
+          titre: string
+          type_contrat?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          competences?: string[] | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          localisation?: string | null
+          salaire_max?: number | null
+          salaire_min?: number | null
+          statut?: string | null
+          titre?: string
+          type_contrat?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "postes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -113,6 +166,7 @@ export type Database = {
           id: string
           lieu: string | null
           notes: string | null
+          poste_id: string | null
           rdv_type: Database["public"]["Enums"]["rdv_type"]
           recruteur_id: string | null
           referent_id: string | null
@@ -130,6 +184,7 @@ export type Database = {
           id?: string
           lieu?: string | null
           notes?: string | null
+          poste_id?: string | null
           rdv_type?: Database["public"]["Enums"]["rdv_type"]
           recruteur_id?: string | null
           referent_id?: string | null
@@ -147,6 +202,7 @@ export type Database = {
           id?: string
           lieu?: string | null
           notes?: string | null
+          poste_id?: string | null
           rdv_type?: Database["public"]["Enums"]["rdv_type"]
           recruteur_id?: string | null
           referent_id?: string | null
@@ -169,6 +225,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rdvs_poste_id_fkey"
+            columns: ["poste_id"]
+            isOneToOne: false
+            referencedRelation: "postes"
             referencedColumns: ["id"]
           },
           {

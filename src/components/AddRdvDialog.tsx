@@ -35,6 +35,7 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [candidats, setCandidats] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
+  const [postes, setPostes] = useState<any[]>([]);
   const [referents, setReferents] = useState<any[]>([]);
   const [recruteurs, setRecruteurs] = useState<any[]>([]);
   const [creatingTeamsMeeting, setCreatingTeamsMeeting] = useState(false);
@@ -42,6 +43,7 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
   const [formData, setFormData] = useState({
     candidat_id: '',
     client_id: '',
+    poste_id: '',
     date: '',
     time: '',
     type_rdv: 'TEAMS',
@@ -61,6 +63,13 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
   }, [isOpen]);
 
   useEffect(() => {
+    // Charger les postes quand un client est sélectionné
+    if (formData.client_id) {
+      loadPostesForClient(formData.client_id);
+    }
+  }, [formData.client_id]);
+
+  useEffect(() => {
     // Charger les référents quand un client est sélectionné et le type est CLIENT
     if (formData.client_id && formData.rdv_type === 'CLIENT') {
       loadReferentsForClient(formData.client_id);
@@ -72,7 +81,7 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
       // Charger les candidats
       const { data: candidatsData } = await supabase
         .from('candidats')
-        .select('id, nom, prenom')
+        .select('id, nom, prenom, email')
         .order('nom');
       setCandidats(candidatsData || []);
 
@@ -100,6 +109,20 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
         description: error.message,
         variant: "destructive",
       });
+    }
+  };
+
+  const loadPostesForClient = async (clientId: string) => {
+    try {
+      const { data } = await supabase
+        .from('postes')
+        .select('id, titre, statut')
+        .eq('client_id', clientId)
+        .eq('statut', 'OUVERT')
+        .order('titre');
+      setPostes(data || []);
+    } catch (error: any) {
+      console.error('Erreur chargement postes:', error);
     }
   };
 
@@ -279,6 +302,7 @@ L'équipe de recrutement`;
       const rdvData: any = {
         candidat_id: formData.candidat_id,
         client_id: formData.client_id,
+        poste_id: formData.poste_id || null,
         date: datetime.toISOString(),
         type_rdv: formData.type_rdv,
         rdv_type: formData.rdv_type,
@@ -324,6 +348,7 @@ L'équipe de recrutement`;
     setFormData({
       candidat_id: '',
       client_id: '',
+      poste_id: '',
       date: '',
       time: '',
       type_rdv: 'TEAMS',
@@ -336,6 +361,7 @@ L'équipe de recrutement`;
       teamsEmails: '',
     });
     setReferents([]);
+    setPostes([]);
   };
 
   return (
@@ -414,6 +440,33 @@ L'équipe de recrutement`;
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Poste associé */}
+            <div>
+              <Label htmlFor="poste">Poste</Label>
+              <Select
+                value={formData.poste_id}
+                onValueChange={(value) => setFormData({ ...formData, poste_id: value })}
+                disabled={!formData.client_id}
+              >
+                <SelectTrigger id="poste">
+                  <SelectValue placeholder={
+                    !formData.client_id 
+                      ? "Sélectionnez d'abord un client" 
+                      : postes.length === 0 
+                        ? "Aucun poste ouvert pour ce client"
+                        : "Sélectionner un poste (optionnel)"
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {postes.map((poste) => (
+                    <SelectItem key={poste.id} value={poste.id}>
+                      {poste.titre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Recruteur ou Référent selon le type */}
