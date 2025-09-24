@@ -57,22 +57,7 @@ export type Database = {
           strengths?: string[] | null
           weaknesses?: string[] | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "analyse_poste_candidat_candidat_id_fkey"
-            columns: ["candidat_id"]
-            isOneToOne: false
-            referencedRelation: "candidats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "analyse_poste_candidat_poste_id_fkey"
-            columns: ["poste_id"]
-            isOneToOne: false
-            referencedRelation: "postes"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       candidats: {
         Row: {

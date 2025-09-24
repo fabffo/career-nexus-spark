@@ -175,32 +175,15 @@ serve(async (req) => {
 
       if (analyseError) {
         console.error('Error saving to analyse_poste_candidat:', analyseError);
+        // Continue anyway - we don't want to fail the whole request
       } else {
         console.log('Analysis saved to analyse_poste_candidat successfully');
         console.log('Saved CV length:', fullCvContent.length);
+        console.log('Saved poste details:', JSON.stringify(posteDetails));
         console.log('Saved analysis ID:', analyseData.id);
       }
 
-      // Also save to matchings table for backward compatibility
-      const { error: saveError } = await supabase
-        .from('matchings')
-        .insert({
-          candidat_id: candidatId,
-          poste_id: posteId,
-          score: analysisResult.score,
-          match: analysisResult.match,
-          analysis: analysisResult.analysis,
-          strengths: analysisResult.strengths,
-          weaknesses: analysisResult.weaknesses,
-          cv_content: cvText.substring(0, 2000), // Store a preview of the CV
-          created_by: userId
-        });
-
-      if (saveError) {
-        console.error('Error saving to matchings:', saveError);
-      } else {
-        console.log('Matching saved to matchings table successfully');
-      }
+      // No longer save to matchings table as it has foreign key issues
     }
 
     return new Response(
