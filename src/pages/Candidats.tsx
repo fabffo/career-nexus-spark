@@ -449,6 +449,7 @@ export default function Candidats() {
           <Button 
             onClick={() => setIsAnalyzeOpen(true)} 
             className="bg-gradient-to-r from-primary to-primary-hover"
+            disabled
           >
             <Sparkles className="mr-2 h-4 w-4" />
             Analyser un CV
