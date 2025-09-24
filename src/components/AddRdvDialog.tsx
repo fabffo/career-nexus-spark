@@ -288,7 +288,7 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-[700px]">
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
@@ -296,7 +296,7 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-4 overflow-y-auto flex-1 px-1">
             {/* Type de RDV */}
             <div>
               <Label htmlFor="rdv_type">Type de rendez-vous *</Label>
@@ -528,7 +528,7 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="border-t pt-4">
             <Button variant="outline" onClick={() => setIsOpen(false)}>
               Annuler
             </Button>
