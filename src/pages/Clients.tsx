@@ -3,7 +3,8 @@ import { clientService } from '@/services';
 import { Client } from '@/types/models';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Globe, Mail, Phone, Building } from 'lucide-react';
+import { Plus, Edit, Trash2, Globe, Mail, Phone, Building, Eye, Copy } from 'lucide-react';
+import { ViewClientDialog } from '@/components/ViewClientDialog';
 import { ColumnDef } from '@tanstack/react-table';
 import {
   Dialog,
@@ -31,6 +32,7 @@ export default function Clients() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     raisonSociale: '',
     secteurActivite: '',
@@ -103,6 +105,28 @@ export default function Clients() {
     }
   };
 
+  const handleCopy = async (client: Client) => {
+    try {
+      const newClient = {
+        raisonSociale: client.raisonSociale + ' (Copie)',
+        secteurActivite: client.secteurActivite,
+        adresse: client.adresse,
+        telephone: client.telephone,
+        email: client.email,
+        siteWeb: client.siteWeb || '',
+      };
+      await clientService.create(newClient);
+      toast.success('Client dupliqué avec succès');
+      loadClients();
+    } catch (error) {
+      toast.error('Une erreur est survenue');
+    }
+  };
+
+  const handleView = (client: Client) => {
+    setSelectedClient(client);
+    setViewDialogOpen(true);
+
   const columns: ColumnDef<Client>[] = [
     {
       accessorKey: 'raisonSociale',
@@ -162,11 +186,28 @@ export default function Clients() {
       id: 'actions',
       header: 'Actions',
       cell: ({ row }) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleView(row.original)}
+            title="Visualiser"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleCopy(row.original)}
+            title="Copier"
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => handleOpenForm(row.original)}
+            title="Modifier"
           >
             <Edit className="h-4 w-4" />
           </Button>
@@ -177,6 +218,7 @@ export default function Clients() {
               setSelectedClient(row.original);
               setIsDeleteOpen(true);
             }}
+            title="Supprimer"
           >
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
@@ -297,6 +339,13 @@ export default function Clients() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* View Dialog */}
+      <ViewClientDialog 
+        client={selectedClient} 
+        open={viewDialogOpen} 
+        onOpenChange={setViewDialogOpen} 
+      />
     </div>
   );
 }

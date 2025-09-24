@@ -3,7 +3,8 @@ import { candidatService } from '@/services';
 import { Candidat } from '@/types/models';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Eye, Mail, Phone, MapPin, FileText, Award, Paperclip } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Mail, Phone, MapPin, FileText, Award, Paperclip, Copy } from 'lucide-react';
+import { ViewCandidatDialog } from '@/components/ViewCandidatDialog';
 import { ColumnDef } from '@tanstack/react-table';
 import {
   Dialog,
@@ -31,6 +32,7 @@ export default function Candidats() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedCandidat, setSelectedCandidat] = useState<Candidat | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     nom: '',
     prenom: '',
@@ -109,6 +111,30 @@ export default function Candidats() {
     }
   };
 
+  const handleCopy = async (candidat: Candidat) => {
+    try {
+      const newCandidat = {
+        nom: candidat.nom,
+        prenom: candidat.prenom + ' (Copie)',
+        metier: candidat.metier,
+        mail: candidat.mail,
+        telephone: candidat.telephone,
+        adresse: candidat.adresse,
+        cvUrl: candidat.cvUrl || '',
+        recommandationUrl: candidat.recommandationUrl || '',
+      };
+      await candidatService.create(newCandidat);
+      toast.success('Candidat dupliqué avec succès');
+      loadCandidats();
+    } catch (error) {
+      toast.error('Une erreur est survenue');
+    }
+  };
+
+  const handleView = (candidat: Candidat) => {
+    setSelectedCandidat(candidat);
+    setViewDialogOpen(true);
+
   const columns: ColumnDef<Candidat>[] = [
     {
       accessorKey: 'nom',
@@ -183,11 +209,28 @@ export default function Candidats() {
       id: 'actions',
       header: 'Actions',
       cell: ({ row }) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleView(row.original)}
+            title="Visualiser"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleCopy(row.original)}
+            title="Copier"
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => handleOpenForm(row.original)}
+            title="Modifier"
           >
             <Edit className="h-4 w-4" />
           </Button>
@@ -198,6 +241,7 @@ export default function Candidats() {
               setSelectedCandidat(row.original);
               setIsDeleteOpen(true);
             }}
+            title="Supprimer"
           >
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
@@ -346,6 +390,13 @@ export default function Candidats() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* View Dialog */}
+      <ViewCandidatDialog 
+        candidat={selectedCandidat} 
+        open={viewDialogOpen} 
+        onOpenChange={setViewDialogOpen} 
+      />
     </div>
   );
 }

@@ -4,7 +4,8 @@ import { PosteClient, Client } from '@/types/models';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Calendar, Building2, FileText } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, Building2, FileText, Eye, Copy } from 'lucide-react';
+import { ViewPosteDialog } from '@/components/ViewPosteDialog';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,7 @@ export default function Postes() {
   const [clients, setClients] = useState<Client[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedPoste, setSelectedPoste] = useState<PosteClient | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     clientId: '',
     nomPoste: '',
@@ -108,6 +110,29 @@ export default function Postes() {
     }
   };
 
+  const handleCopy = async (poste: PosteClient) => {
+    try {
+      const client = getClient(poste.clientId);
+      const newPoste = {
+        clientId: poste.clientId,
+        nomPoste: poste.nomPoste + ' (Copie)',
+        dateCreation: new Date(),
+        dateEcheance: poste.dateEcheance,
+        statut: 'ENCOURS' as PosteClient['statut'],
+        detail: poste.detail,
+      };
+      await posteService.create(newPoste);
+      toast.success('Poste dupliqué avec succès');
+      loadData();
+    } catch (error) {
+      toast.error('Une erreur est survenue');
+    }
+  };
+
+  const handleView = (poste: PosteClient) => {
+    setSelectedPoste(poste);
+    setViewDialogOpen(true);
+
   const getStatusBadge = (statut: PosteClient['statut']) => {
     const variants = {
       'ENCOURS': 'bg-blue-100 text-blue-800 border-blue-200',
@@ -181,12 +206,30 @@ export default function Postes() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 pt-2">
+                <div className="flex items-center gap-1 pt-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1"
+                    onClick={() => handleView(poste)}
+                    title="Visualiser"
+                  >
+                    <Eye className="mr-2 h-3 w-3" />
+                    Voir
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleCopy(poste)}
+                    title="Copier"
+                  >
+                    <Copy className="mr-2 h-3 w-3" />
+                    Copier
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => handleOpenForm(poste)}
+                    title="Modifier"
                   >
                     <Edit className="mr-2 h-3 w-3" />
                     Modifier
@@ -195,6 +238,7 @@ export default function Postes() {
                     variant="outline"
                     size="sm"
                     onClick={() => handleDelete(poste.id)}
+                    title="Supprimer"
                   >
                     <Trash2 className="h-3 w-3 text-destructive" />
                   </Button>
@@ -288,6 +332,14 @@ export default function Postes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* View Dialog */}
+      <ViewPosteDialog 
+        poste={selectedPoste} 
+        client={selectedPoste ? getClient(selectedPoste.clientId) : undefined}
+        open={viewDialogOpen} 
+        onOpenChange={setViewDialogOpen} 
+      />
     </div>
   );
 }
