@@ -29,10 +29,12 @@ serve(async (req) => {
     // Prepare the prompt for OpenAI
     const systemPrompt = `Tu es un assistant RH expert en analyse de CV. 
     Analyse le CV fourni et extrais les informations suivantes en format JSON:
-    - nom (string)
-    - prenom (string)
-    - email (string)
-    - telephone (string)
+    - nom (string): Le nom de famille du candidat
+    - prenom (string): Le prénom du candidat
+    - email (string): L'adresse email du candidat
+    - telephone (string): Le numéro de téléphone du candidat
+    
+    Cherche bien ces informations dans tout le document. Les noms sont souvent en haut du CV en gros caractères.
     
     Retourne UNIQUEMENT un objet JSON valide avec ces champs. 
     Si une information n'est pas trouvée, mets une chaîne vide.

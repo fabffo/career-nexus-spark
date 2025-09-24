@@ -219,11 +219,12 @@ export default function Candidats() {
       if (data?.success && data?.candidat) {
         toast.success('CV analysé et candidat créé avec succès !');
         setAnalyzeProgress(100);
+        // Refresh the list immediately
+        await loadCandidats();
         setTimeout(() => {
           setIsAnalyzeOpen(false);
           setIsAnalyzing(false);
           setAnalyzeProgress(0);
-          loadCandidats();
         }, 1000);
       } else {
         throw new Error(data?.error || 'Erreur lors de l\'analyse du CV');
