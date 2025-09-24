@@ -27,8 +27,8 @@ class CandidatService implements CrudOperations<Candidat> {
       telephone: item.telephone || '',
       metier: '',
       adresse: '',
-      cvUrl: '',
-      recommandationUrl: '',
+      cvUrl: item.cv_url || '',
+      recommandationUrl: item.recommandation_url || '',
       createdAt: new Date(item.created_at),
       updatedAt: new Date(item.updated_at),
     }));
@@ -52,8 +52,8 @@ class CandidatService implements CrudOperations<Candidat> {
       telephone: data.telephone || '',
       metier: '',
       adresse: '',
-      cvUrl: '',
-      recommandationUrl: '',
+      cvUrl: data.cv_url || '',
+      recommandationUrl: data.recommandation_url || '',
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };
@@ -64,7 +64,9 @@ class CandidatService implements CrudOperations<Candidat> {
       nom: item.nom,
       prenom: item.prenom,
       email: item.mail || '',
-      telephone: item.telephone || ''
+      telephone: item.telephone || '',
+      cv_url: item.cvUrl || null,
+      recommandation_url: item.recommandationUrl || null
     };
     
     const { data, error } = await supabase
@@ -83,8 +85,8 @@ class CandidatService implements CrudOperations<Candidat> {
       telephone: data.telephone || '',
       metier: item.metier || '',
       adresse: item.adresse || '',
-      cvUrl: item.cvUrl,
-      recommandationUrl: item.recommandationUrl,
+      cvUrl: data.cv_url || '',
+      recommandationUrl: data.recommandation_url || '',
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };
@@ -96,6 +98,8 @@ class CandidatService implements CrudOperations<Candidat> {
     if (item.prenom !== undefined) updateData.prenom = item.prenom;
     if (item.mail !== undefined) updateData.email = item.mail;
     if (item.telephone !== undefined) updateData.telephone = item.telephone;
+    if (item.cvUrl !== undefined) updateData.cv_url = item.cvUrl;
+    if (item.recommandationUrl !== undefined) updateData.recommandation_url = item.recommandationUrl;
     
     const { data, error } = await supabase
       .from('candidats')
@@ -114,8 +118,8 @@ class CandidatService implements CrudOperations<Candidat> {
       telephone: data.telephone || '',
       metier: item.metier || '',
       adresse: item.adresse || '',
-      cvUrl: item.cvUrl || '',
-      recommandationUrl: item.recommandationUrl || '',
+      cvUrl: data.cv_url || '',
+      recommandationUrl: data.recommandation_url || '',
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };

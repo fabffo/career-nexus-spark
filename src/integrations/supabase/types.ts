@@ -17,28 +17,34 @@ export type Database = {
       candidats: {
         Row: {
           created_at: string | null
+          cv_url: string | null
           email: string | null
           id: string
           nom: string
           prenom: string
+          recommandation_url: string | null
           telephone: string | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
+          cv_url?: string | null
           email?: string | null
           id?: string
           nom: string
           prenom: string
+          recommandation_url?: string | null
           telephone?: string | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
+          cv_url?: string | null
           email?: string | null
           id?: string
           nom?: string
           prenom?: string
+          recommandation_url?: string | null
           telephone?: string | null
           updated_at?: string | null
         }

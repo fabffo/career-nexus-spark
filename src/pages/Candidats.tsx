@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { candidatService } from '@/services';
 import { Candidat } from '@/types/models';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Eye, Mail, Phone, MapPin, FileText, Award, Paperclip, Copy, History } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Mail, Phone, MapPin, FileText, Award, Paperclip, Copy, History, Upload, X } from 'lucide-react';
 import { ViewCandidatDialog } from '@/components/ViewCandidatDialog';
 import { CandidatHistoryDialog } from '@/components/CandidatHistoryDialog';
 import { ColumnDef } from '@tanstack/react-table';
+import { useFileUpload } from '@/hooks/useFileUpload';
 import {
   Dialog,
   DialogContent,
@@ -45,6 +46,11 @@ export default function Candidats() {
     cvUrl: '',
     recommandationUrl: '',
   });
+  const [cvFile, setCvFile] = useState<File | null>(null);
+  const [recommandationFile, setRecommandationFile] = useState<File | null>(null);
+  const { uploadFile, deleteFile, isUploading } = useFileUpload();
+  const cvInputRef = useRef<HTMLInputElement>(null);
+  const recommandationInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadCandidats();
@@ -80,20 +86,51 @@ export default function Candidats() {
         cvUrl: '',
         recommandationUrl: '',
       });
+      setCvFile(null);
+      setRecommandationFile(null);
     }
     setIsFormOpen(true);
   };
 
   const handleSubmit = async () => {
     try {
+      let cvUrl = formData.cvUrl;
+      let recommandationUrl = formData.recommandationUrl;
+
+      // Upload CV if file selected
+      if (cvFile) {
+        // Delete old CV if exists and updating
+        if (selectedCandidat?.cvUrl) {
+          await deleteFile(selectedCandidat.cvUrl);
+        }
+        cvUrl = await uploadFile(cvFile, 'cv');
+      }
+
+      // Upload recommendation if file selected
+      if (recommandationFile) {
+        // Delete old recommendation if exists and updating
+        if (selectedCandidat?.recommandationUrl) {
+          await deleteFile(selectedCandidat.recommandationUrl);
+        }
+        recommandationUrl = await uploadFile(recommandationFile, 'recommandations');
+      }
+
+      const updatedFormData = {
+        ...formData,
+        cvUrl,
+        recommandationUrl,
+      };
+
       if (selectedCandidat) {
-        await candidatService.update(selectedCandidat.id, formData);
+        await candidatService.update(selectedCandidat.id, updatedFormData);
         toast.success('Candidat modifié avec succès');
       } else {
-        await candidatService.create(formData);
+        await candidatService.create(updatedFormData);
         toast.success('Candidat créé avec succès');
       }
       setIsFormOpen(false);
+      setCvFile(null);
+      setRecommandationFile(null);
       loadCandidats();
     } catch (error) {
       toast.error('Une erreur est survenue');
@@ -348,42 +385,132 @@ export default function Candidats() {
                 onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
               />
             </div>
-            <div>
-              <Label htmlFor="cvUrl">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  URL du CV
-                </div>
-              </Label>
-              <Input
-                id="cvUrl"
-                type="url"
-                placeholder="https://example.com/cv.pdf"
-                value={formData.cvUrl}
-                onChange={(e) => setFormData({ ...formData, cvUrl: e.target.value })}
+            
+            {/* CV Upload */}
+            <div className="space-y-2">
+              <Label>CV</Label>
+              <input
+                ref={cvInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) setCvFile(file);
+                }}
+                className="hidden"
               />
+              <div className="flex items-center gap-2">
+                {formData.cvUrl || cvFile ? (
+                  <>
+                    <div className="flex-1 flex items-center gap-2 p-2 rounded-md border border-border bg-muted/50">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground truncate">
+                        {cvFile ? cvFile.name : 'CV existant'}
+                      </span>
+                    </div>
+                    {formData.cvUrl && !cvFile && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => window.open(formData.cvUrl, '_blank')}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        setCvFile(null);
+                        setFormData({ ...formData, cvUrl: '' });
+                        if (cvInputRef.current) cvInputRef.current.value = '';
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => cvInputRef.current?.click()}
+                    className="w-full"
+                    disabled={isUploading}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Télécharger CV
+                  </Button>
+                )}
+              </div>
             </div>
-            <div>
-              <Label htmlFor="recommandationUrl">
-                <div className="flex items-center gap-2">
-                  <Award className="h-4 w-4" />
-                  URL de recommandation
-                </div>
-              </Label>
-              <Input
-                id="recommandationUrl"
-                type="url"
-                placeholder="https://example.com/recommandation.pdf"
-                value={formData.recommandationUrl}
-                onChange={(e) => setFormData({ ...formData, recommandationUrl: e.target.value })}
+
+            {/* Recommendation Upload */}
+            <div className="space-y-2">
+              <Label>Lettre de recommandation</Label>
+              <input
+                ref={recommandationInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) setRecommandationFile(file);
+                }}
+                className="hidden"
               />
+              <div className="flex items-center gap-2">
+                {formData.recommandationUrl || recommandationFile ? (
+                  <>
+                    <div className="flex-1 flex items-center gap-2 p-2 rounded-md border border-border bg-muted/50">
+                      <Award className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground truncate">
+                        {recommandationFile ? recommandationFile.name : 'Recommandation existante'}
+                      </span>
+                    </div>
+                    {formData.recommandationUrl && !recommandationFile && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => window.open(formData.recommandationUrl, '_blank')}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        setRecommandationFile(null);
+                        setFormData({ ...formData, recommandationUrl: '' });
+                        if (recommandationInputRef.current) recommandationInputRef.current.value = '';
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => recommandationInputRef.current?.click()}
+                    className="w-full"
+                    disabled={isUploading}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Télécharger recommandation
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsFormOpen(false)}>
               Annuler
             </Button>
-            <Button onClick={handleSubmit}>
+            <Button onClick={handleSubmit} disabled={isUploading}>
               {selectedCandidat ? 'Modifier' : 'Créer'}
             </Button>
           </DialogFooter>
