@@ -210,15 +210,15 @@ export default function Postes() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 pt-2">
+                <div className="grid grid-cols-2 gap-1 pt-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleView(poste)}
-                    title="Visualiser"
+                    className="text-xs"
                   >
-                    <Eye className="mr-2 h-3 w-3" />
-                    Voir
+                    <Eye className="h-3 w-3" />
+                    <span className="ml-1">Voir</span>
                   </Button>
                   <Button
                     variant="outline"
@@ -227,38 +227,38 @@ export default function Postes() {
                       setHistoryPosteId(poste.id);
                       setHistoryDialogOpen(true);
                     }}
-                    title="Historique"
+                    className="text-xs"
                   >
-                    <History className="mr-2 h-3 w-3" />
-                    Historique
+                    <History className="h-3 w-3" />
+                    <span className="ml-1">Historique</span>
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleCopy(poste)}
-                    title="Copier"
+                    className="text-xs"
                   >
-                    <Copy className="mr-2 h-3 w-3" />
-                    Copier
+                    <Copy className="h-3 w-3" />
+                    <span className="ml-1">Copier</span>
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleOpenForm(poste)}
-                    title="Modifier"
+                    className="text-xs"
                   >
-                    <Edit className="mr-2 h-3 w-3" />
-                    Modifier
+                    <Edit className="h-3 w-3" />
+                    <span className="ml-1">Modifier</span>
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleDelete(poste.id)}
-                    title="Supprimer"
+                    className="col-span-2 text-xs"
                   >
                     <Trash2 className="h-3 w-3 text-destructive" />
+                    <span className="ml-1">Supprimer</span>
                   </Button>
-                
                 </div>
               </CardContent>
             </Card>
