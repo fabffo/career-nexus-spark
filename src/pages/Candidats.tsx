@@ -42,6 +42,14 @@ export default function Candidats() {
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeProgress, setAnalyzeProgress] = useState(0);
+  const [manualEntry, setManualEntry] = useState(false);
+  const [analyzeCvFile, setAnalyzeCvFile] = useState<File | null>(null);
+  const [manualData, setManualData] = useState({
+    nom: '',
+    prenom: '',
+    email: '',
+    telephone: ''
+  });
   const [formData, setFormData] = useState({
     nom: '',
     prenom: '',
@@ -192,7 +200,60 @@ export default function Candidats() {
     setAnalyzeProgress(10);
     
     try {
-      // Read file content
+      // If manual data is provided, skip AI analysis and create candidate directly
+      if (manualEntry && manualData.nom && manualData.prenom) {
+        setAnalyzeProgress(30);
+        
+        // Upload CV file directly
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `cv/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('candidats-files')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('candidats-files')
+          .getPublicUrl(filePath);
+
+        setAnalyzeProgress(60);
+
+        // Create the candidate in the database with manual data
+        const candidateData = {
+          nom: manualData.nom,
+          prenom: manualData.prenom,
+          email: manualData.email || '',
+          telephone: manualData.telephone || '',
+          cv_url: publicUrl,
+        };
+
+        const { error: insertError } = await supabase
+          .from('candidats')
+          .insert(candidateData)
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+
+        setAnalyzeProgress(100);
+        toast.success('Candidat créé avec succès !');
+        await loadCandidats();
+        
+        setTimeout(() => {
+          setIsAnalyzeOpen(false);
+          setIsAnalyzing(false);
+          setAnalyzeProgress(0);
+          setManualEntry(false);
+          setAnalyzeCvFile(null);
+          setManualData({ nom: '', prenom: '', email: '', telephone: '' });
+        }, 1000);
+        return;
+      }
+
+      // Original AI analysis (if not manual entry)
       const reader = new FileReader();
       const fileContent = await new Promise<string>((resolve) => {
         reader.onload = (e) => resolve(e.target?.result as string);
@@ -219,7 +280,6 @@ export default function Candidats() {
       if (data?.success && data?.candidat) {
         toast.success('CV analysé et candidat créé avec succès !');
         setAnalyzeProgress(100);
-        // Refresh the list immediately
         await loadCandidats();
         setTimeout(() => {
           setIsAnalyzeOpen(false);
