@@ -3,8 +3,9 @@ import { candidatService } from '@/services';
 import { Candidat } from '@/types/models';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Eye, Mail, Phone, MapPin, FileText, Award, Paperclip, Copy } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Mail, Phone, MapPin, FileText, Award, Paperclip, Copy, History } from 'lucide-react';
 import { ViewCandidatDialog } from '@/components/ViewCandidatDialog';
+import { CandidatHistoryDialog } from '@/components/CandidatHistoryDialog';
 import { ColumnDef } from '@tanstack/react-table';
 import {
   Dialog,
@@ -33,6 +34,7 @@ export default function Candidats() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedCandidat, setSelectedCandidat] = useState<Candidat | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     nom: '',
     prenom: '',
@@ -136,6 +138,11 @@ export default function Candidats() {
     setViewDialogOpen(true);
   };
 
+  const handleHistory = (candidat: Candidat) => {
+    setSelectedCandidat(candidat);
+    setHistoryDialogOpen(true);
+  };
+
   const columns: ColumnDef<Candidat>[] = [
     {
       accessorKey: 'nom',
@@ -218,6 +225,15 @@ export default function Candidats() {
             title="Visualiser"
           >
             <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleHistory(row.original)}
+            title="Historique des RDV"
+            className="text-primary"
+          >
+            <History className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
@@ -397,6 +413,13 @@ export default function Candidats() {
         candidat={selectedCandidat} 
         open={viewDialogOpen} 
         onOpenChange={setViewDialogOpen} 
+      />
+
+      {/* History Dialog */}
+      <CandidatHistoryDialog
+        candidat={selectedCandidat}
+        open={historyDialogOpen}
+        onOpenChange={setHistoryDialogOpen}
       />
     </div>
   );
