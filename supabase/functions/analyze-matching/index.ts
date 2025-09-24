@@ -83,6 +83,9 @@ serve(async (req) => {
     console.log('CV text length:', cvText.length);
     console.log('CV preview:', cvText.substring(0, 500));
     
+    // Prepare the full CV text for analysis (no truncation)
+    const fullCvContent = cvText;
+    
     // Prepare the prompt for GPT
     const prompt = `
     Tu es un expert en recrutement. Analyse la correspondance entre ce CV et ce poste.
@@ -94,8 +97,10 @@ serve(async (req) => {
     - Type de contrat: ${posteDetails.type_contrat || 'Non spécifié'}
     - Localisation: ${posteDetails.localisation || 'Non spécifiée'}
     
-    CV DU CANDIDAT:
-    ${cvText.substring(0, 4000)} // Limit to avoid token issues
+    CV DU CANDIDAT (TEXTE COMPLET):
+    ${fullCvContent}
+    
+    IMPORTANT: Analyse TOUT le contenu du CV ci-dessus, sans limitation.
     
     Réponds avec une analyse structurée incluant:
     1. Un score de correspondance de 0 à 100
@@ -131,7 +136,7 @@ serve(async (req) => {
         ],
         response_format: { type: "json_object" },
         temperature: 0.3,
-        max_tokens: 1000,
+        max_tokens: 2500,
       }),
     });
 
