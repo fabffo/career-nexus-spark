@@ -223,6 +223,18 @@ export default function Postes() {
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => {
+                      setHistoryPosteId(poste.id);
+                      setHistoryDialogOpen(true);
+                    }}
+                    title="Historique"
+                  >
+                    <History className="mr-2 h-3 w-3" />
+                    Historique
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => handleCopy(poste)}
                     title="Copier"
                   >
@@ -246,6 +258,7 @@ export default function Postes() {
                   >
                     <Trash2 className="h-3 w-3 text-destructive" />
                   </Button>
+                
                 </div>
               </CardContent>
             </Card>
@@ -343,6 +356,13 @@ export default function Postes() {
         client={selectedPoste ? getClient(selectedPoste.clientId) : undefined}
         open={viewDialogOpen} 
         onOpenChange={setViewDialogOpen} 
+      />
+
+      {/* History Dialog */}
+      <PosteHistoryDialog
+        isOpen={historyDialogOpen}
+        onClose={() => setHistoryDialogOpen(false)}
+        posteId={historyPosteId}
       />
     </div>
   );
