@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+import * as pdfParse from "https://deno.land/x/pdf_parse@v0.1.0/mod.ts";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -18,7 +19,7 @@ serve(async (req) => {
   }
 
   try {
-    const { candidatId, posteId, cvUrl, posteDetails } = await req.json();
+    const { candidatId, posteId, cvUrl, posteDetails, userId } = await req.json();
     
     console.log('Starting matching analysis for:', { candidatId, posteId });
 
@@ -49,8 +50,27 @@ serve(async (req) => {
       throw new Error('Impossible de récupérer le CV');
     }
 
-    // Convert CV to text (simplified - in production you'd use a PDF parser)
-    const cvText = await cvData.text();
+    // Convert CV to text - try to parse as PDF first
+    let cvText = '';
+    try {
+      // Try to read as text first
+      cvText = await cvData.text();
+      
+      // If the text looks like binary data (PDF), try to extract text differently
+      if (cvText.includes('%PDF') || cvText.length < 100) {
+        console.log('PDF detected, attempting to extract text...');
+        // For now, we'll use a simple approach - in production, use a proper PDF parser
+        // Extract any readable text from the binary
+        const textMatch = cvText.match(/[\x20-\x7E\n\r\t]+/g);
+        cvText = textMatch ? textMatch.join(' ') : '';
+      }
+    } catch (error) {
+      console.error('Error parsing CV:', error);
+      cvText = 'Unable to extract text from CV';
+    }
+    
+    console.log('CV text length:', cvText.length);
+    console.log('CV preview:', cvText.substring(0, 500));
     
     // Prepare the prompt for GPT
     const prompt = `
@@ -59,9 +79,12 @@ serve(async (req) => {
     POSTE:
     - Titre: ${posteDetails.titre}
     - Description: ${posteDetails.description}
+    - Compétences recherchées: ${posteDetails.competences?.join(', ') || 'Non spécifiées'}
+    - Type de contrat: ${posteDetails.type_contrat || 'Non spécifié'}
+    - Localisation: ${posteDetails.localisation || 'Non spécifiée'}
     
     CV DU CANDIDAT:
-    ${cvText.substring(0, 3000)} // Limit to avoid token issues
+    ${cvText.substring(0, 4000)} // Limit to avoid token issues
     
     Réponds avec une analyse structurée incluant:
     1. Un score de correspondance de 0 à 100
@@ -112,8 +135,34 @@ serve(async (req) => {
 
     console.log('Analysis completed:', analysisResult);
 
+    // Save the matching result to database
+    if (userId) {
+      const { error: saveError } = await supabase
+        .from('matchings')
+        .insert({
+          candidat_id: candidatId,
+          poste_id: posteId,
+          score: analysisResult.score,
+          match: analysisResult.match,
+          analysis: analysisResult.analysis,
+          strengths: analysisResult.strengths,
+          weaknesses: analysisResult.weaknesses,
+          cv_content: cvText.substring(0, 2000), // Store a preview of the CV
+          created_by: userId
+        });
+
+      if (saveError) {
+        console.error('Error saving matching:', saveError);
+      } else {
+        console.log('Matching saved successfully');
+      }
+    }
+
     return new Response(
-      JSON.stringify(analysisResult),
+      JSON.stringify({
+        ...analysisResult,
+        cvExtract: cvText.substring(0, 500) // Return a preview of what was analyzed
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,

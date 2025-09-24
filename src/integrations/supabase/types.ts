@@ -80,6 +80,63 @@ export type Database = {
         }
         Relationships: []
       }
+      matchings: {
+        Row: {
+          analysis: string
+          candidat_id: string | null
+          created_at: string
+          created_by: string | null
+          cv_content: string | null
+          id: string
+          match: boolean
+          poste_id: string | null
+          score: number
+          strengths: string[] | null
+          weaknesses: string[] | null
+        }
+        Insert: {
+          analysis: string
+          candidat_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          cv_content?: string | null
+          id?: string
+          match: boolean
+          poste_id?: string | null
+          score: number
+          strengths?: string[] | null
+          weaknesses?: string[] | null
+        }
+        Update: {
+          analysis?: string
+          candidat_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          cv_content?: string | null
+          id?: string
+          match?: boolean
+          poste_id?: string | null
+          score?: number
+          strengths?: string[] | null
+          weaknesses?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matchings_candidat_id_fkey"
+            columns: ["candidat_id"]
+            isOneToOne: false
+            referencedRelation: "candidats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matchings_poste_id_fkey"
+            columns: ["poste_id"]
+            isOneToOne: false
+            referencedRelation: "postes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       postes: {
         Row: {
           client_id: string | null
