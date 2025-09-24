@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { candidatService, posteService } from "@/services";
 
@@ -23,6 +24,7 @@ export default function Matching() {
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [matchingHistory, setMatchingHistory] = useState<any[]>([]);
   const [fullAnalysisHistory, setFullAnalysisHistory] = useState<any[]>([]);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<any>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -53,16 +55,43 @@ export default function Matching() {
       // Fetch from new table with full data
       const { data: fullData, error: fullError } = await supabase
         .from('analyse_poste_candidat')
-        .select(`
-          *,
-          candidat:candidats(nom, prenom),
-          poste:postes(titre)
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(10);
 
       if (!fullError && fullData) {
-        setFullAnalysisHistory(fullData);
+        console.log('Full analysis data:', fullData);
+        
+        // Fetch candidat and poste names separately
+        const enrichedData = await Promise.all(
+          fullData.map(async (analysis) => {
+            // Get candidat info
+            let candidatInfo = null;
+            if (analysis.candidat_id) {
+              const { data: candidat } = await supabase
+                .from('candidats')
+                .select('nom, prenom')
+                .eq('id', analysis.candidat_id)
+                .maybeSingle();
+              candidatInfo = candidat;
+            }
+            
+            // Get poste info from detail_poste JSON which contains the titre
+            const posteInfo = {
+              titre: (analysis.detail_poste as any)?.titre || 'Poste inconnu'
+            };
+            
+            return {
+              ...analysis,
+              candidat: candidatInfo,
+              poste: posteInfo
+            };
+          })
+        );
+        
+        setFullAnalysisHistory(enrichedData);
+      } else if (fullError) {
+        console.error('Error fetching full analysis history:', fullError);
       }
 
       // Also fetch from matchings for backward compatibility  
@@ -392,50 +421,68 @@ export default function Matching() {
               {fullAnalysisHistory.map((analysis) => (
                 <div 
                   key={analysis.id} 
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-secondary/50 transition-colors"
+                  className="p-4 border rounded-lg hover:bg-secondary/50 transition-colors cursor-pointer"
+                  onClick={() => setSelectedHistoryItem(analysis)}
                 >
-                  <div className="flex-1 space-y-1">
-                    <p className="font-medium">
-                      {analysis.candidat?.prenom} {analysis.candidat?.nom}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {analysis.poste?.titre}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(analysis.created_at).toLocaleDateString('fr-FR', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 space-y-1">
+                      <p className="font-medium">
+                        {analysis.candidat?.prenom} {analysis.candidat?.nom || 
+                         `Candidat ID: ${analysis.candidat_id?.substring(0, 8)}...`}
                       </p>
-                      <span className="text-xs text-muted-foreground">•</span>
-                      <p className="text-xs text-muted-foreground">
-                        CV: {analysis.detail_cv?.length || 0} caractères
+                      <p className="text-sm text-muted-foreground">
+                        {analysis.poste?.titre}
                       </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <div className={cn(
-                        "text-2xl font-bold",
-                        analysis.score >= 70 ? "text-green-600" :
-                        analysis.score >= 50 ? "text-yellow-600" : "text-red-600"
-                      )}>
-                        {analysis.score}%
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(analysis.created_at).toLocaleDateString('fr-FR', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                        <span className="text-xs text-muted-foreground">•</span>
+                        <p className="text-xs text-muted-foreground">
+                          CV: {analysis.detail_cv?.length || 0} caractères
+                        </p>
+                        <span className="text-xs text-muted-foreground">•</span>
+                        <p className="text-xs text-muted-foreground">
+                          Poste: {(analysis.detail_poste as any)?.description?.length || 0} caractères
+                        </p>
                       </div>
-                      <Badge 
-                        variant={analysis.match ? "default" : "secondary"}
-                        className={cn(
-                          analysis.match ? "bg-green-100 text-green-800 hover:bg-green-200" : ""
-                        )}
-                      >
-                        {analysis.match ? "Match" : "No Match"}
-                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <div className={cn(
+                          "text-2xl font-bold",
+                          analysis.score >= 70 ? "text-green-600" :
+                          analysis.score >= 50 ? "text-yellow-600" : "text-red-600"
+                        )}>
+                          {analysis.score}%
+                        </div>
+                        <Badge 
+                          variant={analysis.match ? "default" : "secondary"}
+                          className={cn(
+                            analysis.match ? "bg-green-100 text-green-800 hover:bg-green-200" : ""
+                          )}
+                        >
+                          {analysis.match ? "Match" : "No Match"}
+                        </Badge>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
                     </div>
                   </div>
+                  
+                  {/* Analysis summary */}
+                  {analysis.analysis && (
+                    <div className="mt-3 pt-3 border-t">
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {analysis.analysis}
+                      </p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -514,6 +561,100 @@ export default function Matching() {
           </CardContent>
         </Card>
       )}
+      
+      {/* Dialog to view saved analysis details */}
+      <Dialog open={!!selectedHistoryItem} onOpenChange={(open) => !open && setSelectedHistoryItem(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Détails de l'analyse sauvegardée</DialogTitle>
+          </DialogHeader>
+          {selectedHistoryItem && (
+            <Tabs defaultValue="results" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="results">Résultat</TabsTrigger>
+                <TabsTrigger value="cv">CV Complet</TabsTrigger>
+                <TabsTrigger value="poste">Poste Complet</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="results" className="space-y-4 mt-4">
+                <div className="flex items-center justify-between p-4 bg-secondary rounded-lg">
+                  <span className="text-lg font-semibold">Score de correspondance</span>
+                  <span className={cn(
+                    "text-3xl font-bold",
+                    selectedHistoryItem.score >= 70 ? "text-green-600" : 
+                    selectedHistoryItem.score >= 50 ? "text-yellow-600" : "text-red-600"
+                  )}>
+                    {selectedHistoryItem.score}%
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="font-semibold">Analyse détaillée</h3>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {selectedHistoryItem.analysis}
+                  </p>
+                </div>
+
+                {selectedHistoryItem.strengths && selectedHistoryItem.strengths.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-green-600">Points forts</h3>
+                    <ul className="list-disc list-inside space-y-1">
+                      {selectedHistoryItem.strengths.map((strength: string, index: number) => (
+                        <li key={index} className="text-sm">{strength}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {selectedHistoryItem.weaknesses && selectedHistoryItem.weaknesses.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-orange-600">Points faibles</h3>
+                    <ul className="list-disc list-inside space-y-1">
+                      {selectedHistoryItem.weaknesses.map((weakness: string, index: number) => (
+                        <li key={index} className="text-sm">{weakness}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="cv" className="mt-4">
+                <ScrollArea className="h-[500px] w-full rounded-md border p-4">
+                  <pre className="text-sm whitespace-pre-wrap font-mono break-words">
+                    {selectedHistoryItem.detail_cv || "Aucun CV disponible"}
+                  </pre>
+                </ScrollArea>
+              </TabsContent>
+
+              <TabsContent value="poste" className="mt-4">
+                <ScrollArea className="h-[500px] w-full rounded-md border p-4">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold">
+                        {(selectedHistoryItem.detail_poste as any)?.titre || "Titre non disponible"}
+                      </h3>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-sm mb-2">Description complète</h4>
+                      <pre className="text-sm whitespace-pre-wrap break-words">
+                        {(selectedHistoryItem.detail_poste as any)?.description || "Description non disponible"}
+                      </pre>
+                    </div>
+                    {(selectedHistoryItem.detail_poste as any)?.competences?.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold text-sm mb-2">Compétences</h4>
+                        <p className="text-sm">
+                          {(selectedHistoryItem.detail_poste as any).competences.join(", ")}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+            </Tabs>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
