@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
 import { AddRdvDialog } from '@/components/AddRdvDialog';
+import { EditRdvDialog } from '@/components/EditRdvDialog';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface RdvWithRelations {
@@ -209,6 +210,7 @@ export default function RendezVous() {
       header: 'Actions',
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
+          <EditRdvDialog rdv={row.original} onSuccess={loadData} />
           <Button
             variant="ghost"
             size="icon"
