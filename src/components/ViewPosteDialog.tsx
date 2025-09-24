@@ -31,7 +31,7 @@ export function ViewPosteDialog({ poste, client, open, onOpenChange }: ViewPoste
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Briefcase className="h-5 w-5" />
@@ -39,7 +39,7 @@ export function ViewPosteDialog({ poste, client, open, onOpenChange }: ViewPoste
           </DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-y-auto max-h-[calc(90vh-120px)] pr-2">
           {/* En-tête avec nom et statut */}
           <div className="flex items-start justify-between">
             <h3 className="text-lg font-semibold">{poste.nomPoste || poste.nom_poste}</h3>
