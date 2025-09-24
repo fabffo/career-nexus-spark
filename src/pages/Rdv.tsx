@@ -161,6 +161,19 @@ export default function RendezVous() {
       cell: ({ row }) => format(new Date(row.original.date), 'dd/MM/yyyy HH:mm', { locale: fr }),
     },
     {
+      accessorKey: 'poste',
+      header: 'Poste',
+      accessorFn: (row) => row.postes?.titre || '-',
+      cell: ({ row }) => {
+        const poste = row.original.postes;
+        return poste ? (
+          <span className="font-medium text-primary">{poste.titre}</span>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        );
+      },
+    },
+    {
       accessorKey: 'candidat',
       header: 'Candidat',
       accessorFn: (row) => {
