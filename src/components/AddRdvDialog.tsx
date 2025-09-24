@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Plus, Calendar, Users, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { RdvType } from '@/types/database';
@@ -115,6 +116,33 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
     }
   };
 
+  const generateEmailMessage = (rdv: any, teamsLink: string) => {
+    const date = format(new Date(rdv.date), 'dd MMMM yyyy à HH:mm', { locale: fr });
+    const type = rdv.type_rdv === 'TEAMS' ? 'Microsoft Teams' : 
+                 rdv.type_rdv === 'PRESENTIEL_CLIENT' ? 'Présentiel' : 'Téléphone';
+    
+    return `Bonjour,
+
+Je vous confirme notre rendez-vous prévu le ${date}.
+
+Type de rendez-vous : ${type}
+${rdv.lieu ? `Lieu : ${rdv.lieu}` : ''}
+${rdv.notes ? `\nNotes : ${rdv.notes}` : ''}
+
+${rdv.type_rdv === 'TEAMS' ? `
+Lien de la réunion Teams :
+${teamsLink}
+
+Comment rejoindre la réunion :
+1. Cliquez sur le lien ci-dessus
+2. Rejoignez depuis votre navigateur ou l'application Teams
+3. Activez votre caméra et microphone
+
+` : ''}
+Cordialement,
+L'équipe de recrutement`;
+  };
+
   const createTeamsMeetingIfNeeded = async (rdvId: string, rdvData: any) => {
     if (rdvData.type_rdv !== 'TEAMS') {
       return null;
@@ -177,6 +205,36 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
           title: "Lien Teams créé",
           description: "Le lien de réunion Teams a été généré avec succès.",
         });
+        
+        // Send email invitations if there are attendees
+        if (attendees.length > 0) {
+          const rdvDetails = await supabase
+            .from('rdvs')
+            .select('*, candidat:candidats(*), client:clients(*)')
+            .eq('id', rdvId)
+            .single();
+            
+          if (rdvDetails.data) {
+            const { error: emailError } = await supabase.functions.invoke('teams-integration', {
+              body: {
+                action: 'send-invitation',
+                data: {
+                  rdv: rdvDetails.data,
+                  recipients: attendees,
+                  message: generateEmailMessage(rdvDetails.data, data.joinUrl)
+                }
+              }
+            });
+            
+            if (!emailError) {
+              toast({
+                title: "Invitations envoyées",
+                description: `${attendees.length} invitation(s) envoyée(s) par email`,
+              });
+            }
+          }
+        }
+        
         return data.joinUrl;
       }
 

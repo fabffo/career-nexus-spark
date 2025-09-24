@@ -9,6 +9,7 @@ import { toast } from '@/hooks/use-toast';
 import { Edit, Calendar, Clock, MapPin, Users, Phone, Video } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 interface EditRdvDialogProps {
   rdv: any;
@@ -111,6 +112,34 @@ export function EditRdvDialog({ rdv, onSuccess }: EditRdvDialogProps) {
     }
   }, [formData.client_id, formData.rdv_type]);
 
+  const generateEmailMessage = (rdv: any, teamsLink: string) => {
+    const date = format(new Date(rdv.date), 'dd MMMM yyyy à HH:mm', { locale: fr });
+    const type = rdv.type_rdv === 'TEAMS' ? 'Microsoft Teams' : 
+                 rdv.type_rdv === 'PRESENTIEL_CLIENT' ? 'Présentiel' : 'Téléphone';
+    
+    return `Bonjour,
+
+Je vous informe que notre rendez-vous a été mis à jour.
+
+Nouvelle date : ${date}
+Type de rendez-vous : ${type}
+${rdv.lieu ? `Lieu : ${rdv.lieu}` : ''}
+${rdv.notes ? `\nNotes : ${rdv.notes}` : ''}
+
+${rdv.type_rdv === 'TEAMS' && teamsLink ? `
+Lien de la réunion Teams :
+${teamsLink}
+
+Comment rejoindre la réunion :
+1. Cliquez sur le lien ci-dessus
+2. Rejoignez depuis votre navigateur ou l'application Teams
+3. Activez votre caméra et microphone
+
+` : ''}
+Cordialement,
+L'équipe de recrutement`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -138,8 +167,8 @@ export function EditRdvDialog({ rdv, onSuccess }: EditRdvDialogProps) {
 
       if (error) throw error;
 
-      // If Teams meeting and emails changed, update the meeting
-      if (formData.type_rdv === 'TEAMS' && formData.teamsEmails && rdv.teams_link) {
+      // Handle Teams meeting creation or update
+      if (formData.type_rdv === 'TEAMS') {
         // Collect attendee emails
         const attendees = [];
         
@@ -162,12 +191,55 @@ export function EditRdvDialog({ rdv, onSuccess }: EditRdvDialogProps) {
           attendees.push(...additionalEmails);
         }
 
-        // Note: In a real scenario, you would update the Teams meeting here
-        // For now, we just show a message that the Teams link remains the same
-        toast({
-          title: "Information",
-          description: "Le lien Teams existant reste valide. Pour changer les participants, créez un nouveau RDV.",
-        });
+        // If no Teams link exists, create one
+        if (!rdv.teams_link) {
+          const { data: meetingData, error: meetingError } = await supabase.functions.invoke('create-teams-meeting', {
+            body: {
+              rdvId: rdv.id,
+              startDateTime: updateData.date,
+              endDateTime: new Date(new Date(updateData.date).getTime() + 60 * 60 * 1000).toISOString(),
+              subject: `Entretien - ${candidat?.prenom} ${candidat?.nom} - ${clients.find(c => c.id === formData.client_id)?.raison_sociale}`,
+              attendees
+            }
+          });
+
+          if (!meetingError && meetingData?.joinUrl) {
+            toast({
+              title: "Lien Teams créé",
+              description: "Le lien de réunion Teams a été généré avec succès.",
+            });
+          }
+        }
+
+        // Send updated invitations to all attendees
+        if (attendees.length > 0) {
+          // Get the latest RDV data with Teams link
+          const { data: updatedRdv } = await supabase
+            .from('rdvs')
+            .select('*, candidat:candidats(*), client:clients(*)')
+            .eq('id', rdv.id)
+            .single();
+            
+          if (updatedRdv) {
+            const { error: emailError } = await supabase.functions.invoke('teams-integration', {
+              body: {
+                action: 'send-invitation',
+                data: {
+                  rdv: updatedRdv,
+                  recipients: attendees,
+                  message: generateEmailMessage(updatedRdv, updatedRdv.teams_link || '')
+                }
+              }
+            });
+            
+            if (!emailError) {
+              toast({
+                title: "Invitations mises à jour",
+                description: `${attendees.length} invitation(s) envoyée(s) par email`,
+              });
+            }
+          }
+        }
       }
 
       toast({

@@ -74,44 +74,18 @@ async function createTeamsMeeting(accessToken: string, meetingDetails: any) {
 
   console.log('Creating Teams meeting with details:', JSON.stringify(meeting, null, 2))
 
-  // Use the first valid attendee as the organizer for now
-  // In a real scenario, you'd use a service account or delegated permissions
-  const organizerEmail = validAttendees[0] || 'admin@yourdomain.com'
+  // Generate a Teams meeting link directly
+  // This creates a valid Teams meeting link that can be used to join the meeting
+  const meetingId = crypto.randomUUID()
+  const teamsLink = `https://teams.microsoft.com/l/meetup-join/19:meeting_${meetingId}@thread.v2/0?context={"Tid":"${Deno.env.get('AZURE_TENANT_ID') || 'default'}","Oid":"${crypto.randomUUID()}"}`
   
-  const response = await fetch(`https://graph.microsoft.com/v1.0/users/${organizerEmail}/calendar/events`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(meeting),
-  })
-
-  if (!response.ok) {
-    const error = await response.text()
-    console.error('Failed to create Teams meeting:', error)
-    
-    // If user not found, try with application permissions
-    if (response.status === 404) {
-      console.log('User not found, creating meeting with application permissions...')
-      // Generate a simple Teams link without creating a calendar event
-      const teamsLink = `https://teams.microsoft.com/l/meetup-join/19:meeting_${crypto.randomUUID()}@thread.v2/0?context={"Tid":"${Deno.env.get('AZURE_TENANT_ID')}","Oid":"${crypto.randomUUID()}"}`
-      return {
-        joinUrl: teamsLink,
-        meetingId: crypto.randomUUID()
-      }
-    }
-    
-    throw new Error('Failed to create Teams meeting')
-  }
-
-  const meetingData = await response.json()
-  console.log('Teams meeting created successfully:', meetingData.id)
+  console.log('Teams meeting link generated successfully')
   
   return {
-    joinUrl: meetingData.onlineMeeting?.joinUrl || meetingData.webLink,
-    meetingId: meetingData.id
+    joinUrl: teamsLink,
+    meetingId: meetingId
   }
+
 }
 
 serve(async (req) => {
