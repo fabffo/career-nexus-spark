@@ -21,6 +21,8 @@ serve(async (req) => {
     const { candidatId, posteId, cvUrl, detailCv, posteDetails, userId } = await req.json();
     
     console.log('Starting matching analysis for:', { candidatId, posteId });
+    console.log('Detail CV length:', detailCv ? detailCv.length : 0);
+    console.log('Poste details:', JSON.stringify(posteDetails, null, 2));
 
     // Initialize Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -151,8 +153,35 @@ serve(async (req) => {
 
     console.log('Analysis completed:', analysisResult);
 
-    // Save the matching result to database
+    // Save the complete analysis to the new table
     if (userId) {
+      // First save to analyse_poste_candidat with full text
+      const { data: analyseData, error: analyseError } = await supabase
+        .from('analyse_poste_candidat')
+        .insert({
+          candidat_id: candidatId,
+          poste_id: posteId,
+          detail_cv: fullCvContent, // Store FULL CV content
+          detail_poste: posteDetails, // Store complete job details as JSONB
+          score: analysisResult.score,
+          match: analysisResult.match,
+          analysis: analysisResult.analysis,
+          strengths: analysisResult.strengths,
+          weaknesses: analysisResult.weaknesses,
+          created_by: userId
+        })
+        .select()
+        .single();
+
+      if (analyseError) {
+        console.error('Error saving to analyse_poste_candidat:', analyseError);
+      } else {
+        console.log('Analysis saved to analyse_poste_candidat successfully');
+        console.log('Saved CV length:', fullCvContent.length);
+        console.log('Saved analysis ID:', analyseData.id);
+      }
+
+      // Also save to matchings table for backward compatibility
       const { error: saveError } = await supabase
         .from('matchings')
         .insert({
@@ -168,9 +197,9 @@ serve(async (req) => {
         });
 
       if (saveError) {
-        console.error('Error saving matching:', saveError);
+        console.error('Error saving to matchings:', saveError);
       } else {
-        console.log('Matching saved successfully');
+        console.log('Matching saved to matchings table successfully');
       }
     }
 

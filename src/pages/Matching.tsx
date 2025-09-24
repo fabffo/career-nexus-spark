@@ -22,6 +22,7 @@ export default function Matching() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [matchingHistory, setMatchingHistory] = useState<any[]>([]);
+  const [fullAnalysisHistory, setFullAnalysisHistory] = useState<any[]>([]);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -46,9 +47,25 @@ export default function Matching() {
   const selectedCandidatData = candidats?.find(c => c.id === selectedCandidat);
   const selectedPosteData = postes?.find(p => p.id === selectedPoste);
 
-  // Fetch matching history
+  // Fetch matching history from both tables
   useEffect(() => {
     const fetchMatchingHistory = async () => {
+      // Fetch from new table with full data
+      const { data: fullData, error: fullError } = await supabase
+        .from('analyse_poste_candidat')
+        .select(`
+          *,
+          candidat:candidats(nom, prenom),
+          poste:postes(titre)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (!fullError && fullData) {
+        setFullAnalysisHistory(fullData);
+      }
+
+      // Also fetch from matchings for backward compatibility  
       const { data, error } = await supabase
         .from('matchings')
         .select(`
@@ -99,6 +116,9 @@ export default function Matching() {
           posteDetails: {
             titre: selectedPosteData?.nomPoste,
             description: selectedPosteData?.detail,
+            type_contrat: selectedPosteData?.statut,
+            localisation: '',
+            competences: []
           },
           userId: user?.id
         },
@@ -355,19 +375,97 @@ export default function Matching() {
         )}
       </div>
 
-      {/* Matching History */}
+      {/* Full Analysis History with complete data */}
       <Card className="mt-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <History className="h-5 w-5" />
-            Historique des matchings
+            Historique des analyses complètes
           </CardTitle>
           <CardDescription>
-            Les 10 dernières analyses de matching effectuées
+            Les 10 dernières analyses avec les données complètes (CV et poste complets)
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {matchingHistory.length > 0 ? (
+          {fullAnalysisHistory.length > 0 ? (
+            <div className="space-y-3">
+              {fullAnalysisHistory.map((analysis) => (
+                <div 
+                  key={analysis.id} 
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-secondary/50 transition-colors"
+                >
+                  <div className="flex-1 space-y-1">
+                    <p className="font-medium">
+                      {analysis.candidat?.prenom} {analysis.candidat?.nom}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {analysis.poste?.titre}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(analysis.created_at).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                      <span className="text-xs text-muted-foreground">•</span>
+                      <p className="text-xs text-muted-foreground">
+                        CV: {analysis.detail_cv?.length || 0} caractères
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <div className={cn(
+                        "text-2xl font-bold",
+                        analysis.score >= 70 ? "text-green-600" :
+                        analysis.score >= 50 ? "text-yellow-600" : "text-red-600"
+                      )}>
+                        {analysis.score}%
+                      </div>
+                      <Badge 
+                        variant={analysis.match ? "default" : "secondary"}
+                        className={cn(
+                          analysis.match ? "bg-green-100 text-green-800 hover:bg-green-200" : ""
+                        )}
+                      >
+                        {analysis.match ? "Match" : "No Match"}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <History className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">
+                Aucune analyse complète disponible
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Les analyses avec données complètes apparaîtront ici
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Legacy Matching History */}
+      {matchingHistory.length > 0 && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Historique des matchings (ancienne table)
+            </CardTitle>
+            <CardDescription>
+              Analyses précédentes (données partielles)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <div className="space-y-3">
               {matchingHistory.map((matching) => (
                 <div 
@@ -413,19 +511,9 @@ export default function Matching() {
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="text-center py-8">
-              <History className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">
-                Aucun historique de matching disponible
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Les analyses effectuées apparaîtront ici
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

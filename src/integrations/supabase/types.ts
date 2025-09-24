@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      analyse_poste_candidat: {
+        Row: {
+          analysis: string | null
+          candidat_id: string | null
+          created_at: string
+          created_by: string | null
+          detail_cv: string
+          detail_poste: Json
+          id: string
+          match: boolean | null
+          poste_id: string | null
+          score: number | null
+          strengths: string[] | null
+          weaknesses: string[] | null
+        }
+        Insert: {
+          analysis?: string | null
+          candidat_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          detail_cv: string
+          detail_poste: Json
+          id?: string
+          match?: boolean | null
+          poste_id?: string | null
+          score?: number | null
+          strengths?: string[] | null
+          weaknesses?: string[] | null
+        }
+        Update: {
+          analysis?: string | null
+          candidat_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          detail_cv?: string
+          detail_poste?: Json
+          id?: string
+          match?: boolean | null
+          poste_id?: string | null
+          score?: number | null
+          strengths?: string[] | null
+          weaknesses?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analyse_poste_candidat_candidat_id_fkey"
+            columns: ["candidat_id"]
+            isOneToOne: false
+            referencedRelation: "candidats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analyse_poste_candidat_poste_id_fkey"
+            columns: ["poste_id"]
+            isOneToOne: false
+            referencedRelation: "postes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidats: {
         Row: {
           created_at: string | null
