@@ -55,7 +55,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Envoyer l'email
     const emailResponse = await resend.emails.send({
-      from: "RH Platform <onboarding@resend.dev>",
+      from: "RH Platform <noreply@wavyservices.fr>",
       to: [candidat.email],
       subject: "Invitation à créer votre espace candidat",
       html: `
