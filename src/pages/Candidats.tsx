@@ -201,19 +201,41 @@ export default function Candidats() {
 
   const handleSendInvitation = async (candidat: Candidat) => {
     try {
-      const baseUrl = window.location.origin;
+      // Générer un token d'invitation directement
+      const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
       
-      const { error } = await supabase.functions.invoke('send-candidat-invitation', {
-        body: { candidatId: candidat.id, baseUrl }
-      });
+      // Mettre à jour le candidat avec le token
+      const { error: updateError } = await supabase
+        .from('candidats')
+        .update({ 
+          invitation_token: token,
+          invitation_sent_at: new Date().toISOString()
+        })
+        .eq('id', candidat.id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
-      toast.success('Invitation envoyée avec succès');
+      // Créer le lien d'invitation
+      const invitationLink = `${window.location.origin}/candidat/signup?token=${token}`;
+      
+      // Copier automatiquement dans le presse-papier
+      await navigator.clipboard.writeText(invitationLink);
+      
+      toast.success(
+        <div className="space-y-2">
+          <p className="font-semibold">Lien d'invitation copié !</p>
+          <p className="text-sm">Envoyez-le à : {candidat.mail}</p>
+          <code className="block text-xs bg-background/50 p-2 rounded break-all mt-2">
+            {invitationLink}
+          </code>
+        </div>
+      );
+      
+      console.log('Lien invitation pour', candidat.mail, ':', invitationLink);
       loadCandidats();
     } catch (error: any) {
-      console.error('Error sending invitation:', error);
-      toast.error(error.message || "Impossible d'envoyer l'invitation");
+      console.error('Erreur génération invitation:', error);
+      toast.error(error.message || "Impossible de générer l'invitation");
     }
   };
 
