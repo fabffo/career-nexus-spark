@@ -3,9 +3,11 @@ import { candidatService } from '@/services';
 import { Candidat } from '@/types/models';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Eye, Mail, Phone, MapPin, FileText, Award, Paperclip, Copy, History, Upload, X, Sparkles, Send } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Mail, Phone, MapPin, FileText, Award, Paperclip, Copy, History, Upload, X, Sparkles, Send, Shield } from 'lucide-react';
 import { ViewCandidatDialog } from '@/components/ViewCandidatDialog';
 import { CandidatHistoryDialog } from '@/components/CandidatHistoryDialog';
+import { CandidatAdminDialog } from '@/components/CandidatAdminDialog';
+import { useAuth } from '@/contexts/AuthContext';
 import { ColumnDef } from '@tanstack/react-table';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import {
@@ -37,6 +39,7 @@ export default function Candidats() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isAnalyzeOpen, setIsAnalyzeOpen] = useState(false);
+  const [isAdminDialogOpen, setIsAdminDialogOpen] = useState(false);
   const [selectedCandidat, setSelectedCandidat] = useState<Candidat | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
@@ -64,6 +67,7 @@ export default function Candidats() {
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [recommandationFile, setRecommandationFile] = useState<File | null>(null);
   const { uploadFile, deleteFile, isUploading } = useFileUpload();
+  const { profile } = useAuth();
   const cvInputRef = useRef<HTMLInputElement>(null);
   const recommandationInputRef = useRef<HTMLInputElement>(null);
   const analyzeCvInputRef = useRef<HTMLInputElement>(null);
@@ -479,6 +483,15 @@ export default function Candidats() {
           </p>
         </div>
         <div className="flex gap-2">
+          {profile?.role === 'ADMIN' && (
+            <Button 
+              onClick={() => setIsAdminDialogOpen(true)} 
+              variant="outline"
+            >
+              <Shield className="mr-2 h-4 w-4" />
+              Gestion des accès
+            </Button>
+          )}
           <Button 
             onClick={() => setIsAnalyzeOpen(true)} 
             className="bg-gradient-to-r from-primary to-primary-hover"
@@ -805,6 +818,13 @@ export default function Candidats() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Admin Dialog */}
+      <CandidatAdminDialog
+        open={isAdminDialogOpen}
+        onOpenChange={setIsAdminDialogOpen}
+        onUpdate={loadCandidats}
+      />
     </div>
   );
 }
