@@ -118,7 +118,7 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
         .from('postes')
         .select('id, titre, statut')
         .eq('client_id', clientId)
-        .eq('statut', 'OUVERT')
+        .eq('statut', 'ENCOURS')
         .order('titre');
       setPostes(data || []);
     } catch (error: any) {
