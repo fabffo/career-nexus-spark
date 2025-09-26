@@ -42,6 +42,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setProfile(null);
       }
+      
+      // Rediriger les candidats après connexion
+      if (event === 'SIGNED_IN' && session?.user) {
+        setTimeout(async () => {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+            
+          if (profileData?.role === 'CANDIDAT') {
+            navigate('/candidat/dashboard');
+          }
+        }, 100);
+      }
     });
 
     // THEN check for existing session
@@ -56,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [navigate]);
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase

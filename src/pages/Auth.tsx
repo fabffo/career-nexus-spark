@@ -39,7 +39,7 @@ export default function Auth() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -50,15 +50,24 @@ export default function Auth() {
         description: error.message,
         variant: "destructive",
       });
-    } else {
+    } else if (data?.user) {
       toast({
         title: "Connexion réussie",
         description: "Bienvenue !",
       });
-      // Rediriger en fonction du rôle
-      setTimeout(() => {
-        window.location.reload();
-      }, 100);
+      
+      // Récupérer le profil et rediriger en fonction du rôle
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileData?.role === 'CANDIDAT') {
+        navigate('/candidat/dashboard');
+      } else {
+        navigate('/');
+      }
     }
     setLoading(false);
   };
