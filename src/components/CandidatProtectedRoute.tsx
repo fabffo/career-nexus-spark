@@ -2,7 +2,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+export function CandidatProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session, profile, loading } = useAuth();
 
   if (loading) {
@@ -20,9 +20,9 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Si l'utilisateur est un candidat, rediriger vers son espace
-  if (profile?.role === 'CANDIDAT') {
-    return <Navigate to="/candidat/dashboard" replace />;
+  // Vérifier que l'utilisateur est bien un candidat
+  if (profile?.role !== 'CANDIDAT') {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;

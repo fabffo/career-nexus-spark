@@ -55,7 +55,10 @@ export default function Auth() {
         title: "Connexion réussie",
         description: "Bienvenue !",
       });
-      navigate('/');
+      // Rediriger en fonction du rôle
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
     }
     setLoading(false);
   };

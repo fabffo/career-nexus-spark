@@ -4,8 +4,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
+import { CandidatLayout } from "./components/layout/CandidatLayout";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { CandidatProtectedRoute } from "./components/CandidatProtectedRoute";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Candidats from "./pages/Candidats";
@@ -17,6 +19,9 @@ import Recherche from "./pages/Recherche";
 import Matching from "./pages/Matching";
 import CandidatSignup from "./pages/CandidatSignup";
 import CandidatDashboard from "./pages/CandidatDashboard";
+import CandidatCandidatures from "./pages/candidat/Candidatures";
+import CandidatEntretiens from "./pages/candidat/Entretiens";
+import CandidatProfil from "./pages/candidat/Profil";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 
@@ -32,6 +37,20 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/candidat/signup" element={<CandidatSignup />} />
+            
+            {/* Routes pour les candidats */}
+            <Route path="/candidat" element={
+              <CandidatProtectedRoute>
+                <CandidatLayout />
+              </CandidatProtectedRoute>
+            }>
+              <Route path="dashboard" element={<CandidatDashboard />} />
+              <Route path="candidatures" element={<CandidatCandidatures />} />
+              <Route path="entretiens" element={<CandidatEntretiens />} />
+              <Route path="profil" element={<CandidatProfil />} />
+            </Route>
+            
+            {/* Routes pour les recruteurs et admins */}
             <Route path="/" element={
               <ProtectedRoute>
                 <MainLayout />
@@ -46,9 +65,9 @@ const App = () => (
               <Route path="rdv" element={<RendezVous />} />
               <Route path="matching" element={<Matching />} />
               <Route path="commentaires" element={<Dashboard />} />
-              <Route path="candidat/dashboard" element={<CandidatDashboard />} />
               <Route path="admin" element={<Admin />} />
             </Route>
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </TooltipProvider>
