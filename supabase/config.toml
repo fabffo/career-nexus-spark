@@ -82,3 +82,9 @@ verify_jwt = true
 
 [functions.analyze-matching]
 verify_jwt = true
+
+[functions.send-candidat-invitation]
+verify_jwt = true
+
+[functions.send-user-invitation]
+verify_jwt = true
