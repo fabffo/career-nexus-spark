@@ -22,8 +22,14 @@ export default function CandidatDashboard() {
   const [viewPosteOpen, setViewPosteOpen] = useState(false);
 
   useEffect(() => {
+    console.log('CandidatDashboard - user:', user);
+    console.log('CandidatDashboard - profile:', profile);
     if (user && profile && profile.role === 'CANDIDAT') {
+      console.log('CandidatDashboard - Loading candidat data');
       loadCandidatData();
+    } else {
+      console.log('CandidatDashboard - Not loading data, conditions not met');
+      setLoading(false);
     }
   }, [user, profile]);
 
