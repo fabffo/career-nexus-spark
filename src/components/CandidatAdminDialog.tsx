@@ -86,7 +86,9 @@ export function CandidatAdminDialog({ open, onOpenChange, onUpdate }: CandidatAd
   const sendInvitation = async (candidat: CandidatWithAccess) => {
     setSendingInvite(candidat.id);
     try {
+      // Utiliser l'URL correcte pour l'environnement
       const baseUrl = window.location.origin;
+      console.log('Sending invitation with baseUrl:', baseUrl);
       
       const { error } = await supabase.functions.invoke('send-candidat-invitation', {
         body: { candidatId: candidat.id, baseUrl }

@@ -29,6 +29,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { candidatId, baseUrl }: InvitationRequest = await req.json();
+    
+    console.log("Received request - candidatId:", candidatId, "baseUrl:", baseUrl);
 
     // Générer un token d'invitation
     const { data: tokenData, error: tokenError } = await supabase
@@ -36,6 +38,8 @@ const handler = async (req: Request): Promise<Response> => {
     
     if (tokenError) throw tokenError;
     const token = tokenData;
+    
+    console.log("Generated token:", token);
 
     // Mettre à jour le candidat avec le token
     const { data: candidat, error: updateError } = await supabase
@@ -49,9 +53,13 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (updateError) throw updateError;
+    
+    console.log("Updated candidat:", candidat.email);
 
     // Créer le lien d'invitation
     const invitationLink = `${baseUrl}/candidat/signup?token=${token}`;
+    
+    console.log("Generated invitation link:", invitationLink);
 
     // Envoyer l'email
     const emailResponse = await resend.emails.send({
@@ -86,6 +94,11 @@ const handler = async (req: Request): Promise<Response> => {
                 Créer mon espace candidat
               </a>
             </div>
+            
+            <p style="font-size: 12px; color: #888; text-align: center; margin: 20px 0;">
+              Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :<br/>
+              <span style="color: #667eea; word-break: break-all;">${invitationLink}</span>
+            </p>
             
             <p style="font-size: 14px; color: #666;">Ce lien est valable pendant 7 jours. Si vous n'avez pas demandé cet accès, vous pouvez ignorer cet email.</p>
           </div>
