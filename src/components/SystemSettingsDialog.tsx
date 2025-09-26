@@ -243,28 +243,35 @@ export function SystemSettingsDialog({ open, onOpenChange }: SystemSettingsDialo
                           <TableCell>{profile.nom}</TableCell>
                           <TableCell>{profile.prenom}</TableCell>
                           <TableCell>
-                            <Select
-                              value={profile.role}
-                              onValueChange={(value) => handleRoleChange(profile.id, value as UserRole)}
-                            >
-                              <SelectTrigger className="w-32">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="ADMIN">
-                                  <div className="flex items-center">
-                                    {getRoleIcon('ADMIN')}
-                                    Admin
-                                  </div>
-                                </SelectItem>
-                                <SelectItem value="RECRUTEUR">
-                                  <div className="flex items-center">
-                                    {getRoleIcon('RECRUTEUR')}
-                                    Recruteur
-                                  </div>
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
+                            {profile.role === 'CANDIDAT' ? (
+                              <Badge variant={getRoleBadgeVariant('CANDIDAT')}>
+                                {getRoleIcon('CANDIDAT')}
+                                Candidat
+                              </Badge>
+                            ) : (
+                              <Select
+                                value={profile.role}
+                                onValueChange={(value) => handleRoleChange(profile.id, value as UserRole)}
+                              >
+                                <SelectTrigger className="w-32">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="ADMIN">
+                                    <div className="flex items-center">
+                                      {getRoleIcon('ADMIN')}
+                                      Admin
+                                    </div>
+                                  </SelectItem>
+                                  <SelectItem value="RECRUTEUR">
+                                    <div className="flex items-center">
+                                      {getRoleIcon('RECRUTEUR')}
+                                      Recruteur
+                                    </div>
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
                           </TableCell>
                           <TableCell>
                             {profile.created_at && new Date(profile.created_at).toLocaleDateString('fr-FR')}
