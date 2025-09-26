@@ -98,6 +98,7 @@ export default function CandidatSignup() {
             invitation_token: token,
             nom: candidat.nom,
             prenom: candidat.prenom,
+            role: 'CANDIDAT', // Forcer le rôle CANDIDAT
           },
         },
       });
