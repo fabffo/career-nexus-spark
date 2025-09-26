@@ -88,3 +88,12 @@ verify_jwt = true
 
 [functions.send-user-invitation]
 verify_jwt = true
+
+[functions.get-auth-logs]
+verify_jwt = true
+
+[functions.get-project-info]
+verify_jwt = true
+
+[functions.configure-auth]
+verify_jwt = true

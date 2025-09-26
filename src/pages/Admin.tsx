@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CandidatAdminDialog } from '@/components/CandidatAdminDialog';
 import { SystemSettingsDialog } from '@/components/SystemSettingsDialog';
+import { SecurityDialog } from '@/components/SecurityDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Settings, ShieldCheck } from 'lucide-react';
@@ -10,6 +11,7 @@ import { Navigate } from 'react-router-dom';
 export default function Admin() {
   const [openCandidatAdmin, setOpenCandidatAdmin] = useState(false);
   const [openSystemSettings, setOpenSystemSettings] = useState(false);
+  const [openSecurityDialog, setOpenSecurityDialog] = useState(false);
   const { profile } = useAuth();
 
   // Vérifier que l'utilisateur est admin
@@ -61,19 +63,19 @@ export default function Admin() {
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-shadow opacity-50 cursor-not-allowed">
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setOpenSecurityDialog(true)}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-muted-foreground" />
+              <ShieldCheck className="h-5 w-5 text-primary" />
               Sécurité
             </CardTitle>
             <CardDescription>
-              Gérer les rôles et permissions
+              Gérer les paramètres de sécurité et consulter les logs
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full" variant="outline" disabled>
-              Bientôt disponible
+            <Button className="w-full" variant="outline">
+              Ouvrir
             </Button>
           </CardContent>
         </Card>
@@ -88,6 +90,11 @@ export default function Admin() {
       <SystemSettingsDialog
         open={openSystemSettings}
         onOpenChange={setOpenSystemSettings}
+      />
+      
+      <SecurityDialog
+        open={openSecurityDialog}
+        onOpenChange={setOpenSecurityDialog}
       />
     </div>
   );
