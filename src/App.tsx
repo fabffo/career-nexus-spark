@@ -18,6 +18,7 @@ import Matching from "./pages/Matching";
 import CandidatSignup from "./pages/CandidatSignup";
 import CandidatDashboard from "./pages/CandidatDashboard";
 import NotFound from "./pages/NotFound";
+import Admin from "./pages/Admin";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,7 @@ const App = () => (
               <Route path="matching" element={<Matching />} />
               <Route path="commentaires" element={<Dashboard />} />
               <Route path="candidat/dashboard" element={<CandidatDashboard />} />
+              <Route path="admin" element={<Admin />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

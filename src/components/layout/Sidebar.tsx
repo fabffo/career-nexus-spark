@@ -13,6 +13,7 @@ import {
   BrainCircuit,
   User,
   LogOut,
+  ShieldCheck,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -35,12 +36,17 @@ export function Sidebar() {
     { path: '/commentaires', label: 'Commentaires', icon: MessageSquare },
   ];
 
+  // Menu supplémentaire pour les admins
+  const adminMenuItems = profile?.role === 'ADMIN' ? [
+    { path: '/admin', label: 'Administration', icon: ShieldCheck },
+  ] : [];
+
   // Navigation pour les candidats
   const candidatMenuItems = [
     { path: '/candidat/dashboard', label: 'Mon Espace', icon: User },
   ];
 
-  const menuItems = profile?.role === 'CANDIDAT' ? candidatMenuItems : recruiterMenuItems;
+  const menuItems = profile?.role === 'CANDIDAT' ? candidatMenuItems : [...recruiterMenuItems, ...adminMenuItems];
 
   return (
     <>
