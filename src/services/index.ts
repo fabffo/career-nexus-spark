@@ -281,19 +281,18 @@ class ClientService implements CrudOperations<Client> {
 export const candidatService = new CandidatService();
 export const clientService = new ClientService();
 
-// Import the new PosteService
+// Import Supabase services
 import { posteService } from './posteService';
-export { posteService };
+import { rdvService } from './rdvService';
+export { posteService, rdvService };
 
 // Mock services for other entities (to be migrated later)
 import { GenericCrudService } from './genericCrudService';
 import {
-  mockRdvs,
   mockCommentairesCollaborateur,
   mockCommentairesClient,
 } from '@/lib/mockData';
 
-export const rdvService = new GenericCrudService<Rdv>('rdvs', mockRdvs);
 export const commentaireCollaborateurService = new GenericCrudService<CommentaireCandidatParCollaborateur>(
   'commentaires_collaborateur',
   mockCommentairesCollaborateur
