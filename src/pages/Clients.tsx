@@ -3,8 +3,9 @@ import { clientService } from '@/services';
 import { Client } from '@/types/models';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Globe, Mail, Phone, Building, Eye, Copy } from 'lucide-react';
+import { Plus, Edit, Trash2, Globe, Mail, Phone, Building, Eye, Copy, Users } from 'lucide-react';
 import { ViewClientDialog } from '@/components/ViewClientDialog';
+import { ReferentsDialog } from '@/components/ReferentsDialog';
 import { ColumnDef } from '@tanstack/react-table';
 import {
   Dialog,
@@ -33,6 +34,8 @@ export default function Clients() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [referentsDialogOpen, setReferentsDialogOpen] = useState(false);
+  const [referentsClient, setReferentsClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState({
     raisonSociale: '',
     secteurActivite: '',
@@ -128,6 +131,11 @@ export default function Clients() {
     setViewDialogOpen(true);
   };
 
+  const handleViewReferents = (client: Client) => {
+    setReferentsClient(client);
+    setReferentsDialogOpen(true);
+  };
+
   const columns: ColumnDef<Client>[] = [
     {
       accessorKey: 'raisonSociale',
@@ -195,6 +203,14 @@ export default function Clients() {
             title="Visualiser"
           >
             <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleViewReferents(row.original)}
+            title="Gérer les référents"
+          >
+            <Users className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
@@ -347,6 +363,16 @@ export default function Clients() {
         open={viewDialogOpen} 
         onOpenChange={setViewDialogOpen} 
       />
+
+      {/* Referents Dialog */}
+      {referentsClient && (
+        <ReferentsDialog
+          clientId={referentsClient.id}
+          clientName={referentsClient.raisonSociale}
+          open={referentsDialogOpen}
+          onOpenChange={setReferentsDialogOpen}
+        />
+      )}
     </div>
   );
 }
