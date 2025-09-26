@@ -16,7 +16,7 @@ class PosteService implements CrudOperations<PosteClient> {
       nomPoste: item.titre,
       dateCreation: new Date(item.created_at),
       dateEcheance: item.updated_at ? new Date(item.updated_at) : undefined,
-      statut: (item.statut || 'OUVERT') as PosteClient['statut'],
+      statut: (item.statut === 'OUVERT' ? 'ENCOURS' : item.statut || 'ENCOURS') as PosteClient['statut'],
       detail: item.description || '',
       pourvuPar: item.pourvu_par || '',
       createdAt: new Date(item.created_at),
