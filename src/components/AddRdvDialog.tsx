@@ -560,7 +560,7 @@ L'équipe de recrutement`;
                       </div>
                     </SelectItem>
                     <SelectItem value="PRESENTIEL_CLIENT">Présentiel chez le client</SelectItem>
-                    <SelectItem value="TELEPHONE">Téléphonique</SelectItem>
+                    <SelectItem value="TELEPHONIQUE">Téléphonique</SelectItem>
                   </SelectContent>
                 </Select>
                 {formData.type_rdv === 'TEAMS' && (
