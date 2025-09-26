@@ -281,17 +281,19 @@ class ClientService implements CrudOperations<Client> {
 export const candidatService = new CandidatService();
 export const clientService = new ClientService();
 
+// Import the new PosteService
+import { posteService } from './posteService';
+export { posteService };
+
 // Mock services for other entities (to be migrated later)
 import { GenericCrudService } from './genericCrudService';
 import {
   mockRdvs,
-  mockPostes,
   mockCommentairesCollaborateur,
   mockCommentairesClient,
 } from '@/lib/mockData';
 
 export const rdvService = new GenericCrudService<Rdv>('rdvs', mockRdvs);
-export const posteService = new GenericCrudService<PosteClient>('postes', mockPostes);
 export const commentaireCollaborateurService = new GenericCrudService<CommentaireCandidatParCollaborateur>(
   'commentaires_collaborateur',
   mockCommentairesCollaborateur
