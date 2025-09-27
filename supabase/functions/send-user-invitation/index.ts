@@ -87,19 +87,50 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    const { data, error } = await resend.emails.send({
-      from: 'Plateforme RH <onboarding@resend.dev>',
-      to: [email],
-      subject: `Invitation - Accès ${role === 'ADMIN' ? 'Administrateur' : 'Recruteur'}`,
-      html: emailHtml,
-    });
+    let emailStatus = 'sent';
+    let emailError = null;
+    let emailData = null;
 
-    if (error) {
-      console.error('Error sending email:', error);
-      throw error;
+    try {
+      const { data, error } = await resend.emails.send({
+        from: 'Plateforme RH <onboarding@resend.dev>',
+        to: [email],
+        subject: `Invitation - Accès ${role === 'ADMIN' ? 'Administrateur' : 'Recruteur'}`,
+        html: emailHtml,
+      });
+
+      if (error) {
+        emailStatus = 'failed';
+        emailError = error.message || 'Erreur lors de l\'envoi';
+        console.error('Error sending email:', error);
+      } else {
+        emailData = data;
+        console.log('Email sent successfully:', data);
+      }
+    } catch (err: any) {
+      emailStatus = 'failed';
+      emailError = err.message || 'Erreur lors de l\'envoi';
+      console.error('Error sending email:', err);
     }
 
-    console.log('Email sent successfully:', data);
+    // Enregistrer dans l'historique des emails
+    try {
+      await supabase.from('email_history').insert({
+        recipient_email: email,
+        recipient_name: `${prenom} ${nom}`,
+        subject: `Invitation - Accès ${role === 'ADMIN' ? 'Administrateur' : 'Recruteur'}`,
+        email_type: 'invitation_user',
+        status: emailStatus,
+        error_message: emailError,
+        metadata: { role, invitation_token: invitationToken }
+      });
+    } catch (historyError) {
+      console.error('Error saving email history:', historyError);
+    }
+
+    if (emailStatus === 'failed') {
+      throw new Error(emailError || 'Erreur lors de l\'envoi de l\'email');
+    }
 
     return new Response(
       JSON.stringify({ success: true, message: 'Invitation envoyée avec succès' }),

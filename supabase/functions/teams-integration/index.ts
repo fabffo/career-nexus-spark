@@ -87,6 +87,21 @@ serve(async (req) => {
       console.log('Sending invitation to:', recipients);
       console.log('Message:', message);
       
+      // Enregistrer dans l'historique des emails (simulé car pas d'envoi réel)
+      for (const recipient of recipients) {
+        try {
+          await supabase.from('email_history').insert({
+            recipient_email: recipient,
+            subject: 'Invitation Teams',
+            email_type: 'teams_invitation',
+            status: 'pending', // 'pending' car pas d'envoi réel actuellement
+            metadata: { rdv_id: rdv.id, message }
+          });
+        } catch (historyError) {
+          console.error('Error saving email history:', historyError);
+        }
+      }
+      
       // Email functionality temporarily disabled - no email service configured
       console.log('Email notification skipped - no email service configured');
       console.log('Would have sent to:', recipients);
