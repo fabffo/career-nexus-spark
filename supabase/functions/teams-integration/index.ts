@@ -95,7 +95,7 @@ serve(async (req) => {
         try {
           // Envoyer l'email via Resend
           const emailResponse = await resend.emails.send({
-            from: 'Recrutement <onboarding@resend.dev>',
+            from: 'RH Platform <noreply@wavyservices.fr>',
             to: [recipient],
             subject: 'Invitation à une réunion Teams',
             html: `
