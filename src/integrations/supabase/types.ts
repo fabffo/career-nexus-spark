@@ -280,6 +280,42 @@ export type Database = {
         }
         Relationships: []
       }
+      rdv_referents: {
+        Row: {
+          created_at: string
+          id: string
+          rdv_id: string
+          referent_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          rdv_id: string
+          referent_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          rdv_id?: string
+          referent_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rdv_referents_rdv_id_fkey"
+            columns: ["rdv_id"]
+            isOneToOne: false
+            referencedRelation: "rdvs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rdv_referents_referent_id_fkey"
+            columns: ["referent_id"]
+            isOneToOne: false
+            referencedRelation: "referents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rdvs: {
         Row: {
           candidat_id: string | null
