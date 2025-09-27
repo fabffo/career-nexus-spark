@@ -75,6 +75,19 @@ export function ReferentsDialog({ clientId, clientName, open, onOpenChange }: Re
     }
   };
 
+  const handleDuplicate = (referent: Referent) => {
+    // Copier les données du référent sans l'ID pour créer une nouvelle entrée
+    setSelectedReferent(null); // Null car c'est une nouvelle création
+    setFormData({
+      prenom: referent.prenom + ' (copie)',
+      nom: referent.nom,
+      email: referent.email,
+      telephone: referent.telephone || '',
+      fonction: referent.fonction || '',
+    });
+    setIsFormOpen(true);
+  };
+
   const handleOpenForm = (referent?: Referent) => {
     if (referent) {
       setSelectedReferent(referent);
@@ -230,14 +243,10 @@ ${referent.fonction ? `Fonction: ${referent.fonction}` : ''}`;
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => copyAllInfo(row.original)}
-            title="Copier"
+            onClick={() => handleDuplicate(row.original)}
+            title="Dupliquer"
           >
-            {copiedField === 'all' ? (
-              <Check className="h-4 w-4 text-green-600" />
-            ) : (
-              <Copy className="h-4 w-4" />
-            )}
+            <Copy className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
