@@ -122,7 +122,7 @@ export default function RendezVous() {
 
   const handleCopy = async (rdv: RdvWithRelations) => {
     try {
-      const newRdv = {
+      const rdvCopy = {
         date: rdv.date,
         type_rdv: rdv.type_rdv,
         rdv_type: rdv.rdv_type,
@@ -136,7 +136,7 @@ export default function RendezVous() {
 
       const { data: copiedRdv, error } = await supabase
         .from('rdvs')
-        .insert(newRdv)
+        .insert(rdvCopy)
         .select()
         .single();
 
