@@ -116,6 +116,11 @@ serve(async (req) => {
             `
           });
           
+          // Vérifier si l'email a vraiment été envoyé
+          if (emailResponse.error) {
+            throw new Error(emailResponse.error.message || 'Erreur lors de l\'envoi de l\'email');
+          }
+          
           console.log('Email sent successfully to:', recipient, emailResponse);
           
           // Enregistrer dans l'historique avec le statut "sent"
