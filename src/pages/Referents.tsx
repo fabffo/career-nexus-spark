@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { DataTable } from '@/components/ui/data-table';
 import { ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
-import { Pencil, Trash, Plus, Mail, Phone, User, Building } from 'lucide-react';
+import { Pencil, Trash, Plus, Mail, Phone, User, Building, Eye, Copy, Check } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,6 +38,9 @@ export default function Referents() {
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [viewingReferent, setViewingReferent] = useState<Referent | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [referentToDelete, setReferentToDelete] = useState<string | null>(null);
   const [editingReferent, setEditingReferent] = useState<Referent | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -205,6 +208,47 @@ export default function Referents() {
     }
   };
 
+  const handleView = (referent: Referent) => {
+    setViewingReferent(referent);
+    setViewDialogOpen(true);
+  };
+
+  const copyToClipboard = async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      toast({ title: "Copié dans le presse-papier" });
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch {
+      toast({ 
+        title: "Erreur", 
+        description: "Impossible de copier", 
+        variant: "destructive" 
+      });
+    }
+  };
+
+  const copyAllInfo = async (referent: Referent) => {
+    const info = `${referent.prenom} ${referent.nom}
+Email: ${referent.email}
+${referent.telephone ? `Téléphone: ${referent.telephone}` : ''}
+${referent.fonction ? `Fonction: ${referent.fonction}` : ''}
+${(referent as any).clients ? `Client: ${(referent as any).clients.raison_sociale}` : ''}`;
+    
+    try {
+      await navigator.clipboard.writeText(info);
+      setCopiedField('all');
+      toast({ title: "Informations copiées dans le presse-papier" });
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch {
+      toast({ 
+        title: "Erreur", 
+        description: "Impossible de copier", 
+        variant: "destructive" 
+      });
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       prenom: '',
@@ -275,11 +319,32 @@ export default function Referents() {
       id: 'actions',
       header: 'Actions',
       cell: ({ row }) => (
-        <div className="flex gap-2">
+        <div className="flex gap-1">
           <Button
-            variant="outline"
+            variant="ghost"
+            size="icon"
+            onClick={() => handleView(row.original)}
+            title="Visualiser"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => copyAllInfo(row.original)}
+            title="Copier les informations"
+          >
+            {copiedField === 'all' ? (
+              <Check className="h-4 w-4 text-green-600" />
+            ) : (
+              <Copy className="h-4 w-4" />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
             size="icon"
             onClick={() => handleEdit(row.original)}
+            title="Modifier"
           >
             <Pencil className="h-4 w-4" />
           </Button>
@@ -471,6 +536,138 @@ export default function Referents() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog de visualisation */}
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Détails du référent</DialogTitle>
+          </DialogHeader>
+          {viewingReferent && (
+            <div className="space-y-4">
+              <div className="grid gap-3">
+                <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Nom complet</p>
+                      <p className="font-medium">{viewingReferent.prenom} {viewingReferent.nom}</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => copyToClipboard(`${viewingReferent.prenom} ${viewingReferent.nom}`, 'name')}
+                  >
+                    {copiedField === 'name' ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Email</p>
+                      <a href={`mailto:${viewingReferent.email}`} className="text-primary hover:underline">
+                        {viewingReferent.email}
+                      </a>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => copyToClipboard(viewingReferent.email, 'email')}
+                  >
+                    {copiedField === 'email' ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+
+                {viewingReferent.telephone && (
+                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Téléphone</p>
+                        <a href={`tel:${viewingReferent.telephone}`} className="text-primary hover:underline">
+                          {viewingReferent.telephone}
+                        </a>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => copyToClipboard(viewingReferent.telephone!, 'phone')}
+                    >
+                      {copiedField === 'phone' ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                )}
+
+                {viewingReferent.fonction && (
+                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Fonction</p>
+                        <p className="font-medium">{viewingReferent.fonction}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => copyToClipboard(viewingReferent.fonction!, 'fonction')}
+                    >
+                      {copiedField === 'fonction' ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                )}
+
+                {(viewingReferent as any).clients && (
+                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Building className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Client associé</p>
+                        <p className="font-medium">{(viewingReferent as any).clients.raison_sociale}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-between pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => copyAllInfo(viewingReferent)}
+                  className="flex items-center gap-2"
+                >
+                  <Copy className="h-4 w-4" />
+                  Copier tout
+                </Button>
+                <Button onClick={() => setViewDialogOpen(false)}>
+                  Fermer
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

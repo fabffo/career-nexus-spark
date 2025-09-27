@@ -10,7 +10,7 @@ import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Edit, Trash2, Mail, Phone, User } from 'lucide-react';
+import { Plus, Edit, Trash2, Mail, Phone, User, Eye, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { ColumnDef } from '@tanstack/react-table';
@@ -38,6 +38,9 @@ export function ReferentsDialog({ clientId, clientName, open, onOpenChange }: Re
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedReferent, setSelectedReferent] = useState<Referent | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [viewingReferent, setViewingReferent] = useState<Referent | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     prenom: '',
@@ -139,7 +142,38 @@ export function ReferentsDialog({ clientId, clientName, open, onOpenChange }: Re
       } catch (error) {
         console.error('Error deleting referent:', error);
         toast.error('Une erreur est survenue');
-      }
+    }
+  };
+
+  const handleView = (referent: Referent) => {
+    setViewingReferent(referent);
+    setViewDialogOpen(true);
+  };
+
+  const copyToClipboard = async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      toast.success('Copié dans le presse-papier');
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch {
+      toast.error('Impossible de copier');
+    }
+  };
+
+  const copyAllInfo = async (referent: Referent) => {
+    const info = `${referent.prenom} ${referent.nom}
+Email: ${referent.email}
+${referent.telephone ? `Téléphone: ${referent.telephone}` : ''}
+${referent.fonction ? `Fonction: ${referent.fonction}` : ''}`;
+    
+    try {
+      await navigator.clipboard.writeText(info);
+      setCopiedField('all');
+      toast.success('Informations copiées');
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch {
+      toast.error('Impossible de copier');
     }
   };
 
@@ -184,6 +218,26 @@ export function ReferentsDialog({ clientId, clientName, open, onOpenChange }: Re
       header: 'Actions',
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleView(row.original)}
+            title="Visualiser"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => copyAllInfo(row.original)}
+            title="Copier"
+          >
+            {copiedField === 'all' ? (
+              <Check className="h-4 w-4 text-green-600" />
+            ) : (
+              <Copy className="h-4 w-4" />
+            )}
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -341,6 +395,126 @@ export function ReferentsDialog({ clientId, clientName, open, onOpenChange }: Re
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog de visualisation */}
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Détails du référent</DialogTitle>
+          </DialogHeader>
+          {viewingReferent && (
+            <div className="space-y-4">
+              <div className="grid gap-3">
+                <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Nom complet</p>
+                      <p className="font-medium">{viewingReferent.prenom} {viewingReferent.nom}</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => copyToClipboard(`${viewingReferent.prenom} ${viewingReferent.nom}`, 'name')}
+                  >
+                    {copiedField === 'name' ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Email</p>
+                      <a href={`mailto:${viewingReferent.email}`} className="text-primary hover:underline">
+                        {viewingReferent.email}
+                      </a>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => copyToClipboard(viewingReferent.email, 'email')}
+                  >
+                    {copiedField === 'email' ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+
+                {viewingReferent.telephone && (
+                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Téléphone</p>
+                        <a href={`tel:${viewingReferent.telephone}`} className="text-primary hover:underline">
+                          {viewingReferent.telephone}
+                        </a>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => copyToClipboard(viewingReferent.telephone!, 'phone')}
+                    >
+                      {copiedField === 'phone' ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                )}
+
+                {viewingReferent.fonction && (
+                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Fonction</p>
+                        <p className="font-medium">{viewingReferent.fonction}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => copyToClipboard(viewingReferent.fonction!, 'fonction')}
+                    >
+                      {copiedField === 'fonction' ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-between pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => copyAllInfo(viewingReferent)}
+                  className="flex items-center gap-2"
+                >
+                  <Copy className="h-4 w-4" />
+                  Copier tout
+                </Button>
+                <Button onClick={() => setViewDialogOpen(false)}>
+                  Fermer
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
