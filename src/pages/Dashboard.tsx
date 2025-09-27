@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -14,6 +15,7 @@ import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     candidats: 0,
     clients: 0,
@@ -63,6 +65,7 @@ export default function Dashboard() {
       icon: Users, 
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
+      route: '/candidats',
     },
     { 
       title: 'Clients', 
@@ -70,6 +73,7 @@ export default function Dashboard() {
       icon: Building2, 
       color: 'text-green-600',
       bgColor: 'bg-green-50',
+      route: '/clients',
     },
     { 
       title: 'Rendez-vous', 
@@ -77,6 +81,7 @@ export default function Dashboard() {
       icon: Calendar, 
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
+      route: '/rdv',
     },
     { 
       title: 'Postes ouverts', 
@@ -84,6 +89,7 @@ export default function Dashboard() {
       icon: Briefcase, 
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
+      route: '/postes',
     },
   ];
 
@@ -116,7 +122,11 @@ export default function Dashboard() {
         {statCards.map((stat) => {
           const Icon = stat.icon;
           return (
-            <Card key={stat.title} className="hover:shadow-lg transition-shadow">
+            <Card 
+              key={stat.title} 
+              className="hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => navigate(stat.route)}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                   {stat.title}
