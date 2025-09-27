@@ -44,6 +44,7 @@ export function ReferentsDialog({ clientId, clientName, open, onOpenChange }: Re
     nom: '',
     email: '',
     telephone: '',
+    fonction: '',
   });
 
   useEffect(() => {
@@ -79,6 +80,7 @@ export function ReferentsDialog({ clientId, clientName, open, onOpenChange }: Re
         nom: referent.nom,
         email: referent.email,
         telephone: referent.telephone || '',
+        fonction: referent.fonction || '',
       });
     } else {
       setSelectedReferent(null);
@@ -87,6 +89,7 @@ export function ReferentsDialog({ clientId, clientName, open, onOpenChange }: Re
         nom: '',
         email: '',
         telephone: '',
+        fonction: '',
       });
     }
     setIsFormOpen(true);
@@ -170,6 +173,11 @@ export function ReferentsDialog({ clientId, clientName, open, onOpenChange }: Re
           <span className="text-sm">{row.original.telephone}</span>
         </div>
       ),
+    },
+    {
+      accessorKey: 'fonction',
+      header: 'Fonction',
+      cell: ({ row }) => row.original.fonction || '-',
     },
     {
       id: 'actions',
@@ -288,6 +296,15 @@ export function ReferentsDialog({ clientId, clientName, open, onOpenChange }: Re
                 id="telephone"
                 value={formData.telephone}
                 onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="fonction">Fonction</Label>
+              <Input
+                id="fonction"
+                value={formData.fonction}
+                onChange={(e) => setFormData({ ...formData, fonction: e.target.value })}
+                placeholder="Directeur commercial, Responsable RH..."
               />
             </div>
           </div>

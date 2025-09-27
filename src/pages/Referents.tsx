@@ -24,6 +24,7 @@ export default function Referents() {
     nom: '',
     email: '',
     telephone: '',
+    fonction: '',
     client_id: ''
   });
 
@@ -108,6 +109,7 @@ export default function Referents() {
       nom: referent.nom,
       email: referent.email,
       telephone: referent.telephone || '',
+      fonction: referent.fonction || '',
       client_id: referent.client_id || ''
     });
     setDialogOpen(true);
@@ -140,6 +142,7 @@ export default function Referents() {
       nom: '',
       email: '',
       telephone: '',
+      fonction: '',
       client_id: ''
     });
     setEditingReferent(null);
@@ -158,6 +161,10 @@ export default function Referents() {
     {
       accessorKey: 'telephone',
       header: 'Téléphone',
+    },
+    {
+      accessorKey: 'fonction',
+      header: 'Fonction',
     },
     {
       accessorKey: 'client',
@@ -244,6 +251,16 @@ export default function Referents() {
                   id="telephone"
                   value={formData.telephone}
                   onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="fonction">Fonction</Label>
+                <Input
+                  id="fonction"
+                  value={formData.fonction}
+                  onChange={(e) => setFormData({ ...formData, fonction: e.target.value })}
+                  placeholder="Directeur commercial, Responsable RH..."
                 />
               </div>
               

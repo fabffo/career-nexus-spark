@@ -378,6 +378,7 @@ export type Database = {
           client_id: string | null
           created_at: string | null
           email: string
+          fonction: string | null
           id: string
           nom: string
           prenom: string
@@ -388,6 +389,7 @@ export type Database = {
           client_id?: string | null
           created_at?: string | null
           email: string
+          fonction?: string | null
           id?: string
           nom: string
           prenom: string
@@ -398,6 +400,7 @@ export type Database = {
           client_id?: string | null
           created_at?: string | null
           email?: string
+          fonction?: string | null
           id?: string
           nom?: string
           prenom?: string

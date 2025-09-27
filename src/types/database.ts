@@ -19,6 +19,7 @@ export interface Referent {
   nom: string;
   email: string;
   telephone?: string;
+  fonction?: string;
   created_at?: string;
   updated_at?: string;
 }
