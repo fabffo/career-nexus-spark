@@ -142,6 +142,7 @@ export function ReferentsDialog({ clientId, clientName, open, onOpenChange }: Re
       } catch (error) {
         console.error('Error deleting referent:', error);
         toast.error('Une erreur est survenue');
+      }
     }
   };
 
