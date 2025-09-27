@@ -372,16 +372,16 @@ L'équipe de recrutement`;
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
+        <DialogContent className="max-w-[900px] max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0 pb-4 border-b">
             <DialogTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
               Créer un nouveau rendez-vous
             </DialogTitle>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4 overflow-y-auto flex-1 px-1">
-            {/* Type de RDV */}
+          <div className="flex-1 overflow-y-auto px-1">
+            <div className="grid gap-4 py-4">
             <div>
               <Label htmlFor="rdv_type">Type de rendez-vous *</Label>
               <Select
@@ -636,10 +636,11 @@ L'équipe de recrutement`;
                 placeholder="Notes supplémentaires..."
                 rows={3}
               />
+              </div>
             </div>
           </div>
 
-          <DialogFooter className="border-t pt-4">
+          <DialogFooter className="flex-shrink-0 pt-4 border-t">
             <Button variant="outline" onClick={() => setIsOpen(false)}>
               Annuler
             </Button>

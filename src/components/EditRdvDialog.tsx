@@ -289,11 +289,12 @@ L'équipe de recrutement`;
           <Edit className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-[900px] max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0 pb-4 border-b">
           <DialogTitle>Modifier le rendez-vous</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="flex-1 overflow-y-auto px-1">
+          <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             {/* Date et heure */}
             <div>
@@ -518,6 +519,7 @@ L'équipe de recrutement`;
             </Button>
           </div>
         </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

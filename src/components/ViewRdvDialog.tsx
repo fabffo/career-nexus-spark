@@ -29,15 +29,16 @@ export function ViewRdvDialog({ rdv, open, onOpenChange }: ViewRdvDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-[800px] max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0 pb-4 border-b">
           <DialogTitle className="flex items-center gap-2">
             <Eye className="h-5 w-5" />
             Détails du rendez-vous
           </DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto px-1">
+          <div className="space-y-6 py-4">
           {/* Date et statut */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -184,6 +185,13 @@ export function ViewRdvDialog({ rdv, open, onOpenChange }: ViewRdvDialogProps) {
               <p>Modifié le {format(new Date(rdv.updated_at), 'dd/MM/yyyy à HH:mm', { locale: fr })}</p>
             )}
           </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-4 border-t flex-shrink-0">
+          <Button onClick={() => onOpenChange(false)}>
+            Fermer
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
