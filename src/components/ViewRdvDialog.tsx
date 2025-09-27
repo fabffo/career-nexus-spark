@@ -120,8 +120,19 @@ export function ViewRdvDialog({ rdv, open, onOpenChange }: ViewRdvDialogProps) {
                 </span>
               </div>
               <div className="ml-6">
-                {rdv.rdv_type === 'CLIENT' && rdv.referents ? (
-                  <p className="font-medium">{rdv.referents.prenom} {rdv.referents.nom}</p>
+                {rdv.rdv_type === 'CLIENT' ? (
+                  (rdv as any).rdv_referents && (rdv as any).rdv_referents.length > 0 ? (
+                    <div className="space-y-1">
+                      {(rdv as any).rdv_referents.map((r: any, index: number) => (
+                        <p key={index} className="font-medium">
+                          {r.referents.prenom} {r.referents.nom}
+                          {r.referents.fonction && ` - ${r.referents.fonction}`}
+                        </p>
+                      ))}
+                    </div>
+                  ) : rdv.referents ? (
+                    <p className="font-medium">{rdv.referents.prenom} {rdv.referents.nom}</p>
+                  ) : null
                 ) : rdv.profiles ? (
                   <p className="font-medium">{rdv.profiles.prenom} {rdv.profiles.nom}</p>
                 ) : null}

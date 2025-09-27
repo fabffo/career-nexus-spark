@@ -47,6 +47,14 @@ interface RdvWithRelations {
     nom: string;
     prenom: string;
   };
+  rdv_referents?: {
+    referent_id: string;
+    referents: {
+      nom: string;
+      prenom: string;
+      fonction?: string;
+    };
+  }[];
   created_at?: string;
   updated_at?: string;
 }
@@ -73,7 +81,8 @@ export default function RendezVous() {
           clients(raison_sociale),
           postes:poste_id(titre),
           profiles:recruteur_id(nom, prenom),
-          referents:referent_id(nom, prenom)
+          referents:referent_id(nom, prenom),
+          rdv_referents(referent_id, referents(nom, prenom, fonction))
         `)
         .order('date', { ascending: false });
 
@@ -123,12 +132,27 @@ export default function RendezVous() {
         candidat_id: rdv.candidat_id,
         client_id: rdv.client_id,
         recruteur_id: rdv.recruteur_id,
-        referent_id: rdv.referent_id,
       };
 
-      const { error } = await supabase
+      const { data: copiedRdv, error } = await supabase
         .from('rdvs')
-        .insert(newRdv);
+        .insert(newRdv)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Copier les référents si c'est un RDV client
+      if (rdv.rdv_type === 'CLIENT' && rdv.rdv_referents && rdv.rdv_referents.length > 0) {
+        const referentLinks = rdv.rdv_referents.map(r => ({
+          rdv_id: copiedRdv.id,
+          referent_id: r.referent_id
+        }));
+
+        await supabase
+          .from('rdv_referents')
+          .insert(referentLinks);
+      }
 
       if (error) throw error;
       toast({ title: "Rendez-vous dupliqué avec succès" });
@@ -200,6 +224,13 @@ export default function RendezVous() {
       accessorKey: 'contact',
       header: 'Contact',
       accessorFn: (row) => {
+        // Pour les RDV client, afficher les référents multiples
+        if (row.rdv_type === 'CLIENT' && row.rdv_referents && row.rdv_referents.length > 0) {
+          return row.rdv_referents
+            .map(r => `${r.referents.prenom} ${r.referents.nom}`)
+            .join(', ');
+        }
+        // Pour compatibilité avec l'ancienne structure
         if (row.rdv_type === 'CLIENT' && row.referents) {
           const ref = row.referents;
           return `${ref.prenom} ${ref.nom}`;
@@ -211,6 +242,23 @@ export default function RendezVous() {
         return '-';
       },
       cell: ({ row }) => {
+        // Pour les RDV client, afficher les référents multiples
+        if (row.original.rdv_type === 'CLIENT' && row.original.rdv_referents && row.original.rdv_referents.length > 0) {
+          return (
+            <div>
+              <span className="text-xs text-muted-foreground">Référents:</span><br/>
+              <div className="space-y-1">
+                {row.original.rdv_referents.map((r, index) => (
+                  <div key={index} className="text-sm">
+                    {r.referents.prenom} {r.referents.nom}
+                    {r.referents.fonction && ` (${r.referents.fonction})`}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        }
+        // Pour compatibilité avec l'ancienne structure
         if (row.original.rdv_type === 'CLIENT' && row.original.referents) {
           const ref = row.original.referents;
           return (

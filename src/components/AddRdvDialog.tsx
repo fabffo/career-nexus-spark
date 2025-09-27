@@ -52,7 +52,7 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
     lieu: '',
     notes: '',
     recruteur_id: currentUserId || '',
-    referent_id: '',
+    referent_ids: [] as string[], // Changé pour gérer plusieurs référents
     teamsEmails: '',
   });
 
@@ -285,11 +285,11 @@ L'équipe de recrutement`;
       return;
     }
 
-    // Vérifier que le référent est sélectionné si type CLIENT
-    if (formData.rdv_type === 'CLIENT' && !formData.referent_id) {
+    // Vérifier qu'au moins un référent est sélectionné si type CLIENT
+    if (formData.rdv_type === 'CLIENT' && formData.referent_ids.length === 0) {
       toast({
         title: "Erreur",
-        description: "Veuillez sélectionner un référent pour un RDV client",
+        description: "Veuillez sélectionner au moins un référent pour un RDV client",
         variant: "destructive",
       });
       return;
@@ -310,7 +310,7 @@ L'équipe de recrutement`;
         lieu: formData.lieu || null,
         notes: formData.notes || null,
         recruteur_id: formData.recruteur_id || null,
-        referent_id: formData.rdv_type === 'CLIENT' ? formData.referent_id : null,
+        // Ne pas inclure referent_id ici, on utilisera rdv_referents
       };
 
       const { data: newRdv, error } = await supabase
@@ -318,6 +318,22 @@ L'équipe de recrutement`;
         .insert([rdvData])
         .select()
         .single();
+
+      if (error) throw error;
+
+      // Ajouter les référents si type CLIENT
+      if (formData.rdv_type === 'CLIENT' && formData.referent_ids.length > 0) {
+        const referentLinks = formData.referent_ids.map(referent_id => ({
+          rdv_id: newRdv.id,
+          referent_id
+        }));
+
+        const { error: referentError } = await supabase
+          .from('rdv_referents')
+          .insert(referentLinks);
+
+        if (referentError) throw referentError;
+      }
 
       if (error) throw error;
 
@@ -357,7 +373,7 @@ L'équipe de recrutement`;
       lieu: '',
       notes: '',
       recruteur_id: currentUserId || '',
-      referent_id: '',
+      referent_ids: [],
       teamsEmails: '',
     });
     setReferents([]);
@@ -387,7 +403,7 @@ L'équipe de recrutement`;
               <Select
                 value={formData.rdv_type}
                 onValueChange={(value: RdvType) => {
-                  setFormData({ ...formData, rdv_type: value, referent_id: '' });
+                  setFormData({ ...formData, rdv_type: value, referent_ids: [] });
                   setReferents([]);
                 }}
               >
@@ -491,29 +507,56 @@ L'équipe de recrutement`;
               </div>
             ) : (
               <div>
-                <Label htmlFor="referent">Référent client *</Label>
-                <Select
-                  value={formData.referent_id}
-                  onValueChange={(value) => setFormData({ ...formData, referent_id: value })}
-                  disabled={!formData.client_id}
-                >
-                  <SelectTrigger id="referent">
-                    <SelectValue placeholder={
-                      !formData.client_id 
-                        ? "Sélectionnez d'abord un client" 
-                        : referents.length === 0 
-                          ? "Aucun référent pour ce client"
-                          : "Sélectionner un référent"
-                    } />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {referents.map((referent) => (
-                      <SelectItem key={referent.id} value={referent.id}>
-                        {referent.prenom} {referent.nom}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="referents">Référents client *</Label>
+                <div className="space-y-2">
+                  <div className="text-sm text-muted-foreground">
+                    {!formData.client_id ? (
+                      "Sélectionnez d'abord un client"
+                    ) : referents.length === 0 ? (
+                      "Aucun référent pour ce client"
+                    ) : (
+                      "Sélectionnez un ou plusieurs référents"
+                    )}
+                  </div>
+                  {formData.client_id && referents.length > 0 && (
+                    <div className="space-y-2 max-h-40 overflow-y-auto p-3 border rounded-md">
+                      {referents.map((referent) => (
+                        <label
+                          key={referent.id}
+                          className="flex items-center space-x-2 cursor-pointer hover:bg-muted p-2 rounded"
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-gray-300"
+                            checked={formData.referent_ids.includes(referent.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({
+                                  ...formData,
+                                  referent_ids: [...formData.referent_ids, referent.id]
+                                });
+                              } else {
+                                setFormData({
+                                  ...formData,
+                                  referent_ids: formData.referent_ids.filter(id => id !== referent.id)
+                                });
+                              }
+                            }}
+                          />
+                          <span className="text-sm">
+                            {referent.prenom} {referent.nom}
+                            {referent.fonction && ` - ${referent.fonction}`}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {formData.referent_ids.length > 0 && (
+                    <div className="text-sm text-muted-foreground">
+                      {formData.referent_ids.length} référent(s) sélectionné(s)
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

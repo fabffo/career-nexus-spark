@@ -34,7 +34,7 @@ export function EditRdvDialog({ rdv, onSuccess }: EditRdvDialogProps) {
     lieu: '',
     notes: '',
     recruteur_id: '',
-    referent_id: '',
+    referent_ids: [] as string[], // Changé pour gérer plusieurs référents
     statut: '',
     teamsEmails: '',
   });
@@ -54,12 +54,36 @@ export function EditRdvDialog({ rdv, onSuccess }: EditRdvDialogProps) {
         lieu: rdv.lieu || '',
         notes: rdv.notes || '',
         recruteur_id: rdv.recruteur_id || '',
-        referent_id: rdv.referent_id || '',
+        referent_ids: [], // On chargera les référents après
         statut: rdv.statut || 'ENCOURS',
         teamsEmails: '',
       });
+      // Charger les référents liés au rendez-vous
+      loadRdvReferents();
     }
   }, [open, rdv]);
+
+  const loadRdvReferents = async () => {
+    if (!rdv?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('rdv_referents')
+        .select('referent_id')
+        .eq('rdv_id', rdv.id);
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          referent_ids: data.map(r => r.referent_id)
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading rdv referents:', error);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -102,11 +126,7 @@ export function EditRdvDialog({ rdv, onSuccess }: EditRdvDialogProps) {
       if (error) throw error;
       setReferents(data || []);
       
-      // Keep existing referent if it belongs to the new client
-      const existingReferentInNewClient = data?.find(r => r.id === formData.referent_id);
-      if (!existingReferentInNewClient) {
-        setFormData(prev => ({ ...prev, referent_id: '' }));
-      }
+      // On ne réinitialise pas les référents sélectionnés
       
       // Load postes for this client
       const { data: postesData } = await supabase
@@ -178,7 +198,7 @@ L'équipe de recrutement`;
         notes: formData.notes || null,
         statut: formData.statut,
         recruteur_id: formData.rdv_type === 'RECRUTEUR' ? formData.recruteur_id : null,
-        referent_id: formData.rdv_type === 'CLIENT' ? formData.referent_id : null,
+        // Ne pas inclure referent_id ici, on utilisera rdv_referents
       };
 
       // Update RDV
@@ -189,6 +209,27 @@ L'équipe de recrutement`;
 
       if (error) throw error;
 
+      // Mettre à jour les référents
+      // D'abord supprimer les anciens liens
+      await supabase
+        .from('rdv_referents')
+        .delete()
+        .eq('rdv_id', rdv.id);
+
+      // Puis ajouter les nouveaux
+      if (formData.rdv_type === 'CLIENT' && formData.referent_ids.length > 0) {
+        const referentLinks = formData.referent_ids.map(referent_id => ({
+          rdv_id: rdv.id,
+          referent_id
+        }));
+
+        const { error: referentError } = await supabase
+          .from('rdv_referents')
+          .insert(referentLinks);
+
+        if (referentError) throw referentError;
+      }
+
       // Handle Teams meeting creation or update
       if (formData.type_rdv === 'TEAMS') {
         // Collect attendee emails
@@ -198,10 +239,12 @@ L'équipe de recrutement`;
         const candidat = candidats.find(c => c.id === formData.candidat_id);
         if (candidat?.email) attendees.push(candidat.email);
         
-        // Add client referent email if exists
-        if (formData.rdv_type === 'CLIENT' && formData.referent_id) {
-          const referent = referents.find(r => r.id === formData.referent_id);
-          if (referent?.email) attendees.push(referent.email);
+        // Add client referent emails if exists  
+        if (formData.rdv_type === 'CLIENT' && formData.referent_ids.length > 0) {
+          formData.referent_ids.forEach(referentId => {
+            const referent = referents.find(r => r.id === referentId);
+            if (referent?.email) attendees.push(referent.email);
+          });
         }
         
         // Add additional emails
@@ -432,26 +475,59 @@ L'équipe de recrutement`;
               </div>
             )}
 
-            {/* Référent (si type CLIENT) */}
+            {/* Référents (si type CLIENT) */}
             {formData.rdv_type === 'CLIENT' && (
               <div>
-                <Label htmlFor="referent_id">Référent</Label>
-                <Select
-                  value={formData.referent_id}
-                  onValueChange={(value) => setFormData({ ...formData, referent_id: value })}
-                  disabled={!formData.client_id}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={formData.client_id ? "Sélectionner un référent" : "Sélectionnez d'abord un client"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {referents.map((referent) => (
-                      <SelectItem key={referent.id} value={referent.id}>
-                        {referent.prenom} {referent.nom}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="referents">Référents</Label>
+                <div className="space-y-2">
+                  <div className="text-sm text-muted-foreground">
+                    {!formData.client_id ? (
+                      "Sélectionnez d'abord un client"
+                    ) : referents.length === 0 ? (
+                      "Aucun référent pour ce client"
+                    ) : (
+                      "Sélectionnez un ou plusieurs référents"
+                    )}
+                  </div>
+                  {formData.client_id && referents.length > 0 && (
+                    <div className="space-y-2 max-h-40 overflow-y-auto p-3 border rounded-md">
+                      {referents.map((referent) => (
+                        <label
+                          key={referent.id}
+                          className="flex items-center space-x-2 cursor-pointer hover:bg-muted p-2 rounded"
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-gray-300"
+                            checked={formData.referent_ids.includes(referent.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({
+                                  ...formData,
+                                  referent_ids: [...formData.referent_ids, referent.id]
+                                });
+                              } else {
+                                setFormData({
+                                  ...formData,
+                                  referent_ids: formData.referent_ids.filter(id => id !== referent.id)
+                                });
+                              }
+                            }}
+                          />
+                          <span className="text-sm">
+                            {referent.prenom} {referent.nom}
+                            {referent.fonction && ` - ${referent.fonction}`}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {formData.referent_ids.length > 0 && (
+                    <div className="text-sm text-muted-foreground">
+                      {formData.referent_ids.length} référent(s) sélectionné(s)
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
