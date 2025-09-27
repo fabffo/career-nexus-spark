@@ -92,10 +92,11 @@ export function AddRdvDialog({ onSuccess, currentUserId }: AddRdvDialogProps) {
         .order('raison_sociale');
       setClients(clientsData || []);
 
-      // Charger les recruteurs (profiles)
+      // Charger les recruteurs (profiles) - uniquement RECRUTEUR et ADMIN
       const { data: recruteursData } = await supabase
         .from('profiles')
-        .select('id, nom, prenom, role')
+        .select('id, nom, prenom, role, email')
+        .in('role', ['RECRUTEUR', 'ADMIN'])
         .order('nom');
       setRecruteurs(recruteursData || []);
 
