@@ -178,6 +178,10 @@ L'équipe de recrutement`;
     
     // Ajouter les emails selon le type de RDV
     if (formData.rdv_type === 'CLIENT') {
+      // Ajouter l'email du recruteur
+      const recruteur = recruteurs.find(r => r.id === formData.recruteur_id);
+      if (recruteur?.email) emails.add(recruteur.email);
+      
       // Ajouter les emails des référents sélectionnés
       formData.referent_ids.forEach(referentId => {
         const referent = referents.find(r => r.id === referentId);
@@ -524,27 +528,28 @@ L'équipe de recrutement`;
               </Select>
             </div>
 
-            {/* Recruteur ou Référent selon le type */}
-            {formData.rdv_type === 'RECRUTEUR' ? (
-              <div>
-                <Label htmlFor="recruteur">Recruteur *</Label>
-                <Select
-                  value={formData.recruteur_id}
-                  onValueChange={(value) => setFormData({ ...formData, recruteur_id: value })}
-                >
-                  <SelectTrigger id="recruteur">
-                    <SelectValue placeholder="Sélectionner un recruteur" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {recruteurs.map((recruteur) => (
-                      <SelectItem key={recruteur.id} value={recruteur.id}>
-                        {recruteur.prenom} {recruteur.nom} ({recruteur.role})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
+            {/* Recruteur - Affiché pour les deux types de RDV */}
+            <div>
+              <Label htmlFor="recruteur">Recruteur *</Label>
+              <Select
+                value={formData.recruteur_id}
+                onValueChange={(value) => setFormData({ ...formData, recruteur_id: value })}
+              >
+                <SelectTrigger id="recruteur">
+                  <SelectValue placeholder="Sélectionner un recruteur" />
+                </SelectTrigger>
+                <SelectContent>
+                  {recruteurs.map((recruteur) => (
+                    <SelectItem key={recruteur.id} value={recruteur.id}>
+                      {recruteur.prenom} {recruteur.nom} ({recruteur.role})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Référents - Uniquement pour RDV CLIENT */}
+            {formData.rdv_type === 'CLIENT' && (
               <div>
                 <Label htmlFor="referents">Référents client *</Label>
                 <div className="space-y-2">
