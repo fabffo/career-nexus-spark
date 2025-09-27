@@ -71,7 +71,8 @@ L'équipe de recrutement`;
                 candidatName: `${rdv.candidat?.prenom} ${rdv.candidat?.nom}`,
                 clientName: rdv.client?.raisonSociale
               },
-              attendeeEmails: emailList
+              // Ne pas envoyer les emails ici pour éviter les doublons
+              attendeeEmails: []
             }
           }
         });
