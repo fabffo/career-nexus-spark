@@ -196,7 +196,7 @@ export default function Referents() {
   ];
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto p-6 max-w-7xl">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Référents</h1>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -206,7 +206,7 @@ export default function Referents() {
               Ajouter un référent
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
               <DialogTitle>
                 {editingReferent ? 'Modifier le référent' : 'Ajouter un référent'}
@@ -284,7 +284,7 @@ export default function Referents() {
                 </Select>
               </div>
               
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-4">
                 <Button
                   type="button"
                   variant="outline"
@@ -304,11 +304,13 @@ export default function Referents() {
         </Dialog>
       </div>
       
-      <DataTable
-        columns={columns}
-        data={referents}
-        searchPlaceholder="Rechercher un référent..."
-      />
+      <div className="bg-card rounded-lg shadow-sm border">
+        <DataTable
+          columns={columns}
+          data={referents}
+          searchPlaceholder="Rechercher un référent..."
+        />
+      </div>
     </div>
   );
 }

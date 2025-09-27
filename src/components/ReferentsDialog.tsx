@@ -211,14 +211,14 @@ export function ReferentsDialog({ clientId, clientName, open, onOpenChange }: Re
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[700px]">
-          <DialogHeader>
+        <DialogContent className="max-w-[800px] max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>
               Référents de {clientName}
             </DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4">
+          <div className="flex-grow overflow-auto space-y-4">
             <div className="flex justify-end">
               <Button onClick={() => handleOpenForm()} size="sm" className="bg-gradient-to-r from-primary to-primary-hover">
                 <Plus className="mr-2 h-4 w-4" />
@@ -231,11 +231,13 @@ export function ReferentsDialog({ clientId, clientName, open, onOpenChange }: Re
                 Chargement...
               </div>
             ) : referents.length > 0 ? (
-              <DataTable
-                columns={columns}
-                data={referents}
-                searchPlaceholder="Rechercher un référent..."
-              />
+              <div className="min-h-0">
+                <DataTable
+                  columns={columns}
+                  data={referents}
+                  searchPlaceholder="Rechercher un référent..."
+                />
+              </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 Aucun référent pour ce client
@@ -243,7 +245,7 @@ export function ReferentsDialog({ clientId, clientName, open, onOpenChange }: Re
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0 pt-4 border-t">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Fermer
             </Button>
@@ -253,7 +255,7 @@ export function ReferentsDialog({ clientId, clientName, open, onOpenChange }: Re
 
       {/* Form Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[450px]">
+        <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
             <DialogTitle>
               {selectedReferent ? 'Modifier le référent' : 'Nouveau référent'}
