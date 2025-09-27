@@ -153,6 +153,45 @@ export function EditRdvDialog({ rdv, onSuccess }: EditRdvDialogProps) {
     }
   }, [formData.client_id, formData.rdv_type]);
 
+  // Fonction pour mettre à jour automatiquement les emails participants
+  const updateTeamsEmails = () => {
+    if (formData.type_rdv !== 'TEAMS') return;
+    
+    const emails = new Set<string>();
+    
+    // Ajouter l'email du candidat
+    const candidat = candidats.find(c => c.id === formData.candidat_id);
+    if (candidat?.email) emails.add(candidat.email);
+    
+    // Ajouter les emails selon le type de RDV
+    if (formData.rdv_type === 'CLIENT') {
+      // Ajouter les emails des référents sélectionnés
+      formData.referent_ids.forEach(referentId => {
+        const referent = referents.find(r => r.id === referentId);
+        if (referent?.email) emails.add(referent.email);
+      });
+    } else if (formData.rdv_type === 'RECRUTEUR') {
+      // Ajouter l'email du recruteur
+      const recruteur = profiles.find(p => p.id === formData.recruteur_id);
+      if (recruteur?.email) emails.add(recruteur.email);
+    }
+    
+    // Conserver les emails supplémentaires déjà saisis
+    const currentEmails = formData.teamsEmails
+      .split(/[,;\n]/)
+      .map(e => e.trim())
+      .filter(e => e && !emails.has(e));
+    
+    // Combiner tous les emails
+    const allEmails = [...emails, ...currentEmails];
+    setFormData(prev => ({ ...prev, teamsEmails: allEmails.join(', ') }));
+  };
+
+  // Appeler updateTeamsEmails quand les dépendances changent
+  useEffect(() => {
+    updateTeamsEmails();
+  }, [formData.type_rdv, formData.candidat_id, formData.rdv_type, formData.referent_ids, formData.recruteur_id, candidats, referents, profiles]);
+
   const generateEmailMessage = (rdv: any, teamsLink: string) => {
     const date = format(new Date(rdv.date), 'dd MMMM yyyy à HH:mm', { locale: fr });
     const type = rdv.type_rdv === 'TEAMS' ? 'Microsoft Teams' : 
@@ -400,7 +439,9 @@ L'équipe de recrutement`;
               </Label>
               <Select
                 value={formData.type_rdv}
-                onValueChange={(value) => setFormData({ ...formData, type_rdv: value })}
+                onValueChange={(value) => {
+                  setFormData({ ...formData, type_rdv: value });
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Modalité du RDV" />
@@ -537,19 +578,35 @@ L'équipe de recrutement`;
             <div>
               <Label htmlFor="teamsEmails">
                 <Users className="inline h-4 w-4 mr-1" />
-                Emails des participants supplémentaires
+                Emails des participants
               </Label>
-              <Textarea
-                id="teamsEmails"
-                value={formData.teamsEmails}
-                onChange={(e) => setFormData({ ...formData, teamsEmails: e.target.value })}
-                placeholder="Entrez les emails des participants (séparés par des virgules, points-virgules ou retours à la ligne)"
-                rows={2}
-                className="text-sm"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Note: Le lien Teams existant reste valide. Pour changer les participants, créez un nouveau RDV.
-              </p>
+              <div className="space-y-2">
+                <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                  <p className="font-medium mb-1">Participants automatiquement ajoutés :</p>
+                  <ul className="list-disc list-inside space-y-0.5">
+                    {formData.candidat_id && candidats.find(c => c.id === formData.candidat_id)?.email && (
+                      <li>Candidat : {candidats.find(c => c.id === formData.candidat_id)?.email}</li>
+                    )}
+                    {formData.rdv_type === 'CLIENT' && formData.referent_ids.length > 0 && (
+                      <li>Référents : {formData.referent_ids.map(id => {
+                        const ref = referents.find(r => r.id === id);
+                        return ref?.email;
+                      }).filter(Boolean).join(', ')}</li>
+                    )}
+                    {formData.rdv_type === 'RECRUTEUR' && formData.recruteur_id && profiles.find(r => r.id === formData.recruteur_id)?.email && (
+                      <li>Recruteur : {profiles.find(r => r.id === formData.recruteur_id)?.email}</li>
+                    )}
+                  </ul>
+                </div>
+                <Textarea
+                  id="teamsEmails"
+                  value={formData.teamsEmails}
+                  onChange={(e) => setFormData({ ...formData, teamsEmails: e.target.value })}
+                  placeholder="Ajouter des emails supplémentaires (séparés par des virgules, points-virgules ou retours à la ligne)"
+                  rows={2}
+                  className="text-sm"
+                />
+              </div>
             </div>
           )}
 
