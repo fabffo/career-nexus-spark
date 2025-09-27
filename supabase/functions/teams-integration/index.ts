@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.10';
-// Removed unused Resend import
+import { Resend } from 'https://esm.sh/resend@2.0.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -87,31 +87,76 @@ serve(async (req) => {
       console.log('Sending invitation to:', recipients);
       console.log('Message:', message);
       
-      // Enregistrer dans l'historique des emails (simulé car pas d'envoi réel)
-      for (const recipient of recipients) {
+      // Initialiser Resend
+      const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+      
+      // Envoyer les emails et enregistrer dans l'historique
+      const sendPromises = recipients.map(async (recipient: string) => {
         try {
+          // Envoyer l'email via Resend
+          const emailResponse = await resend.emails.send({
+            from: 'Recrutement <onboarding@resend.dev>',
+            to: [recipient],
+            subject: 'Invitation à une réunion Teams',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #5B21B6;">Invitation à une réunion Teams</h2>
+                <div style="background-color: #F3F4F6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  ${message.replace(/\n/g, '<br>')}
+                </div>
+                <div style="margin-top: 20px; padding: 15px; background-color: #EDE9FE; border-radius: 8px;">
+                  <p style="margin: 0; font-weight: bold; color: #5B21B6;">Rejoindre la réunion :</p>
+                  <a href="${teamsLink}" style="display: inline-block; margin-top: 10px; padding: 10px 20px; background-color: #5B21B6; color: white; text-decoration: none; border-radius: 5px;">Cliquer ici pour rejoindre</a>
+                </div>
+                <p style="margin-top: 20px; font-size: 12px; color: #6B7280;">
+                  Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur : <br>
+                  <a href="${teamsLink}" style="color: #5B21B6;">${teamsLink}</a>
+                </p>
+              </div>
+            `
+          });
+          
+          console.log('Email sent successfully to:', recipient, emailResponse);
+          
+          // Enregistrer dans l'historique avec le statut "sent"
           await supabase.from('email_history').insert({
             recipient_email: recipient,
-            subject: 'Invitation Teams',
+            subject: 'Invitation à une réunion Teams',
             email_type: 'teams_invitation',
-            status: 'pending', // 'pending' car pas d'envoi réel actuellement
+            status: 'sent',
+            metadata: { rdv_id: rdv.id, message, email_response: emailResponse }
+          });
+          
+          return { recipient, success: true };
+        } catch (emailError) {
+          console.error('Error sending email to:', recipient, emailError);
+          
+          // Enregistrer dans l'historique avec le statut "failed"
+          await supabase.from('email_history').insert({
+            recipient_email: recipient,
+            subject: 'Invitation à une réunion Teams',
+            email_type: 'teams_invitation',
+            status: 'failed',
+            error_message: (emailError as Error).message,
             metadata: { rdv_id: rdv.id, message }
           });
-        } catch (historyError) {
-          console.error('Error saving email history:', historyError);
+          
+          return { recipient, success: false, error: (emailError as Error).message };
         }
-      }
+      });
       
-      // Email functionality temporarily disabled - no email service configured
-      console.log('Email notification skipped - no email service configured');
-      console.log('Would have sent to:', recipients);
-      console.log('Message:', message);
+      const results = await Promise.all(sendPromises);
+      const successCount = results.filter(r => r.success).length;
+      const failedCount = results.filter(r => !r.success).length;
+      
+      console.log(`Emails sent: ${successCount} success, ${failedCount} failed`);
       
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'Action traitée (sans envoi d\'email)',
-          teamsLink: teamsLink
+          message: `Invitations envoyées: ${successCount} réussies${failedCount > 0 ? `, ${failedCount} échouées` : ''}`,
+          teamsLink: teamsLink,
+          results
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
