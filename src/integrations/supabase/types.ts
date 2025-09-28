@@ -505,7 +505,7 @@ export type Database = {
     Enums: {
       rdv_statut: "ENCOURS" | "REALISE" | "TERMINE" | "ANNULE"
       rdv_type: "RECRUTEUR" | "CLIENT"
-      user_role: "ADMIN" | "RECRUTEUR" | "CANDIDAT"
+      user_role: "ADMIN" | "RECRUTEUR" | "CANDIDAT" | "CONTRAT" | "PRESTATAIRE"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -635,7 +635,7 @@ export const Constants = {
     Enums: {
       rdv_statut: ["ENCOURS", "REALISE", "TERMINE", "ANNULE"],
       rdv_type: ["RECRUTEUR", "CLIENT"],
-      user_role: ["ADMIN", "RECRUTEUR", "CANDIDAT"],
+      user_role: ["ADMIN", "RECRUTEUR", "CANDIDAT", "CONTRAT", "PRESTATAIRE"],
     },
   },
 } as const
