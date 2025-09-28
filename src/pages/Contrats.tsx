@@ -538,7 +538,7 @@ export default function Contrats() {
               <div>
                 <Label>Client *</Label>
                 <Select 
-                  value={formData.client_id}
+                  value={formData.client_id || ''}
                   onValueChange={(value) => setFormData({ ...formData, client_id: value })}
                 >
                   <SelectTrigger>
@@ -559,7 +559,7 @@ export default function Contrats() {
               <div>
                 <Label>Prestataire *</Label>
                 <Select 
-                  value={formData.prestataire_id}
+                  value={formData.prestataire_id || ''}
                   onValueChange={(value) => setFormData({ ...formData, prestataire_id: value })}
                 >
                   <SelectTrigger>
@@ -580,7 +580,7 @@ export default function Contrats() {
               <div>
                 <Label>Fournisseur de services *</Label>
                 <Select 
-                  value={formData.fournisseur_services_id}
+                  value={formData.fournisseur_services_id || ''}
                   onValueChange={(value) => setFormData({ ...formData, fournisseur_services_id: value })}
                 >
                   <SelectTrigger>
@@ -601,7 +601,7 @@ export default function Contrats() {
               <div>
                 <Label>Fournisseur général *</Label>
                 <Select 
-                  value={formData.fournisseur_general_id}
+                  value={formData.fournisseur_general_id || ''}
                   onValueChange={(value) => setFormData({ ...formData, fournisseur_general_id: value })}
                 >
                   <SelectTrigger>
