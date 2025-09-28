@@ -9,6 +9,7 @@ import { Search, Plus, FileText, Edit, Trash2, Eye, Copy, Download, Calendar, Do
 import { contratService, prestataireService, fournisseurServicesService, fournisseurGeneralService } from '@/services/contratService';
 import { clientService } from '@/services';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -81,10 +82,33 @@ export default function Contrats() {
     }
   };
 
-  const generateNumeroContrat = () => {
-    const year = new Date().getFullYear();
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    return `CTR-${year}-${random}`;
+  const generateNumeroContrat = async () => {
+    try {
+      const year = new Date().getFullYear();
+      const { data, error } = await supabase.rpc('get_next_contract_number', { p_year: year });
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Erreur lors de la génération du numéro:', error);
+      // Fallback sur l'ancien système en cas d'erreur
+      const year = new Date().getFullYear();
+      const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      return `${year}-${random}`;
+    }
+  };
+
+  const generateNumeroAvenant = async (parentNumero: string) => {
+    try {
+      const { data, error } = await supabase.rpc('get_next_avenant_number', { p_parent_numero: parentNumero });
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Erreur lors de la génération du numéro d\'avenant:', error);
+      // Fallback
+      return `${parentNumero}-AV`;
+    }
   };
 
   const handleSubmit = async () => {
@@ -151,9 +175,10 @@ export default function Contrats() {
   const handleDuplicate = async (contrat: any) => {
     const { id, created_at, updated_at, created_by, ...dataToClone } = contrat;
     try {
+      const newNumero = await generateNumeroContrat();
       await contratService.create({
         ...dataToClone,
-        numero_contrat: generateNumeroContrat(),
+        numero_contrat: newNumero,
         statut: 'BROUILLON',
         version: '1.0',
         parent_id: undefined
@@ -189,9 +214,10 @@ export default function Contrats() {
     }
   };
 
-  const resetForm = () => {
+  const resetForm = async () => {
+    const newNumero = await generateNumeroContrat();
     setFormData({
-      numero_contrat: generateNumeroContrat(),
+      numero_contrat: newNumero,
       type: 'CLIENT',
       statut: 'BROUILLON',
       date_debut: '',
@@ -235,11 +261,12 @@ export default function Contrats() {
     setIsDialogOpen(true);
   };
 
-  const openAvenantDialog = (contrat: any) => {
+  const openAvenantDialog = async (contrat: any) => {
     setSelectedContrat(contrat);
+    const avenantNumero = await generateNumeroAvenant(contrat.numero_contrat);
     setFormData({
       ...formData,
-      numero_contrat: `${contrat.numero_contrat}-AV`,
+      numero_contrat: avenantNumero,
       type: contrat.type,
       date_debut: contrat.date_debut,
       client_id: contrat.client_id,
@@ -305,9 +332,8 @@ export default function Contrats() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Contrats</h1>
         <Button
-          onClick={() => {
-            resetForm();
-            setFormData(prev => ({ ...prev, numero_contrat: generateNumeroContrat() }));
+          onClick={async () => {
+            await resetForm();
             setIsDialogOpen(true);
           }}
         >
