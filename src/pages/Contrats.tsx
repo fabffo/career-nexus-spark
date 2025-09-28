@@ -149,6 +149,7 @@ export default function Contrats() {
         numero_contrat: finalNumeroContrat, // Utiliser le numéro généré
         montant: formData.montant ? parseFloat(formData.montant) : undefined,
         piece_jointe_url: pieceJointeUrl,
+        date_fin: formData.date_fin || undefined, // Convertir chaîne vide en undefined
         // Nettoyer les IDs non utilisés selon le type
         client_id: formData.type === 'CLIENT' ? formData.client_id : undefined,
         prestataire_id: formData.type === 'PRESTATAIRE' ? formData.prestataire_id : undefined,
