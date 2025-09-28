@@ -567,7 +567,7 @@ export default function Contrats() {
                     ) : (
                       clients.map(client => (
                         <SelectItem key={client.id} value={client.id}>
-                          {client.raison_sociale}
+                          {client.raisonSociale || client.raison_sociale}
                         </SelectItem>
                       ))
                     )}
@@ -610,7 +610,7 @@ export default function Contrats() {
                   <SelectContent>
                     {fournisseursServices.map(fournisseur => (
                       <SelectItem key={fournisseur.id} value={fournisseur.id}>
-                        {fournisseur.raison_sociale}
+                        {fournisseur.raisonSociale || fournisseur.raison_sociale}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -631,7 +631,7 @@ export default function Contrats() {
                   <SelectContent>
                     {fournisseursGeneraux.map(fournisseur => (
                       <SelectItem key={fournisseur.id} value={fournisseur.id}>
-                        {fournisseur.raison_sociale}
+                        {fournisseur.raisonSociale || fournisseur.raison_sociale}
                       </SelectItem>
                     ))}
                   </SelectContent>
