@@ -106,6 +106,12 @@ export default function Contrats() {
     }
   };
 
+  // Fonction pour afficher un numéro temporaire (non incrémenté)
+  const getTemporaryNumeroContrat = () => {
+    const year = new Date().getFullYear();
+    return `${year}-XXXX`;
+  };
+
   const generateNumeroAvenant = async (parentNumero: string) => {
     try {
       const { data, error } = await supabase.rpc('get_next_avenant_number', { p_parent_numero: parentNumero });
@@ -125,6 +131,12 @@ export default function Contrats() {
     
     try {
       setLoading(true);
+      
+      // Générer le numéro de contrat uniquement lors de la soumission
+      let finalNumeroContrat = formData.numero_contrat;
+      if (!isEditMode && !isAvenant && formData.numero_contrat.includes('XXXX')) {
+        finalNumeroContrat = await generateNumeroContrat();
+      }
       let pieceJointeUrl = formData.piece_jointe_url;
 
       // Upload de la pièce jointe si nécessaire
@@ -134,6 +146,7 @@ export default function Contrats() {
 
       const dataToSubmit = {
         ...formData,
+        numero_contrat: finalNumeroContrat, // Utiliser le numéro généré
         montant: formData.montant ? parseFloat(formData.montant) : undefined,
         piece_jointe_url: pieceJointeUrl,
         // Nettoyer les IDs non utilisés selon le type
@@ -186,10 +199,10 @@ export default function Contrats() {
   const handleDuplicate = async (contrat: any) => {
     const { id, created_at, updated_at, created_by, ...dataToClone } = contrat;
     try {
-      const newNumero = await generateNumeroContrat();
+      // Ne pas générer le numéro tout de suite
       await contratService.create({
         ...dataToClone,
-        numero_contrat: newNumero,
+        numero_contrat: await generateNumeroContrat(), // Générer seulement lors de la duplication effective
         statut: 'BROUILLON',
         version: '1.0',
         parent_id: undefined
@@ -226,9 +239,9 @@ export default function Contrats() {
   };
 
   const resetForm = async () => {
-    const newNumero = await generateNumeroContrat();
+    // Utiliser un numéro temporaire pour l'affichage
     setFormData({
-      numero_contrat: newNumero,
+      numero_contrat: getTemporaryNumeroContrat(),
       type: 'CLIENT',
       statut: 'BROUILLON',
       date_debut: '',
@@ -343,8 +356,8 @@ export default function Contrats() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Contrats</h1>
         <Button
-          onClick={async () => {
-            await resetForm();
+          onClick={() => {
+            resetForm();
             setIsDialogOpen(true);
           }}
         >
