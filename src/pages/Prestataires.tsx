@@ -148,7 +148,8 @@ export default function Prestataires() {
       if (error) throw error;
 
       toast.success('Invitation envoyée avec succès');
-      loadPrestataires();
+      // Recharger immédiatement les données pour voir le changement
+      await loadPrestataires();
     } catch (error) {
       console.error('Erreur lors de l\'envoi de l\'invitation:', error);
       toast.error('Erreur lors de l\'envoi de l\'invitation');
