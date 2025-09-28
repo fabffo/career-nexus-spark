@@ -130,14 +130,17 @@ export default function Prestataires() {
 
   const handleSendInvitation = async (prestataire: any) => {
     try {
+      const baseUrl = window.location.origin;
+      
       const { data: { data: inviteData }, error } = await supabase.functions.invoke(
-        'send-candidat-invitation',
+        'send-prestataire-invitation',
         {
           body: {
+            prestataireId: prestataire.id,
             email: prestataire.email,
             nom: prestataire.nom,
             prenom: prestataire.prenom,
-            type: 'PRESTATAIRE'
+            baseUrl: baseUrl
           }
         }
       );
