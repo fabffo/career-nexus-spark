@@ -14,6 +14,8 @@ import {
   User,
   LogOut,
   ShieldCheck,
+  UserCheck,
+  FileText,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -29,6 +31,8 @@ export function Sidebar() {
     { path: '/', label: 'Tableau de bord', icon: LayoutDashboard },
     { path: '/candidats', label: 'Candidats', icon: Users },
     { path: '/clients', label: 'Clients', icon: Building2 },
+    { path: '/prestataires', label: 'Prestataires', icon: UserCheck },
+    { path: '/contrats', label: 'Contrats', icon: FileText },
     { path: '/rdv', label: 'Rendez-vous', icon: Calendar },
     { path: '/postes', label: 'Postes', icon: Briefcase },
     { path: '/recherche', label: 'Recherche', icon: Search },
