@@ -62,8 +62,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Updated prestataire:", prestataire);
 
-    // Construire l'URL d'inscription avec le domaine wavyservices.fr
-    const signupUrl = `https://wavyservices.fr/candidat-signup?token=${token}&type=PRESTATAIRE`;
+    // Construire l'URL d'inscription - utiliser le domaine de l'application
+    const signupUrl = `${baseUrl}/candidat-signup?token=${token}&type=PRESTATAIRE`;
 
     // Envoyer l'email avec Resend
     const emailResponse = await resend.emails.send({
