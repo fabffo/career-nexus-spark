@@ -162,8 +162,13 @@ const handler = async (req: Request): Promise<Response> => {
                 </ul>
                 
                 <div class="button-container">
-                  <a href="${signupUrl}" class="button">Créer mon compte</a>
+                  <a href="${signupUrl}" class="button" style="display: inline-block; background: #2563eb; color: white !important; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-weight: 600; font-size: 16px;">Créer mon compte</a>
                 </div>
+                
+                <p style="text-align: center; margin-top: 20px; font-size: 12px; color: #666;">
+                  Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :<br/>
+                  <a href="${signupUrl}" style="color: #2563eb; word-break: break-all;">${signupUrl}</a>
+                </p>
                 
                 <div class="warning">
                   <strong>Important :</strong> Ce lien d'invitation est unique et sécurisé. Il expirera dans 7 jours.
