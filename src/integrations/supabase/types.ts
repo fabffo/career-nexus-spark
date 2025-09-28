@@ -137,6 +137,27 @@ export type Database = {
         }
         Relationships: []
       }
+      contrat_sequences: {
+        Row: {
+          created_at: string | null
+          last_number: number
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          last_number?: number
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          created_at?: string | null
+          last_number?: number
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
       contrats: {
         Row: {
           client_id: string | null
@@ -718,6 +739,14 @@ export type Database = {
     Functions: {
       generate_invitation_token: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_next_avenant_number: {
+        Args: { p_parent_numero: string }
+        Returns: string
+      }
+      get_next_contract_number: {
+        Args: { p_year: number }
         Returns: string
       }
     }
