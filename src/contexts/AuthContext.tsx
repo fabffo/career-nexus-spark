@@ -2,13 +2,14 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { UserRole } from '@/types/database';
 
 interface Profile {
   id: string;
   email: string;
   nom: string;
   prenom: string;
-  role: 'ADMIN' | 'RECRUTEUR' | 'CANDIDAT';
+  role: UserRole;
 }
 
 interface AuthContextType {
