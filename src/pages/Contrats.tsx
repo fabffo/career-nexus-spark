@@ -23,6 +23,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 export default function Contrats() {
   const [contrats, setContrats] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStatuts, setSelectedStatuts] = useState<ContratStatut[]>(['BROUILLON', 'ACTIF']);
   const [loading, setLoading] = useState(false);
   const [selectedContrat, setSelectedContrat] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -348,6 +349,7 @@ export default function Contrats() {
   };
 
   const filteredContrats = contrats.filter(contrat =>
+    selectedStatuts.includes(contrat.statut) &&
     `${contrat.numero_contrat} ${contrat.description || ''} ${getContratParty(contrat)}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase())
@@ -370,7 +372,7 @@ export default function Contrats() {
 
       <Card>
         <CardContent className="p-6">
-          <div className="mb-4">
+          <div className="mb-4 space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
@@ -379,6 +381,38 @@ export default function Contrats() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium">Filtrer par statut:</Label>
+              <div className="flex flex-wrap gap-2">
+                {(['BROUILLON', 'ACTIF', 'TERMINE', 'ANNULE', 'ARCHIVE'] as ContratStatut[]).map((statut) => (
+                  <Button
+                    key={statut}
+                    variant={selectedStatuts.includes(statut) ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      if (selectedStatuts.includes(statut)) {
+                        // Retirer le statut si déjà sélectionné (mais garder au moins un)
+                        if (selectedStatuts.length > 1) {
+                          setSelectedStatuts(selectedStatuts.filter(s => s !== statut));
+                        }
+                      } else {
+                        // Ajouter le statut
+                        setSelectedStatuts([...selectedStatuts, statut]);
+                      }
+                    }}
+                  >
+                    {statut}
+                  </Button>
+                ))}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedStatuts(['BROUILLON', 'ACTIF', 'TERMINE', 'ANNULE', 'ARCHIVE'])}
+                >
+                  Tous
+                </Button>
+              </div>
             </div>
           </div>
 
