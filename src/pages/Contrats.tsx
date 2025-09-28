@@ -69,6 +69,14 @@ export default function Contrats() {
         fournisseurGeneralService.getAll()
       ]);
       
+      console.log('Données chargées:', {
+        contrats: contratsData,
+        clients: clientsData,
+        prestataires: prestatairesData,
+        fournisseursServices: fournisseursServicesData,
+        fournisseursGeneraux: fournisseursGenerauxData
+      });
+      
       setContrats(contratsData);
       setClients(clientsData);
       setPrestataires(prestatairesData);
@@ -112,6 +120,9 @@ export default function Contrats() {
   };
 
   const handleSubmit = async () => {
+    console.log('FormData avant soumission:', formData);
+    console.log('Clients disponibles:', clients);
+    
     try {
       setLoading(true);
       let pieceJointeUrl = formData.piece_jointe_url;
@@ -539,17 +550,27 @@ export default function Contrats() {
                 <Label>Client *</Label>
                 <Select 
                   value={formData.client_id || ''}
-                  onValueChange={(value) => setFormData({ ...formData, client_id: value })}
+                  onValueChange={(value) => {
+                    console.log('Client sélectionné:', value);
+                    console.log('Clients disponibles:', clients);
+                    setFormData({ ...formData, client_id: value });
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner un client" />
                   </SelectTrigger>
                   <SelectContent>
-                    {clients.map(client => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.raison_sociale}
+                    {clients.length === 0 ? (
+                      <SelectItem value="no-clients" disabled>
+                        Aucun client disponible
                       </SelectItem>
-                    ))}
+                    ) : (
+                      clients.map(client => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.raison_sociale}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
