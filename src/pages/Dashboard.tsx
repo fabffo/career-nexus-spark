@@ -6,10 +6,12 @@ import {
   candidatService, 
   clientService, 
   rdvService, 
-  posteService 
+  posteService
 } from '@/services';
+import { contratService, prestataireService } from '@/services/contratService';
 import { Candidat, Client, Rdv, PosteClient } from '@/types/models';
-import { Users, Building2, Calendar, Briefcase, TrendingUp, Clock } from 'lucide-react';
+import { Contrat } from '@/types/contrat';
+import { Users, Building2, Calendar, Briefcase, TrendingUp, Clock, UserCheck, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -21,27 +23,37 @@ export default function Dashboard() {
     clients: 0,
     rdvs: 0,
     postes: 0,
+    prestataires: 0,
+    contratsActifs: 0,
   });
   const [recentRdvs, setRecentRdvs] = useState<Rdv[]>([]);
   const [activePostes, setActivePostes] = useState<PosteClient[]>([]);
+  const [activeContrats, setActiveContrats] = useState<Contrat[]>([]);
 
   useEffect(() => {
     loadDashboardData();
   }, []);
 
   const loadDashboardData = async () => {
-    const [candidats, clients, rdvs, postes] = await Promise.all([
+    const [candidats, clients, rdvs, postes, prestataires, contrats] = await Promise.all([
       candidatService.count(),
       clientService.count(),
       rdvService.getAll(),
       posteService.getAll(),
+      prestataireService.count(),
+      contratService.getAll(),
     ]);
+
+    // Filter active contracts
+    const contratsActifs = contrats.filter(c => c.statut === 'ACTIF');
 
     setStats({
       candidats,
       clients,
       rdvs: rdvs.length,
       postes: postes.length,
+      prestataires,
+      contratsActifs: contratsActifs.length,
     });
 
     // Get recent RDVs
@@ -56,6 +68,9 @@ export default function Dashboard() {
       .filter(poste => poste.statut === 'ENCOURS')
       .slice(0, 5);
     setActivePostes(activePositions);
+
+    // Get active contracts
+    setActiveContrats(contratsActifs.slice(0, 5));
   };
 
   const statCards = [
@@ -76,6 +91,14 @@ export default function Dashboard() {
       route: '/clients',
     },
     { 
+      title: 'Prestataires', 
+      value: stats.prestataires, 
+      icon: UserCheck, 
+      color: 'text-indigo-600',
+      bgColor: 'bg-indigo-50',
+      route: '/prestataires',
+    },
+    { 
       title: 'Rendez-vous', 
       value: stats.rdvs, 
       icon: Calendar, 
@@ -90,6 +113,14 @@ export default function Dashboard() {
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
       route: '/postes',
+    },
+    { 
+      title: 'Contrats actifs', 
+      value: stats.contratsActifs, 
+      icon: FileText, 
+      color: 'text-teal-600',
+      bgColor: 'bg-teal-50',
+      route: '/contrats',
     },
   ];
 
@@ -118,7 +149,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {statCards.map((stat) => {
           const Icon = stat.icon;
           return (
@@ -147,7 +178,7 @@ export default function Dashboard() {
         })}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-3">
         {/* Upcoming RDVs */}
         <Card>
           <CardHeader>
@@ -207,6 +238,42 @@ export default function Dashboard() {
                       </div>
                     </div>
                     {getStatusBadge(poste.statut)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Active Contracts */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Contrats actifs
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {activeContrats.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucun contrat actif</p>
+            ) : (
+              <div className="space-y-4">
+                {activeContrats.map((contrat) => (
+                  <div key={contrat.id} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">{contrat.numero_contrat}</p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>
+                          {contrat.client?.raison_sociale || contrat.prestataire?.nom || 'N/A'}
+                        </span>
+                        {contrat.date_debut && (
+                          <span>• Depuis le {format(new Date(contrat.date_debut), 'dd/MM/yyyy')}</span>
+                        )}
+                      </div>
+                    </div>
+                    <Badge className="bg-green-100 text-green-800">
+                      ACTIF
+                    </Badge>
                   </div>
                 ))}
               </div>
