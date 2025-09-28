@@ -18,6 +18,7 @@ import { FileUploadField } from '@/components/FileUploadField';
 import { ContratType, ContratStatut } from '@/types/contrat';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function Contrats() {
   const [contrats, setContrats] = useState<any[]>([]);
@@ -431,83 +432,156 @@ export default function Contrats() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => openViewDialog(contrat)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {contrat.statut === 'BROUILLON' && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => openEditDialog(contrat)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleStatusAction(contrat.id, 'activer')}
-                              >
-                                <FileCheck className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                          {contrat.statut === 'ACTIF' && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => openAvenantDialog(contrat)}
-                              >
-                                <Archive className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleStatusAction(contrat.id, 'terminer')}
-                              >
-                                <FileCheck className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleStatusAction(contrat.id, 'annuler')}
-                              >
-                                <XCircle className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDuplicate(contrat)}
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          {contrat.piece_jointe_url && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => window.open(contrat.piece_jointe_url, '_blank')}
-                            >
-                              <Download className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {contrat.statut === 'BROUILLON' && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleDelete(contrat.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
+                        <TooltipProvider>
+                          <div className="flex justify-end gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => openViewDialog(contrat)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Voir les détails</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            
+                            {contrat.statut === 'BROUILLON' && (
+                              <>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => openEditDialog(contrat)}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Modifier le contrat</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                                
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleStatusAction(contrat.id, 'activer')}
+                                    >
+                                      <FileCheck className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Activer le contrat</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </>
+                            )}
+                            
+                            {contrat.statut === 'ACTIF' && (
+                              <>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => openAvenantDialog(contrat)}
+                                    >
+                                      <Archive className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Créer un avenant</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                                
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleStatusAction(contrat.id, 'terminer')}
+                                    >
+                                      <FileCheck className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Terminer le contrat</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                                
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleStatusAction(contrat.id, 'annuler')}
+                                    >
+                                      <XCircle className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Annuler le contrat</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </>
+                            )}
+                            
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDuplicate(contrat)}
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Dupliquer le contrat</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            
+                            {contrat.piece_jointe_url && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => window.open(contrat.piece_jointe_url, '_blank')}
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Télécharger la pièce jointe</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                            
+                            {contrat.statut === 'BROUILLON' && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleDelete(contrat.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Supprimer le contrat</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                        </TooltipProvider>
                       </TableCell>
                     </TableRow>
                   ))
