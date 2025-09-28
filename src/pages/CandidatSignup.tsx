@@ -14,11 +14,13 @@ export default function CandidatSignup() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [candidat, setCandidat] = useState<any>(null);
+  const [prestataire, setPrestataire] = useState<any>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const token = searchParams.get("token");
+  const type = searchParams.get("type"); // CANDIDAT ou PRESTATAIRE
 
   useEffect(() => {
     if (!token) {
@@ -31,8 +33,12 @@ export default function CandidatSignup() {
       return;
     }
 
-    loadCandidatData();
-  }, [token]);
+    if (type === "PRESTATAIRE") {
+      loadPrestataireData();
+    } else {
+      loadCandidatData();
+    }
+  }, [token, type]);
 
   const loadCandidatData = async () => {
     try {
@@ -66,6 +72,38 @@ export default function CandidatSignup() {
     }
   };
 
+  const loadPrestataireData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("prestataires")
+        .select("*")
+        .eq("invitation_token", token)
+        .single();
+
+      if (error) throw error;
+
+      if (!data) {
+        toast({
+          title: "Erreur",
+          description: "Token d'invitation invalide ou expiré",
+          variant: "destructive",
+        });
+        navigate("/auth");
+        return;
+      }
+
+      setPrestataire(data);
+    } catch (error) {
+      console.error("Error loading prestataire:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les données",
+        variant: "destructive",
+      });
+      navigate("/auth");
+    }
+  };
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -89,16 +127,21 @@ export default function CandidatSignup() {
 
     setLoading(true);
 
+    const userData = type === "PRESTATAIRE" ? prestataire : candidat;
+    const userRole = type === "PRESTATAIRE" ? "PRESTATAIRE" : "CANDIDAT";
+    const redirectUrl = type === "PRESTATAIRE" ? "/prestataire/dashboard" : "/candidat/dashboard";
+
     try {
       const { error: signUpError } = await supabase.auth.signUp({
-        email: candidat.email,
+        email: userData.email,
         password,
         options: {
           data: {
             invitation_token: token,
-            nom: candidat.nom,
-            prenom: candidat.prenom,
-            role: 'CANDIDAT', // Forcer le rôle CANDIDAT
+            nom: userData.nom,
+            prenom: userData.prenom,
+            role: userRole,
+            type: type || 'CANDIDAT',
           },
         },
       });
@@ -112,7 +155,7 @@ export default function CandidatSignup() {
 
       // Attendre un peu pour que le trigger se déclenche
       setTimeout(() => {
-        navigate("/candidat/dashboard");
+        navigate(redirectUrl);
       }, 2000);
     } catch (error: any) {
       console.error("Signup error:", error);
@@ -126,7 +169,9 @@ export default function CandidatSignup() {
     }
   };
 
-  if (!candidat) {
+  const userData = type === "PRESTATAIRE" ? prestataire : candidat;
+  
+  if (!userData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted">
         <div className="text-center">
@@ -136,6 +181,8 @@ export default function CandidatSignup() {
       </div>
     );
   }
+
+  const userTypeLabel = type === "PRESTATAIRE" ? "prestataire" : "candidat";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
@@ -147,10 +194,10 @@ export default function CandidatSignup() {
             </div>
           </div>
           <CardTitle className="text-2xl text-center">
-            Bienvenue {candidat.prenom} {candidat.nom}
+            Bienvenue {userData.prenom} {userData.nom}
           </CardTitle>
           <CardDescription className="text-center">
-            Créez votre mot de passe pour accéder à votre espace candidat
+            Créez votre mot de passe pour accéder à votre espace {userTypeLabel}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -160,7 +207,7 @@ export default function CandidatSignup() {
               <Input
                 id="email"
                 type="email"
-                value={candidat.email}
+                value={userData.email}
                 disabled
                 className="bg-muted"
               />

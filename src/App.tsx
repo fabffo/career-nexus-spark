@@ -5,9 +5,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
 import { CandidatLayout } from "./components/layout/CandidatLayout";
+import PrestataireLayout from "./components/layout/PrestataireLayout";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { CandidatProtectedRoute } from "./components/CandidatProtectedRoute";
+import PrestataireProtectedRoute from "./components/PrestataireProtectedRoute";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Candidats from "./pages/Candidats";
@@ -22,6 +24,7 @@ import CandidatDashboard from "./pages/CandidatDashboard";
 import CandidatCandidatures from "./pages/candidat/Candidatures";
 import CandidatEntretiens from "./pages/candidat/Entretiens";
 import CandidatProfil from "./pages/candidat/Profil";
+import PrestataireDashboard from "./pages/prestataire/PrestataireDashboard";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import Prestataires from "./pages/Prestataires";
@@ -50,6 +53,15 @@ const App = () => (
               <Route path="candidatures" element={<CandidatCandidatures />} />
               <Route path="entretiens" element={<CandidatEntretiens />} />
               <Route path="profil" element={<CandidatProfil />} />
+            </Route>
+            
+            {/* Routes pour les prestataires */}
+            <Route path="/prestataire" element={
+              <PrestataireProtectedRoute>
+                <PrestataireLayout />
+              </PrestataireProtectedRoute>
+            }>
+              <Route path="dashboard" element={<PrestataireDashboard />} />
             </Route>
             
             {/* Routes pour les recruteurs et admins */}
