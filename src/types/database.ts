@@ -1,5 +1,5 @@
 // Extended types for our models with Supabase integration
-export type UserRole = 'ADMIN' | 'RECRUTEUR';
+export type UserRole = 'ADMIN' | 'RECRUTEUR' | 'CANDIDAT' | 'CONTRAT' | 'PRESTATAIRE';
 export type RdvType = 'RECRUTEUR' | 'CLIENT';
 
 export interface Profile {

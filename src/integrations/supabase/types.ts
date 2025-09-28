@@ -137,6 +137,105 @@ export type Database = {
         }
         Relationships: []
       }
+      contrats: {
+        Row: {
+          client_id: string | null
+          created_at: string | null
+          created_by: string | null
+          date_debut: string
+          date_fin: string | null
+          description: string | null
+          fournisseur_general_id: string | null
+          fournisseur_services_id: string | null
+          id: string
+          montant: number | null
+          numero_contrat: string
+          parent_id: string | null
+          piece_jointe_url: string | null
+          prestataire_id: string | null
+          statut: Database["public"]["Enums"]["contrat_statut"]
+          type: Database["public"]["Enums"]["contrat_type"]
+          updated_at: string | null
+          version: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date_debut: string
+          date_fin?: string | null
+          description?: string | null
+          fournisseur_general_id?: string | null
+          fournisseur_services_id?: string | null
+          id?: string
+          montant?: number | null
+          numero_contrat: string
+          parent_id?: string | null
+          piece_jointe_url?: string | null
+          prestataire_id?: string | null
+          statut?: Database["public"]["Enums"]["contrat_statut"]
+          type: Database["public"]["Enums"]["contrat_type"]
+          updated_at?: string | null
+          version?: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date_debut?: string
+          date_fin?: string | null
+          description?: string | null
+          fournisseur_general_id?: string | null
+          fournisseur_services_id?: string | null
+          id?: string
+          montant?: number | null
+          numero_contrat?: string
+          parent_id?: string | null
+          piece_jointe_url?: string | null
+          prestataire_id?: string | null
+          statut?: Database["public"]["Enums"]["contrat_statut"]
+          type?: Database["public"]["Enums"]["contrat_type"]
+          updated_at?: string | null
+          version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrats_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrats_fournisseur_general_id_fkey"
+            columns: ["fournisseur_general_id"]
+            isOneToOne: false
+            referencedRelation: "fournisseurs_generaux"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrats_fournisseur_services_id_fkey"
+            columns: ["fournisseur_services_id"]
+            isOneToOne: false
+            referencedRelation: "fournisseurs_services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrats_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "contrats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrats_prestataire_id_fkey"
+            columns: ["prestataire_id"]
+            isOneToOne: false
+            referencedRelation: "prestataires"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_history: {
         Row: {
           created_at: string
@@ -173,6 +272,78 @@ export type Database = {
           sent_by?: string | null
           status?: string
           subject?: string
+        }
+        Relationships: []
+      }
+      fournisseurs_generaux: {
+        Row: {
+          adresse: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          raison_sociale: string
+          secteur_activite: string | null
+          site_web: string | null
+          telephone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          adresse?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          raison_sociale: string
+          secteur_activite?: string | null
+          site_web?: string | null
+          telephone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          adresse?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          raison_sociale?: string
+          secteur_activite?: string | null
+          site_web?: string | null
+          telephone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      fournisseurs_services: {
+        Row: {
+          adresse: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          raison_sociale: string
+          secteur_activite: string | null
+          site_web: string | null
+          telephone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          adresse?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          raison_sociale: string
+          secteur_activite?: string | null
+          site_web?: string | null
+          telephone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          adresse?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          raison_sociale?: string
+          secteur_activite?: string | null
+          site_web?: string | null
+          telephone?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -288,6 +459,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      prestataires: {
+        Row: {
+          created_at: string | null
+          cv_url: string | null
+          detail_cv: string | null
+          email: string | null
+          id: string
+          invitation_sent_at: string | null
+          invitation_token: string | null
+          nom: string
+          prenom: string
+          recommandation_url: string | null
+          telephone: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          cv_url?: string | null
+          detail_cv?: string | null
+          email?: string | null
+          id?: string
+          invitation_sent_at?: string | null
+          invitation_token?: string | null
+          nom: string
+          prenom: string
+          recommandation_url?: string | null
+          telephone?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          cv_url?: string | null
+          detail_cv?: string | null
+          email?: string | null
+          id?: string
+          invitation_sent_at?: string | null
+          invitation_token?: string | null
+          nom?: string
+          prenom?: string
+          recommandation_url?: string | null
+          telephone?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -503,6 +722,12 @@ export type Database = {
       }
     }
     Enums: {
+      contrat_statut: "BROUILLON" | "ACTIF" | "TERMINE" | "ANNULE" | "ARCHIVE"
+      contrat_type:
+        | "CLIENT"
+        | "PRESTATAIRE"
+        | "FOURNISSEUR_SERVICES"
+        | "FOURNISSEUR_GENERAL"
       rdv_statut: "ENCOURS" | "REALISE" | "TERMINE" | "ANNULE"
       rdv_type: "RECRUTEUR" | "CLIENT"
       user_role: "ADMIN" | "RECRUTEUR" | "CANDIDAT" | "CONTRAT" | "PRESTATAIRE"
@@ -633,6 +858,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      contrat_statut: ["BROUILLON", "ACTIF", "TERMINE", "ANNULE", "ARCHIVE"],
+      contrat_type: [
+        "CLIENT",
+        "PRESTATAIRE",
+        "FOURNISSEUR_SERVICES",
+        "FOURNISSEUR_GENERAL",
+      ],
       rdv_statut: ["ENCOURS", "REALISE", "TERMINE", "ANNULE"],
       rdv_type: ["RECRUTEUR", "CLIENT"],
       user_role: ["ADMIN", "RECRUTEUR", "CANDIDAT", "CONTRAT", "PRESTATAIRE"],

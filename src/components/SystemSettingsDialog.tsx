@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Send, UserPlus, Trash2, Edit, Shield, Users, Mail, Eye, Plus, Save, X } from 'lucide-react';
+import { Send, UserPlus, Trash2, Edit, Shield, Users, Mail, Eye, Plus, Save, X, FileText, Briefcase } from 'lucide-react';
 import { Profile, UserRole } from '@/types/database';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -35,7 +35,7 @@ const profileSchema = z.object({
   email: z.string().email("Email invalide"),
   nom: z.string().min(1, "Le nom est requis").max(100, "Le nom ne peut pas dépasser 100 caractères"),
   prenom: z.string().min(1, "Le prénom est requis").max(100, "Le prénom ne peut pas dépasser 100 caractères"),
-  role: z.enum(['ADMIN', 'RECRUTEUR', 'CANDIDAT']),
+  role: z.enum(['ADMIN', 'RECRUTEUR', 'CANDIDAT', 'CONTRAT', 'PRESTATAIRE']),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -221,7 +221,7 @@ export function SystemSettingsDialog({ open, onOpenChange }: SystemSettingsDialo
     }
   };
 
-  const getRoleBadgeVariant = (role: UserRole | 'CANDIDAT') => {
+  const getRoleBadgeVariant = (role: UserRole) => {
     switch (role) {
       case 'ADMIN':
         return 'destructive';
@@ -229,12 +229,16 @@ export function SystemSettingsDialog({ open, onOpenChange }: SystemSettingsDialo
         return 'default';
       case 'CANDIDAT':
         return 'secondary';
+      case 'CONTRAT':
+        return 'outline';
+      case 'PRESTATAIRE':
+        return 'secondary';
       default:
         return 'outline';
     }
   };
 
-  const getRoleIcon = (role: UserRole | 'CANDIDAT') => {
+  const getRoleIcon = (role: UserRole) => {
     switch (role) {
       case 'ADMIN':
         return <Shield className="h-3 w-3 mr-1" />;
@@ -242,6 +246,10 @@ export function SystemSettingsDialog({ open, onOpenChange }: SystemSettingsDialo
         return <Users className="h-3 w-3 mr-1" />;
       case 'CANDIDAT':
         return <Mail className="h-3 w-3 mr-1" />;
+      case 'CONTRAT':
+        return <FileText className="h-3 w-3 mr-1" />;
+      case 'PRESTATAIRE':
+        return <Briefcase className="h-3 w-3 mr-1" />;
       default:
         return null;
     }
@@ -348,6 +356,18 @@ export function SystemSettingsDialog({ open, onOpenChange }: SystemSettingsDialo
                                       <div className="flex items-center">
                                         {getRoleIcon('RECRUTEUR')}
                                         Recruteur
+                                      </div>
+                                    </SelectItem>
+                                    <SelectItem value="CONTRAT">
+                                      <div className="flex items-center">
+                                        {getRoleIcon('CONTRAT')}
+                                        Contrat
+                                      </div>
+                                    </SelectItem>
+                                    <SelectItem value="PRESTATAIRE">
+                                      <div className="flex items-center">
+                                        {getRoleIcon('PRESTATAIRE')}
+                                        Prestataire
                                       </div>
                                     </SelectItem>
                                   </SelectContent>
@@ -535,6 +555,18 @@ export function SystemSettingsDialog({ open, onOpenChange }: SystemSettingsDialo
                                 <div className="flex items-center">
                                   {getRoleIcon('CANDIDAT')}
                                   Candidat
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="CONTRAT">
+                                <div className="flex items-center">
+                                  {getRoleIcon('CONTRAT')}
+                                  Contrat
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="PRESTATAIRE">
+                                <div className="flex items-center">
+                                  {getRoleIcon('PRESTATAIRE')}
+                                  Prestataire
                                 </div>
                               </SelectItem>
                             </SelectContent>
