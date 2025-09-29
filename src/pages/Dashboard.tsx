@@ -35,14 +35,26 @@ export default function Dashboard() {
   }, []);
 
   const loadDashboardData = async () => {
-    const [candidats, clients, rdvs, postes, prestataires, contrats] = await Promise.all([
-      candidatService.count(),
-      clientService.count(),
-      rdvService.getAll(),
-      posteService.getAll(),
-      prestataireService.count(),
-      contratService.getAll(),
-    ]);
+    try {
+      console.log('Loading dashboard data...');
+      
+      const [candidats, clients, rdvs, postes, prestataires, contrats] = await Promise.all([
+        candidatService.count(),
+        clientService.count(),
+        rdvService.getAll(),
+        posteService.getAll(),
+        prestataireService.count(),
+        contratService.getAll(),
+      ]);
+      
+      console.log('Dashboard data loaded:', {
+        candidats,
+        clients, 
+        rdvs: rdvs.length,
+        postes: postes.length,
+        prestataires,
+        contrats: contrats.length
+      });
 
     // Filter active contracts
     const contratsActifs = contrats.filter(c => c.statut === 'ACTIF');
@@ -71,6 +83,9 @@ export default function Dashboard() {
 
     // Get active contracts
     setActiveContrats(contratsActifs.slice(0, 5));
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    }
   };
 
   const statCards = [
