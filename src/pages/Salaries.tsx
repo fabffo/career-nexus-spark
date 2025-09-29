@@ -212,11 +212,22 @@ export default function Salaries() {
     }
 
     try {
-      // Implementation for sending invitation would go here
+      const baseUrl = window.location.origin;
+      const { data, error } = await supabase.functions.invoke('send-salarie-invitation', {
+        body: { 
+          salarieId: salarie.id,
+          baseUrl: baseUrl
+        }
+      });
+
+      if (error) throw error;
+
       toast({
         title: 'Invitation envoyée',
         description: `Une invitation a été envoyée à ${salarie.email}`,
       });
+      
+      loadSalaries(); // Recharger pour voir la date d'envoi
     } catch (error) {
       console.error('Error sending invitation:', error);
       toast({
