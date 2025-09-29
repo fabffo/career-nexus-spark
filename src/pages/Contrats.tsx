@@ -63,23 +63,58 @@ export default function Contrats() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [contratsData, clientsData, prestatairesData, fournisseursServicesData, fournisseursGenerauxData] = await Promise.all([
-        contratService.getAll(),
+      // Charger les contrats avec une requête simplifiée
+      const { data: contratsData, error: contratsError } = await supabase
+        .from('contrats')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (contratsError) throw contratsError;
+
+      // Charger les autres données séparément pour les selects
+      const [clientsData, prestatairesData, fournisseursServicesData, fournisseursGenerauxData] = await Promise.all([
         clientService.getAll(),
         prestataireService.getAll(),
         fournisseurServicesService.getAll(),
         fournisseurGeneralService.getAll()
       ]);
       
+      // Pour chaque contrat, charger manuellement les relations nécessaires
+      const contratsWithRelations = await Promise.all((contratsData || []).map(async (contrat) => {
+        let relationData = {};
+        
+        if (contrat.client_id) {
+          const client = clientsData.find(c => c.id === contrat.client_id);
+          relationData = { ...relationData, client };
+        }
+        
+        if (contrat.prestataire_id) {
+          const prestataire = prestatairesData.find(p => p.id === contrat.prestataire_id);
+          relationData = { ...relationData, prestataire };
+        }
+        
+        if (contrat.fournisseur_services_id) {
+          const fournisseur_services = fournisseursServicesData.find(f => f.id === contrat.fournisseur_services_id);
+          relationData = { ...relationData, fournisseur_services };
+        }
+        
+        if (contrat.fournisseur_general_id) {
+          const fournisseur_general = fournisseursGenerauxData.find(f => f.id === contrat.fournisseur_general_id);
+          relationData = { ...relationData, fournisseur_general };
+        }
+        
+        return { ...contrat, ...relationData };
+      }));
+      
       console.log('Données chargées:', {
-        contrats: contratsData,
+        contrats: contratsWithRelations,
         clients: clientsData,
         prestataires: prestatairesData,
         fournisseursServices: fournisseursServicesData,
         fournisseursGeneraux: fournisseursGenerauxData
       });
       
-      setContrats(contratsData);
+      setContrats(contratsWithRelations);
       setClients(clientsData);
       setPrestataires(prestatairesData);
       setFournisseursServices(fournisseursServicesData);
