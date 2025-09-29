@@ -34,6 +34,7 @@ export function Sidebar() {
     { path: '/prestataires', label: 'Prestataires', icon: UserCheck },
     { path: '/salaries', label: 'Salariés', icon: Users },
     { path: '/contrats', label: 'Contrats', icon: FileText },
+    { path: '/missions', label: 'Missions', icon: Briefcase },
     { path: '/rdv', label: 'Rendez-vous', icon: Calendar },
     { path: '/postes', label: 'Postes', icon: Briefcase },
     { path: '/recherche', label: 'Recherche', icon: Search },
