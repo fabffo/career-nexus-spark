@@ -78,10 +78,7 @@ export default function RendezVous() {
         .select(`
           *,
           candidats(nom, prenom, email),
-          clients(raison_sociale),
-          postes:poste_id(titre),
-          referents:referent_id(nom, prenom),
-          rdv_referents(referent_id, referents(nom, prenom, fonction))
+          clients(raison_sociale)
         `)
         .order('date', { ascending: false });
 
