@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Eye, EyeOff, UserCheck } from "lucide-react";
+import { signupSchema } from "@/lib/validations";
+import { z } from "zod";
 
 export default function CandidatSignup() {
   const [searchParams] = useSearchParams();
@@ -107,29 +109,30 @@ export default function CandidatSignup() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (password !== confirmPassword) {
-      toast({
-        title: "Erreur",
-        description: "Les mots de passe ne correspondent pas",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (password.length < 6) {
-      toast({
-        title: "Erreur",
-        description: "Le mot de passe doit contenir au moins 6 caractères",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-
     const userData = type === "PRESTATAIRE" ? prestataire : candidat;
     const userRole = type === "PRESTATAIRE" ? "PRESTATAIRE" : "CANDIDAT";
     const redirectUrl = type === "PRESTATAIRE" ? "/prestataire/dashboard" : "/candidat/dashboard";
+    
+    // Validate passwords
+    try {
+      signupSchema.parse({ 
+        email: userData.email, 
+        password, 
+        confirmPassword 
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const firstError = error.errors[0];
+        toast({
+          title: "Erreur de validation",
+          description: firstError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    setLoading(true);
 
     try {
       const { error: signUpError } = await supabase.auth.signUp({
@@ -221,7 +224,7 @@ export default function CandidatSignup() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Minimum 6 caractères"
+                  placeholder="Minimum 8 caractères"
                   required
                 />
                 <Button
@@ -238,6 +241,9 @@ export default function CandidatSignup() {
                   )}
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Min. 8 caractères, 1 majuscule, 1 minuscule, 1 chiffre
+              </p>
             </div>
             
             <div className="space-y-2">
