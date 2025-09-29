@@ -81,32 +81,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .maybeSingle();
+        .single();
 
-      if (!error && data) {
-        console.log('AuthContext - Profile fetched:', data);
+      if (data) {
+        console.log('AuthContext - Profile fetched successfully:', data);
         setProfile(data);
+        setLoading(false);
       } else if (error) {
         console.log('AuthContext - Profile fetch error:', error);
-        // Create a default profile from user metadata if profile doesn't exist
-        if (user?.user_metadata) {
-          setProfile({
-            id: userId,
-            email: user.email || '',
-            nom: user.user_metadata.nom || 'À renseigner',
-            prenom: user.user_metadata.prenom || 'À renseigner',
-            role: user.user_metadata.role || 'RECRUTEUR'
-          });
-        } else {
-          setProfile(null);
-        }
+        // Réessayer une fois après une courte pause
+        setTimeout(async () => {
+          const { data: retryData, error: retryError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+            
+          if (retryData) {
+            console.log('AuthContext - Profile fetched on retry:', retryData);
+            setProfile(retryData);
+          } else {
+            console.error('AuthContext - Failed to fetch profile after retry:', retryError);
+            setProfile(null);
+          }
+          setLoading(false);
+        }, 500);
       } else {
         console.log('AuthContext - No profile found');
         setProfile(null);
+        setLoading(false);
       }
     } catch (err) {
       console.error('AuthContext - Error fetching profile:', err);
       setProfile(null);
+      setLoading(false);
     }
   };
 
