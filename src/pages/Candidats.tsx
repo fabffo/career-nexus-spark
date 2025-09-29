@@ -3,7 +3,7 @@ import { candidatService } from '@/services';
 import { Candidat } from '@/types/models';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Eye, Mail, Phone, MapPin, FileText, Award, Paperclip, Copy, History, Upload, X, Sparkles, Send, Shield } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Mail, Phone, MapPin, FileText, Award, Paperclip, Copy, History, Upload, X, Sparkles, Send, Shield, UserPlus } from 'lucide-react';
 import { ViewCandidatDialog } from '@/components/ViewCandidatDialog';
 import { CandidatHistoryDialog } from '@/components/CandidatHistoryDialog';
 import { CandidatAdminDialog } from '@/components/CandidatAdminDialog';
@@ -264,6 +264,48 @@ export default function Candidats() {
     }
   };
 
+  const handleCreatePrestataire = async (candidat: Candidat) => {
+    try {
+      // Créer le prestataire à partir des données du candidat
+      const { error } = await supabase
+        .from('prestataires')
+        .insert({
+          nom: candidat.nom,
+          prenom: candidat.prenom,
+          email: candidat.mail,
+          telephone: candidat.telephone,
+          cv_url: candidat.cvUrl,
+          recommandation_url: candidat.recommandationUrl,
+          detail_cv: candidat.detail_cv,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Succès",
+        description: `Prestataire créé à partir de ${candidat.prenom} ${candidat.nom}`
+      });
+    } catch (error: any) {
+      console.error('Error creating prestataire:', error);
+      // Si l'erreur est due à un doublon d'email, afficher un message plus clair
+      if (error.code === '23505') {
+        toast({
+          title: "Erreur",
+          description: "Un prestataire avec cet email existe déjà",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Erreur",
+          description: error.message || "Impossible de créer le prestataire",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
   const handleAnalyzeCV = async (file: File) => {
     setIsAnalyzing(true);
     setAnalyzeProgress(10);
@@ -463,7 +505,7 @@ export default function Candidats() {
     {
       id: 'actions',
       header: 'Actions',
-      size: 180,
+      size: 220,
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
           <Button
@@ -494,6 +536,15 @@ export default function Candidats() {
               <Send className="h-4 w-4" />
             </Button>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleCreatePrestataire(row.original)}
+            title="Créer un prestataire"
+            className="text-green-600 hover:text-green-700"
+          >
+            <UserPlus className="h-4 w-4" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
