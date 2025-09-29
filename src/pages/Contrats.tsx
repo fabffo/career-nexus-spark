@@ -72,12 +72,32 @@ export default function Contrats() {
       if (contratsError) throw contratsError;
 
       // Charger les autres données séparément pour les selects
-      const [clientsData, prestatairesData, fournisseursServicesData, fournisseursGenerauxData] = await Promise.all([
+      const [clientsData, prestatairesData] = await Promise.all([
         clientService.getAll(),
-        prestataireService.getAll(),
-        fournisseurServicesService.getAll(),
-        fournisseurGeneralService.getAll()
+        prestataireService.getAll()
       ]);
+      
+      // Charger les fournisseurs avec gestion d'erreur
+      let fournisseursServicesData: any[] = [];
+      let fournisseursGenerauxData: any[] = [];
+      
+      try {
+        const { data: fsData } = await supabase
+          .from('fournisseurs_services')
+          .select('*');
+        fournisseursServicesData = fsData || [];
+      } catch (error) {
+        console.log('Erreur chargement fournisseurs_services:', error);
+      }
+      
+      try {
+        const { data: fgData } = await supabase
+          .from('fournisseurs_generaux')
+          .select('*');
+        fournisseursGenerauxData = fgData || [];
+      } catch (error) {
+        console.log('Erreur chargement fournisseurs_generaux:', error);
+      }
       
       // Pour chaque contrat, charger manuellement les relations nécessaires
       const contratsWithRelations = await Promise.all((contratsData || []).map(async (contrat) => {
