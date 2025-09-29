@@ -9,6 +9,7 @@ import {
   posteService
 } from '@/services';
 import { contratService, prestataireService } from '@/services/contratService';
+import { supabase } from '@/integrations/supabase/client';
 import { Candidat, Client, Rdv, PosteClient } from '@/types/models';
 import { Contrat } from '@/types/contrat';
 import { Users, Building2, Calendar, Briefcase, TrendingUp, Clock, UserCheck, FileText } from 'lucide-react';
@@ -38,51 +39,101 @@ export default function Dashboard() {
     try {
       console.log('Loading dashboard data...');
       
-      const [candidats, clients, rdvs, postes, prestataires, contrats] = await Promise.all([
-        candidatService.count(),
-        clientService.count(),
-        rdvService.getAll(),
-        posteService.getAll(),
-        prestataireService.count(),
-        contratService.getAll(),
-      ]);
+      // Charger les candidats directement depuis Supabase
+      const { count: candidatsCount } = await supabase
+        .from('candidats')
+        .select('*', { count: 'exact', head: true });
+        
+      // Charger les clients directement depuis Supabase
+      const { count: clientsCount } = await supabase
+        .from('clients')
+        .select('*', { count: 'exact', head: true });
+        
+      // Charger les prestataires directement depuis Supabase
+      const { count: prestatairesCount } = await supabase
+        .from('prestataires')
+        .select('*', { count: 'exact', head: true });
+        
+      // Charger les RDVs
+      const { data: rdvs } = await supabase
+        .from('rdvs')
+        .select('*')
+        .order('date', { ascending: false });
+        
+      // Charger les postes
+      const { data: postes } = await supabase
+        .from('postes')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      // Charger les contrats
+      const { data: contrats } = await supabase
+        .from('contrats')
+        .select('*')
+        .order('created_at', { ascending: false });
       
       console.log('Dashboard data loaded:', {
-        candidats,
-        clients, 
-        rdvs: rdvs.length,
-        postes: postes.length,
-        prestataires,
-        contrats: contrats.length
+        candidats: candidatsCount,
+        clients: clientsCount, 
+        rdvs: rdvs?.length || 0,
+        postes: postes?.length || 0,
+        prestataires: prestatairesCount,
+        contrats: contrats?.length || 0
       });
 
-    // Filter active contracts
-    const contratsActifs = contrats.filter(c => c.statut === 'ACTIF');
+      // Filter active contracts
+      const contratsActifs = (contrats || []).filter(c => c.statut === 'ACTIF');
 
-    setStats({
-      candidats,
-      clients,
-      rdvs: rdvs.length,
-      postes: postes.length,
-      prestataires,
-      contratsActifs: contratsActifs.length,
-    });
+      setStats({
+        candidats: candidatsCount || 0,
+        clients: clientsCount || 0,
+        rdvs: rdvs?.length || 0,
+        postes: postes?.length || 0,
+        prestataires: prestatairesCount || 0,
+        contratsActifs: contratsActifs.length,
+      });
 
-    // Get recent RDVs
-    const upcomingRdvs = rdvs
-      .filter(rdv => rdv.statut === 'ENCOURS')
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(0, 5);
-    setRecentRdvs(upcomingRdvs);
+      // Get recent RDVs - transformer les données pour correspondre au type Rdv
+      const upcomingRdvs = (rdvs || [])
+        .filter(rdv => rdv.statut === 'ENCOURS')
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        .slice(0, 5)
+        .map(rdv => ({
+          ...rdv,
+          date: new Date(rdv.date),
+          createdAt: new Date(rdv.created_at),
+          updatedAt: new Date(rdv.updated_at),
+          candidatId: rdv.candidat_id,
+          clientId: rdv.client_id,
+          typeRdv: rdv.type_rdv as any,
+          rdvType: rdv.rdv_type,
+          recruteurId: rdv.recruteur_id,
+          referentId: rdv.referent_id,
+          posteId: rdv.poste_id
+        }));
+      setRecentRdvs(upcomingRdvs);
 
-    // Get active positions
-    const activePositions = postes
-      .filter(poste => poste.statut === 'ENCOURS')
-      .slice(0, 5);
-    setActivePostes(activePositions);
+      // Get active positions - transformer les données pour correspondre au type PosteClient  
+      const activePositions = (postes || [])
+        .filter(poste => poste.statut === 'OUVERT' || poste.statut === 'ENCOURS')
+        .slice(0, 5)
+        .map(poste => ({
+          ...poste,
+          createdAt: new Date(poste.created_at),
+          updatedAt: new Date(poste.updated_at),
+          clientId: poste.client_id,
+          nomPoste: poste.titre,
+          dateCreation: new Date(poste.created_at),
+          typeContrat: poste.type_contrat,
+          salaireMin: poste.salaire_min,
+          salaireMax: poste.salaire_max,
+          detail: poste.description || '',
+          statut: poste.statut as any
+        }));
+      setActivePostes(activePositions);
 
-    // Get active contracts
-    setActiveContrats(contratsActifs.slice(0, 5));
+      // Get active contracts
+      setActiveContrats(contratsActifs.slice(0, 5));
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     }
