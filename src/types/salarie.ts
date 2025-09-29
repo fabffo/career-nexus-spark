@@ -5,6 +5,8 @@ export interface Salarie {
   prenom: string;
   email?: string;
   telephone?: string;
+  metier?: string;
+  fonction?: string;
   detail_cv?: string;
   cv_url?: string;
   recommandation_url?: string;

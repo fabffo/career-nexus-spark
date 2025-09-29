@@ -39,6 +39,8 @@ export default function Salaries() {
     prenom: '',
     email: '',
     telephone: '',
+    metier: '',
+    fonction: '',
     detail_cv: '',
   });
   const [cvFile, setCvFile] = useState<File | null>(null);
@@ -84,6 +86,8 @@ export default function Salaries() {
         prenom: '',
         email: '',
         telephone: '',
+        metier: '',
+        fonction: '',
         detail_cv: '',
       });
     }
@@ -249,6 +253,8 @@ export default function Salaries() {
         prenom: nameWithoutExt.split(' ')[0] || 'À renseigner',
         email: '',
         telephone: '',
+        metier: '',
+        fonction: '',
         cv_url: cvUrl,
         detail_cv: 'CV importé - Détails à compléter',
       });
@@ -286,6 +292,14 @@ export default function Salaries() {
     {
       accessorKey: 'prenom',
       header: 'Prénom',
+    },
+    {
+      accessorKey: 'metier',
+      header: 'Métier',
+    },
+    {
+      accessorKey: 'fonction',
+      header: 'Fonction',
     },
     {
       accessorKey: 'email',
@@ -464,6 +478,25 @@ export default function Salaries() {
                   id="telephone"
                   value={formData.telephone}
                   onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="metier">Métier</Label>
+                <Input
+                  id="metier"
+                  value={formData.metier}
+                  onChange={(e) => setFormData({ ...formData, metier: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="fonction">Fonction</Label>
+                <Input
+                  id="fonction"
+                  value={formData.fonction}
+                  onChange={(e) => setFormData({ ...formData, fonction: e.target.value })}
                 />
               </div>
             </div>
