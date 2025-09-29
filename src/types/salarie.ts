@@ -1,4 +1,6 @@
 // Salarie model - same structure as Candidat
+export type SalarieRole = 'RECRUTEUR' | 'PRESTATAIRE';
+
 export interface Salarie {
   id: string;
   nom: string;
@@ -7,6 +9,7 @@ export interface Salarie {
   telephone?: string;
   metier?: string;
   fonction?: string;
+  role?: SalarieRole;
   detail_cv?: string;
   cv_url?: string;
   recommandation_url?: string;

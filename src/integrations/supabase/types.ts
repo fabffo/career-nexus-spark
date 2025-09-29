@@ -746,6 +746,7 @@ export type Database = {
           nom: string
           prenom: string
           recommandation_url: string | null
+          role: Database["public"]["Enums"]["salarie_role"] | null
           telephone: string | null
           updated_at: string | null
           user_id: string | null
@@ -763,6 +764,7 @@ export type Database = {
           nom: string
           prenom: string
           recommandation_url?: string | null
+          role?: Database["public"]["Enums"]["salarie_role"] | null
           telephone?: string | null
           updated_at?: string | null
           user_id?: string | null
@@ -780,6 +782,7 @@ export type Database = {
           nom?: string
           prenom?: string
           recommandation_url?: string | null
+          role?: Database["public"]["Enums"]["salarie_role"] | null
           telephone?: string | null
           updated_at?: string | null
           user_id?: string | null
@@ -813,6 +816,7 @@ export type Database = {
         | "FOURNISSEUR_GENERAL"
       rdv_statut: "ENCOURS" | "REALISE" | "TERMINE" | "ANNULE"
       rdv_type: "RECRUTEUR" | "CLIENT"
+      salarie_role: "RECRUTEUR" | "PRESTATAIRE"
       user_role: "ADMIN" | "RECRUTEUR" | "CANDIDAT" | "CONTRAT" | "PRESTATAIRE"
     }
     CompositeTypes: {
@@ -950,6 +954,7 @@ export const Constants = {
       ],
       rdv_statut: ["ENCOURS", "REALISE", "TERMINE", "ANNULE"],
       rdv_type: ["RECRUTEUR", "CLIENT"],
+      salarie_role: ["RECRUTEUR", "PRESTATAIRE"],
       user_role: ["ADMIN", "RECRUTEUR", "CANDIDAT", "CONTRAT", "PRESTATAIRE"],
     },
   },

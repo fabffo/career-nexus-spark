@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Salarie } from '@/types/salarie';
-import { User, Mail, Phone, FileText, Calendar, ExternalLink, Briefcase } from 'lucide-react';
+import { User, Mail, Phone, FileText, Calendar, ExternalLink, Briefcase, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -55,6 +55,18 @@ export function ViewSalarieDialog({ salarie, open, onOpenChange }: ViewSalarieDi
                 </div>
               )}
               </div>
+
+              {salarie.role && (
+                <div className="flex items-start gap-3">
+                  <UserCheck className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Rôle</p>
+                    <Badge variant={salarie.role === 'RECRUTEUR' ? 'default' : 'secondary'}>
+                      {salarie.role}
+                    </Badge>
+                  </div>
+                </div>
+              )}
 
               {salarie.email && (
                 <div className="flex items-start gap-3">

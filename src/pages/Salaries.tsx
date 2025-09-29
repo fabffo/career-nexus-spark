@@ -17,9 +17,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { salarieService } from '@/services/salarieService';
-import { Salarie } from '@/types/salarie';
+import { Salarie, SalarieRole } from '@/types/salarie';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Eye, Trash2, Edit, Copy, History, FileText, Upload, Send, UserCog, Search, Loader2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -41,6 +42,7 @@ export default function Salaries() {
     telephone: '',
     metier: '',
     fonction: '',
+    role: 'RECRUTEUR' as SalarieRole,
     detail_cv: '',
   });
   const [cvFile, setCvFile] = useState<File | null>(null);
@@ -88,6 +90,7 @@ export default function Salaries() {
         telephone: '',
         metier: '',
         fonction: '',
+        role: 'RECRUTEUR' as SalarieRole,
         detail_cv: '',
       });
     }
@@ -255,6 +258,7 @@ export default function Salaries() {
         telephone: '',
         metier: '',
         fonction: '',
+        role: 'RECRUTEUR' as SalarieRole,
         cv_url: cvUrl,
         detail_cv: 'CV importé - Détails à compléter',
       });
@@ -300,6 +304,18 @@ export default function Salaries() {
     {
       accessorKey: 'fonction',
       header: 'Fonction',
+    },
+    {
+      accessorKey: 'role',
+      header: 'Rôle',
+      cell: ({ row }) => {
+        const role = row.original.role;
+        return role ? (
+          <Badge variant={role === 'RECRUTEUR' ? 'default' : 'secondary'}>
+            {role}
+          </Badge>
+        ) : null;
+      },
     },
     {
       accessorKey: 'email',
@@ -499,6 +515,22 @@ export default function Salaries() {
                   onChange={(e) => setFormData({ ...formData, fonction: e.target.value })}
                 />
               </div>
+            </div>
+
+            <div>
+              <Label htmlFor="role">Rôle</Label>
+              <Select 
+                value={formData.role || 'RECRUTEUR'} 
+                onValueChange={(value: SalarieRole) => setFormData({ ...formData, role: value })}
+              >
+                <SelectTrigger id="role">
+                  <SelectValue placeholder="Sélectionner un rôle" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="RECRUTEUR">Recruteur</SelectItem>
+                  <SelectItem value="PRESTATAIRE">Prestataire</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
