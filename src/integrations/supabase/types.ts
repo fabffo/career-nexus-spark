@@ -806,6 +806,13 @@ export type Database = {
         Args: { p_year: number }
         Returns: string
       }
+      user_has_role: {
+        Args: {
+          allowed_roles: Database["public"]["Enums"]["user_role"][]
+          user_id: string
+        }
+        Returns: boolean
+      }
       validate_salarie_invitation_token: {
         Args: {
           p_role?: Database["public"]["Enums"]["salarie_role"]
