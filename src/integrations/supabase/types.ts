@@ -732,6 +732,54 @@ export type Database = {
           },
         ]
       }
+      salaries: {
+        Row: {
+          created_at: string | null
+          cv_url: string | null
+          detail_cv: string | null
+          email: string | null
+          id: string
+          invitation_sent_at: string | null
+          invitation_token: string | null
+          nom: string
+          prenom: string
+          recommandation_url: string | null
+          telephone: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          cv_url?: string | null
+          detail_cv?: string | null
+          email?: string | null
+          id?: string
+          invitation_sent_at?: string | null
+          invitation_token?: string | null
+          nom: string
+          prenom: string
+          recommandation_url?: string | null
+          telephone?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          cv_url?: string | null
+          detail_cv?: string | null
+          email?: string | null
+          id?: string
+          invitation_sent_at?: string | null
+          invitation_token?: string | null
+          nom?: string
+          prenom?: string
+          recommandation_url?: string | null
+          telephone?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

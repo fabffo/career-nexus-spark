@@ -32,6 +32,7 @@ export function Sidebar() {
     { path: '/candidats', label: 'Candidats', icon: Users },
     { path: '/clients', label: 'Clients', icon: Building2 },
     { path: '/prestataires', label: 'Prestataires', icon: UserCheck },
+    { path: '/salaries', label: 'Salariés', icon: Users },
     { path: '/contrats', label: 'Contrats', icon: FileText },
     { path: '/rdv', label: 'Rendez-vous', icon: Calendar },
     { path: '/postes', label: 'Postes', icon: Briefcase },

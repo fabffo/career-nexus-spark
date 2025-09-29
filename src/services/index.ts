@@ -301,3 +301,6 @@ export const commentaireClientService = new GenericCrudService<CommentaireCandid
   'commentaires_client',
   mockCommentairesClient
 );
+
+// Export salarie service
+export { salarieService } from './salarieService';

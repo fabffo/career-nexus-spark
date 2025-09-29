@@ -29,6 +29,7 @@ import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import Prestataires from "./pages/Prestataires";
 import Contrats from "./pages/Contrats";
+import Salaries from "./pages/Salaries";
 
 const queryClient = new QueryClient();
 
@@ -77,6 +78,7 @@ const App = () => (
               <Route path="referents" element={<Referents />} />
               <Route path="prestataires" element={<Prestataires />} />
               <Route path="contrats" element={<Contrats />} />
+              <Route path="salaries" element={<Salaries />} />
               <Route path="postes" element={<Postes />} />
               <Route path="rdv" element={<RendezVous />} />
               <Route path="matching" element={<Matching />} />
