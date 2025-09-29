@@ -80,15 +80,20 @@ export default function RendezVous() {
           candidats(nom, prenom, email),
           clients(raison_sociale),
           postes:poste_id(titre),
-          profiles:recruteur_id(nom, prenom),
           referents:referent_id(nom, prenom),
           rdv_referents(referent_id, referents(nom, prenom, fonction))
         `)
         .order('date', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading RDVs:', error);
+        throw error;
+      }
+      
+      console.log('RDVs loaded:', data);
       setRdvs(data || []);
     } catch (error: any) {
+      console.error('Error in loadData:', error);
       toast({
         title: "Erreur",
         description: error.message,
@@ -235,10 +240,8 @@ export default function RendezVous() {
           const ref = row.referents;
           return `${ref.prenom} ${ref.nom}`;
         }
-        if (row.profiles) {
-          const rec = row.profiles;
-          return `${rec.prenom} ${rec.nom}`;
-        }
+        // Pour les RDV recruteur, on ne peut pas afficher le nom pour l'instant
+        // car il faudrait faire une jointure avec profiles
         return '-';
       },
       cell: ({ row }) => {
@@ -268,12 +271,11 @@ export default function RendezVous() {
             </div>
           );
         }
-        if (row.original.profiles) {
-          const rec = row.original.profiles;
+        // Pour les RDV recruteur, afficher juste "Recruteur" car on ne peut pas accéder aux détails
+        if (row.original.recruteur_id) {
           return (
             <div>
-              <span className="text-xs text-muted-foreground">Recruteur:</span><br/>
-              {rec.prenom} {rec.nom}
+              <span className="text-xs text-muted-foreground">Recruteur</span>
             </div>
           );
         }
