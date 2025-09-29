@@ -425,6 +425,120 @@ export type Database = {
           },
         ]
       }
+      missions: {
+        Row: {
+          competences: string[] | null
+          contrat_id: string | null
+          created_at: string
+          created_by: string | null
+          date_debut: string | null
+          date_fin: string | null
+          description: string | null
+          id: string
+          localisation: string | null
+          nombre_jours: number | null
+          poste_id: string | null
+          prestataire_id: string | null
+          prix_ht: number | null
+          prix_ttc: number | null
+          salarie_id: string | null
+          statut: string | null
+          taux_tva: number | null
+          titre: string
+          tjm: number | null
+          tva_id: string | null
+          type_intervenant: Database["public"]["Enums"]["type_intervenant"]
+          type_mission: Database["public"]["Enums"]["type_mission"]
+          updated_at: string
+        }
+        Insert: {
+          competences?: string[] | null
+          contrat_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_debut?: string | null
+          date_fin?: string | null
+          description?: string | null
+          id?: string
+          localisation?: string | null
+          nombre_jours?: number | null
+          poste_id?: string | null
+          prestataire_id?: string | null
+          prix_ht?: number | null
+          prix_ttc?: number | null
+          salarie_id?: string | null
+          statut?: string | null
+          taux_tva?: number | null
+          titre: string
+          tjm?: number | null
+          tva_id?: string | null
+          type_intervenant: Database["public"]["Enums"]["type_intervenant"]
+          type_mission: Database["public"]["Enums"]["type_mission"]
+          updated_at?: string
+        }
+        Update: {
+          competences?: string[] | null
+          contrat_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_debut?: string | null
+          date_fin?: string | null
+          description?: string | null
+          id?: string
+          localisation?: string | null
+          nombre_jours?: number | null
+          poste_id?: string | null
+          prestataire_id?: string | null
+          prix_ht?: number | null
+          prix_ttc?: number | null
+          salarie_id?: string | null
+          statut?: string | null
+          taux_tva?: number | null
+          titre?: string
+          tjm?: number | null
+          tva_id?: string | null
+          type_intervenant?: Database["public"]["Enums"]["type_intervenant"]
+          type_mission?: Database["public"]["Enums"]["type_mission"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "missions_contrat_id_fkey"
+            columns: ["contrat_id"]
+            isOneToOne: false
+            referencedRelation: "contrats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "missions_poste_id_fkey"
+            columns: ["poste_id"]
+            isOneToOne: false
+            referencedRelation: "postes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "missions_prestataire_id_fkey"
+            columns: ["prestataire_id"]
+            isOneToOne: false
+            referencedRelation: "prestataires"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "missions_salarie_id_fkey"
+            columns: ["salarie_id"]
+            isOneToOne: false
+            referencedRelation: "salaries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "missions_tva_id_fkey"
+            columns: ["tva_id"]
+            isOneToOne: false
+            referencedRelation: "tva"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       postes: {
         Row: {
           client_id: string | null
@@ -789,6 +903,33 @@ export type Database = {
         }
         Relationships: []
       }
+      tva: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean | null
+          libelle: string
+          taux: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          libelle: string
+          taux: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          libelle?: string
+          taux?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -831,6 +972,8 @@ export type Database = {
       rdv_statut: "ENCOURS" | "REALISE" | "TERMINE" | "ANNULE"
       rdv_type: "RECRUTEUR" | "CLIENT"
       salarie_role: "RECRUTEUR" | "PRESTATAIRE"
+      type_intervenant: "PRESTATAIRE" | "SALARIE"
+      type_mission: "FORFAIT" | "TJM" | "RECRUTEMENT"
       user_role: "ADMIN" | "RECRUTEUR" | "CANDIDAT" | "CONTRAT" | "PRESTATAIRE"
     }
     CompositeTypes: {
@@ -969,6 +1112,8 @@ export const Constants = {
       rdv_statut: ["ENCOURS", "REALISE", "TERMINE", "ANNULE"],
       rdv_type: ["RECRUTEUR", "CLIENT"],
       salarie_role: ["RECRUTEUR", "PRESTATAIRE"],
+      type_intervenant: ["PRESTATAIRE", "SALARIE"],
+      type_mission: ["FORFAIT", "TJM", "RECRUTEMENT"],
       user_role: ["ADMIN", "RECRUTEUR", "CANDIDAT", "CONTRAT", "PRESTATAIRE"],
     },
   },
