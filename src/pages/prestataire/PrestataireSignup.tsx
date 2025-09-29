@@ -40,35 +40,34 @@ export default function PrestataireSignup() {
     }
 
     try {
-      // Vérifier le token et récupérer les données du salarié
+      // Vérifier le token de manière sécurisée via la fonction
       const { data, error } = await supabase
-        .from('salaries')
-        .select('*')
-        .eq('invitation_token', token)
-        .eq('role', 'PRESTATAIRE')
-        .single();
+        .rpc('validate_salarie_invitation_token', {
+          p_token: token,
+          p_role: 'PRESTATAIRE'
+        }) as { data: any; error: any };
 
-      if (error || !data) {
+      if (error) {
         toast({
-          title: 'Token invalide',
-          description: 'Le lien d\'invitation est invalide ou a expiré',
+          title: 'Erreur',
+          description: 'Une erreur est survenue lors de la validation du token',
           variant: 'destructive',
         });
         setTimeout(() => navigate('/auth'), 2000);
         return;
       }
 
-      // Vérifier si l'utilisateur existe déjà
-      if (data.user_id) {
+      if (!data || !data.valid) {
         toast({
-          title: 'Compte déjà créé',
-          description: 'Vous avez déjà créé votre compte. Veuillez vous connecter.',
+          title: 'Token invalide',
+          description: data?.error || 'Le lien d\'invitation est invalide ou a expiré',
           variant: 'destructive',
         });
-        navigate('/auth');
+        setTimeout(() => navigate('/auth'), 2000);
         return;
       }
 
+      // Les données validées sont maintenant sécurisées
       setSalarieData(data);
     } catch (error) {
       console.error('Error validating token:', error);

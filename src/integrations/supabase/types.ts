@@ -806,6 +806,13 @@ export type Database = {
         Args: { p_year: number }
         Returns: string
       }
+      validate_salarie_invitation_token: {
+        Args: {
+          p_role?: Database["public"]["Enums"]["salarie_role"]
+          p_token: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       contrat_statut: "BROUILLON" | "ACTIF" | "TERMINE" | "ANNULE" | "ARCHIVE"
