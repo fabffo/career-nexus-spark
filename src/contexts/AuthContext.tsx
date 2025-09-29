@@ -76,17 +76,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     console.log('AuthContext - Fetching profile for user:', userId);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
 
-    if (!error && data) {
-      console.log('AuthContext - Profile fetched:', data);
-      setProfile(data);
-    } else {
-      console.log('AuthContext - Profile fetch error or no data:', error, data);
+      if (!error && data) {
+        console.log('AuthContext - Profile fetched:', data);
+        setProfile(data);
+      } else if (error) {
+        console.log('AuthContext - Profile fetch error:', error);
+        // Create a default profile from user metadata if profile doesn't exist
+        if (user?.user_metadata) {
+          setProfile({
+            id: userId,
+            email: user.email || '',
+            nom: user.user_metadata.nom || 'À renseigner',
+            prenom: user.user_metadata.prenom || 'À renseigner',
+            role: user.user_metadata.role || 'RECRUTEUR'
+          });
+        } else {
+          setProfile(null);
+        }
+      } else {
+        console.log('AuthContext - No profile found');
+        setProfile(null);
+      }
+    } catch (err) {
+      console.error('AuthContext - Error fetching profile:', err);
+      setProfile(null);
     }
   };
 

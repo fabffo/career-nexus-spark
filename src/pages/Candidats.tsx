@@ -33,8 +33,10 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Candidats() {
+  const { toast } = useToast();
   const [candidats, setCandidats] = useState<Candidat[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -77,8 +79,18 @@ export default function Candidats() {
   }, []);
 
   const loadCandidats = async () => {
-    const data = await candidatService.getAll();
-    setCandidats(data);
+    try {
+      const data = await candidatService.getAll();
+      console.log('Candidats loaded:', data);
+      setCandidats(data);
+    } catch (error) {
+      console.error('Error loading candidats:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les candidats. Vérifiez votre connexion.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleOpenForm = (candidat?: Candidat) => {
@@ -145,17 +157,27 @@ export default function Candidats() {
 
       if (selectedCandidat) {
         await candidatService.update(selectedCandidat.id, updatedFormData);
-        toast.success('Candidat modifié avec succès');
+        toast({
+          title: "Succès",
+          description: "Candidat modifié avec succès"
+        });
       } else {
         await candidatService.create(updatedFormData);
-        toast.success('Candidat créé avec succès');
+        toast({
+          title: "Succès",
+          description: "Candidat créé avec succès"
+        });
       }
       setIsFormOpen(false);
       setCvFile(null);
       setRecommandationFile(null);
       loadCandidats();
     } catch (error) {
-      toast.error('Une erreur est survenue');
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue",
+        variant: "destructive"
+      });
     }
   };
 
@@ -163,11 +185,18 @@ export default function Candidats() {
     if (selectedCandidat) {
       try {
         await candidatService.delete(selectedCandidat.id);
-        toast.success('Candidat supprimé avec succès');
+        toast({
+          title: "Succès", 
+          description: "Candidat supprimé avec succès"
+        });
         setIsDeleteOpen(false);
         loadCandidats();
       } catch (error) {
-        toast.error('Une erreur est survenue');
+        toast({
+          title: "Erreur",
+          description: "Une erreur est survenue",
+          variant: "destructive"
+        });
       }
     }
   };
@@ -186,10 +215,17 @@ export default function Candidats() {
         detail_cv: candidat.detail_cv || '',
       };
       await candidatService.create(newCandidat);
-      toast.success('Candidat dupliqué avec succès');
+      toast({
+        title: "Succès",
+        description: "Candidat dupliqué avec succès"
+      });
       loadCandidats();
     } catch (error) {
-      toast.error('Une erreur est survenue');
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue",
+        variant: "destructive"
+      });
     }
   };
 
@@ -213,11 +249,18 @@ export default function Candidats() {
 
       if (error) throw error;
 
-      toast.success(`Invitation envoyée à ${candidat.mail}`);
+      toast({
+        title: "Succès",
+        description: `Invitation envoyée à ${candidat.mail}`
+      });
       loadCandidats();
     } catch (error: any) {
       console.error('Error sending invitation:', error);
-      toast.error(error.message || "Impossible d'envoyer l'invitation");
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible d'envoyer l'invitation",
+        variant: "destructive"
+      });
     }
   };
 
@@ -265,7 +308,10 @@ export default function Candidats() {
         if (insertError) throw insertError;
 
         setAnalyzeProgress(100);
-        toast.success('Candidat créé avec succès !');
+        toast({
+          title: "Succès",
+          description: "Candidat créé avec succès !"
+        });
         await loadCandidats();
         
         setTimeout(() => {
@@ -304,7 +350,10 @@ export default function Candidats() {
       if (error) throw error;
 
       if (data?.success && data?.candidat) {
-        toast.success('CV analysé et candidat créé avec succès !');
+        toast({
+          title: "Succès",
+          description: "CV analysé et candidat créé avec succès !"
+        });
         setAnalyzeProgress(100);
         await loadCandidats();
         setTimeout(() => {
@@ -318,7 +367,11 @@ export default function Candidats() {
     } catch (error: any) {
       console.error('Error analyzing CV:', error);
       const errorMessage = error?.message || 'Erreur lors de l\'analyse du CV';
-      toast.error(errorMessage);
+      toast({
+        title: "Erreur",
+        description: errorMessage,
+        variant: "destructive"
+      });
       setIsAnalyzing(false);
       setAnalyzeProgress(0);
     }
