@@ -32,6 +32,7 @@ import Admin from "./pages/Admin";
 import Prestataires from "./pages/Prestataires";
 import Contrats from "./pages/Contrats";
 import Salaries from "./pages/Salaries";
+import { Missions } from "./pages/Missions";
 
 const queryClient = new QueryClient();
 
@@ -84,6 +85,7 @@ const App = () => (
               <Route path="contrats" element={<Contrats />} />
               <Route path="salaries" element={<Salaries />} />
               <Route path="postes" element={<Postes />} />
+              <Route path="missions" element={<Missions />} />
               <Route path="rdv" element={<RendezVous />} />
               <Route path="matching" element={<Matching />} />
               <Route path="commentaires" element={<Dashboard />} />
