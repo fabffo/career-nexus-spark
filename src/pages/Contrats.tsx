@@ -365,6 +365,8 @@ export default function Contrats() {
   const openViewDialog = (contrat: any) => {
     // S'assurer que les relations sont chargées
     const contratWithRelations = contrats.find(c => c.id === contrat.id) || contrat;
+    console.log('Contrat pour visualisation:', contratWithRelations);
+    console.log('Client du contrat:', contratWithRelations.client);
     setSelectedContrat(contratWithRelations);
     setIsViewDialogOpen(true);
   };
@@ -931,8 +933,23 @@ export default function Contrats() {
               </div>
 
               <div>
+                <Label className="text-muted-foreground">Type</Label>
+                <p className="font-medium">{getTypeLabel(selectedContrat.type)}</p>
+              </div>
+
+              <div>
                 <Label className="text-muted-foreground">Partie contractante</Label>
-                <p className="font-medium">{getContratParty(selectedContrat)}</p>
+                <p className="font-medium">
+                  {selectedContrat.type === 'CLIENT' && selectedContrat.client
+                    ? selectedContrat.client.raison_sociale
+                    : selectedContrat.type === 'PRESTATAIRE' && selectedContrat.prestataire
+                    ? `${selectedContrat.prestataire.nom} ${selectedContrat.prestataire.prenom}`
+                    : selectedContrat.type === 'FOURNISSEUR_SERVICES' && selectedContrat.fournisseur_services
+                    ? selectedContrat.fournisseur_services.raison_sociale
+                    : selectedContrat.type === 'FOURNISSEUR_GENERAL' && selectedContrat.fournisseur_general
+                    ? selectedContrat.fournisseur_general.raison_sociale
+                    : 'Non renseigné'}
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
