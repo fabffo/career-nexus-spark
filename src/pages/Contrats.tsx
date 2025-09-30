@@ -363,7 +363,9 @@ export default function Contrats() {
   };
 
   const openViewDialog = (contrat: any) => {
-    setSelectedContrat(contrat);
+    // S'assurer que les relations sont chargées
+    const contratWithRelations = contrats.find(c => c.id === contrat.id) || contrat;
+    setSelectedContrat(contratWithRelations);
     setIsViewDialogOpen(true);
   };
 
