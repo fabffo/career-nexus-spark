@@ -538,38 +538,40 @@ export default function Contrats() {
                               </TooltipContent>
                             </Tooltip>
                             
+                            {/* Bouton modifier disponible pour tous les statuts sauf ARCHIVE */}
+                            {contrat.statut !== 'ARCHIVE' && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => openEditDialog(contrat)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Modifier le contrat</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                            
+                            {/* Bouton activer uniquement pour les brouillons */}
                             {contrat.statut === 'BROUILLON' && (
-                              <>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => openEditDialog(contrat)}
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Modifier le contrat</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleStatusAction(contrat.id, 'activer')}
-                                    >
-                                      <FileCheck className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Activer le contrat</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleStatusAction(contrat.id, 'activer')}
+                                  >
+                                    <FileCheck className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Activer le contrat</p>
+                                </TooltipContent>
+                              </Tooltip>
                             )}
                             
                             {contrat.statut === 'ACTIF' && (
