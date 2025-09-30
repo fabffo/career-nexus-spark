@@ -58,6 +58,11 @@ export default function AddFactureDialog({
   useEffect(() => {
     if (open) {
       fetchData();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (open && societeInterne) {
       if (initialData) {
         // Si on a des données initiales (copie), les utiliser
         const { id, numero_facture, created_at, updated_at, created_by, lignes, ...dataToUse } = initialData;
@@ -80,24 +85,37 @@ export default function AddFactureDialog({
           setLignes(initialData.lignes);
         }
       } else {
-        // Sinon, réinitialiser le formulaire
+        // Sinon, réinitialiser le formulaire avec les données de société interne
         resetForm();
+        // Appliquer automatiquement les données de société interne pour VENTES
+        if (formData.type_facture === 'VENTES') {
+          setFormData(prev => ({
+            ...prev,
+            emetteur_type: 'SOCIETE_INTERNE',
+            emetteur_id: societeInterne.id,
+            emetteur_nom: societeInterne.raison_sociale,
+            emetteur_adresse: societeInterne.adresse || '',
+            emetteur_telephone: societeInterne.telephone || '',
+            emetteur_email: societeInterne.email || '',
+            destinataire_type: 'CLIENT',
+          }));
+        }
       }
     }
-  }, [open, initialData]);
+  }, [open, initialData, societeInterne]);
 
   const resetForm = () => {
-    setFormData({
+    const newFormData: any = {
       type_facture: 'VENTES',
       date_emission: new Date().toISOString().split('T')[0],
-      date_echeance: '',
+      date_echeance: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       emetteur_type: '',
       emetteur_id: '',
       emetteur_nom: '',
       emetteur_adresse: '',
       emetteur_telephone: '',
       emetteur_email: '',
-      destinataire_type: '',
+      destinataire_type: 'CLIENT',
       destinataire_id: '',
       destinataire_nom: '',
       destinataire_adresse: '',
@@ -106,7 +124,19 @@ export default function AddFactureDialog({
       informations_paiement: '',
       reference_societe: '',
       statut: 'BROUILLON',
-    });
+    };
+    
+    // Si on a la société interne, pré-remplir pour les ventes
+    if (societeInterne) {
+      newFormData.emetteur_type = 'SOCIETE_INTERNE';
+      newFormData.emetteur_id = societeInterne.id;
+      newFormData.emetteur_nom = societeInterne.raison_sociale;
+      newFormData.emetteur_adresse = societeInterne.adresse || '';
+      newFormData.emetteur_telephone = societeInterne.telephone || '';
+      newFormData.emetteur_email = societeInterne.email || '';
+    }
+    
+    setFormData(newFormData);
     setLignes([{ ordre: 1, description: '', prix_ht: 0, taux_tva: 20 }]);
   };
 
