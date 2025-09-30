@@ -65,15 +65,19 @@ export function EditMissionDialog({ open, onOpenChange, mission, onSuccess }: Ed
   };
 
   const handlePosteChange = (posteId: string) => {
-    const poste = postes.find(p => p.id === posteId);
-    if (poste) {
-      setFormData(prev => ({
-        ...prev,
-        poste_id: posteId,
-        titre: poste.nomPoste,
-        description: poste.detail,
-        localisation: poste.client?.adresse
-      }));
+    if (posteId === 'none') {
+      setFormData(prev => ({ ...prev, poste_id: null }));
+    } else {
+      const poste = postes.find(p => p.id === posteId);
+      if (poste) {
+        setFormData(prev => ({
+          ...prev,
+          poste_id: posteId,
+          titre: poste.nomPoste,
+          description: poste.detail,
+          localisation: poste.client?.adresse
+        }));
+      }
     }
   };
 
@@ -188,12 +192,12 @@ export function EditMissionDialog({ open, onOpenChange, mission, onSuccess }: Ed
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="poste">Poste (optionnel)</Label>
-              <Select value={formData.poste_id || ''} onValueChange={handlePosteChange}>
+              <Select value={formData.poste_id || 'none'} onValueChange={handlePosteChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner un poste" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucun</SelectItem>
+                  <SelectItem value="none">Aucun</SelectItem>
                   {postes.map(poste => (
                     <SelectItem key={poste.id} value={poste.id}>
                       {poste.nomPoste} - {poste.client?.raisonSociale}
@@ -206,14 +210,14 @@ export function EditMissionDialog({ open, onOpenChange, mission, onSuccess }: Ed
             <div>
               <Label htmlFor="contrat">Contrat</Label>
               <Select 
-                value={formData.contrat_id || ''} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, contrat_id: value }))}
+                value={formData.contrat_id || 'none'} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, contrat_id: value === 'none' ? null : value }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner un contrat" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucun</SelectItem>
+                  <SelectItem value="none">Aucun</SelectItem>
                   {contrats.map(contrat => (
                     <SelectItem key={contrat.id} value={contrat.id}>
                       {contrat.numero_contrat} - {contrat.type}
