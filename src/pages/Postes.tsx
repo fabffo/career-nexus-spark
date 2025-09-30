@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { posteService, clientService, candidatService } from '@/services';
 import { PosteClient, Client, Candidat } from '@/types/models';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Calendar, Building2, FileText, Eye, Copy, History } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, Building2, Eye, Copy, History, MoreHorizontal } from 'lucide-react';
 import { ViewPosteDialog } from '@/components/ViewPosteDialog';
 import { PosteHistoryDialog } from '@/components/PosteHistoryDialog';
 import {
@@ -24,10 +23,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { DataTable } from '@/components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
+import '@/styles/table-responsive.css';
 
 export default function Postes() {
   const [postes, setPostes] = useState<PosteClient[]>([]);
@@ -174,6 +183,133 @@ export default function Postes() {
     return clients.find(c => c.id === clientId);
   };
 
+  const columns: ColumnDef<PosteClient>[] = [
+    {
+      accessorKey: 'nomPoste',
+      header: 'Nom du poste',
+      cell: ({ row }) => (
+        <div className="font-medium">{row.getValue('nomPoste')}</div>
+      ),
+    },
+    {
+      accessorKey: 'clientId',
+      header: 'Client',
+      cell: ({ row }) => {
+        const client = getClient(row.getValue('clientId'));
+        return (
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+            <span>{client?.raisonSociale || '-'}</span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'typePrestation',
+      header: 'Type',
+      cell: ({ row }) => {
+        const type = row.getValue('typePrestation') as PosteClient['typePrestation'];
+        return (
+          <Badge variant="outline">
+            {type === 'RECRUTEMENT' ? 'Recrutement' : 'Formation'}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: 'statut',
+      header: 'Statut',
+      cell: ({ row }) => getStatusBadge(row.getValue('statut')),
+    },
+    {
+      accessorKey: 'dateCreation',
+      header: 'Date création',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <span>{format(new Date(row.getValue('dateCreation')), 'dd/MM/yyyy')}</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'dateEcheance',
+      header: 'Échéance',
+      cell: ({ row }) => {
+        const date = row.getValue('dateEcheance');
+        if (!date) return '-';
+        return (
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-warning" />
+            <span>{format(new Date(date as string), 'dd/MM/yyyy')}</span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'detail',
+      header: 'Détails',
+      cell: ({ row }) => {
+        const detail = row.getValue('detail') as string;
+        return (
+          <div className="max-w-[300px]">
+            <p className="text-sm text-muted-foreground truncate">
+              {detail.replace(/[*_]/g, '')}
+            </p>
+          </div>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => {
+        const poste = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleView(poste)}>
+                <Eye className="mr-2 h-4 w-4" />
+                Voir les détails
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleOpenForm(poste)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Modifier
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleCopy(poste)}>
+                <Copy className="mr-2 h-4 w-4" />
+                Dupliquer
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setHistoryPosteId(poste.id);
+                  setHistoryDialogOpen(true);
+                }}
+              >
+                <History className="mr-2 h-4 w-4" />
+                Historique
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleDelete(poste.id)}
+                className="text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Supprimer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -189,101 +325,11 @@ export default function Postes() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {postes.map((poste) => {
-          const client = getClient(poste.clientId);
-          return (
-            <Card key={poste.id} className="hover:shadow-lg transition-all duration-200">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg">{poste.nomPoste}</CardTitle>
-                  {getStatusBadge(poste.statut)}
-                </div>
-                {client && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
-                    <Building2 className="h-4 w-4" />
-                    <span>{client.raisonSociale}</span>
-                  </div>
-                )}
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span>Créé le {format(new Date(poste.dateCreation), 'dd/MM/yyyy')}</span>
-                  </div>
-                  {poste.dateEcheance && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="h-4 w-4 text-warning" />
-                      <span>Échéance: {format(new Date(poste.dateEcheance), 'dd/MM/yyyy')}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="border-t pt-3">
-                  <div className="flex items-start gap-2">
-                    <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <p className="text-sm text-muted-foreground line-clamp-3">
-                      {poste.detail.replace(/[*_]/g, '')}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-1 pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleView(poste)}
-                    className="text-xs"
-                  >
-                    <Eye className="h-3 w-3" />
-                    <span className="ml-1">Voir</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setHistoryPosteId(poste.id);
-                      setHistoryDialogOpen(true);
-                    }}
-                    className="text-xs"
-                  >
-                    <History className="h-3 w-3" />
-                    <span className="ml-1">Historique</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleCopy(poste)}
-                    className="text-xs"
-                  >
-                    <Copy className="h-3 w-3" />
-                    <span className="ml-1">Copier</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleOpenForm(poste)}
-                    className="text-xs"
-                  >
-                    <Edit className="h-3 w-3" />
-                    <span className="ml-1">Modifier</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete(poste.id)}
-                    className="col-span-2 text-xs"
-                  >
-                    <Trash2 className="h-3 w-3 text-destructive" />
-                    <span className="ml-1">Supprimer</span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      <DataTable
+        columns={columns}
+        data={postes}
+        searchPlaceholder="Rechercher un poste..."
+      />
 
       {/* Form Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
