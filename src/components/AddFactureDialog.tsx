@@ -89,6 +89,18 @@ export default function AddFactureDialog({
         resetForm();
         // Appliquer automatiquement les données de société interne pour VENTES
         if (formData.type_facture === 'VENTES') {
+          // Construire les informations de paiement
+          let infoPaiement = '';
+          if (societeInterne.etablissement_bancaire) {
+            infoPaiement += `Banque: ${societeInterne.etablissement_bancaire}\n`;
+          }
+          if (societeInterne.iban) {
+            infoPaiement += `IBAN: ${societeInterne.iban}\n`;
+          }
+          if (societeInterne.bic) {
+            infoPaiement += `BIC: ${societeInterne.bic}`;
+          }
+          
           setFormData(prev => ({
             ...prev,
             emetteur_type: 'SOCIETE_INTERNE',
@@ -98,6 +110,8 @@ export default function AddFactureDialog({
             emetteur_telephone: societeInterne.telephone || '',
             emetteur_email: societeInterne.email || '',
             destinataire_type: 'CLIENT',
+            informations_paiement: infoPaiement.trim(),
+            reference_societe: societeInterne.siren || '',
           }));
         }
       }
@@ -128,12 +142,26 @@ export default function AddFactureDialog({
     
     // Si on a la société interne, pré-remplir pour les ventes
     if (societeInterne) {
+      // Construire les informations de paiement
+      let infoPaiement = '';
+      if (societeInterne.etablissement_bancaire) {
+        infoPaiement += `Banque: ${societeInterne.etablissement_bancaire}\n`;
+      }
+      if (societeInterne.iban) {
+        infoPaiement += `IBAN: ${societeInterne.iban}\n`;
+      }
+      if (societeInterne.bic) {
+        infoPaiement += `BIC: ${societeInterne.bic}`;
+      }
+      
       newFormData.emetteur_type = 'SOCIETE_INTERNE';
       newFormData.emetteur_id = societeInterne.id;
       newFormData.emetteur_nom = societeInterne.raison_sociale;
       newFormData.emetteur_adresse = societeInterne.adresse || '';
       newFormData.emetteur_telephone = societeInterne.telephone || '';
       newFormData.emetteur_email = societeInterne.email || '';
+      newFormData.informations_paiement = infoPaiement.trim();
+      newFormData.reference_societe = societeInterne.siren || '';
     }
     
     setFormData(newFormData);
@@ -180,6 +208,18 @@ export default function AddFactureDialog({
       
       // Réinitialiser les coordonnées émetteur et destinataire
       if (type === 'VENTES' && societeInterne) {
+        // Construire les informations de paiement
+        let infoPaiement = '';
+        if (societeInterne.etablissement_bancaire) {
+          infoPaiement += `Banque: ${societeInterne.etablissement_bancaire}\n`;
+        }
+        if (societeInterne.iban) {
+          infoPaiement += `IBAN: ${societeInterne.iban}\n`;
+        }
+        if (societeInterne.bic) {
+          infoPaiement += `BIC: ${societeInterne.bic}`;
+        }
+        
         // Pour les ventes, l'émetteur est la société interne
         newData.emetteur_type = 'SOCIETE_INTERNE';
         newData.emetteur_id = societeInterne.id;
@@ -187,6 +227,8 @@ export default function AddFactureDialog({
         newData.emetteur_adresse = societeInterne.adresse || '';
         newData.emetteur_telephone = societeInterne.telephone || '';
         newData.emetteur_email = societeInterne.email || '';
+        newData.informations_paiement = infoPaiement.trim();
+        newData.reference_societe = societeInterne.siren || '';
         
         // Le destinataire sera un client
         newData.destinataire_type = 'CLIENT';
@@ -211,6 +253,8 @@ export default function AddFactureDialog({
         newData.emetteur_adresse = '';
         newData.emetteur_telephone = '';
         newData.emetteur_email = '';
+        newData.informations_paiement = '';
+        newData.reference_societe = '';
       }
       
       return newData;
