@@ -16,6 +16,11 @@ import {
   ShieldCheck,
   UserCheck,
   FileText,
+  ChevronDown,
+  ChevronRight,
+  Handshake,
+  Activity,
+  Sparkles,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -24,35 +29,68 @@ import { useAuth } from '@/contexts/AuthContext';
 export function Sidebar() {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const { profile, signOut } = useAuth();
 
-  // Navigation pour les recruteurs et admins
-  const recruiterMenuItems = [
-    { path: '/', label: 'Tableau de bord', icon: LayoutDashboard },
-    { path: '/candidats', label: 'Candidats', icon: Users },
-    { path: '/clients', label: 'Clients', icon: Building2 },
-    { path: '/prestataires', label: 'Prestataires', icon: UserCheck },
-    { path: '/salaries', label: 'Salariés', icon: Users },
-    { path: '/contrats', label: 'Contrats', icon: FileText },
-    { path: '/missions', label: 'Missions', icon: Briefcase },
-    { path: '/rdv', label: 'Rendez-vous', icon: Calendar },
-    { path: '/postes', label: 'Postes', icon: Briefcase },
-    { path: '/recherche', label: 'Recherche', icon: Search },
-    { path: '/matching', label: 'Matching IA', icon: BrainCircuit },
-    { path: '/commentaires', label: 'Commentaires', icon: MessageSquare },
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => 
+      prev.includes(category) 
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
+  };
+
+  // Structure hiérarchique pour l'administrateur et recruteurs
+  const adminStructuredMenu = [
+    {
+      label: 'Partenaires',
+      icon: Handshake,
+      category: 'partenaires',
+      items: [
+        { path: '/candidats', label: 'Candidats', icon: Users },
+        { path: '/clients', label: 'Clients', icon: Building2 },
+        { path: '/prestataires', label: 'Prestataires', icon: UserCheck },
+        { path: '/salaries', label: 'Salariés', icon: Users },
+      ]
+    },
+    {
+      label: 'Actions',
+      icon: Activity,
+      category: 'actions',
+      items: [
+        { path: '/contrats', label: 'Contrats', icon: FileText },
+        { path: '/missions', label: 'Missions', icon: Briefcase },
+        { path: '/rdv', label: 'Rendez-vous', icon: Calendar },
+        { path: '/postes', label: 'Postes', icon: Briefcase },
+      ]
+    },
+    {
+      label: 'Expertises',
+      icon: Sparkles,
+      category: 'expertises',
+      items: [
+        { path: '/recherche', label: 'Recherche', icon: Search },
+        { path: '/matching', label: 'Matching IA', icon: BrainCircuit },
+      ]
+    },
   ];
 
-  // Menu supplémentaire pour les admins
-  const adminMenuItems = profile?.role === 'ADMIN' ? [
-    { path: '/admin', label: 'Administration', icon: ShieldCheck },
-  ] : [];
+  // Ajout du menu Administration uniquement pour les admins
+  if (profile?.role === 'ADMIN') {
+    adminStructuredMenu.push({
+      label: 'Administration',
+      icon: ShieldCheck,
+      category: 'administration',
+      items: [
+        { path: '/admin', label: 'Paramètres', icon: ShieldCheck },
+      ]
+    });
+  }
 
   // Navigation pour les candidats
   const candidatMenuItems = [
     { path: '/candidat/dashboard', label: 'Mon Espace', icon: User },
   ];
-
-  const menuItems = profile?.role === 'CANDIDAT' ? candidatMenuItems : [...recruiterMenuItems, ...adminMenuItems];
 
   return (
     <>
@@ -88,28 +126,105 @@ export function Sidebar() {
             </h1>
           </div>
 
-          <nav className="flex-1 space-y-1 p-4">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
-              
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setIsOpen(false)}
-                  className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
-                    isActive
-                      ? 'bg-primary text-primary-foreground shadow-md'
-                      : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                  )}
-                >
-                  <Icon className="h-5 w-5" />
-                  {item.label}
-                </Link>
-              );
-            })}
+          <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
+            {/* Tableau de bord - toujours visible */}
+            {profile?.role !== 'CANDIDAT' && (
+              <Link
+                to="/"
+                onClick={() => setIsOpen(false)}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 mb-4',
+                  location.pathname === '/'
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                )}
+              >
+                <LayoutDashboard className="h-5 w-5" />
+                Tableau de bord
+              </Link>
+            )}
+
+            {/* Menu pour candidats */}
+            {profile?.role === 'CANDIDAT' ? (
+              candidatMenuItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setIsOpen(false)}
+                    className={cn(
+                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+                      isActive
+                        ? 'bg-primary text-primary-foreground shadow-md'
+                        : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                    )}
+                  >
+                    <Icon className="h-5 w-5" />
+                    {item.label}
+                  </Link>
+                );
+              })
+            ) : (
+              /* Menu structuré pour admin et recruteurs */
+              adminStructuredMenu.map((category) => {
+                const CategoryIcon = category.icon;
+                const isExpanded = expandedCategories.includes(category.category);
+                const hasActiveChild = category.items.some(item => location.pathname === item.path);
+                
+                return (
+                  <div key={category.category} className="space-y-1">
+                    <button
+                      onClick={() => toggleCategory(category.category)}
+                      className={cn(
+                        'w-full flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+                        hasActiveChild || isExpanded
+                          ? 'text-foreground bg-secondary/50'
+                          : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <CategoryIcon className="h-5 w-5" />
+                        {category.label}
+                      </div>
+                      {isExpanded ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                    </button>
+                    
+                    {isExpanded && (
+                      <div className="ml-2 space-y-1">
+                        {category.items.map((item) => {
+                          const ItemIcon = item.icon;
+                          const isActive = location.pathname === item.path;
+                          
+                          return (
+                            <Link
+                              key={item.path}
+                              to={item.path}
+                              onClick={() => setIsOpen(false)}
+                              className={cn(
+                                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 pl-11',
+                                isActive
+                                  ? 'bg-primary text-primary-foreground shadow-md'
+                                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                              )}
+                            >
+                              <ItemIcon className="h-4 w-4" />
+                              {item.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </nav>
 
           <div className="border-t border-border p-4 space-y-3">
