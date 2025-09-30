@@ -5,10 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, ChevronsUpDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Facture, FactureLigne } from "@/pages/Factures";
+import type { Mission } from "@/types/mission";
 
 interface AddFactureDialogProps {
   open: boolean;
@@ -29,6 +33,7 @@ export default function AddFactureDialog({
   const [clients, setClients] = useState<any[]>([]);
   const [fournisseursGeneraux, setFournisseursGeneraux] = useState<any[]>([]);
   const [fournisseursServices, setFournisseursServices] = useState<any[]>([]);
+  const [missions, setMissions] = useState<Mission[]>([]);
   
   const [formData, setFormData] = useState({
     type_facture: 'VENTES' as 'VENTES' | 'ACHATS',
@@ -197,6 +202,14 @@ export default function AddFactureDialog({
         .select('*')
         .order('raison_sociale');
       setFournisseursServices(fournServices || []);
+
+      // Récupérer les missions en cours avec TVA
+      const { data: missionsData } = await supabase
+        .from('missions')
+        .select('*, tva(*)')
+        .eq('statut', 'EN_COURS')
+        .order('titre');
+      setMissions((missionsData as Mission[]) || []);
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
     }
@@ -316,9 +329,31 @@ export default function AddFactureDialog({
     }
   };
 
-  const updateLigne = (index: number, field: keyof FactureLigne, value: any) => {
+  const updateLigne = (index: number, field: keyof FactureLigne | 'mission_id', value: any) => {
     setLignes(prev => prev.map((ligne, i) => {
       if (i !== index) return ligne;
+      
+      // Si on sélectionne une mission
+      if (field === 'mission_id' && value !== 'custom') {
+        const mission = missions.find(m => m.id === value);
+        if (mission) {
+          const prixUnitaire = mission.prix_ht || mission.tjm || 0;
+          const tauxTva = mission.tva?.taux || mission.taux_tva || 20;
+          const quantite = ligne.quantite || 1;
+          const prixHt = quantite * prixUnitaire;
+          const montantTva = prixHt * tauxTva / 100;
+          
+          return {
+            ...ligne,
+            description: `Mission : ${mission.titre}${mission.description ? ' - ' + mission.description : ''}`,
+            prix_unitaire_ht: prixUnitaire,
+            prix_ht: prixHt,
+            taux_tva: tauxTva,
+            montant_tva: montantTva,
+            prix_ttc: prixHt + montantTva
+          };
+        }
+      }
       
       const updatedLigne = { ...ligne, [field]: value };
       
@@ -553,13 +588,57 @@ export default function AddFactureDialog({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-2">
                     <Label htmlFor={`description-${index}`}>Description</Label>
-                    <Textarea
-                      id={`description-${index}`}
-                      value={ligne.description}
-                      onChange={(e) => updateLigne(index, "description", e.target.value)}
-                      placeholder="Description de la ligne"
-                      required
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between text-left font-normal"
+                        >
+                          {ligne.description || "Sélectionner une mission ou saisir librement..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <Command>
+                          <CommandInput 
+                            placeholder="Rechercher une mission ou saisir librement..." 
+                            value={ligne.description}
+                            onValueChange={(value) => updateLigne(index, "description", value)}
+                          />
+                          <CommandEmpty>
+                            <div className="p-2 text-sm">
+                              Tapez pour saisir une description personnalisée
+                            </div>
+                          </CommandEmpty>
+                          <CommandGroup heading="Missions en cours">
+                            {missions.map((mission) => (
+                              <CommandItem
+                                key={mission.id}
+                                value={mission.titre}
+                                onSelect={() => updateLigne(index, "mission_id", mission.id)}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    ligne.description?.includes(mission.titre) ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{mission.titre}</span>
+                                  {mission.prix_ht && (
+                                    <span className="text-sm text-muted-foreground">
+                                      {mission.prix_ht}€ HT - TVA {mission.tva?.taux || mission.taux_tva || 20}%
+                                    </span>
+                                  )}
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div>
                     <Label htmlFor={`ordre-${index}`}>Ordre</Label>
