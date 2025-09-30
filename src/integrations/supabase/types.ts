@@ -553,6 +553,7 @@ export type Database = {
           statut: string | null
           titre: string
           type_contrat: string | null
+          type_prestation: string | null
           updated_at: string | null
         }
         Insert: {
@@ -568,6 +569,7 @@ export type Database = {
           statut?: string | null
           titre: string
           type_contrat?: string | null
+          type_prestation?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -583,6 +585,7 @@ export type Database = {
           statut?: string | null
           titre?: string
           type_contrat?: string | null
+          type_prestation?: string | null
           updated_at?: string | null
         }
         Relationships: [

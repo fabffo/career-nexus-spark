@@ -43,6 +43,7 @@ export default function Postes() {
     nomPoste: '',
     dateEcheance: '',
     statut: 'ENCOURS' as PosteClient['statut'],
+    typePrestation: 'RECRUTEMENT' as PosteClient['typePrestation'],
     detail: '',
     pourvuPar: '',
   });
@@ -70,6 +71,7 @@ export default function Postes() {
         nomPoste: poste.nomPoste,
         dateEcheance: poste.dateEcheance ? format(new Date(poste.dateEcheance), 'yyyy-MM-dd') : '',
         statut: poste.statut,
+        typePrestation: poste.typePrestation || 'RECRUTEMENT',
         detail: poste.detail,
         pourvuPar: (poste as any).pourvuPar || '',
       });
@@ -80,6 +82,7 @@ export default function Postes() {
         nomPoste: '',
         dateEcheance: '',
         statut: 'ENCOURS',
+        typePrestation: 'RECRUTEMENT',
         detail: '',
         pourvuPar: '',
       });
@@ -105,7 +108,10 @@ export default function Postes() {
         await posteService.update(selectedPoste.id, data);
         toast.success('Poste modifié avec succès');
       } else {
-        await posteService.create(data);
+        await posteService.create({
+          ...data,
+          typePrestation: formData.typePrestation || 'RECRUTEMENT'
+        });
         toast.success('Poste créé avec succès');
       }
       setIsFormOpen(false);
@@ -134,6 +140,7 @@ export default function Postes() {
         dateCreation: new Date(),
         dateEcheance: poste.dateEcheance,
         statut: 'ENCOURS' as PosteClient['statut'],
+        typePrestation: poste.typePrestation || 'RECRUTEMENT',
         detail: poste.detail,
       };
       await posteService.create(newPoste);
@@ -339,6 +346,21 @@ export default function Postes() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div>
+              <Label htmlFor="typePrestation">Type de prestation</Label>
+              <Select
+                value={formData.typePrestation}
+                onValueChange={(value) => setFormData({ ...formData, typePrestation: value as PosteClient['typePrestation'] })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="RECRUTEMENT">Recrutement</SelectItem>
+                  <SelectItem value="FORMATION">Formation</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="pourvuPar">

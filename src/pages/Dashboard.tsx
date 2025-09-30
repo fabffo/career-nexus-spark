@@ -125,6 +125,7 @@ export default function Dashboard() {
           nomPoste: poste.titre,
           dateCreation: new Date(poste.created_at),
           typeContrat: poste.type_contrat,
+          typePrestation: (poste.type_prestation || 'RECRUTEMENT') as any,
           salaireMin: poste.salaire_min,
           salaireMax: poste.salaire_max,
           detail: poste.description || '',

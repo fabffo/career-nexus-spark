@@ -17,6 +17,7 @@ class PosteService implements CrudOperations<PosteClient> {
       dateCreation: new Date(item.created_at),
       dateEcheance: item.updated_at ? new Date(item.updated_at) : undefined,
       statut: (item.statut === 'OUVERT' ? 'ENCOURS' : item.statut || 'ENCOURS') as PosteClient['statut'],
+      typePrestation: (item.type_prestation || 'RECRUTEMENT') as PosteClient['typePrestation'],
       detail: item.description || '',
       pourvuPar: item.pourvu_par || '',
       createdAt: new Date(item.created_at),
@@ -41,6 +42,7 @@ class PosteService implements CrudOperations<PosteClient> {
       dateCreation: new Date(data.created_at),
       dateEcheance: data.updated_at ? new Date(data.updated_at) : undefined,
       statut: (data.statut || 'ENCOURS') as PosteClient['statut'],
+      typePrestation: (data.type_prestation || 'RECRUTEMENT') as PosteClient['typePrestation'],
       detail: data.description || '',
       pourvuPar: data.pourvu_par || '',
       createdAt: new Date(data.created_at),
@@ -54,6 +56,7 @@ class PosteService implements CrudOperations<PosteClient> {
       titre: item.nomPoste,
       description: item.detail,
       statut: item.statut || 'ENCOURS',
+      type_prestation: item.typePrestation || 'RECRUTEMENT',
       pourvu_par: item.pourvuPar || null,
     };
     
@@ -72,6 +75,7 @@ class PosteService implements CrudOperations<PosteClient> {
       dateCreation: new Date(data.created_at),
       dateEcheance: data.updated_at ? new Date(data.updated_at) : undefined,
       statut: (data.statut || 'ENCOURS') as PosteClient['statut'],
+      typePrestation: (data.type_prestation || 'RECRUTEMENT') as PosteClient['typePrestation'],
       detail: data.description || '',
       pourvuPar: data.pourvu_par || '',
       createdAt: new Date(data.created_at),
@@ -85,6 +89,7 @@ class PosteService implements CrudOperations<PosteClient> {
     if (item.nomPoste !== undefined) updateData.titre = item.nomPoste;
     if (item.detail !== undefined) updateData.description = item.detail;
     if (item.statut !== undefined) updateData.statut = item.statut;
+    if (item.typePrestation !== undefined) updateData.type_prestation = item.typePrestation;
     if (item.pourvuPar !== undefined) updateData.pourvu_par = item.pourvuPar;
     
     const { data, error } = await supabase
@@ -103,6 +108,7 @@ class PosteService implements CrudOperations<PosteClient> {
       dateCreation: new Date(data.created_at),
       dateEcheance: data.updated_at ? new Date(data.updated_at) : undefined,
       statut: (data.statut || 'ENCOURS') as PosteClient['statut'],
+      typePrestation: (data.type_prestation || 'RECRUTEMENT') as PosteClient['typePrestation'],
       detail: data.description || '',
       pourvuPar: data.pourvu_par || '',
       createdAt: new Date(data.created_at),
