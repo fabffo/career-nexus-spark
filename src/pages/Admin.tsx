@@ -3,9 +3,10 @@ import { CandidatAdminDialog } from '@/components/CandidatAdminDialog';
 import { SystemSettingsDialog } from '@/components/SystemSettingsDialog';
 import { SecurityDialog } from '@/components/SecurityDialog';
 import { EmailHistoryDialog } from '@/components/EmailHistoryDialog';
+import { SocieteInterneDialog } from '@/components/SocieteInterneDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Settings, ShieldCheck, Mail } from 'lucide-react';
+import { Users, Settings, ShieldCheck, Mail, Building2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 
@@ -14,6 +15,7 @@ export default function Admin() {
   const [openSystemSettings, setOpenSystemSettings] = useState(false);
   const [openSecurityDialog, setOpenSecurityDialog] = useState(false);
   const [openEmailHistory, setOpenEmailHistory] = useState(false);
+  const [openSocieteInterne, setOpenSocieteInterne] = useState(false);
   const { profile } = useAuth();
 
   // Vérifier que l'utilisateur est admin
@@ -98,6 +100,23 @@ export default function Admin() {
             </Button>
           </CardContent>
         </Card>
+
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setOpenSocieteInterne(true)}>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              Société Interne
+            </CardTitle>
+            <CardDescription>
+              Gérer les informations de la société et les coordonnées bancaires
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full" variant="outline">
+              Ouvrir
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       <CandidatAdminDialog 
@@ -119,6 +138,11 @@ export default function Admin() {
       <EmailHistoryDialog
         open={openEmailHistory}
         onOpenChange={setOpenEmailHistory}
+      />
+      
+      <SocieteInterneDialog
+        open={openSocieteInterne}
+        onOpenChange={setOpenSocieteInterne}
       />
     </div>
   );

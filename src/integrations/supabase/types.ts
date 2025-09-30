@@ -906,6 +906,57 @@ export type Database = {
         }
         Relationships: []
       }
+      societe_interne: {
+        Row: {
+          adresse: string | null
+          bic: string | null
+          capital_social: number | null
+          created_at: string | null
+          email: string | null
+          etablissement_bancaire: string | null
+          iban: string | null
+          id: string
+          raison_sociale: string
+          reference_bancaire: string | null
+          siren: string | null
+          telephone: string | null
+          tva: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          adresse?: string | null
+          bic?: string | null
+          capital_social?: number | null
+          created_at?: string | null
+          email?: string | null
+          etablissement_bancaire?: string | null
+          iban?: string | null
+          id?: string
+          raison_sociale: string
+          reference_bancaire?: string | null
+          siren?: string | null
+          telephone?: string | null
+          tva?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          adresse?: string | null
+          bic?: string | null
+          capital_social?: number | null
+          created_at?: string | null
+          email?: string | null
+          etablissement_bancaire?: string | null
+          iban?: string | null
+          id?: string
+          raison_sociale?: string
+          reference_bancaire?: string | null
+          siren?: string | null
+          telephone?: string | null
+          tva?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       tva: {
         Row: {
           created_at: string
