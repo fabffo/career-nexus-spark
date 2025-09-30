@@ -67,6 +67,14 @@ export function Sidebar() {
       ]
     },
     {
+      label: 'Finances',
+      icon: FileText,
+      category: 'finances',
+      items: [
+        { path: '/factures', label: 'Factures', icon: FileText },
+      ]
+    },
+    {
       label: 'Expertises',
       icon: Sparkles,
       category: 'expertises',

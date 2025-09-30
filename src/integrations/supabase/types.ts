@@ -296,6 +296,140 @@ export type Database = {
         }
         Relationships: []
       }
+      facture_lignes: {
+        Row: {
+          created_at: string | null
+          description: string
+          facture_id: string
+          id: string
+          montant_tva: number | null
+          ordre: number
+          prix_ht: number
+          prix_ttc: number | null
+          taux_tva: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          facture_id: string
+          id?: string
+          montant_tva?: number | null
+          ordre?: number
+          prix_ht: number
+          prix_ttc?: number | null
+          taux_tva?: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          facture_id?: string
+          id?: string
+          montant_tva?: number | null
+          ordre?: number
+          prix_ht?: number
+          prix_ttc?: number | null
+          taux_tva?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facture_lignes_facture_id_fkey"
+            columns: ["facture_id"]
+            isOneToOne: false
+            referencedRelation: "factures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      factures: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          date_echeance: string
+          date_emission: string
+          destinataire_adresse: string | null
+          destinataire_email: string | null
+          destinataire_id: string | null
+          destinataire_nom: string
+          destinataire_telephone: string | null
+          destinataire_type: string
+          emetteur_adresse: string | null
+          emetteur_email: string | null
+          emetteur_id: string | null
+          emetteur_nom: string
+          emetteur_telephone: string | null
+          emetteur_type: string
+          id: string
+          informations_paiement: string | null
+          numero_facture: string
+          reference_societe: string | null
+          statut: string | null
+          total_ht: number | null
+          total_ttc: number | null
+          total_tva: number | null
+          type_facture: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          date_echeance: string
+          date_emission?: string
+          destinataire_adresse?: string | null
+          destinataire_email?: string | null
+          destinataire_id?: string | null
+          destinataire_nom: string
+          destinataire_telephone?: string | null
+          destinataire_type: string
+          emetteur_adresse?: string | null
+          emetteur_email?: string | null
+          emetteur_id?: string | null
+          emetteur_nom: string
+          emetteur_telephone?: string | null
+          emetteur_type: string
+          id?: string
+          informations_paiement?: string | null
+          numero_facture: string
+          reference_societe?: string | null
+          statut?: string | null
+          total_ht?: number | null
+          total_ttc?: number | null
+          total_tva?: number | null
+          type_facture: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          date_echeance?: string
+          date_emission?: string
+          destinataire_adresse?: string | null
+          destinataire_email?: string | null
+          destinataire_id?: string | null
+          destinataire_nom?: string
+          destinataire_telephone?: string | null
+          destinataire_type?: string
+          emetteur_adresse?: string | null
+          emetteur_email?: string | null
+          emetteur_id?: string | null
+          emetteur_nom?: string
+          emetteur_telephone?: string | null
+          emetteur_type?: string
+          id?: string
+          informations_paiement?: string | null
+          numero_facture?: string
+          reference_societe?: string | null
+          statut?: string | null
+          total_ht?: number | null
+          total_ttc?: number | null
+          total_tva?: number | null
+          type_facture?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       fournisseurs_generaux: {
         Row: {
           adresse: string | null
@@ -991,6 +1125,10 @@ export type Database = {
     Functions: {
       generate_invitation_token: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_numero_facture: {
+        Args: { p_type: string }
         Returns: string
       }
       get_next_avenant_number: {
