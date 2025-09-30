@@ -37,7 +37,13 @@ export default function ViewFactureDialog({
         .order('ordre');
 
       if (error) throw error;
-      setLignes(data || []);
+      // Mapper les données avec les valeurs par défaut pour les colonnes manquantes
+      const lignesWithDefaults = (data || []).map((ligne: any) => ({
+        ...ligne,
+        quantite: ligne.quantite || 1,
+        prix_unitaire_ht: ligne.prix_unitaire_ht || ligne.prix_ht || 0
+      }));
+      setLignes(lignesWithDefaults);
     } catch (error) {
       console.error('Erreur lors du chargement des lignes:', error);
     }
@@ -164,25 +170,29 @@ export default function ViewFactureDialog({
           {/* Lignes de facture */}
           <div>
             <h3 className="font-semibold text-lg mb-3">Détail de la facture</h3>
-            <div className="border rounded-lg overflow-hidden">
+            <div className="border rounded-lg overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-muted">
                   <tr>
                     <th className="text-left p-3">Description</th>
-                    <th className="text-right p-3">Prix HT</th>
+                    <th className="text-right p-3">Quantité</th>
+                    <th className="text-right p-3">Prix unitaire HT</th>
+                    <th className="text-right p-3">Montant HT</th>
                     <th className="text-right p-3">TVA %</th>
-                    <th className="text-right p-3">TVA</th>
-                    <th className="text-right p-3">Prix TTC</th>
+                    <th className="text-right p-3">Montant TVA</th>
+                    <th className="text-right p-3">Montant TTC</th>
                   </tr>
                 </thead>
                 <tbody>
                   {lignes.map((ligne, index) => {
-                    const montantTva = (ligne.prix_ht || 0) * (ligne.taux_tva || 0) / 100;
-                    const prixTtc = (ligne.prix_ht || 0) + montantTva;
+                    const montantTva = (ligne.montant_tva || 0);
+                    const prixTtc = (ligne.prix_ttc || 0);
                     
                     return (
                       <tr key={index} className="border-t">
                         <td className="p-3">{ligne.description}</td>
+                        <td className="text-right p-3">{(ligne.quantite || 1).toFixed(2)}</td>
+                        <td className="text-right p-3">{(ligne.prix_unitaire_ht || 0).toFixed(2)} €</td>
                         <td className="text-right p-3">{(ligne.prix_ht || 0).toFixed(2)} €</td>
                         <td className="text-right p-3">{(ligne.taux_tva || 0).toFixed(2)} %</td>
                         <td className="text-right p-3">{montantTva.toFixed(2)} €</td>

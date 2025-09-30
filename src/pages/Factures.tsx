@@ -72,6 +72,8 @@ export interface FactureLigne {
   facture_id?: string;
   ordre: number;
   description: string;
+  quantite: number;
+  prix_unitaire_ht: number;
   prix_ht: number;
   taux_tva: number;
   montant_tva?: number;

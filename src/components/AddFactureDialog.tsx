@@ -52,7 +52,7 @@ export default function AddFactureDialog({
   });
 
   const [lignes, setLignes] = useState<FactureLigne[]>([
-    { ordre: 1, description: '', prix_ht: 0, taux_tva: 20 }
+    { ordre: 1, description: '', quantite: 1, prix_unitaire_ht: 0, prix_ht: 0, taux_tva: 20, montant_tva: 0, prix_ttc: 0 }
   ]);
 
   useEffect(() => {
@@ -165,7 +165,7 @@ export default function AddFactureDialog({
     }
     
     setFormData(newFormData);
-    setLignes([{ ordre: 1, description: '', prix_ht: 0, taux_tva: 20 }]);
+    setLignes([{ ordre: 1, description: '', quantite: 1, prix_unitaire_ht: 0, prix_ht: 0, taux_tva: 20, montant_tva: 0, prix_ttc: 0 }]);
   };
 
   const fetchData = async () => {
@@ -301,8 +301,12 @@ export default function AddFactureDialog({
     setLignes(prev => [...prev, {
       ordre: prev.length + 1,
       description: '',
+      quantite: 1,
+      prix_unitaire_ht: 0,
       prix_ht: 0,
-      taux_tva: 20
+      taux_tva: 20,
+      montant_tva: 0,
+      prix_ttc: 0
     }]);
   };
 
@@ -313,9 +317,28 @@ export default function AddFactureDialog({
   };
 
   const updateLigne = (index: number, field: keyof FactureLigne, value: any) => {
-    setLignes(prev => prev.map((ligne, i) => 
-      i === index ? { ...ligne, [field]: value } : ligne
-    ));
+    setLignes(prev => prev.map((ligne, i) => {
+      if (i !== index) return ligne;
+      
+      const updatedLigne = { ...ligne, [field]: value };
+      
+      // Recalculer les montants si quantité ou prix unitaire HT change
+      if (field === 'quantite' || field === 'prix_unitaire_ht') {
+        const quantite = field === 'quantite' ? parseFloat(value) || 0 : updatedLigne.quantite;
+        const prixUnitaire = field === 'prix_unitaire_ht' ? parseFloat(value) || 0 : updatedLigne.prix_unitaire_ht;
+        updatedLigne.prix_ht = quantite * prixUnitaire;
+      }
+      
+      // Recalculer TVA et TTC si prix HT ou taux TVA change
+      if (field === 'quantite' || field === 'prix_unitaire_ht' || field === 'taux_tva' || field === 'prix_ht') {
+        const prixHt = updatedLigne.prix_ht || 0;
+        const tauxTva = field === 'taux_tva' ? parseFloat(value) || 0 : updatedLigne.taux_tva;
+        updatedLigne.montant_tva = prixHt * tauxTva / 100;
+        updatedLigne.prix_ttc = prixHt + updatedLigne.montant_tva;
+      }
+      
+      return updatedLigne;
+    }));
   };
 
   const calculateTotals = () => {
@@ -358,6 +381,8 @@ export default function AddFactureDialog({
         facture_id: facture.id,
         ordre: ligne.ordre,
         description: ligne.description,
+        quantite: ligne.quantite,
+        prix_unitaire_ht: ligne.prix_unitaire_ht,
         prix_ht: ligne.prix_ht,
         taux_tva: ligne.taux_tva,
       }));
@@ -523,56 +548,117 @@ export default function AddFactureDialog({
               </Button>
             </div>
 
-            <div className="space-y-2">
-              {lignes.map((ligne, index) => (
-                <div key={index} className="grid grid-cols-12 gap-2 p-2 border rounded">
-                  <div className="col-span-5">
-                    <Input
-                      placeholder="Description"
+            {lignes.map((ligne, index) => (
+              <div key={index} className="space-y-4 p-4 border rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="md:col-span-2">
+                    <Label htmlFor={`description-${index}`}>Description</Label>
+                    <Textarea
+                      id={`description-${index}`}
                       value={ligne.description}
-                      onChange={(e) => updateLigne(index, 'description', e.target.value)}
+                      onChange={(e) => updateLigne(index, "description", e.target.value)}
+                      placeholder="Description de la ligne"
                       required
                     />
                   </div>
-                  <div className="col-span-2">
+                  <div>
+                    <Label htmlFor={`ordre-${index}`}>Ordre</Label>
                     <Input
+                      id={`ordre-${index}`}
                       type="number"
-                      placeholder="Prix HT"
-                      value={ligne.prix_ht}
-                      onChange={(e) => updateLigne(index, 'prix_ht', parseFloat(e.target.value) || 0)}
-                      step="0.01"
-                      required
+                      min="1"
+                      value={ligne.ordre}
+                      onChange={(e) => updateLigne(index, "ordre", parseInt(e.target.value))}
                     />
-                  </div>
-                  <div className="col-span-2">
-                    <Input
-                      type="number"
-                      placeholder="TVA %"
-                      value={ligne.taux_tva}
-                      onChange={(e) => updateLigne(index, 'taux_tva', parseFloat(e.target.value) || 0)}
-                      step="0.01"
-                      required
-                    />
-                  </div>
-                  <div className="col-span-2 flex items-center">
-                    <span className="text-sm font-medium">
-                      TTC: {((ligne.prix_ht || 0) * (1 + (ligne.taux_tva || 0) / 100)).toFixed(2)} €
-                    </span>
-                  </div>
-                  <div className="col-span-1 flex items-center">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeLigne(index)}
-                      disabled={lignes.length === 1}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </div>
                 </div>
-              ))}
-            </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                  <div>
+                    <Label htmlFor={`quantite-${index}`}>Quantité</Label>
+                    <Input
+                      id={`quantite-${index}`}
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={ligne.quantite}
+                      onChange={(e) => updateLigne(index, "quantite", e.target.value)}
+                      placeholder="1"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor={`prix_unitaire_ht-${index}`}>Prix unitaire HT (€)</Label>
+                    <Input
+                      id={`prix_unitaire_ht-${index}`}
+                      type="number"
+                      step="0.01"
+                      value={ligne.prix_unitaire_ht}
+                      onChange={(e) => updateLigne(index, "prix_unitaire_ht", e.target.value)}
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor={`taux_tva-${index}`}>Taux TVA (%)</Label>
+                    <Input
+                      id={`taux_tva-${index}`}
+                      type="number"
+                      step="0.01"
+                      value={ligne.taux_tva}
+                      onChange={(e) => updateLigne(index, "taux_tva", e.target.value)}
+                      placeholder="20.00"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Montant HT (€)</Label>
+                    <Input
+                      type="text"
+                      value={ligne.prix_ht.toFixed(2)}
+                      disabled
+                      className="bg-muted"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Montant TVA (€)</Label>
+                    <Input
+                      type="text"
+                      value={(ligne.montant_tva || 0).toFixed(2)}
+                      disabled
+                      className="bg-muted"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Montant TTC (€)</Label>
+                    <Input
+                      type="text"
+                      value={(ligne.prix_ttc || 0).toFixed(2)}
+                      disabled
+                      className="bg-muted"
+                    />
+                  </div>
+                </div>
+
+                {lignes.length > 1 && (
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => removeLigne(index)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Supprimer
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
 
           {/* Totaux */}
