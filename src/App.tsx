@@ -33,6 +33,8 @@ import Prestataires from "./pages/Prestataires";
 import Contrats from "./pages/Contrats";
 import Salaries from "./pages/Salaries";
 import { Missions } from "./pages/Missions";
+import FournisseursGeneraux from "./pages/FournisseursGeneraux";
+import FournisseursServices from "./pages/FournisseursServices";
 
 const queryClient = new QueryClient();
 
@@ -82,6 +84,8 @@ const App = () => (
               <Route path="clients" element={<Clients />} />
               <Route path="referents" element={<Referents />} />
               <Route path="prestataires" element={<Prestataires />} />
+              <Route path="fournisseurs-generaux" element={<FournisseursGeneraux />} />
+              <Route path="fournisseurs-services" element={<FournisseursServices />} />
               <Route path="contrats" element={<Contrats />} />
               <Route path="salaries" element={<Salaries />} />
               <Route path="postes" element={<Postes />} />

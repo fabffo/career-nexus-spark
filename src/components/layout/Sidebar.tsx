@@ -51,6 +51,8 @@ export function Sidebar() {
         { path: '/clients', label: 'Clients', icon: Building2 },
         { path: '/prestataires', label: 'Prestataires', icon: UserCheck },
         { path: '/salaries', label: 'Salariés', icon: Users },
+        { path: '/fournisseurs-generaux', label: 'Fournisseurs Généraux', icon: Building2 },
+        { path: '/fournisseurs-services', label: 'Fournisseurs Services', icon: Building2 },
       ]
     },
     {
