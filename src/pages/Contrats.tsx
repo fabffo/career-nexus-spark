@@ -933,21 +933,16 @@ export default function Contrats() {
               </div>
 
               <div>
-                <Label className="text-muted-foreground">Type</Label>
-                <p className="font-medium">{getTypeLabel(selectedContrat.type)}</p>
-              </div>
-
-              <div>
-                <Label className="text-muted-foreground">Partie contractante</Label>
+                <Label className="text-muted-foreground">Client</Label>
                 <p className="font-medium">
                   {selectedContrat.type === 'CLIENT' && selectedContrat.client
-                    ? selectedContrat.client.raison_sociale
+                    ? selectedContrat.client.raisonSociale || selectedContrat.client.raison_sociale
                     : selectedContrat.type === 'PRESTATAIRE' && selectedContrat.prestataire
                     ? `${selectedContrat.prestataire.nom} ${selectedContrat.prestataire.prenom}`
                     : selectedContrat.type === 'FOURNISSEUR_SERVICES' && selectedContrat.fournisseur_services
-                    ? selectedContrat.fournisseur_services.raison_sociale
+                    ? selectedContrat.fournisseur_services.raisonSociale || selectedContrat.fournisseur_services.raison_sociale
                     : selectedContrat.type === 'FOURNISSEUR_GENERAL' && selectedContrat.fournisseur_general
-                    ? selectedContrat.fournisseur_general.raison_sociale
+                    ? selectedContrat.fournisseur_general.raisonSociale || selectedContrat.fournisseur_general.raison_sociale
                     : 'Non renseigné'}
                 </p>
               </div>
