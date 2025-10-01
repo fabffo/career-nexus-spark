@@ -20,6 +20,14 @@ interface AddMissionDialogProps {
   onSuccess: () => void;
 }
 
+interface TypeParam {
+  id: string;
+  code: string;
+  libelle: string;
+  is_active: boolean;
+  ordre: number;
+}
+
 export function AddMissionDialog({ open, onOpenChange, onSuccess }: AddMissionDialogProps) {
   const [loading, setLoading] = useState(false);
   const [tvaRates, setTvaRates] = useState<Tva[]>([]);
@@ -27,6 +35,8 @@ export function AddMissionDialog({ open, onOpenChange, onSuccess }: AddMissionDi
   const [postes, setPostes] = useState<PosteClient[]>([]);
   const [prestataires, setPrestataires] = useState<any[]>([]);
   const [salaries, setSalaries] = useState<any[]>([]);
+  const [typeMissions, setTypeMissions] = useState<TypeParam[]>([]);
+  const [typeIntervenants, setTypeIntervenants] = useState<TypeParam[]>([]);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState<Partial<Mission>>({
@@ -47,12 +57,14 @@ export function AddMissionDialog({ open, onOpenChange, onSuccess }: AddMissionDi
 
   const loadData = async () => {
     try {
-      const [tvaData, contratsData, postesData, prestatairesRes, salariesRes] = await Promise.all([
+      const [tvaData, contratsData, postesData, prestatairesRes, salariesRes, typeMissionsRes, typeIntervenantsRes] = await Promise.all([
         missionService.getTvaRates(),
         contratService.getAll(),
         posteService.getAll(),
         supabase.from('prestataires').select('*').order('nom'),
-        supabase.from('salaries').select('*').order('nom')
+        supabase.from('salaries').select('*').order('nom'),
+        supabase.from('param_type_mission' as any).select('*').eq('is_active', true).order('ordre'),
+        supabase.from('param_type_intervenant' as any).select('*').eq('is_active', true).order('ordre')
       ]);
 
       setTvaRates(tvaData);
@@ -60,6 +72,8 @@ export function AddMissionDialog({ open, onOpenChange, onSuccess }: AddMissionDi
       setPostes(postesData);
       setPrestataires(prestatairesRes.data || []);
       setSalaries(salariesRes.data || []);
+      setTypeMissions((typeMissionsRes.data as any) || []);
+      setTypeIntervenants((typeIntervenantsRes.data as any) || []);
 
       // Set default TVA
       const defaultTva = tvaData.find(t => t.is_default);
@@ -68,6 +82,20 @@ export function AddMissionDialog({ open, onOpenChange, onSuccess }: AddMissionDi
           ...prev,
           tva_id: defaultTva.id,
           taux_tva: defaultTva.taux
+        }));
+      }
+
+      // Set default type mission and type intervenant
+      if (typeMissionsRes.data && typeMissionsRes.data.length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          type_mission: (typeMissionsRes.data as any)[0].code as TypeMission
+        }));
+      }
+      if (typeIntervenantsRes.data && typeIntervenantsRes.data.length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          type_intervenant: (typeIntervenantsRes.data as any)[0].code as TypeIntervenant
         }));
       }
     } catch (error) {
@@ -266,9 +294,11 @@ export function AddMissionDialog({ open, onOpenChange, onSuccess }: AddMissionDi
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="FORFAIT">Forfait</SelectItem>
-                  <SelectItem value="TJM">TJM (Taux journalier)</SelectItem>
-                  <SelectItem value="RECRUTEMENT">Recrutement</SelectItem>
+                  {typeMissions.map(type => (
+                    <SelectItem key={type.id} value={type.code}>
+                      {type.libelle}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -283,8 +313,11 @@ export function AddMissionDialog({ open, onOpenChange, onSuccess }: AddMissionDi
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="PRESTATAIRE">Prestataire</SelectItem>
-                  <SelectItem value="SALARIE">Salarié</SelectItem>
+                  {typeIntervenants.map(type => (
+                    <SelectItem key={type.id} value={type.code}>
+                      {type.libelle}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
