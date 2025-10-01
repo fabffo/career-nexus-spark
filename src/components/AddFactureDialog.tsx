@@ -37,6 +37,7 @@ export default function AddFactureDialog({
   
   const [formData, setFormData] = useState({
     type_facture: 'VENTES' as 'VENTES' | 'ACHATS',
+    numero_facture: '' as string | undefined,
     date_emission: new Date().toISOString().split('T')[0],
     date_echeance: '',
     emetteur_type: '',
@@ -73,6 +74,7 @@ export default function AddFactureDialog({
         const { id, numero_facture, created_at, updated_at, created_by, lignes, ...dataToUse } = initialData;
         setFormData({
           ...dataToUse,
+          numero_facture: '', // Pour une copie, on génère un nouveau numéro
           emetteur_id: dataToUse.emetteur_id || '',
           emetteur_adresse: dataToUse.emetteur_adresse || '',
           emetteur_telephone: dataToUse.emetteur_telephone || '',
@@ -393,18 +395,32 @@ export default function AddFactureDialog({
     setLoading(true);
 
     try {
-      // Générer le numéro de facture
-      const { data: numeroData, error: numeroError } = await supabase
-        .rpc('generate_numero_facture', { p_type: formData.type_facture });
+      let numeroFacture = formData.numero_facture;
+      
+      // Pour les factures de vente, générer automatiquement le numéro
+      if (formData.type_facture === 'VENTES') {
+        const { data: numeroData, error: numeroError } = await supabase
+          .rpc('generate_numero_facture', { p_type: formData.type_facture });
 
-      if (numeroError) throw numeroError;
+        if (numeroError) throw numeroError;
+        numeroFacture = numeroData;
+      } else if (formData.type_facture === 'ACHATS' && !numeroFacture) {
+        // Pour les factures d'achat, vérifier que le numéro est saisi
+        toast({
+          title: "Erreur",
+          description: "Veuillez saisir le numéro de facture fournisseur",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
 
       // Créer la facture
       const { data: facture, error: factureError } = await supabase
         .from('factures')
         .insert({
           ...formData,
-          numero_facture: numeroData,
+          numero_facture: numeroFacture,
         })
         .select()
         .single();
@@ -488,8 +504,20 @@ export default function AddFactureDialog({
             </div>
           </div>
 
-          {/* Dates */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Dates et Numéro de facture */}
+          <div className="grid grid-cols-3 gap-4">
+            {formData.type_facture === 'ACHATS' && (
+              <div>
+                <Label>Numéro de facture *</Label>
+                <Input
+                  type="text"
+                  value={formData.numero_facture || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, numero_facture: e.target.value }))}
+                  placeholder="N° facture fournisseur"
+                  required={formData.type_facture === 'ACHATS'}
+                />
+              </div>
+            )}
             <div>
               <Label>Date d'émission</Label>
               <Input

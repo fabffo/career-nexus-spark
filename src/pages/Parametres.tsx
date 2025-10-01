@@ -54,21 +54,35 @@ interface TypeIntervenant {
   updated_at?: string;
 }
 
+interface FactureSequence {
+  id: string;
+  type_facture: string;
+  prefixe: string;
+  prochain_numero: number;
+  annee?: number;
+  format: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export default function Parametres() {
   const [tvaList, setTvaList] = useState<Tva[]>([]);
   const [typeMissionList, setTypeMissionList] = useState<TypeMission[]>([]);
   const [typeIntervenantList, setTypeIntervenantList] = useState<TypeIntervenant[]>([]);
+  const [factureSequences, setFactureSequences] = useState<FactureSequence[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modal states
   const [tvaDialog, setTvaDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as Tva | null });
   const [typeMissionDialog, setTypeMissionDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as TypeMission | null });
   const [typeIntervenantDialog, setTypeIntervenantDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as TypeIntervenant | null });
+  const [sequenceDialog, setSequenceDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as FactureSequence | null });
 
   // Form states
   const [tvaForm, setTvaForm] = useState({ taux: 20, libelle: '', is_default: false });
   const [typeMissionForm, setTypeMissionForm] = useState({ code: '', libelle: '', is_active: true, ordre: 0 });
   const [typeIntervenantForm, setTypeIntervenantForm] = useState({ code: '', libelle: '', is_active: true, ordre: 0 });
+  const [sequenceForm, setSequenceForm] = useState({ type_facture: 'VENTES', prefixe: 'FAC-V', prochain_numero: 1, annee: new Date().getFullYear(), format: '{prefixe}-{annee}-{numero}' });
 
   useEffect(() => {
     loadData();
@@ -110,6 +124,19 @@ export default function Parametres() {
         setTypeIntervenantList([]);
       } else {
         setTypeIntervenantList((intervenantData as any) || []);
+      }
+
+      // Load Facture Sequences
+      const { data: sequenceData, error: sequenceError } = await supabase
+        .from('facture_sequences' as any)
+        .select('*')
+        .order('annee', { ascending: false });
+      
+      if (sequenceError) {
+        console.warn('Table facture_sequences not found yet:', sequenceError);
+        setFactureSequences([]);
+      } else {
+        setFactureSequences((sequenceData as any) || []);
       }
 
     } catch (error) {
@@ -348,15 +375,112 @@ export default function Parametres() {
     });
   };
 
+  // Facture Sequence handlers
+  const handleSequenceSubmit = async () => {
+    try {
+      if (sequenceDialog.mode === 'create' || sequenceDialog.mode === 'edit') {
+        const data = {
+          ...sequenceForm,
+          annee: sequenceForm.annee || null,
+        };
+
+        if (sequenceDialog.mode === 'edit' && sequenceDialog.item) {
+          const { error } = await supabase
+            .from('facture_sequences' as any)
+            .update(data)
+            .eq('id', sequenceDialog.item.id);
+          
+          if (error) throw error;
+          toast({
+            title: "Succès",
+            description: "Séquence de facturation modifiée avec succès",
+          });
+        } else {
+          const { error } = await supabase
+            .from('facture_sequences' as any)
+            .insert(data);
+          
+          if (error) throw error;
+          toast({
+            title: "Succès",
+            description: "Séquence de facturation créée avec succès",
+          });
+        }
+        
+        loadData();
+        setSequenceDialog({ open: false, mode: 'create', item: null });
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'enregistrer la séquence de facturation",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSequenceDelete = async (id: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette séquence ?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('facture_sequences' as any)
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Succès",
+        description: "Séquence supprimée avec succès",
+      });
+      loadData();
+    } catch (error) {
+      console.error('Erreur:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer cette séquence",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openSequenceDialog = (mode: 'create' | 'edit' | 'view' | 'copy', item?: FactureSequence) => {
+    if (item) {
+      setSequenceForm({
+        type_facture: item.type_facture,
+        prefixe: mode === 'copy' ? item.prefixe : item.prefixe,
+        prochain_numero: mode === 'copy' ? 1 : item.prochain_numero,
+        annee: item.annee || new Date().getFullYear(),
+        format: item.format,
+      });
+    } else {
+      setSequenceForm({ 
+        type_facture: 'VENTES', 
+        prefixe: 'FAC-V', 
+        prochain_numero: 1, 
+        annee: new Date().getFullYear(), 
+        format: '{prefixe}-{annee}-{numero}' 
+      });
+    }
+    setSequenceDialog({ 
+      open: true, 
+      mode: mode === 'copy' ? 'create' : mode, 
+      item: mode === 'copy' ? null : item || null 
+    });
+  };
+
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-3xl font-bold mb-6">Paramètres</h1>
 
         <Tabs defaultValue="tva" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="tva">TVA</TabsTrigger>
             <TabsTrigger value="type-mission">Types de Mission</TabsTrigger>
             <TabsTrigger value="type-intervenant">Types d'Intervenant</TabsTrigger>
+            <TabsTrigger value="facture-sequences">Numérotation Factures</TabsTrigger>
           </TabsList>
 
           {/* TVA Tab */}
@@ -573,6 +697,93 @@ export default function Parametres() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Facture Sequences Tab */}
+          <TabsContent value="facture-sequences">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Gestion de la numérotation des factures</CardTitle>
+                <Button onClick={() => openSequenceDialog('create')}>
+                  <Plus className="mr-2 h-4 w-4" /> Ajouter une séquence
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4 p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    Configuration du format de numérotation automatique des factures de vente. 
+                    Les factures d'achat utilisent le numéro fourni par le fournisseur.
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Variables disponibles : {'{prefixe}'}, {'{annee}'}, {'{numero}'}
+                  </p>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Préfixe</TableHead>
+                      <TableHead>Prochain N°</TableHead>
+                      <TableHead>Année</TableHead>
+                      <TableHead>Format</TableHead>
+                      <TableHead>Exemple</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {factureSequences.map((seq) => {
+                      const exemple = seq.format
+                        .replace('{prefixe}', seq.prefixe)
+                        .replace('{annee}', seq.annee?.toString() || new Date().getFullYear().toString())
+                        .replace('{numero}', seq.prochain_numero.toString().padStart(5, '0'));
+                      
+                      return (
+                        <TableRow key={seq.id}>
+                          <TableCell className="font-medium">{seq.type_facture}</TableCell>
+                          <TableCell>{seq.prefixe}</TableCell>
+                          <TableCell>{seq.prochain_numero}</TableCell>
+                          <TableCell>{seq.annee || 'Toutes'}</TableCell>
+                          <TableCell className="font-mono text-sm">{seq.format}</TableCell>
+                          <TableCell className="font-mono text-sm text-muted-foreground">{exemple}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openSequenceDialog('view', seq)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openSequenceDialog('edit', seq)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openSequenceDialog('copy', seq)}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleSequenceDelete(seq.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
 
         {/* TVA Dialog */}
@@ -737,6 +948,96 @@ export default function Parametres() {
               {typeIntervenantDialog.mode !== 'view' && (
                 <Button onClick={handleTypeIntervenantSubmit}>
                   {typeIntervenantDialog.mode === 'edit' ? 'Modifier' : 'Créer'}
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Facture Sequence Dialog */}
+        <Dialog open={sequenceDialog.open} onOpenChange={(open) => setSequenceDialog({ ...sequenceDialog, open })}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {sequenceDialog.mode === 'create' && 'Créer une séquence'}
+                {sequenceDialog.mode === 'edit' && 'Modifier la séquence'}
+                {sequenceDialog.mode === 'view' && 'Détails de la séquence'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="type_facture">Type de facture</Label>
+                <Input
+                  id="type_facture"
+                  value={sequenceForm.type_facture}
+                  disabled={true}
+                  className="bg-muted"
+                />
+                <p className="text-sm text-muted-foreground">
+                  Les séquences sont réservées aux factures de vente
+                </p>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="prefixe">Préfixe</Label>
+                <Input
+                  id="prefixe"
+                  value={sequenceForm.prefixe}
+                  onChange={(e) => setSequenceForm({ ...sequenceForm, prefixe: e.target.value })}
+                  disabled={sequenceDialog.mode === 'view'}
+                  placeholder="Ex: FAC-V"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="prochain_numero">Prochain numéro</Label>
+                <Input
+                  id="prochain_numero"
+                  type="number"
+                  value={sequenceForm.prochain_numero}
+                  onChange={(e) => setSequenceForm({ ...sequenceForm, prochain_numero: parseInt(e.target.value) || 1 })}
+                  disabled={sequenceDialog.mode === 'view'}
+                  min="1"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="annee">Année (optionnel)</Label>
+                <Input
+                  id="annee"
+                  type="number"
+                  value={sequenceForm.annee}
+                  onChange={(e) => setSequenceForm({ ...sequenceForm, annee: parseInt(e.target.value) || new Date().getFullYear() })}
+                  disabled={sequenceDialog.mode === 'view'}
+                  placeholder="Laisser vide pour toutes les années"
+                  min="2000"
+                  max="2100"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="format">Format</Label>
+                <Input
+                  id="format"
+                  value={sequenceForm.format}
+                  onChange={(e) => setSequenceForm({ ...sequenceForm, format: e.target.value })}
+                  disabled={sequenceDialog.mode === 'view'}
+                  placeholder="{prefixe}-{annee}-{numero}"
+                />
+                <p className="text-sm text-muted-foreground">
+                  Variables: {'{prefixe}'}, {'{annee}'}, {'{numero}'}
+                </p>
+              </div>
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm font-medium">Exemple de numéro généré :</p>
+                <p className="text-sm font-mono mt-1">
+                  {sequenceForm.format
+                    .replace('{prefixe}', sequenceForm.prefixe)
+                    .replace('{annee}', sequenceForm.annee?.toString() || new Date().getFullYear().toString())
+                    .replace('{numero}', sequenceForm.prochain_numero.toString().padStart(5, '0'))}
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              {sequenceDialog.mode !== 'view' && (
+                <Button onClick={handleSequenceSubmit}>
+                  {sequenceDialog.mode === 'edit' ? 'Modifier' : 'Créer'}
                 </Button>
               )}
             </DialogFooter>

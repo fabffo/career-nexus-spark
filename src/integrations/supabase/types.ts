@@ -349,6 +349,39 @@ export type Database = {
           },
         ]
       }
+      facture_sequences: {
+        Row: {
+          annee: number | null
+          created_at: string | null
+          format: string
+          id: string
+          prefixe: string
+          prochain_numero: number
+          type_facture: string
+          updated_at: string | null
+        }
+        Insert: {
+          annee?: number | null
+          created_at?: string | null
+          format?: string
+          id?: string
+          prefixe?: string
+          prochain_numero?: number
+          type_facture?: string
+          updated_at?: string | null
+        }
+        Update: {
+          annee?: number | null
+          created_at?: string | null
+          format?: string
+          id?: string
+          prefixe?: string
+          prochain_numero?: number
+          type_facture?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       factures: {
         Row: {
           created_at: string | null
@@ -1203,6 +1236,10 @@ export type Database = {
       }
       get_next_contract_number: {
         Args: { p_year: number }
+        Returns: string
+      }
+      get_next_facture_numero: {
+        Args: { p_type_facture?: string }
         Returns: string
       }
       user_has_role: {
