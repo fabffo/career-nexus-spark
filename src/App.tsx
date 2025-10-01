@@ -36,6 +36,7 @@ import { Missions } from "./pages/Missions";
 import FournisseursGeneraux from "./pages/FournisseursGeneraux";
 import FournisseursServices from "./pages/FournisseursServices";
 import Factures from "./pages/Factures";
+import Parametres from "./pages/Parametres";
 
 const queryClient = new QueryClient();
 
@@ -96,6 +97,7 @@ const App = () => (
               <Route path="matching" element={<Matching />} />
               <Route path="commentaires" element={<Dashboard />} />
               <Route path="admin" element={<Admin />} />
+              <Route path="parametres" element={<Parametres />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />

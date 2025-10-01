@@ -6,9 +6,9 @@ import { EmailHistoryDialog } from '@/components/EmailHistoryDialog';
 import { SocieteInterneDialog } from '@/components/SocieteInterneDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Settings, ShieldCheck, Mail, Building2 } from 'lucide-react';
+import { Users, Settings, ShieldCheck, Mail, Building2, SlidersHorizontal } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 
 export default function Admin() {
   const [openCandidatAdmin, setOpenCandidatAdmin] = useState(false);
@@ -17,6 +17,7 @@ export default function Admin() {
   const [openEmailHistory, setOpenEmailHistory] = useState(false);
   const [openSocieteInterne, setOpenSocieteInterne] = useState(false);
   const { profile } = useAuth();
+  const navigate = useNavigate();
 
   // Vérifier que l'utilisateur est admin
   if (profile?.role !== 'ADMIN') {
@@ -109,6 +110,23 @@ export default function Admin() {
             </CardTitle>
             <CardDescription>
               Gérer les informations de la société et les coordonnées bancaires
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full" variant="outline">
+              Ouvrir
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/parametres')}>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <SlidersHorizontal className="h-5 w-5 text-primary" />
+              Paramètres
+            </CardTitle>
+            <CardDescription>
+              Gérer les paramètres métiers (TVA, types de mission, types d'intervenant)
             </CardDescription>
           </CardHeader>
           <CardContent>
