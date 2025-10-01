@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Edit, Copy, Eye, Trash2 } from "lucide-react";
@@ -87,23 +86,31 @@ export default function Parametres() {
       if (tvaError) throw tvaError;
       setTvaList(tvaData || []);
 
-      // Load Type Mission
+      // Load Type Mission - using type assertion to handle missing tables
       const { data: missionData, error: missionError } = await supabase
-        .from('type_mission')
+        .from('param_type_mission' as any)
         .select('*')
         .order('ordre', { ascending: true });
       
-      if (missionError) throw missionError;
-      setTypeMissionList(missionData || []);
+      if (missionError) {
+        console.warn('Table param_type_mission not found yet:', missionError);
+        setTypeMissionList([]);
+      } else {
+        setTypeMissionList((missionData as any) || []);
+      }
 
-      // Load Type Intervenant
+      // Load Type Intervenant - using type assertion to handle missing tables
       const { data: intervenantData, error: intervenantError } = await supabase
-        .from('type_intervenant')
+        .from('param_type_intervenant' as any)
         .select('*')
         .order('ordre', { ascending: true });
       
-      if (intervenantError) throw intervenantError;
-      setTypeIntervenantList(intervenantData || []);
+      if (intervenantError) {
+        console.warn('Table param_type_intervenant not found yet:', intervenantError);
+        setTypeIntervenantList([]);
+      } else {
+        setTypeIntervenantList((intervenantData as any) || []);
+      }
 
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
@@ -198,7 +205,7 @@ export default function Parametres() {
 
       if (typeMissionDialog.mode === 'edit' && typeMissionDialog.item) {
         const { error } = await supabase
-          .from('type_mission')
+          .from('param_type_mission' as any)
           .update(typeMissionForm)
           .eq('id', typeMissionDialog.item.id);
         
@@ -206,7 +213,7 @@ export default function Parametres() {
         toast({ title: "Type de mission modifié avec succès" });
       } else {
         const { error } = await supabase
-          .from('type_mission')
+          .from('param_type_mission' as any)
           .insert([typeMissionForm]);
         
         if (error) throw error;
@@ -231,7 +238,7 @@ export default function Parametres() {
     
     try {
       const { error } = await supabase
-        .from('type_mission')
+        .from('param_type_mission' as any)
         .delete()
         .eq('id', id);
       
@@ -273,7 +280,7 @@ export default function Parametres() {
 
       if (typeIntervenantDialog.mode === 'edit' && typeIntervenantDialog.item) {
         const { error } = await supabase
-          .from('type_intervenant')
+          .from('param_type_intervenant' as any)
           .update(typeIntervenantForm)
           .eq('id', typeIntervenantDialog.item.id);
         
@@ -281,7 +288,7 @@ export default function Parametres() {
         toast({ title: "Type d'intervenant modifié avec succès" });
       } else {
         const { error } = await supabase
-          .from('type_intervenant')
+          .from('param_type_intervenant' as any)
           .insert([typeIntervenantForm]);
         
         if (error) throw error;
@@ -306,7 +313,7 @@ export default function Parametres() {
     
     try {
       const { error } = await supabase
-        .from('type_intervenant')
+        .from('param_type_intervenant' as any)
         .delete()
         .eq('id', id);
       
@@ -342,9 +349,8 @@ export default function Parametres() {
   };
 
   return (
-    <MainLayout>
-      <div className="container mx-auto py-6">
-        <h1 className="text-3xl font-bold mb-6">Paramètres</h1>
+    <div className="container mx-auto py-6">
+      <h1 className="text-3xl font-bold mb-6">Paramètres</h1>
 
         <Tabs defaultValue="tva" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
@@ -736,7 +742,6 @@ export default function Parametres() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
-    </MainLayout>
+    </div>
   );
 }
