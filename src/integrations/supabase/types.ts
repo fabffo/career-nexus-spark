@@ -306,6 +306,8 @@ export type Database = {
           ordre: number
           prix_ht: number
           prix_ttc: number | null
+          prix_unitaire_ht: number
+          quantite: number
           taux_tva: number
           updated_at: string | null
         }
@@ -318,6 +320,8 @@ export type Database = {
           ordre?: number
           prix_ht: number
           prix_ttc?: number | null
+          prix_unitaire_ht: number
+          quantite?: number
           taux_tva?: number
           updated_at?: string | null
         }
@@ -330,6 +334,8 @@ export type Database = {
           ordre?: number
           prix_ht?: number
           prix_ttc?: number | null
+          prix_unitaire_ht?: number
+          quantite?: number
           taux_tva?: number
           updated_at?: string | null
         }
@@ -672,6 +678,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      param_type_intervenant: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          libelle: string
+          ordre: number | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          libelle: string
+          ordre?: number | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          libelle?: string
+          ordre?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      param_type_mission: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          libelle: string
+          ordre: number | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          libelle: string
+          ordre?: number | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          libelle?: string
+          ordre?: number | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       postes: {
         Row: {
