@@ -37,6 +37,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export interface Facture {
   id: string;
@@ -91,6 +98,9 @@ export default function FacturesVentes() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [selectedYear, setSelectedYear] = useState<string>("all");
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [stats, setStats] = useState({
     totalFactures: 0,
     totalHT: 0,
@@ -102,16 +112,35 @@ export default function FacturesVentes() {
 
   useEffect(() => {
     fetchFactures();
-  }, []);
+  }, [selectedYear, selectedMonth]);
 
   const fetchFactures = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('factures')
         .select('*')
-        .eq('type_facture', 'VENTES')
-        .order('date_emission', { ascending: false });
+        .eq('type_facture', 'VENTES');
+
+      // Filtrer par année et mois si sélectionné
+      if (selectedYear !== "all") {
+        const yearNum = parseInt(selectedYear);
+        
+        if (selectedMonth !== "all") {
+          // Filtrer par année ET mois
+          const monthNum = parseInt(selectedMonth);
+          const startDate = new Date(yearNum, monthNum - 1, 1).toISOString().split('T')[0];
+          const endDate = new Date(yearNum, monthNum, 0).toISOString().split('T')[0];
+          query = query.gte('date_emission', startDate).lte('date_emission', endDate);
+        } else {
+          // Filtrer par année uniquement
+          const startDate = `${yearNum}-01-01`;
+          const endDate = `${yearNum}-12-31`;
+          query = query.gte('date_emission', startDate).lte('date_emission', endDate);
+        }
+      }
+
+      const { data, error } = await query.order('date_emission', { ascending: false });
 
       if (error) throw error;
       
@@ -120,6 +149,16 @@ export default function FacturesVentes() {
         type_facture: f.type_facture as 'VENTES' | 'ACHATS',
         statut: f.statut as 'BROUILLON' | 'VALIDEE' | 'PAYEE' | 'ANNULEE',
       }));
+      
+      // Extraire les années disponibles
+      const years = new Set<string>();
+      facturesData.forEach(f => {
+        if (f.date_emission) {
+          const year = new Date(f.date_emission).getFullYear().toString();
+          years.add(year);
+        }
+      });
+      setAvailableYears(Array.from(years).sort((a, b) => parseInt(b) - parseInt(a)));
       
       setFactures(facturesData);
       
@@ -429,6 +468,44 @@ export default function FacturesVentes() {
           }
           className="max-w-sm"
         />
+        
+        <Select value={selectedYear} onValueChange={setSelectedYear}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Année" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toutes les années</SelectItem>
+            {availableYears.map(year => (
+              <SelectItem key={year} value={year}>{year}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select 
+          value={selectedMonth} 
+          onValueChange={setSelectedMonth}
+          disabled={selectedYear === "all"}
+        >
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Mois" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les mois</SelectItem>
+            <SelectItem value="1">Janvier</SelectItem>
+            <SelectItem value="2">Février</SelectItem>
+            <SelectItem value="3">Mars</SelectItem>
+            <SelectItem value="4">Avril</SelectItem>
+            <SelectItem value="5">Mai</SelectItem>
+            <SelectItem value="6">Juin</SelectItem>
+            <SelectItem value="7">Juillet</SelectItem>
+            <SelectItem value="8">Août</SelectItem>
+            <SelectItem value="9">Septembre</SelectItem>
+            <SelectItem value="10">Octobre</SelectItem>
+            <SelectItem value="11">Novembre</SelectItem>
+            <SelectItem value="12">Décembre</SelectItem>
+          </SelectContent>
+        </Select>
+        
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="ml-auto">
