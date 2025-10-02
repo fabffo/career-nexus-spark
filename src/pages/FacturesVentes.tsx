@@ -355,7 +355,7 @@ export default function FacturesVentes() {
         </div>
         <Button 
           onClick={() => {
-            setSelectedFacture({ type_facture: 'VENTES' } as any);
+            setSelectedFacture(null);
             setOpenAddDialog(true);
           }}
           className="bg-green-600 hover:bg-green-700"
