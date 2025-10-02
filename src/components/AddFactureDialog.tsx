@@ -91,7 +91,7 @@ export default function AddFactureDialog({
         if (initialData.lignes) {
           setLignes(initialData.lignes);
         }
-      } else if (formData.type_facture === 'VENTES') {
+      } else {
         // Pour une nouvelle facture de vente, appliquer les données de société interne
         // Construire les informations de paiement
         let infoPaiement = '';
@@ -105,8 +105,7 @@ export default function AddFactureDialog({
           infoPaiement += `BIC: ${societeInterne.bic}`;
         }
         
-        setFormData(prev => ({
-          ...prev,
+        setFormData({
           type_facture: 'VENTES',
           numero_facture: '',
           date_emission: new Date().toISOString().split('T')[0],
@@ -126,7 +125,7 @@ export default function AddFactureDialog({
           informations_paiement: infoPaiement.trim(),
           reference_societe: societeInterne.siren || '',
           statut: 'BROUILLON',
-        }));
+        });
         setLignes([{ ordre: 1, description: '', quantite: 1, prix_unitaire_ht: 0, prix_ht: 0, taux_tva: 20, montant_tva: 0, prix_ttc: 0 }]);
       }
     }
