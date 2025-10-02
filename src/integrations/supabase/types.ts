@@ -1268,7 +1268,7 @@ export type Database = {
       rdv_type: "RECRUTEUR" | "CLIENT"
       salarie_role: "RECRUTEUR" | "PRESTATAIRE"
       type_intervenant: "PRESTATAIRE" | "SALARIE"
-      type_mission: "FORFAIT" | "TJM" | "RECRUTEMENT"
+      type_mission: "FORFAIT" | "TJM" | "RECRUTEMENT" | "PRESTATION"
       user_role: "ADMIN" | "RECRUTEUR" | "CANDIDAT" | "CONTRAT" | "PRESTATAIRE"
     }
     CompositeTypes: {
@@ -1408,7 +1408,7 @@ export const Constants = {
       rdv_type: ["RECRUTEUR", "CLIENT"],
       salarie_role: ["RECRUTEUR", "PRESTATAIRE"],
       type_intervenant: ["PRESTATAIRE", "SALARIE"],
-      type_mission: ["FORFAIT", "TJM", "RECRUTEMENT"],
+      type_mission: ["FORFAIT", "TJM", "RECRUTEMENT", "PRESTATION"],
       user_role: ["ADMIN", "RECRUTEUR", "CANDIDAT", "CONTRAT", "PRESTATAIRE"],
     },
   },
