@@ -151,6 +151,19 @@ export function ViewMissionDialog({ open, onOpenChange, mission }: ViewMissionDi
             </div>
           </div>
 
+          {/* Client */}
+          {mission.contrat?.client && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Briefcase className="h-4 w-4" />
+                Client
+              </div>
+              <div className="text-sm font-medium">
+                {mission.contrat.client.raison_sociale}
+              </div>
+            </div>
+          )}
+
           {/* Contrat associé */}
           {mission.contrat && (
             <div className="space-y-2">

@@ -133,6 +133,15 @@ export function Missions() {
       )
     },
     {
+      accessorKey: 'client',
+      header: 'Client',
+      cell: ({ row }) => (
+        <div className="text-sm">
+          {row.original.contrat?.client?.raison_sociale || '-'}
+        </div>
+      )
+    },
+    {
       accessorKey: 'contrat',
       header: 'Contrat',
       cell: ({ row }) => (

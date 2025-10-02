@@ -8,7 +8,7 @@ class MissionService {
       .select(`
         *,
         poste:postes(*),
-        contrat:contrats(*),
+        contrat:contrats(*, client:clients(*)),
         prestataire:prestataires(*),
         salarie:salaries(*),
         tva:tva(*)
@@ -29,7 +29,7 @@ class MissionService {
       .select(`
         *,
         poste:postes(*),
-        contrat:contrats(*),
+        contrat:contrats(*, client:clients(*)),
         prestataire:prestataires(*),
         salarie:salaries(*),
         tva:tva(*)
@@ -61,7 +61,7 @@ class MissionService {
       .select(`
         *,
         poste:postes(*),
-        contrat:contrats(*),
+        contrat:contrats(*, client:clients(*)),
         prestataire:prestataires(*),
         salarie:salaries(*),
         tva:tva(*)
@@ -84,7 +84,7 @@ class MissionService {
       .select(`
         *,
         poste:postes(*),
-        contrat:contrats(*),
+        contrat:contrats(*, client:clients(*)),
         prestataire:prestataires(*),
         salarie:salaries(*),
         tva:tva(*)
