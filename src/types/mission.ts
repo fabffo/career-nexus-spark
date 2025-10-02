@@ -1,5 +1,6 @@
-export type TypeMission = 'FORFAIT' | 'TJM' | 'RECRUTEMENT';
-export type TypeIntervenant = 'PRESTATAIRE' | 'SALARIE';
+// Types dynamiques - les valeurs sont maintenant gérées dans les tables param_type_mission et param_type_intervenant
+export type TypeMission = string;
+export type TypeIntervenant = string;
 export type StatutMission = 'EN_COURS' | 'TERMINE' | 'ANNULE';
 
 export interface Tva {

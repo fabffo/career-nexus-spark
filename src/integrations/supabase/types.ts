@@ -620,8 +620,8 @@ export type Database = {
           titre: string
           tjm: number | null
           tva_id: string | null
-          type_intervenant: Database["public"]["Enums"]["type_intervenant"]
-          type_mission: Database["public"]["Enums"]["type_mission"]
+          type_intervenant: string
+          type_mission: string
           updated_at: string
         }
         Insert: {
@@ -645,8 +645,8 @@ export type Database = {
           titre: string
           tjm?: number | null
           tva_id?: string | null
-          type_intervenant: Database["public"]["Enums"]["type_intervenant"]
-          type_mission: Database["public"]["Enums"]["type_mission"]
+          type_intervenant: string
+          type_mission: string
           updated_at?: string
         }
         Update: {
@@ -670,8 +670,8 @@ export type Database = {
           titre?: string
           tjm?: number | null
           tva_id?: string | null
-          type_intervenant?: Database["public"]["Enums"]["type_intervenant"]
-          type_mission?: Database["public"]["Enums"]["type_mission"]
+          type_intervenant?: string
+          type_mission?: string
           updated_at?: string
         }
         Relationships: [
@@ -1267,8 +1267,6 @@ export type Database = {
       rdv_statut: "ENCOURS" | "REALISE" | "TERMINE" | "ANNULE"
       rdv_type: "RECRUTEUR" | "CLIENT"
       salarie_role: "RECRUTEUR" | "PRESTATAIRE"
-      type_intervenant: "PRESTATAIRE" | "SALARIE"
-      type_mission: "FORFAIT" | "TJM" | "RECRUTEMENT" | "PRESTATION"
       user_role: "ADMIN" | "RECRUTEUR" | "CANDIDAT" | "CONTRAT" | "PRESTATAIRE"
     }
     CompositeTypes: {
@@ -1407,8 +1405,6 @@ export const Constants = {
       rdv_statut: ["ENCOURS", "REALISE", "TERMINE", "ANNULE"],
       rdv_type: ["RECRUTEUR", "CLIENT"],
       salarie_role: ["RECRUTEUR", "PRESTATAIRE"],
-      type_intervenant: ["PRESTATAIRE", "SALARIE"],
-      type_mission: ["FORFAIT", "TJM", "RECRUTEMENT", "PRESTATION"],
       user_role: ["ADMIN", "RECRUTEUR", "CANDIDAT", "CONTRAT", "PRESTATAIRE"],
     },
   },
