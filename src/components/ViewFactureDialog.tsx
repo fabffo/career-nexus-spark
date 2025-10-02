@@ -67,17 +67,37 @@ export default function ViewFactureDialog({
 
   const handleDownload = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('generate-facture-pdf', {
-        body: { facture_id: facture.id }
-      });
+      // Obtenir le token de session
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
 
-      if (error) throw error;
+      // Construire l'URL de l'edge function
+      const supabaseUrl = window.location.origin.includes('lovableproject.com') 
+        ? 'https://cpwjmfxyjtrdsnkcwruq.supabase.co'
+        : 'http://localhost:54321';
 
-      // Créer un blob à partir de la réponse
-      const blob = new Blob([new Uint8Array(data)], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
+      // Appeler l'edge function pour générer le PDF
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/generate-facture-pdf`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ facture_id: facture.id }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la génération du PDF');
+      }
+
+      // Obtenir le blob du PDF
+      const blob = await response.blob();
       
       // Créer un lien de téléchargement
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = `facture_${facture.numero_facture}.pdf`;
