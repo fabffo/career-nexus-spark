@@ -837,6 +837,7 @@ export type Database = {
           cv_url: string | null
           detail_cv: string | null
           email: string | null
+          fournisseur_services_id: string | null
           id: string
           invitation_sent_at: string | null
           invitation_token: string | null
@@ -844,6 +845,7 @@ export type Database = {
           prenom: string
           recommandation_url: string | null
           telephone: string | null
+          type_prestataire: string | null
           updated_at: string | null
           user_id: string | null
         }
@@ -852,6 +854,7 @@ export type Database = {
           cv_url?: string | null
           detail_cv?: string | null
           email?: string | null
+          fournisseur_services_id?: string | null
           id?: string
           invitation_sent_at?: string | null
           invitation_token?: string | null
@@ -859,6 +862,7 @@ export type Database = {
           prenom: string
           recommandation_url?: string | null
           telephone?: string | null
+          type_prestataire?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -867,6 +871,7 @@ export type Database = {
           cv_url?: string | null
           detail_cv?: string | null
           email?: string | null
+          fournisseur_services_id?: string | null
           id?: string
           invitation_sent_at?: string | null
           invitation_token?: string | null
@@ -874,10 +879,19 @@ export type Database = {
           prenom?: string
           recommandation_url?: string | null
           telephone?: string | null
+          type_prestataire?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "prestataires_fournisseur_services_id_fkey"
+            columns: ["fournisseur_services_id"]
+            isOneToOne: false
+            referencedRelation: "fournisseurs_services"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

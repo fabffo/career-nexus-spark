@@ -9,6 +9,7 @@ import { prestataireService } from '@/services/contratService';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,6 +25,7 @@ export default function Prestataires() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [recommandationFile, setRecommandationFile] = useState<File | null>(null);
+  const [fournisseursServices, setFournisseursServices] = useState<any[]>([]);
   const { uploadFile, deleteFile, isUploading } = useFileUpload();
 
   const [formData, setFormData] = useState({
@@ -33,23 +35,48 @@ export default function Prestataires() {
     telephone: '',
     detail_cv: '',
     cv_url: '',
-    recommandation_url: ''
+    recommandation_url: '',
+    type_prestataire: 'INDEPENDANT' as 'INDEPENDANT' | 'SOCIETE',
+    fournisseur_services_id: ''
   });
 
   useEffect(() => {
     loadPrestataires();
+    loadFournisseursServices();
   }, []);
 
   const loadPrestataires = async () => {
     setLoading(true);
     try {
-      const data = await prestataireService.getAll();
-      setPrestataires(data);
+      const { data, error } = await supabase
+        .from('prestataires')
+        .select(`
+          *,
+          fournisseur_services:fournisseurs_services(*)
+        `)
+        .order('nom');
+      
+      if (error) throw error;
+      setPrestataires(data || []);
     } catch (error) {
       console.error('Erreur lors du chargement des prestataires:', error);
       toast.error('Impossible de charger les prestataires');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadFournisseursServices = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('fournisseurs_services')
+        .select('*')
+        .order('raison_sociale');
+      
+      if (error) throw error;
+      setFournisseursServices(data || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des fournisseurs:', error);
     }
   };
 
@@ -164,7 +191,9 @@ export default function Prestataires() {
       telephone: '',
       detail_cv: '',
       cv_url: '',
-      recommandation_url: ''
+      recommandation_url: '',
+      type_prestataire: 'INDEPENDANT',
+      fournisseur_services_id: ''
     });
     setCvFile(null);
     setRecommandationFile(null);
@@ -181,7 +210,9 @@ export default function Prestataires() {
       telephone: prestataire.telephone || '',
       detail_cv: prestataire.detail_cv || '',
       cv_url: prestataire.cv_url || '',
-      recommandation_url: prestataire.recommandation_url || ''
+      recommandation_url: prestataire.recommandation_url || '',
+      type_prestataire: prestataire.type_prestataire || 'INDEPENDANT',
+      fournisseur_services_id: prestataire.fournisseur_services_id || ''
     });
     setIsEditMode(true);
     setIsDialogOpen(true);
@@ -233,6 +264,8 @@ export default function Prestataires() {
                 <TableRow>
                   <TableHead>Nom</TableHead>
                   <TableHead>Prénom</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Société</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Téléphone</TableHead>
                   <TableHead>CV</TableHead>
@@ -243,13 +276,13 @@ export default function Prestataires() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center">
+                    <TableCell colSpan={9} className="text-center">
                       Chargement...
                     </TableCell>
                   </TableRow>
                 ) : filteredPrestataires.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center">
+                    <TableCell colSpan={9} className="text-center">
                       Aucun prestataire trouvé
                     </TableCell>
                   </TableRow>
@@ -258,6 +291,15 @@ export default function Prestataires() {
                     <TableRow key={prestataire.id}>
                       <TableCell className="font-medium">{prestataire.nom}</TableCell>
                       <TableCell>{prestataire.prenom}</TableCell>
+                      <TableCell>
+                        <Badge variant={prestataire.type_prestataire === 'SOCIETE' ? 'default' : 'secondary'}>
+                          {prestataire.type_prestataire === 'SOCIETE' ? 'Société' : 'Indépendant'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {prestataire.type_prestataire === 'SOCIETE' && prestataire.fournisseur_services ? 
+                          prestataire.fournisseur_services.raison_sociale : '-'}
+                      </TableCell>
                       <TableCell>{prestataire.email || '-'}</TableCell>
                       <TableCell>{prestataire.telephone || '-'}</TableCell>
                       <TableCell>
@@ -363,6 +405,46 @@ export default function Prestataires() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
+                <Label htmlFor="type_prestataire">Type de prestataire *</Label>
+                <Select
+                  value={formData.type_prestataire}
+                  onValueChange={(value: 'INDEPENDANT' | 'SOCIETE') => 
+                    setFormData({ ...formData, type_prestataire: value, fournisseur_services_id: '' })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="INDEPENDANT">Indépendant</SelectItem>
+                    <SelectItem value="SOCIETE">Société</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {formData.type_prestataire === 'SOCIETE' && (
+                <div>
+                  <Label htmlFor="fournisseur_services">Fournisseur de services</Label>
+                  <Select
+                    value={formData.fournisseur_services_id}
+                    onValueChange={(value) => setFormData({ ...formData, fournisseur_services_id: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner un fournisseur" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {fournisseursServices.map((fournisseur) => (
+                        <SelectItem key={fournisseur.id} value={fournisseur.id}>
+                          {fournisseur.raison_sociale}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
@@ -450,6 +532,21 @@ export default function Prestataires() {
                   <Label className="text-muted-foreground">Prénom</Label>
                   <p className="font-medium">{selectedPrestataire.prenom}</p>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Type</Label>
+                  <Badge variant={selectedPrestataire.type_prestataire === 'SOCIETE' ? 'default' : 'secondary'}>
+                    {selectedPrestataire.type_prestataire === 'SOCIETE' ? 'Société' : 'Indépendant'}
+                  </Badge>
+                </div>
+                {selectedPrestataire.type_prestataire === 'SOCIETE' && selectedPrestataire.fournisseur_services && (
+                  <div>
+                    <Label className="text-muted-foreground">Fournisseur de services</Label>
+                    <p className="font-medium">{selectedPrestataire.fournisseur_services.raison_sociale}</p>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
