@@ -96,6 +96,7 @@ export default function Prestataires() {
 
       const dataToSubmit = {
         ...formData,
+        email: formData.email || null, // Permettre null pour éviter la contrainte unique sur les emails vides
         cv_url: cvUrl,
         recommandation_url: recommandationUrl
       };
