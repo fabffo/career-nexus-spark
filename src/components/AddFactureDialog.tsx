@@ -37,23 +37,23 @@ export default function AddFactureDialog({
   
   const [formData, setFormData] = useState({
     type_facture: 'VENTES' as 'VENTES' | 'ACHATS',
-    numero_facture: '' as string | undefined,
+    numero_facture: '',
     date_emission: new Date().toISOString().split('T')[0],
     date_echeance: '',
     emetteur_type: '',
-    emetteur_id: '' as string | undefined,
+    emetteur_id: '',
     emetteur_nom: '',
-    emetteur_adresse: '' as string | undefined,
-    emetteur_telephone: '' as string | undefined,
-    emetteur_email: '' as string | undefined,
+    emetteur_adresse: '',
+    emetteur_telephone: '',
+    emetteur_email: '',
     destinataire_type: '',
-    destinataire_id: '' as string | undefined,
+    destinataire_id: '',
     destinataire_nom: '',
-    destinataire_adresse: '' as string | undefined,
-    destinataire_telephone: '' as string | undefined,
-    destinataire_email: '' as string | undefined,
-    informations_paiement: '' as string | undefined,
-    reference_societe: '' as string | undefined,
+    destinataire_adresse: '',
+    destinataire_telephone: '',
+    destinataire_email: '',
+    informations_paiement: '',
+    reference_societe: '',
     statut: 'BROUILLON' as 'BROUILLON' | 'VALIDEE' | 'PAYEE' | 'ANNULEE',
   });
 
@@ -91,36 +91,43 @@ export default function AddFactureDialog({
         if (initialData.lignes) {
           setLignes(initialData.lignes);
         }
-      } else {
-        // Sinon, réinitialiser le formulaire avec les données de société interne
-        resetForm();
-        // Appliquer automatiquement les données de société interne pour VENTES
-        if (formData.type_facture === 'VENTES') {
-          // Construire les informations de paiement
-          let infoPaiement = '';
-          if (societeInterne.etablissement_bancaire) {
-            infoPaiement += `Banque: ${societeInterne.etablissement_bancaire}\n`;
-          }
-          if (societeInterne.iban) {
-            infoPaiement += `IBAN: ${societeInterne.iban}\n`;
-          }
-          if (societeInterne.bic) {
-            infoPaiement += `BIC: ${societeInterne.bic}`;
-          }
-          
-          setFormData(prev => ({
-            ...prev,
-            emetteur_type: 'SOCIETE_INTERNE',
-            emetteur_id: societeInterne.id,
-            emetteur_nom: societeInterne.raison_sociale,
-            emetteur_adresse: societeInterne.adresse || '',
-            emetteur_telephone: societeInterne.telephone || '',
-            emetteur_email: societeInterne.email || '',
-            destinataire_type: 'CLIENT',
-            informations_paiement: infoPaiement.trim(),
-            reference_societe: societeInterne.siren || '',
-          }));
+      } else if (formData.type_facture === 'VENTES') {
+        // Pour une nouvelle facture de vente, appliquer les données de société interne
+        // Construire les informations de paiement
+        let infoPaiement = '';
+        if (societeInterne.etablissement_bancaire) {
+          infoPaiement += `Banque: ${societeInterne.etablissement_bancaire}\n`;
         }
+        if (societeInterne.iban) {
+          infoPaiement += `IBAN: ${societeInterne.iban}\n`;
+        }
+        if (societeInterne.bic) {
+          infoPaiement += `BIC: ${societeInterne.bic}`;
+        }
+        
+        setFormData(prev => ({
+          ...prev,
+          type_facture: 'VENTES',
+          numero_facture: '',
+          date_emission: new Date().toISOString().split('T')[0],
+          date_echeance: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          emetteur_type: 'SOCIETE_INTERNE',
+          emetteur_id: societeInterne.id,
+          emetteur_nom: societeInterne.raison_sociale,
+          emetteur_adresse: societeInterne.adresse || '',
+          emetteur_telephone: societeInterne.telephone || '',
+          emetteur_email: societeInterne.email || '',
+          destinataire_type: 'CLIENT',
+          destinataire_id: '',
+          destinataire_nom: '',
+          destinataire_adresse: '',
+          destinataire_telephone: '',
+          destinataire_email: '',
+          informations_paiement: infoPaiement.trim(),
+          reference_societe: societeInterne.siren || '',
+          statut: 'BROUILLON',
+        }));
+        setLignes([{ ordre: 1, description: '', quantite: 1, prix_unitaire_ht: 0, prix_ht: 0, taux_tva: 20, montant_tva: 0, prix_ttc: 0 }]);
       }
     }
   }, [open, initialData, societeInterne]);
