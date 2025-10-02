@@ -56,7 +56,7 @@ interface TypeIntervenant {
 
 interface FactureSequence {
   id: string;
-  type_facture: string;
+  type_facture: 'VENTES' | 'ACHATS';
   prefixe: string;
   prochain_numero: number;
   annee?: number;

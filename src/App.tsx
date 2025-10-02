@@ -36,6 +36,7 @@ import { Missions } from "./pages/Missions";
 import FournisseursGeneraux from "./pages/FournisseursGeneraux";
 import FournisseursServices from "./pages/FournisseursServices";
 import Factures from "./pages/Factures";
+import FacturesVentes from "./pages/FacturesVentes";
 import Parametres from "./pages/Parametres";
 
 const queryClient = new QueryClient();
@@ -93,6 +94,7 @@ const App = () => (
               <Route path="postes" element={<Postes />} />
               <Route path="missions" element={<Missions />} />
               <Route path="factures" element={<Factures />} />
+              <Route path="factures-ventes" element={<FacturesVentes />} />
               <Route path="rdv" element={<RendezVous />} />
               <Route path="matching" element={<Matching />} />
               <Route path="commentaires" element={<Dashboard />} />
