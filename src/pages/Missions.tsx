@@ -133,7 +133,8 @@ export function Missions() {
       )
     },
     {
-      accessorKey: 'client',
+      accessorFn: (row) => row.contrat?.client?.raison_sociale || '',
+      id: 'client',
       header: 'Client',
       cell: ({ row }) => (
         <div className="text-sm">
