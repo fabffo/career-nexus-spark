@@ -251,11 +251,25 @@ export function AddMissionDialog({ open, onOpenChange, onSuccess }: AddMissionDi
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Aucun</SelectItem>
-                  {contrats.map(contrat => (
-                    <SelectItem key={contrat.id} value={contrat.id}>
-                      {contrat.numero_contrat} - {contrat.type}
-                    </SelectItem>
-                  ))}
+                  {contrats.map(contrat => {
+                    // Déterminer le fournisseur et son type
+                    let fournisseurLabel = '';
+                    if (contrat.client) {
+                      fournisseurLabel = `Client - ${contrat.client.raison_sociale}`;
+                    } else if (contrat.prestataire) {
+                      fournisseurLabel = `Prestataire - ${contrat.prestataire.nom} ${contrat.prestataire.prenom}`;
+                    } else if (contrat.fournisseur_services) {
+                      fournisseurLabel = `Fournisseur Services - ${contrat.fournisseur_services.raison_sociale}`;
+                    } else if (contrat.fournisseur_general) {
+                      fournisseurLabel = `Fournisseur Général - ${contrat.fournisseur_general.raison_sociale}`;
+                    }
+                    
+                    return (
+                      <SelectItem key={contrat.id} value={contrat.id}>
+                        {contrat.numero_contrat} - {fournisseurLabel || contrat.type}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
