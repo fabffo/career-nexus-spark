@@ -395,7 +395,7 @@ export default function Contrats() {
   const getContratParty = (contrat: any) => {
     switch (contrat.type) {
       case 'CLIENT':
-        return contrat.client?.raison_sociale || '-';
+        return contrat.client?.raisonSociale || contrat.client?.raison_sociale || '-';
       case 'PRESTATAIRE':
         return contrat.prestataire ? `${contrat.prestataire.nom} ${contrat.prestataire.prenom}` : '-';
       case 'FOURNISSEUR_SERVICES':
