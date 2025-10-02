@@ -69,23 +69,24 @@ export default function ViewFactureDialog({
     try {
       // Pour les factures d'achat, télécharger le fichier depuis le storage
       if (facture.type_facture === 'ACHATS' && facture.reference_societe) {
+        console.log('Téléchargement facture achat, chemin:', facture.reference_societe);
+        
         // Le reference_societe contient le chemin du fichier dans le bucket
         const filePath = facture.reference_societe;
         
-        // Créer une URL signée pour télécharger le fichier
+        // Télécharger directement depuis le bucket privé
         const { data, error } = await supabase.storage
           .from('factures')
-          .createSignedUrl(filePath, 60); // Expire dans 60 secondes
+          .download(filePath);
 
-        if (error) throw error;
-        if (!data?.signedUrl) throw new Error('Impossible de générer le lien de téléchargement');
+        if (error) {
+          console.error('Erreur storage download:', error);
+          throw error;
+        }
+        if (!data) throw new Error('Aucune donnée reçue');
 
-        // Télécharger le fichier
-        const response = await fetch(data.signedUrl);
-        if (!response.ok) throw new Error('Erreur lors du téléchargement du fichier');
-
-        const blob = await response.blob();
-        const downloadUrl = window.URL.createObjectURL(blob);
+        // Créer un blob et télécharger
+        const downloadUrl = window.URL.createObjectURL(data);
         const link = document.createElement('a');
         link.href = downloadUrl;
         link.download = `facture_${facture.numero_facture}.pdf`;
