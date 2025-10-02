@@ -121,13 +121,13 @@ export default function ViewFactureDialog({
             <div>
               <p className="text-sm text-muted-foreground">Date d'émission</p>
               <p className="font-medium">
-                {format(new Date(facture.date_emission), "dd MMMM yyyy", { locale: fr })}
+                {facture.date_emission ? format(new Date(facture.date_emission), "dd MMMM yyyy", { locale: fr }) : '-'}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Date d'échéance</p>
               <p className="font-medium">
-                {format(new Date(facture.date_echeance), "dd MMMM yyyy", { locale: fr })}
+                {facture.date_echeance ? format(new Date(facture.date_echeance), "dd MMMM yyyy", { locale: fr }) : '-'}
               </p>
             </div>
           </div>
