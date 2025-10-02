@@ -166,6 +166,7 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
       // Upload du fichier si présent
       let factureUrl = null;
       if (selectedFile) {
+        // Uploader dans le bucket factures (privé)
         factureUrl = await uploadFile(selectedFile, 'factures');
       }
 

@@ -71,12 +71,24 @@ export default function ViewFactureDialog({
       if (facture.type_facture === 'ACHATS' && facture.reference_societe) {
         console.log('Téléchargement facture achat, chemin:', facture.reference_societe);
         
-        // Le reference_societe contient le chemin du fichier dans le bucket
-        const filePath = facture.reference_societe;
+        let bucket = 'factures';
+        let filePath = facture.reference_societe;
         
-        // Télécharger directement depuis le bucket privé
+        // Gérer les anciens formats d'URL (URL complète dans candidats-files)
+        if (filePath.includes('candidats-files')) {
+          bucket = 'candidats-files';
+          // Extraire le chemin depuis l'URL
+          const match = filePath.match(/candidats-files\/(.+)$/);
+          if (match) {
+            filePath = match[1];
+          }
+        }
+        
+        console.log('Téléchargement depuis bucket:', bucket, 'chemin:', filePath);
+        
+        // Télécharger directement depuis le bucket
         const { data, error } = await supabase.storage
-          .from('factures')
+          .from(bucket)
           .download(filePath);
 
         if (error) {
