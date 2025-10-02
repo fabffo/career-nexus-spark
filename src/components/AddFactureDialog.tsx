@@ -69,6 +69,8 @@ export default function AddFactureDialog({
 
   useEffect(() => {
     if (open && societeInterne) {
+      console.log('AddFactureDialog - Initializing form with societeInterne:', societeInterne);
+      
       if (initialData) {
         // Si on a des données initiales (copie), les utiliser
         const { id, numero_facture, created_at, updated_at, created_by, lignes, ...dataToUse } = initialData;
@@ -92,8 +94,7 @@ export default function AddFactureDialog({
           setLignes(initialData.lignes);
         }
       } else {
-        // Pour une nouvelle facture de vente, appliquer les données de société interne
-        // Construire les informations de paiement
+        // Pour une nouvelle facture de vente, initialiser avec société interne
         let infoPaiement = '';
         if (societeInterne.etablissement_bancaire) {
           infoPaiement += `Banque: ${societeInterne.etablissement_bancaire}\n`;
@@ -105,14 +106,14 @@ export default function AddFactureDialog({
           infoPaiement += `BIC: ${societeInterne.bic}`;
         }
         
-        setFormData({
-          type_facture: 'VENTES',
+        const newFormData = {
+          type_facture: 'VENTES' as const,
           numero_facture: '',
           date_emission: new Date().toISOString().split('T')[0],
           date_echeance: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           emetteur_type: 'SOCIETE_INTERNE',
-          emetteur_id: societeInterne.id,
-          emetteur_nom: societeInterne.raison_sociale,
+          emetteur_id: societeInterne.id || '',
+          emetteur_nom: societeInterne.raison_sociale || '',
           emetteur_adresse: societeInterne.adresse || '',
           emetteur_telephone: societeInterne.telephone || '',
           emetteur_email: societeInterne.email || '',
@@ -122,10 +123,13 @@ export default function AddFactureDialog({
           destinataire_adresse: '',
           destinataire_telephone: '',
           destinataire_email: '',
-          informations_paiement: infoPaiement.trim(),
+          informations_paiement: infoPaiement.trim() || '',
           reference_societe: societeInterne.siren || '',
-          statut: 'BROUILLON',
-        });
+          statut: 'BROUILLON' as const,
+        };
+        
+        console.log('AddFactureDialog - Setting new form data:', newFormData);
+        setFormData(newFormData);
         setLignes([{ ordre: 1, description: '', quantite: 1, prix_unitaire_ht: 0, prix_ht: 0, taux_tva: 20, montant_tva: 0, prix_ttc: 0 }]);
       }
     }
@@ -594,10 +598,10 @@ export default function AddFactureDialog({
             <Label className="text-lg font-semibold">Émetteur</Label>
             {formData.type_facture === 'VENTES' ? (
               <div className="p-4 border rounded-lg bg-muted/50">
-                <p className="font-medium">{formData.emetteur_nom}</p>
-                {formData.emetteur_adresse && <p className="text-sm">{formData.emetteur_adresse}</p>}
-                {formData.emetteur_telephone && <p className="text-sm">Tél: {formData.emetteur_telephone}</p>}
-                {formData.emetteur_email && <p className="text-sm">Email: {formData.emetteur_email}</p>}
+                <p className="font-medium">{formData.emetteur_nom || 'Non défini'}</p>
+                {formData.emetteur_adresse && <p className="text-sm text-muted-foreground">{formData.emetteur_adresse}</p>}
+                {formData.emetteur_telephone && <p className="text-sm text-muted-foreground">Tél: {formData.emetteur_telephone}</p>}
+                {formData.emetteur_email && <p className="text-sm text-muted-foreground">Email: {formData.emetteur_email}</p>}
               </div>
             ) : (
               <div className="space-y-2">
