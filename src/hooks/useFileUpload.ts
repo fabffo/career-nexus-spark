@@ -6,27 +6,32 @@ export const useFileUpload = () => {
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
 
-  const uploadFile = async (file: File, path: string) => {
+  const uploadFile = async (file: File, bucket: string = 'candidats-files') => {
     try {
       setIsUploading(true);
       
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `${path}/${fileName}`;
+      const filePath = fileName;
 
-      const { error: uploadError, data } = await supabase.storage
-        .from('candidats-files')
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
         .upload(filePath, file);
 
       if (uploadError) {
         throw uploadError;
       }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('candidats-files')
-        .getPublicUrl(filePath);
-
-      return publicUrl;
+      // Pour les buckets publics, retourner l'URL publique
+      if (bucket === 'candidats-files') {
+        const { data: { publicUrl } } = supabase.storage
+          .from(bucket)
+          .getPublicUrl(filePath);
+        return publicUrl;
+      }
+      
+      // Pour les buckets privés, retourner le chemin du fichier
+      return filePath;
     } catch (error) {
       console.error('Error uploading file:', error);
       toast({

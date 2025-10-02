@@ -67,46 +67,70 @@ export default function ViewFactureDialog({
 
   const handleDownload = async () => {
     try {
-      // Obtenir le token de session
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      // Pour les factures d'achat, télécharger le fichier depuis le storage
+      if (facture.type_facture === 'ACHATS' && facture.reference_societe) {
+        // Le reference_societe contient le chemin du fichier dans le bucket
+        const filePath = facture.reference_societe;
+        
+        // Créer une URL signée pour télécharger le fichier
+        const { data, error } = await supabase.storage
+          .from('factures')
+          .createSignedUrl(filePath, 60); // Expire dans 60 secondes
 
-      // Construire l'URL de l'edge function
-      const supabaseUrl = window.location.origin.includes('lovableproject.com') 
-        ? 'https://cpwjmfxyjtrdsnkcwruq.supabase.co'
-        : 'http://localhost:54321';
+        if (error) throw error;
+        if (!data?.signedUrl) throw new Error('Impossible de générer le lien de téléchargement');
 
-      // Appeler l'edge function pour générer le PDF
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/generate-facture-pdf`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({ facture_id: facture.id }),
+        // Télécharger le fichier
+        const response = await fetch(data.signedUrl);
+        if (!response.ok) throw new Error('Erreur lors du téléchargement du fichier');
+
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `facture_${facture.numero_facture}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+      } else {
+        // Pour les factures de vente, générer le PDF via l'edge function
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+
+        const supabaseUrl = window.location.origin.includes('lovableproject.com') 
+          ? 'https://cpwjmfxyjtrdsnkcwruq.supabase.co'
+          : 'http://localhost:54321';
+
+        const response = await fetch(
+          `${supabaseUrl}/functions/v1/generate-facture-pdf`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ facture_id: facture.id }),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Erreur lors de la génération du PDF');
         }
-      );
 
-      if (!response.ok) {
-        throw new Error('Erreur lors de la génération du PDF');
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `facture_${facture.numero_facture}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
       }
-
-      // Obtenir le blob du PDF
-      const blob = await response.blob();
-      
-      // Créer un lien de téléchargement
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `facture_${facture.numero_facture}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Erreur lors du téléchargement:', error);
+      alert('Erreur lors du téléchargement du fichier. Veuillez réessayer.');
     }
   };
 
