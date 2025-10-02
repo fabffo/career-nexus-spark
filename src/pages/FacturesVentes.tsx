@@ -220,9 +220,15 @@ export default function FacturesVentes() {
     {
       accessorKey: "date_emission",
       header: "Date émission",
-      cell: ({ row }) => (
-        <span>{format(new Date(row.getValue("date_emission")), "dd/MM/yyyy", { locale: fr })}</span>
-      ),
+      cell: ({ row }) => {
+        const dateValue = row.getValue("date_emission");
+        if (!dateValue) return <span>-</span>;
+        try {
+          return <span>{format(new Date(dateValue as string), "dd/MM/yyyy", { locale: fr })}</span>;
+        } catch {
+          return <span>-</span>;
+        }
+      },
     },
     {
       accessorKey: "destinataire_nom",
