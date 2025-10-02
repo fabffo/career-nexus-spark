@@ -65,10 +65,29 @@ export default function ViewFactureDialog({
     window.print();
   };
 
-  const handleDownload = () => {
-    // Ici on pourrait générer un PDF
-    // Pour l'instant, on utilise l'impression du navigateur
-    window.print();
+  const handleDownload = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-facture-pdf', {
+        body: { facture_id: facture.id }
+      });
+
+      if (error) throw error;
+
+      // Créer un blob à partir de la réponse
+      const blob = new Blob([new Uint8Array(data)], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      
+      // Créer un lien de téléchargement
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `facture_${facture.numero_facture}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Erreur lors du téléchargement:', error);
+    }
   };
 
   const getStatutColor = (statut: string) => {
