@@ -43,6 +43,7 @@ export default function Clients() {
     telephone: '',
     email: '',
     siteWeb: '',
+    delaiPaiementJours: 30,
   });
 
   useEffect(() => {
@@ -64,6 +65,7 @@ export default function Clients() {
         telephone: client.telephone,
         email: client.email,
         siteWeb: client.siteWeb || '',
+        delaiPaiementJours: (client as any).delai_paiement_jours || 30,
       });
     } else {
       setSelectedClient(null);
@@ -74,6 +76,7 @@ export default function Clients() {
         telephone: '',
         email: '',
         siteWeb: '',
+        delaiPaiementJours: 30,
       });
     }
     setIsFormOpen(true);
@@ -117,6 +120,7 @@ export default function Clients() {
         telephone: client.telephone,
         email: client.email,
         siteWeb: client.siteWeb || '',
+        delai_paiement_jours: (client as any).delai_paiement_jours || 30,
       };
       await clientService.create(newClient);
       toast.success('Client dupliqué avec succès');
@@ -325,6 +329,17 @@ export default function Clients() {
                 value={formData.siteWeb}
                 onChange={(e) => setFormData({ ...formData, siteWeb: e.target.value })}
                 placeholder="https://..."
+              />
+            </div>
+            <div>
+              <Label htmlFor="delaiPaiementJours">Délai de paiement (jours)</Label>
+              <Input
+                id="delaiPaiementJours"
+                type="number"
+                min="0"
+                value={formData.delaiPaiementJours}
+                onChange={(e) => setFormData({ ...formData, delaiPaiementJours: parseInt(e.target.value) || 0 })}
+                placeholder="30"
               />
             </div>
           </div>

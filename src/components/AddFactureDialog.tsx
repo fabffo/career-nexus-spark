@@ -349,6 +349,12 @@ export default function AddFactureDialog({
   const handleDestinataireClientChange = (id: string) => {
     const client = clients.find(c => c.id === id);
     if (client) {
+      // Calculer la date d'échéance en ajoutant le délai de paiement du client
+      const delaiJours = client.delai_paiement_jours || 30;
+      const dateEmission = new Date(formData.date_emission);
+      const dateEcheance = new Date(dateEmission);
+      dateEcheance.setDate(dateEcheance.getDate() + delaiJours);
+      
       setFormData(prev => ({
         ...prev,
         destinataire_id: id,
@@ -356,6 +362,7 @@ export default function AddFactureDialog({
         destinataire_adresse: client.adresse || '',
         destinataire_telephone: client.telephone || '',
         destinataire_email: client.email || '',
+        date_echeance: dateEcheance.toISOString().split('T')[0],
       }));
     }
   };

@@ -111,6 +111,7 @@ export type Database = {
         Row: {
           adresse: string | null
           created_at: string | null
+          delai_paiement_jours: number | null
           email: string | null
           id: string
           raison_sociale: string
@@ -120,6 +121,7 @@ export type Database = {
         Insert: {
           adresse?: string | null
           created_at?: string | null
+          delai_paiement_jours?: number | null
           email?: string | null
           id?: string
           raison_sociale: string
@@ -129,6 +131,7 @@ export type Database = {
         Update: {
           adresse?: string | null
           created_at?: string | null
+          delai_paiement_jours?: number | null
           email?: string | null
           id?: string
           raison_sociale?: string
