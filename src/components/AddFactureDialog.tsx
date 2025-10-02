@@ -64,76 +64,32 @@ export default function AddFactureDialog({
   useEffect(() => {
     if (open) {
       fetchData();
+    } else {
+      // Reset form when dialog closes
+      setFormData({
+        type_facture: 'VENTES',
+        numero_facture: '',
+        date_emission: new Date().toISOString().split('T')[0],
+        date_echeance: '',
+        emetteur_type: '',
+        emetteur_id: '',
+        emetteur_nom: '',
+        emetteur_adresse: '',
+        emetteur_telephone: '',
+        emetteur_email: '',
+        destinataire_type: '',
+        destinataire_id: '',
+        destinataire_nom: '',
+        destinataire_adresse: '',
+        destinataire_telephone: '',
+        destinataire_email: '',
+        informations_paiement: '',
+        reference_societe: '',
+        statut: 'BROUILLON',
+      });
+      setLignes([{ ordre: 1, description: '', quantite: 1, prix_unitaire_ht: 0, prix_ht: 0, taux_tva: 20, montant_tva: 0, prix_ttc: 0 }]);
     }
   }, [open]);
-
-  useEffect(() => {
-    if (open && societeInterne) {
-      console.log('AddFactureDialog - Initializing form with societeInterne:', societeInterne);
-      
-      if (initialData) {
-        // Si on a des données initiales (copie), les utiliser
-        const { id, numero_facture, created_at, updated_at, created_by, lignes, ...dataToUse } = initialData;
-        setFormData({
-          ...dataToUse,
-          numero_facture: '', // Pour une copie, on génère un nouveau numéro
-          emetteur_id: dataToUse.emetteur_id || '',
-          emetteur_adresse: dataToUse.emetteur_adresse || '',
-          emetteur_telephone: dataToUse.emetteur_telephone || '',
-          emetteur_email: dataToUse.emetteur_email || '',
-          destinataire_id: dataToUse.destinataire_id || '',
-          destinataire_adresse: dataToUse.destinataire_adresse || '',
-          destinataire_telephone: dataToUse.destinataire_telephone || '',
-          destinataire_email: dataToUse.destinataire_email || '',
-          informations_paiement: dataToUse.informations_paiement || '',
-          reference_societe: dataToUse.reference_societe || '',
-          statut: 'BROUILLON',
-          date_emission: new Date().toISOString().split('T')[0],
-        });
-        if (initialData.lignes) {
-          setLignes(initialData.lignes);
-        }
-      } else {
-        // Pour une nouvelle facture de vente, initialiser avec société interne
-        let infoPaiement = '';
-        if (societeInterne.etablissement_bancaire) {
-          infoPaiement += `Banque: ${societeInterne.etablissement_bancaire}\n`;
-        }
-        if (societeInterne.iban) {
-          infoPaiement += `IBAN: ${societeInterne.iban}\n`;
-        }
-        if (societeInterne.bic) {
-          infoPaiement += `BIC: ${societeInterne.bic}`;
-        }
-        
-        const newFormData = {
-          type_facture: 'VENTES' as const,
-          numero_facture: '',
-          date_emission: new Date().toISOString().split('T')[0],
-          date_echeance: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          emetteur_type: 'SOCIETE_INTERNE',
-          emetteur_id: societeInterne.id || '',
-          emetteur_nom: societeInterne.raison_sociale || '',
-          emetteur_adresse: societeInterne.adresse || '',
-          emetteur_telephone: societeInterne.telephone || '',
-          emetteur_email: societeInterne.email || '',
-          destinataire_type: 'CLIENT',
-          destinataire_id: '',
-          destinataire_nom: '',
-          destinataire_adresse: '',
-          destinataire_telephone: '',
-          destinataire_email: '',
-          informations_paiement: infoPaiement.trim() || '',
-          reference_societe: societeInterne.siren || '',
-          statut: 'BROUILLON' as const,
-        };
-        
-        console.log('AddFactureDialog - Setting new form data:', newFormData);
-        setFormData(newFormData);
-        setLignes([{ ordre: 1, description: '', quantite: 1, prix_unitaire_ht: 0, prix_ht: 0, taux_tva: 20, montant_tva: 0, prix_ttc: 0 }]);
-      }
-    }
-  }, [open, initialData, societeInterne]);
 
   const resetForm = () => {
     const newFormData: any = {
@@ -200,16 +156,80 @@ export default function AddFactureDialog({
           description: "Impossible de charger les informations de la société interne.",
           variant: "destructive",
         });
-      } else if (societe) {
-        console.log('Société interne chargée:', societe);
-        setSocieteInterne(societe);
-      } else {
+      } else if (!societe) {
         console.warn('Aucune société interne trouvée dans la base de données');
         toast({
           title: "Attention",
           description: "Aucune société interne configurée. Veuillez configurer les informations de votre société dans les paramètres.",
           variant: "destructive",
         });
+      } else {
+        console.log('Société interne chargée:', societe);
+        setSocieteInterne(societe);
+        
+        // Initialiser le formulaire immédiatement après avoir chargé la société interne
+        if (initialData) {
+          // Si on a des données initiales (copie), les utiliser
+          const { id, numero_facture, created_at, updated_at, created_by, lignes, ...dataToUse } = initialData;
+          setFormData({
+            ...dataToUse,
+            numero_facture: '', // Pour une copie, on génère un nouveau numéro
+            emetteur_id: dataToUse.emetteur_id || '',
+            emetteur_nom: dataToUse.emetteur_nom || '',
+            emetteur_adresse: dataToUse.emetteur_adresse || '',
+            emetteur_telephone: dataToUse.emetteur_telephone || '',
+            emetteur_email: dataToUse.emetteur_email || '',
+            destinataire_id: dataToUse.destinataire_id || '',
+            destinataire_nom: dataToUse.destinataire_nom || '',
+            destinataire_adresse: dataToUse.destinataire_adresse || '',
+            destinataire_telephone: dataToUse.destinataire_telephone || '',
+            destinataire_email: dataToUse.destinataire_email || '',
+            informations_paiement: dataToUse.informations_paiement || '',
+            reference_societe: dataToUse.reference_societe || '',
+          });
+          
+          if (initialData.lignes && initialData.lignes.length > 0) {
+            setLignes(initialData.lignes);
+          }
+        } else {
+          // Pour une nouvelle facture de vente, initialiser avec société interne
+          let infoPaiement = '';
+          if (societe.etablissement_bancaire) {
+            infoPaiement += `Banque: ${societe.etablissement_bancaire}\n`;
+          }
+          if (societe.iban) {
+            infoPaiement += `IBAN: ${societe.iban}\n`;
+          }
+          if (societe.bic) {
+            infoPaiement += `BIC: ${societe.bic}`;
+          }
+          
+          const newFormData = {
+            type_facture: 'VENTES' as const,
+            numero_facture: '',
+            date_emission: new Date().toISOString().split('T')[0],
+            date_echeance: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            emetteur_type: 'SOCIETE_INTERNE',
+            emetteur_id: societe.id || '',
+            emetteur_nom: societe.raison_sociale || '',
+            emetteur_adresse: societe.adresse || '',
+            emetteur_telephone: societe.telephone || '',
+            emetteur_email: societe.email || '',
+            destinataire_type: 'CLIENT',
+            destinataire_id: '',
+            destinataire_nom: '',
+            destinataire_adresse: '',
+            destinataire_telephone: '',
+            destinataire_email: '',
+            informations_paiement: infoPaiement.trim() || '',
+            reference_societe: societe.siren || '',
+            statut: 'BROUILLON' as const,
+          };
+          
+          console.log('Initialisation du formulaire avec:', newFormData);
+          setFormData(newFormData);
+          setLignes([{ ordre: 1, description: '', quantite: 1, prix_unitaire_ht: 0, prix_ht: 0, taux_tva: 20, montant_tva: 0, prix_ttc: 0 }]);
+        }
       }
 
       // Récupérer les clients
