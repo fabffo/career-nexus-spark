@@ -444,10 +444,55 @@ export default function AddFactureDialog({
 
       if (lignesError) throw lignesError;
 
-      toast({
-        title: "Succès",
-        description: "Facture créée avec succès",
-      });
+      // Générer le PDF pour les factures de vente
+      if (formData.type_facture === 'VENTES') {
+        try {
+          const response = await supabase.functions.invoke('generate-facture-pdf', {
+            body: { facture_id: facture.id }
+          });
+          
+          if (response.error) {
+            console.error('Erreur génération PDF:', response.error);
+            toast({
+              title: "Avertissement",
+              description: "La facture a été créée mais le PDF n'a pas pu être généré",
+              variant: "destructive",
+            });
+          } else if (response.data) {
+            // Créer un blob à partir de la réponse
+            const blob = new Blob([response.data], { type: 'application/pdf' });
+            const url = window.URL.createObjectURL(blob);
+            
+            // Créer un lien de téléchargement
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `facture_${numeroFacture.replace(/\//g, '-')}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            // Libérer l'URL
+            window.URL.revokeObjectURL(url);
+            
+            toast({
+              title: "Succès",
+              description: "Facture créée et PDF généré avec succès",
+            });
+          }
+        } catch (error) {
+          console.error('Erreur lors de la génération du PDF:', error);
+          toast({
+            title: "Avertissement",
+            description: "La facture a été créée mais le PDF n'a pas pu être généré",
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({
+          title: "Succès",
+          description: "Facture créée avec succès",
+        });
+      }
 
       onSuccess();
       onOpenChange(false);
