@@ -73,6 +73,7 @@ export function Sidebar() {
       items: [
         { path: '/factures', label: 'Toutes les factures', icon: FileText },
         { path: '/factures-ventes', label: 'Factures de vente', icon: FileText },
+        { path: '/factures-achats', label: 'Factures d\'achat', icon: FileText },
       ]
     },
     {
