@@ -188,11 +188,29 @@ export default function AddFactureDialog({
   const fetchData = async () => {
     try {
       // Récupérer la société interne
-      const { data: societe } = await supabase
+      const { data: societe, error: societeError } = await supabase
         .from('societe_interne')
         .select('*')
-        .single();
-      setSocieteInterne(societe);
+        .maybeSingle();
+      
+      if (societeError) {
+        console.error('Erreur lors du chargement de la société interne:', societeError);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les informations de la société interne.",
+          variant: "destructive",
+        });
+      } else if (societe) {
+        console.log('Société interne chargée:', societe);
+        setSocieteInterne(societe);
+      } else {
+        console.warn('Aucune société interne trouvée dans la base de données');
+        toast({
+          title: "Attention",
+          description: "Aucune société interne configurée. Veuillez configurer les informations de votre société dans les paramètres.",
+          variant: "destructive",
+        });
+      }
 
       // Récupérer les clients
       const { data: clientsData } = await supabase
