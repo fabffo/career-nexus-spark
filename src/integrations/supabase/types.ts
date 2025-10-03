@@ -601,6 +601,27 @@ export type Database = {
           },
         ]
       }
+      mission_sequences: {
+        Row: {
+          created_at: string | null
+          last_number: number
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          last_number?: number
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          created_at?: string | null
+          last_number?: number
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
       missions: {
         Row: {
           competences: string[] | null
@@ -613,6 +634,7 @@ export type Database = {
           id: string
           localisation: string | null
           nombre_jours: number | null
+          numero_mission: string | null
           poste_id: string | null
           prestataire_id: string | null
           prix_ht: number | null
@@ -638,6 +660,7 @@ export type Database = {
           id?: string
           localisation?: string | null
           nombre_jours?: number | null
+          numero_mission?: string | null
           poste_id?: string | null
           prestataire_id?: string | null
           prix_ht?: number | null
@@ -663,6 +686,7 @@ export type Database = {
           id?: string
           localisation?: string | null
           nombre_jours?: number | null
+          numero_mission?: string | null
           poste_id?: string | null
           prestataire_id?: string | null
           prix_ht?: number | null
