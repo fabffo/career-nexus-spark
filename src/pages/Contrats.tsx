@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,6 +22,7 @@ import { fr } from 'date-fns/locale';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function Contrats() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [contrats, setContrats] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatuts, setSelectedStatuts] = useState<ContratStatut[]>(['BROUILLON', 'ACTIF']);
@@ -59,6 +61,27 @@ export default function Contrats() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Gérer les paramètres d'URL pour édition/visualisation
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    const viewId = searchParams.get('view');
+    
+    if ((editId || viewId) && contrats.length > 0) {
+      const contratId = editId || viewId;
+      const contrat = contrats.find(c => c.id === contratId);
+      
+      if (contrat) {
+        if (editId) {
+          openEditDialog(contrat);
+        } else if (viewId) {
+          openViewDialog(contrat);
+        }
+        // Nettoyer l'URL après avoir ouvert le dialog
+        setSearchParams({});
+      }
+    }
+  }, [searchParams, contrats]);
 
   const loadData = async () => {
     setLoading(true);
