@@ -137,7 +137,7 @@ export default function Candidats() {
         if (selectedCandidat?.cvUrl) {
           await deleteFile(selectedCandidat.cvUrl);
         }
-        cvUrl = await uploadFile(cvFile, 'cv');
+        cvUrl = await uploadFile(cvFile);
       }
 
       // Upload recommendation if file selected
@@ -146,7 +146,7 @@ export default function Candidats() {
         if (selectedCandidat?.recommandationUrl) {
           await deleteFile(selectedCandidat.recommandationUrl);
         }
-        recommandationUrl = await uploadFile(recommandationFile, 'recommandations');
+        recommandationUrl = await uploadFile(recommandationFile);
       }
 
       const updatedFormData = {
