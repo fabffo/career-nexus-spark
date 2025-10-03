@@ -54,6 +54,16 @@ interface TypeIntervenant {
   updated_at?: string;
 }
 
+interface TypePrestation {
+  id: string;
+  code: string;
+  libelle: string;
+  is_active?: boolean;
+  ordre?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 interface FactureSequence {
   id: string;
   type_facture: 'VENTES' | 'ACHATS';
@@ -69,6 +79,7 @@ export default function Parametres() {
   const [tvaList, setTvaList] = useState<Tva[]>([]);
   const [typeMissionList, setTypeMissionList] = useState<TypeMission[]>([]);
   const [typeIntervenantList, setTypeIntervenantList] = useState<TypeIntervenant[]>([]);
+  const [typePrestationList, setTypePrestationList] = useState<TypePrestation[]>([]);
   const [factureSequences, setFactureSequences] = useState<FactureSequence[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -76,12 +87,14 @@ export default function Parametres() {
   const [tvaDialog, setTvaDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as Tva | null });
   const [typeMissionDialog, setTypeMissionDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as TypeMission | null });
   const [typeIntervenantDialog, setTypeIntervenantDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as TypeIntervenant | null });
+  const [typePrestationDialog, setTypePrestationDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as TypePrestation | null });
   const [sequenceDialog, setSequenceDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as FactureSequence | null });
 
   // Form states
   const [tvaForm, setTvaForm] = useState({ taux: 20, libelle: '', is_default: false });
   const [typeMissionForm, setTypeMissionForm] = useState({ code: '', libelle: '', is_active: true, ordre: 0 });
   const [typeIntervenantForm, setTypeIntervenantForm] = useState({ code: '', libelle: '', is_active: true, ordre: 0 });
+  const [typePrestationForm, setTypePrestationForm] = useState({ code: '', libelle: '', is_active: true, ordre: 0 });
   const [sequenceForm, setSequenceForm] = useState({ type_facture: 'VENTES', prefixe: 'FAC-V', prochain_numero: 1, annee: new Date().getFullYear(), format: '{prefixe}-{annee}-{numero}' });
 
   useEffect(() => {
@@ -124,6 +137,19 @@ export default function Parametres() {
         setTypeIntervenantList([]);
       } else {
         setTypeIntervenantList((intervenantData as any) || []);
+      }
+
+      // Load Type Prestation - using type assertion to handle missing tables
+      const { data: prestationData, error: prestationError } = await supabase
+        .from('param_type_prestation' as any)
+        .select('*')
+        .order('ordre', { ascending: true });
+      
+      if (prestationError) {
+        console.warn('Table param_type_prestation not found yet:', prestationError);
+        setTypePrestationList([]);
+      } else {
+        setTypePrestationList((prestationData as any) || []);
       }
 
       // Load Facture Sequences
@@ -375,6 +401,81 @@ export default function Parametres() {
     });
   };
 
+  // Type Prestation Functions
+  const handleTypePrestationSubmit = async () => {
+    try {
+      if (typePrestationDialog.mode === 'view') return;
+
+      if (typePrestationDialog.mode === 'edit' && typePrestationDialog.item) {
+        const { error } = await supabase
+          .from('param_type_prestation' as any)
+          .update(typePrestationForm)
+          .eq('id', typePrestationDialog.item.id);
+        
+        if (error) throw error;
+        toast({ title: "Type de prestation modifié avec succès" });
+      } else {
+        const { error } = await supabase
+          .from('param_type_prestation' as any)
+          .insert([typePrestationForm]);
+        
+        if (error) throw error;
+        toast({ title: "Type de prestation créé avec succès" });
+      }
+
+      setTypePrestationDialog({ open: false, mode: 'create', item: null });
+      setTypePrestationForm({ code: '', libelle: '', is_active: true, ordre: 0 });
+      loadData();
+    } catch (error) {
+      console.error('Erreur:', error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleTypePrestationDelete = async (id: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer ce type de prestation ?")) return;
+    
+    try {
+      const { error } = await supabase
+        .from('param_type_prestation' as any)
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      toast({ title: "Type de prestation supprimé avec succès" });
+      loadData();
+    } catch (error) {
+      console.error('Erreur:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer ce type de prestation",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openTypePrestationDialog = (mode: 'create' | 'edit' | 'view' | 'copy', item?: TypePrestation) => {
+    if (item) {
+      setTypePrestationForm({
+        code: mode === 'copy' ? `${item.code}_COPIE` : item.code,
+        libelle: mode === 'copy' ? `${item.libelle} (copie)` : item.libelle,
+        is_active: item.is_active !== undefined ? item.is_active : true,
+        ordre: item.ordre || 0,
+      });
+    } else {
+      setTypePrestationForm({ code: '', libelle: '', is_active: true, ordre: 0 });
+    }
+    setTypePrestationDialog({ 
+      open: true, 
+      mode: mode === 'copy' ? 'create' : mode, 
+      item: mode === 'copy' ? null : item || null 
+    });
+  };
+
   // Facture Sequence handlers
   const handleSequenceSubmit = async () => {
     try {
@@ -476,10 +577,11 @@ export default function Parametres() {
       <h1 className="text-3xl font-bold mb-6">Paramètres</h1>
 
         <Tabs defaultValue="tva" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="tva">TVA</TabsTrigger>
             <TabsTrigger value="type-mission">Types de Mission</TabsTrigger>
             <TabsTrigger value="type-intervenant">Types d'Intervenant</TabsTrigger>
+            <TabsTrigger value="type-prestation">Types de Prestation</TabsTrigger>
             <TabsTrigger value="facture-sequences">Numérotation Factures</TabsTrigger>
           </TabsList>
 
@@ -685,6 +787,79 @@ export default function Parametres() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleTypeIntervenantDelete(type.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Type Prestation Tab */}
+          <TabsContent value="type-prestation">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Gestion des Types de Prestation</CardTitle>
+                <Button onClick={() => openTypePrestationDialog('create')}>
+                  <Plus className="mr-2 h-4 w-4" /> Ajouter un type
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Libellé</TableHead>
+                      <TableHead>Ordre</TableHead>
+                      <TableHead>Actif</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {typePrestationList.map((type) => (
+                      <TableRow key={type.id}>
+                        <TableCell className="font-medium">{type.code}</TableCell>
+                        <TableCell>{type.libelle}</TableCell>
+                        <TableCell>{type.ordre}</TableCell>
+                        <TableCell>
+                          {type.is_active ? (
+                            <span className="text-green-600">✓</span>
+                          ) : (
+                            <span className="text-red-600">✗</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openTypePrestationDialog('view', type)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openTypePrestationDialog('edit', type)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openTypePrestationDialog('copy', type)}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleTypePrestationDelete(type.id)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -948,6 +1123,65 @@ export default function Parametres() {
               {typeIntervenantDialog.mode !== 'view' && (
                 <Button onClick={handleTypeIntervenantSubmit}>
                   {typeIntervenantDialog.mode === 'edit' ? 'Modifier' : 'Créer'}
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Type Prestation Dialog */}
+        <Dialog open={typePrestationDialog.open} onOpenChange={(open) => setTypePrestationDialog({ ...typePrestationDialog, open })}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {typePrestationDialog.mode === 'create' && "Créer un type de prestation"}
+                {typePrestationDialog.mode === 'edit' && "Modifier le type de prestation"}
+                {typePrestationDialog.mode === 'view' && "Détails du type de prestation"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="code">Code</Label>
+                <Input
+                  id="code"
+                  value={typePrestationForm.code}
+                  onChange={(e) => setTypePrestationForm({ ...typePrestationForm, code: e.target.value })}
+                  disabled={typePrestationDialog.mode === 'view'}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="libelle">Libellé</Label>
+                <Input
+                  id="libelle"
+                  value={typePrestationForm.libelle}
+                  onChange={(e) => setTypePrestationForm({ ...typePrestationForm, libelle: e.target.value })}
+                  disabled={typePrestationDialog.mode === 'view'}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="ordre">Ordre</Label>
+                <Input
+                  id="ordre"
+                  type="number"
+                  value={typePrestationForm.ordre}
+                  onChange={(e) => setTypePrestationForm({ ...typePrestationForm, ordre: parseInt(e.target.value) })}
+                  disabled={typePrestationDialog.mode === 'view'}
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="is_active"
+                  checked={typePrestationForm.is_active}
+                  onCheckedChange={(checked) => setTypePrestationForm({ ...typePrestationForm, is_active: checked })}
+                  disabled={typePrestationDialog.mode === 'view'}
+                />
+                <Label htmlFor="is_active">Actif</Label>
+              </div>
+            </div>
+            <DialogFooter>
+              {typePrestationDialog.mode !== 'view' && (
+                <Button onClick={handleTypePrestationSubmit}>
+                  {typePrestationDialog.mode === 'edit' ? 'Modifier' : 'Créer'}
                 </Button>
               )}
             </DialogFooter>

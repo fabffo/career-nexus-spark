@@ -42,6 +42,7 @@ export default function Postes() {
   const [postes, setPostes] = useState<PosteClient[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [candidats, setCandidats] = useState<Candidat[]>([]);
+  const [typesPrestationList, setTypesPrestationList] = useState<Array<{ code: string; libelle: string }>>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedPoste, setSelectedPoste] = useState<PosteClient | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -70,6 +71,22 @@ export default function Postes() {
     setPostes(postesData);
     setClients(clientsData);
     setCandidats(candidatsData);
+
+    // Charger les types de prestation depuis la base de données
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: typesPrestation } = await supabase
+        .from('param_type_prestation' as any)
+        .select('code, libelle')
+        .eq('is_active', true)
+        .order('ordre', { ascending: true });
+      
+      if (typesPrestation && Array.isArray(typesPrestation)) {
+        setTypesPrestationList(typesPrestation.map((t: any) => ({ code: t.code, libelle: t.libelle })));
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des types de prestation:', error);
+    }
   };
 
   const handleOpenForm = (poste?: PosteClient) => {
@@ -403,8 +420,11 @@ export default function Postes() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="RECRUTEMENT">Recrutement</SelectItem>
-                  <SelectItem value="FORMATION">Formation</SelectItem>
+                  {typesPrestationList.map((type) => (
+                    <SelectItem key={type.code} value={type.code}>
+                      {type.libelle}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

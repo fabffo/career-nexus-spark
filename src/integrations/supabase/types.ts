@@ -775,6 +775,36 @@ export type Database = {
         }
         Relationships: []
       }
+      param_type_prestation: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          libelle: string
+          ordre: number | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          libelle: string
+          ordre?: number | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          libelle?: string
+          ordre?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       postes: {
         Row: {
           client_id: string | null
