@@ -9,10 +9,15 @@ import { Badge } from '@/components/ui/badge';
 import { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { EditMissionDialog } from '@/components/EditMissionDialog';
+import { ViewMissionDialog } from '@/components/ViewMissionDialog';
 
 export default function MissionsClients() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedMission, setSelectedMission] = useState<Mission | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showViewDialog, setShowViewDialog] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -36,6 +41,37 @@ export default function MissionsClients() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette mission ?')) {
+      return;
+    }
+    try {
+      await missionService.delete(id);
+      toast({
+        title: "Succès",
+        description: "Mission supprimée avec succès"
+      });
+      loadMissions();
+    } catch (error: any) {
+      console.error('Error deleting mission:', error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de supprimer la mission",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleView = (mission: Mission) => {
+    setSelectedMission(mission);
+    setShowViewDialog(true);
+  };
+
+  const handleEdit = (mission: Mission) => {
+    setSelectedMission(mission);
+    setShowEditDialog(true);
   };
 
   const getStatutBadge = (statut?: string) => {
@@ -135,6 +171,39 @@ export default function MissionsClients() {
       accessorKey: 'statut',
       header: 'Statut',
       cell: ({ row }) => getStatutBadge(row.original.statut)
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleView(row.original)}
+            title="Voir la mission"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleEdit(row.original)}
+            title="Modifier la mission"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDelete(row.original.id)}
+            title="Supprimer la mission"
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      )
     }
   ];
 
@@ -156,6 +225,23 @@ export default function MissionsClients() {
         data={missions}
         searchPlaceholder="Rechercher une mission client..."
       />
+
+      {showEditDialog && selectedMission && (
+        <EditMissionDialog
+          open={showEditDialog}
+          onOpenChange={setShowEditDialog}
+          mission={selectedMission}
+          onSuccess={loadMissions}
+        />
+      )}
+
+      {showViewDialog && selectedMission && (
+        <ViewMissionDialog
+          open={showViewDialog}
+          onOpenChange={setShowViewDialog}
+          mission={selectedMission}
+        />
+      )}
     </div>
   );
 }

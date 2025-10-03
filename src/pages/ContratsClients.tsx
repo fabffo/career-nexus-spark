@@ -3,12 +3,13 @@ import { Contrat } from '@/types/contrat';
 import { contratService } from '@/services/contratService';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Copy, FileCheck, XCircle, Archive } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { toast as sonnerToast } from 'sonner';
 
 export default function ContratsClients() {
   const [contrats, setContrats] = useState<Contrat[]>([]);
@@ -35,6 +36,60 @@ export default function ContratsClients() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce contrat ?')) {
+      return;
+    }
+    try {
+      await contratService.delete(id);
+      sonnerToast.success('Contrat supprimé avec succès');
+      loadContrats();
+    } catch (error: any) {
+      console.error('Error deleting contrat:', error);
+      sonnerToast.error('Erreur lors de la suppression');
+    }
+  };
+
+  const handleDuplicate = async (contrat: Contrat) => {
+    try {
+      const { id, created_at, updated_at, created_by, ...dataToClone } = contrat as any;
+      await contratService.create({
+        ...dataToClone,
+        statut: 'BROUILLON',
+        version: '1.0',
+        parent_id: undefined
+      });
+      sonnerToast.success('Contrat dupliqué avec succès');
+      loadContrats();
+    } catch (error: any) {
+      console.error('Error duplicating contrat:', error);
+      sonnerToast.error('Erreur lors de la duplication');
+    }
+  };
+
+  const handleStatusAction = async (id: string, action: 'activer' | 'terminer' | 'annuler') => {
+    try {
+      switch (action) {
+        case 'activer':
+          await contratService.activer(id);
+          sonnerToast.success('Contrat activé');
+          break;
+        case 'terminer':
+          await contratService.terminer(id);
+          sonnerToast.success('Contrat terminé');
+          break;
+        case 'annuler':
+          await contratService.annuler(id);
+          sonnerToast.success('Contrat annulé');
+          break;
+      }
+      loadContrats();
+    } catch (error: any) {
+      console.error(`Error ${action}:`, error);
+      sonnerToast.error(`Erreur lors de l'action`);
     }
   };
 
@@ -96,6 +151,67 @@ export default function ContratsClients() {
       accessorKey: 'version',
       header: 'Version',
       cell: ({ row }) => <Badge variant="outline">{row.original.version}</Badge>
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => window.location.href = `/contrats?view=${row.original.id}`}
+            title="Voir le contrat"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => window.location.href = `/contrats?edit=${row.original.id}`}
+            title="Modifier le contrat"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDuplicate(row.original)}
+            title="Dupliquer le contrat"
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
+          {row.original.statut === 'BROUILLON' && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleStatusAction(row.original.id, 'activer')}
+              title="Activer le contrat"
+            >
+              <FileCheck className="h-4 w-4 text-green-600" />
+            </Button>
+          )}
+          {row.original.statut === 'ACTIF' && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleStatusAction(row.original.id, 'terminer')}
+              title="Terminer le contrat"
+            >
+              <Archive className="h-4 w-4" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDelete(row.original.id)}
+            title="Supprimer le contrat"
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      )
     }
   ];
 
