@@ -160,7 +160,7 @@ export default function ContratsClients() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => window.location.href = `/contrats?view=${row.original.id}`}
+            onClick={() => window.location.href = `/contrats-clients?view=${row.original.id}`}
             title="Voir le contrat"
           >
             <Eye className="h-4 w-4" />
@@ -168,7 +168,7 @@ export default function ContratsClients() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => window.location.href = `/contrats?edit=${row.original.id}`}
+            onClick={() => window.location.href = `/contrats-clients?edit=${row.original.id}`}
             title="Modifier le contrat"
           >
             <Edit className="h-4 w-4" />

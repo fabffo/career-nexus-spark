@@ -193,7 +193,7 @@ export default function ContratsFournisseurs() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => window.location.href = `/contrats?view=${row.original.id}`}
+            onClick={() => window.location.href = `/contrats-fournisseurs?view=${row.original.id}`}
             title="Voir le contrat"
           >
             <Eye className="h-4 w-4" />
@@ -201,7 +201,7 @@ export default function ContratsFournisseurs() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => window.location.href = `/contrats?edit=${row.original.id}`}
+            onClick={() => window.location.href = `/contrats-fournisseurs?edit=${row.original.id}`}
             title="Modifier le contrat"
           >
             <Edit className="h-4 w-4" />
