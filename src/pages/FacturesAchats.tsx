@@ -85,6 +85,7 @@ export default function FacturesAchats() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [globalFilter, setGlobalFilter] = useState("");
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [availableYears, setAvailableYears] = useState<string[]>([]);
@@ -311,15 +312,24 @@ export default function FacturesAchats() {
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
+    globalFilterFn: (row, columnId, filterValue) => {
+      const search = filterValue.toLowerCase();
+      return (
+        row.original.numero_facture?.toLowerCase().includes(search) ||
+        row.original.emetteur_nom?.toLowerCase().includes(search)
+      );
+    },
     state: {
       sorting,
       columnFilters,
       columnVisibility,
+      globalFilter,
     },
   });
 
@@ -405,10 +415,8 @@ export default function FacturesAchats() {
       <div className="flex items-center py-4 gap-4">
         <Input
           placeholder="Rechercher par numéro ou fournisseur..."
-          value={(table.getColumn("numero_facture")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("numero_facture")?.setFilterValue(event.target.value)
-          }
+          value={globalFilter ?? ""}
+          onChange={(event) => setGlobalFilter(event.target.value)}
           className="max-w-sm"
         />
         

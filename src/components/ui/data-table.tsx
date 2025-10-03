@@ -47,6 +47,26 @@ export function DataTable<TData, TValue>({
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: (row, columnId, filterValue) => {
+      const search = String(filterValue).toLowerCase();
+      
+      // Fonction récursive pour chercher dans tous les champs
+      const searchInValue = (value: any): boolean => {
+        if (value == null) return false;
+        
+        if (typeof value === 'string' || typeof value === 'number') {
+          return String(value).toLowerCase().includes(search);
+        }
+        
+        if (typeof value === 'object') {
+          return Object.values(value).some(searchInValue);
+        }
+        
+        return false;
+      };
+      
+      return searchInValue(row.original);
+    },
     state: {
       sorting,
       columnFilters,
