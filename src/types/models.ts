@@ -65,7 +65,7 @@ export interface CommentaireCandidatParClient extends AuditFields {
 
 // PosteClient model
 export type StatutPoste = 'ENCOURS' | 'REALISE' | 'ANNULE';
-export type TypePrestation = 'RECRUTEMENT' | 'FORMATION';
+export type TypePrestation = string; // Types dynamiques gérés par param_type_prestation
 
 export interface PosteClient extends AuditFields {
   clientId: string;
