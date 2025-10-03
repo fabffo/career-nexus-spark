@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Mission } from '@/types/mission';
 import { missionService } from '@/services/missionService';
 import { DataTable } from '@/components/ui/data-table';
@@ -13,6 +14,7 @@ import { EditMissionDialog } from '@/components/EditMissionDialog';
 import { ViewMissionDialog } from '@/components/ViewMissionDialog';
 
 export default function MissionsFournisseurs() {
+  const navigate = useNavigate();
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMission, setSelectedMission] = useState<Mission | null>(null);
@@ -240,7 +242,7 @@ export default function MissionsFournisseurs() {
           <h1 className="text-3xl font-bold">Missions Fournisseurs</h1>
           <p className="text-muted-foreground">Missions liées aux contrats fournisseurs</p>
         </div>
-        <Button onClick={() => window.location.href = '/missions'}>
+        <Button onClick={() => navigate('/missions?new=true')}>
           <Plus className="mr-2 h-4 w-4" />
           Nouvelle mission
         </Button>

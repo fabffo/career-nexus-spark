@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Mission, TypeMission, TypeIntervenant } from '@/types/mission';
 import { missionService } from '@/services/missionService';
 import { DataTable } from '@/components/ui/data-table';
@@ -14,6 +15,7 @@ import { EditMissionDialog } from '@/components/EditMissionDialog';
 import { ViewMissionDialog } from '@/components/ViewMissionDialog';
 
 export function Missions() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMission, setSelectedMission] = useState<Mission | null>(null);
@@ -25,6 +27,33 @@ export function Missions() {
   useEffect(() => {
     loadMissions();
   }, []);
+
+  // Gérer les paramètres d'URL pour édition/visualisation/création
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    const viewId = searchParams.get('view');
+    const isNew = searchParams.get('new');
+    
+    if (isNew === 'true') {
+      // Ouvrir le dialog de création
+      setShowAddDialog(true);
+      // Nettoyer l'URL
+      setSearchParams({});
+    } else if ((editId || viewId) && missions.length > 0) {
+      const missionId = editId || viewId;
+      const mission = missions.find(m => m.id === missionId);
+      
+      if (mission) {
+        if (editId) {
+          handleEdit(mission);
+        } else if (viewId) {
+          handleView(mission);
+        }
+        // Nettoyer l'URL
+        setSearchParams({});
+      }
+    }
+  }, [searchParams, missions]);
 
   const loadMissions = async () => {
     try {
