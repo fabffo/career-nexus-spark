@@ -14,6 +14,7 @@ export interface Tva {
 
 export interface Mission {
   id: string;
+  numero_mission?: string;
   
   // Liens
   poste_id?: string;

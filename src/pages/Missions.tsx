@@ -106,6 +106,13 @@ export function Missions() {
 
   const columns: ColumnDef<Mission>[] = [
     {
+      accessorKey: 'numero_mission',
+      header: 'N° Mission',
+      cell: ({ row }) => (
+        <div className="font-mono text-sm">{row.original.numero_mission || '-'}</div>
+      )
+    },
+    {
       accessorKey: 'titre',
       header: 'Titre',
       cell: ({ row }) => (
