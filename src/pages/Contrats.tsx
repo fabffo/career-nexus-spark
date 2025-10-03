@@ -62,12 +62,19 @@ export default function Contrats() {
     loadData();
   }, []);
 
-  // Gérer les paramètres d'URL pour édition/visualisation
+  // Gérer les paramètres d'URL pour édition/visualisation/création
   useEffect(() => {
     const editId = searchParams.get('edit');
     const viewId = searchParams.get('view');
+    const isNew = searchParams.get('new');
     
-    if ((editId || viewId) && contrats.length > 0) {
+    if (isNew === 'true') {
+      // Ouvrir le dialog de création
+      resetForm();
+      setIsDialogOpen(true);
+      // Nettoyer l'URL
+      setSearchParams({});
+    } else if ((editId || viewId) && contrats.length > 0) {
       const contratId = editId || viewId;
       const contrat = contrats.find(c => c.id === contratId);
       

@@ -237,7 +237,7 @@ export default function ContratsClients() {
           <h1 className="text-3xl font-bold">Contrats Clients</h1>
           <p className="text-muted-foreground">Gérez vos contrats avec les clients</p>
         </div>
-        <Button onClick={() => window.location.href = '/contrats'}>
+        <Button onClick={() => navigate('/contrats?new=true')}>
           <Plus className="mr-2 h-4 w-4" />
           Nouveau contrat
         </Button>
