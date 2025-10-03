@@ -8,7 +8,13 @@ class MissionService {
       .select(`
         *,
         poste:postes(*),
-        contrat:contrats(*, client:clients(*)),
+        contrat:contrats(
+          *, 
+          client:clients(*),
+          prestataire:prestataires(*),
+          fournisseur_services:fournisseurs_services(*),
+          fournisseur_general:fournisseurs_generaux(*)
+        ),
         prestataire:prestataires(*),
         salarie:salaries(*),
         tva:tva(*)
@@ -29,7 +35,13 @@ class MissionService {
       .select(`
         *,
         poste:postes(*),
-        contrat:contrats(*, client:clients(*)),
+        contrat:contrats(
+          *, 
+          client:clients(*),
+          prestataire:prestataires(*),
+          fournisseur_services:fournisseurs_services(*),
+          fournisseur_general:fournisseurs_generaux(*)
+        ),
         prestataire:prestataires(*),
         salarie:salaries(*),
         tva:tva(*)
@@ -61,7 +73,13 @@ class MissionService {
       .select(`
         *,
         poste:postes(*),
-        contrat:contrats(*, client:clients(*)),
+        contrat:contrats(
+          *, 
+          client:clients(*),
+          prestataire:prestataires(*),
+          fournisseur_services:fournisseurs_services(*),
+          fournisseur_general:fournisseurs_generaux(*)
+        ),
         prestataire:prestataires(*),
         salarie:salaries(*),
         tva:tva(*)
@@ -84,7 +102,13 @@ class MissionService {
       .select(`
         *,
         poste:postes(*),
-        contrat:contrats(*, client:clients(*)),
+        contrat:contrats(
+          *, 
+          client:clients(*),
+          prestataire:prestataires(*),
+          fournisseur_services:fournisseurs_services(*),
+          fournisseur_general:fournisseurs_generaux(*)
+        ),
         prestataire:prestataires(*),
         salarie:salaries(*),
         tva:tva(*)
