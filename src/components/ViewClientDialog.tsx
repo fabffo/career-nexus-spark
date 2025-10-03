@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Building, Mail, Phone, Globe, MapPin, Briefcase } from 'lucide-react';
+import { Building, Mail, Phone, Globe, MapPin, Briefcase, Calendar } from 'lucide-react';
 
 interface ViewClientDialogProps {
   client: any;
@@ -83,6 +83,15 @@ export function ViewClientDialog({ client, open, onOpenChange }: ViewClientDialo
                 </a>
               </div>
             )}
+          </div>
+
+          {/* Délai de paiement */}
+          <div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <Calendar className="h-4 w-4" />
+              <span>Délai de paiement</span>
+            </div>
+            <p className="ml-6 font-medium">{client.delai_paiement_jours || 30} jours</p>
           </div>
 
           {/* Métadonnées */}
