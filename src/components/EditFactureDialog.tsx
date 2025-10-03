@@ -66,7 +66,15 @@ export default function EditFactureDialog({
     try {
       const { data: missionsData } = await supabase
         .from('missions')
-        .select('*, tva(*)')
+        .select(`
+          *, 
+          tva(*),
+          contrat:contrats(
+            id,
+            type,
+            client:clients(id, raison_sociale)
+          )
+        `)
         .eq('statut', 'EN_COURS')
         .order('titre');
       setMissions((missionsData as Mission[]) || []);
@@ -169,6 +177,27 @@ export default function EditFactureDialog({
     const total_ttc = total_ht + total_tva;
     
     return { total_ht, total_tva, total_ttc };
+  };
+
+  // Filtrer les missions en fonction du type de facture et du client sélectionné
+  const getFilteredMissions = () => {
+    let filtered = missions;
+    
+    // Pour les factures de vente, ne montrer que les missions avec des contrats CLIENT
+    if (formData.type_facture === 'VENTES') {
+      filtered = filtered.filter(mission => 
+        mission.contrat?.type === 'CLIENT'
+      );
+      
+      // Si un client est sélectionné, filtrer par ce client
+      if (formData.destinataire_id) {
+        filtered = filtered.filter(mission => 
+          mission.contrat?.client?.id === formData.destinataire_id
+        );
+      }
+    }
+    
+    return filtered;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -334,11 +363,19 @@ export default function EditFactureDialog({
                           />
                           <CommandEmpty>
                             <div className="p-2 text-sm">
-                              Tapez pour saisir une description personnalisée
+                              {formData.type_facture === 'VENTES' && !formData.destinataire_id ? (
+                                <span className="text-muted-foreground">
+                                  Sélectionnez d'abord un client pour voir les missions disponibles
+                                </span>
+                              ) : (
+                                <span>
+                                  Tapez pour saisir une description personnalisée
+                                </span>
+                              )}
                             </div>
                           </CommandEmpty>
                           <CommandGroup heading="Missions en cours">
-                            {missions.map((mission) => (
+                            {getFilteredMissions().map((mission) => (
                               <CommandItem
                                 key={mission.id}
                                 value={mission.titre}
@@ -352,6 +389,11 @@ export default function EditFactureDialog({
                                 />
                                 <div className="flex flex-col">
                                   <span className="font-medium">{mission.titre}</span>
+                                  {mission.contrat?.client && (
+                                    <span className="text-xs text-muted-foreground">
+                                      Client: {mission.contrat.client.raison_sociale}
+                                    </span>
+                                  )}
                                   {mission.prix_ht && (
                                     <span className="text-sm text-muted-foreground">
                                       {mission.prix_ht}€ HT - TVA {mission.tva?.taux || mission.taux_tva || 20}%
