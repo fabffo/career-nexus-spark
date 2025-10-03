@@ -200,6 +200,11 @@ export default function Postes() {
     return clients.find(c => c.id === clientId);
   };
 
+  const getTypePrestationLibelle = (code: string) => {
+    const type = typesPrestationList.find(t => t.code === code);
+    return type?.libelle || code;
+  };
+
   const columns: ColumnDef<PosteClient>[] = [
     {
       accessorKey: 'nomPoste',
@@ -228,7 +233,7 @@ export default function Postes() {
         const type = row.getValue('typePrestation') as PosteClient['typePrestation'];
         return (
           <Badge variant="outline">
-            {type === 'RECRUTEMENT' ? 'Recrutement' : 'Formation'}
+            {getTypePrestationLibelle(type)}
           </Badge>
         );
       },
