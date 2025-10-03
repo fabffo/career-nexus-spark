@@ -3,18 +3,24 @@ import { Contrat } from '@/types/contrat';
 import { contratService } from '@/services/contratService';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Eye, Copy, FileCheck, XCircle, Archive } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Copy, FileCheck, XCircle, Archive, FileText } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast as sonnerToast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { useNavigate } from 'react-router-dom';
 
 export default function ContratsFournisseurs() {
   const [contrats, setContrats] = useState<Contrat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedContrat, setSelectedContrat] = useState<Contrat | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadContrats();
@@ -95,6 +101,15 @@ export default function ContratsFournisseurs() {
       console.error(`Error ${action}:`, error);
       sonnerToast.error(`Erreur lors de l'action`);
     }
+  };
+
+  const openViewDialog = (contrat: Contrat) => {
+    setSelectedContrat(contrat);
+    setIsViewDialogOpen(true);
+  };
+
+  const openEditDialog = (contrat: Contrat) => {
+    navigate(`/contrats?edit=${contrat.id}`);
   };
 
   const getStatutBadgeVariant = (statut: string) => {
@@ -193,7 +208,7 @@ export default function ContratsFournisseurs() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => window.location.href = `/contrats-fournisseurs?view=${row.original.id}`}
+            onClick={() => openViewDialog(row.original)}
             title="Voir le contrat"
           >
             <Eye className="h-4 w-4" />
@@ -201,7 +216,7 @@ export default function ContratsFournisseurs() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => window.location.href = `/contrats-fournisseurs?edit=${row.original.id}`}
+            onClick={() => openEditDialog(row.original)}
             title="Modifier le contrat"
           >
             <Edit className="h-4 w-4" />
@@ -266,6 +281,95 @@ export default function ContratsFournisseurs() {
         data={contrats}
         searchPlaceholder="Rechercher un contrat fournisseur..."
       />
+
+      {/* Dialog de visualisation */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Détails du contrat</DialogTitle>
+          </DialogHeader>
+
+          {selectedContrat && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">N° Contrat</Label>
+                  <p className="font-medium">{selectedContrat.numero_contrat}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Type</Label>
+                  <Badge variant="outline">{getTypeLabel(selectedContrat.type)}</Badge>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-muted-foreground">Fournisseur</Label>
+                <p className="font-medium">{getFournisseurNom(selectedContrat)}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Date début</Label>
+                  <p className="font-medium">
+                    {selectedContrat.date_debut ? format(new Date(selectedContrat.date_debut), 'dd MMMM yyyy', { locale: fr }) : '-'}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Date fin</Label>
+                  <p className="font-medium">
+                    {selectedContrat.date_fin ? format(new Date(selectedContrat.date_fin), 'dd MMMM yyyy', { locale: fr }) : '-'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Montant</Label>
+                  <p className="font-medium">
+                    {selectedContrat.montant ? `${selectedContrat.montant.toLocaleString('fr-FR')} €` : '-'}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Version</Label>
+                  <p className="font-medium">{selectedContrat.version}</p>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-muted-foreground">Statut</Label>
+                <Badge variant={getStatutBadgeVariant(selectedContrat.statut)} className="mt-1">
+                  {selectedContrat.statut}
+                </Badge>
+              </div>
+
+              {selectedContrat.description && (
+                <div>
+                  <Label className="text-muted-foreground">Description</Label>
+                  <p className="whitespace-pre-wrap">{selectedContrat.description}</p>
+                </div>
+              )}
+
+              {selectedContrat.piece_jointe_url && (
+                <div>
+                  <Button
+                    variant="outline"
+                    onClick={() => window.open(selectedContrat.piece_jointe_url, '_blank')}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Voir la pièce jointe
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button onClick={() => setIsViewDialogOpen(false)}>
+              Fermer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
