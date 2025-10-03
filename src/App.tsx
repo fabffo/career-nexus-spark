@@ -31,8 +31,12 @@ import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import Prestataires from "./pages/Prestataires";
 import Contrats from "./pages/Contrats";
+import ContratsClients from "./pages/ContratsClients";
+import ContratsFournisseurs from "./pages/ContratsFournisseurs";
 import Salaries from "./pages/Salaries";
 import { Missions } from "./pages/Missions";
+import MissionsClients from "./pages/MissionsClients";
+import MissionsFournisseurs from "./pages/MissionsFournisseurs";
 import FournisseursGeneraux from "./pages/FournisseursGeneraux";
 import FournisseursServices from "./pages/FournisseursServices";
 import Factures from "./pages/Factures";
@@ -91,9 +95,13 @@ const App = () => (
               <Route path="fournisseurs-generaux" element={<FournisseursGeneraux />} />
               <Route path="fournisseurs-services" element={<FournisseursServices />} />
               <Route path="contrats" element={<Contrats />} />
+              <Route path="contrats-clients" element={<ContratsClients />} />
+              <Route path="contrats-fournisseurs" element={<ContratsFournisseurs />} />
               <Route path="salaries" element={<Salaries />} />
               <Route path="postes" element={<Postes />} />
               <Route path="missions" element={<Missions />} />
+              <Route path="missions-clients" element={<MissionsClients />} />
+              <Route path="missions-fournisseurs" element={<MissionsFournisseurs />} />
               <Route path="factures" element={<Factures />} />
               <Route path="factures-ventes" element={<FacturesVentes />} />
               <Route path="factures-achats" element={<FacturesAchats />} />

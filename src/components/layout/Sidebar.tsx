@@ -56,12 +56,30 @@ export function Sidebar() {
       ]
     },
     {
+      label: 'Contrats',
+      icon: FileText,
+      category: 'contrats',
+      items: [
+        { path: '/contrats', label: 'Tous les contrats', icon: FileText },
+        { path: '/contrats-clients', label: 'Contrats Clients', icon: FileText },
+        { path: '/contrats-fournisseurs', label: 'Contrats Fournisseurs', icon: FileText },
+      ]
+    },
+    {
+      label: 'Missions',
+      icon: Briefcase,
+      category: 'missions',
+      items: [
+        { path: '/missions', label: 'Toutes les missions', icon: Briefcase },
+        { path: '/missions-clients', label: 'Missions Clients', icon: Briefcase },
+        { path: '/missions-fournisseurs', label: 'Missions Fournisseurs', icon: Briefcase },
+      ]
+    },
+    {
       label: 'Actions',
       icon: Activity,
       category: 'actions',
       items: [
-        { path: '/contrats', label: 'Contrats', icon: FileText },
-        { path: '/missions', label: 'Missions', icon: Briefcase },
         { path: '/rdv', label: 'Rendez-vous', icon: Calendar },
         { path: '/postes', label: 'Postes', icon: Briefcase },
       ]
