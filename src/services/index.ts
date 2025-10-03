@@ -169,6 +169,7 @@ class ClientService implements CrudOperations<Client> {
       secteurActivite: '',
       siteWeb: '',
       pieceJointes: [],
+      delai_paiement_jours: item.delai_paiement_jours || 30,
       createdAt: new Date(item.created_at),
       updatedAt: new Date(item.updated_at),
     }));
@@ -193,6 +194,7 @@ class ClientService implements CrudOperations<Client> {
       secteurActivite: '',
       siteWeb: '',
       pieceJointes: [],
+      delai_paiement_jours: data.delai_paiement_jours || 30,
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };
@@ -203,7 +205,8 @@ class ClientService implements CrudOperations<Client> {
       raison_sociale: item.raisonSociale,
       adresse: item.adresse,
       telephone: item.telephone,
-      email: item.email
+      email: item.email,
+      delai_paiement_jours: (item as any).delaiPaiementJours || 30
     };
     
     const { data, error } = await supabase
@@ -223,6 +226,7 @@ class ClientService implements CrudOperations<Client> {
       secteurActivite: item.secteurActivite || '',
       siteWeb: item.siteWeb,
       pieceJointes: item.pieceJointes,
+      delai_paiement_jours: data.delai_paiement_jours || 30,
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };
@@ -234,6 +238,7 @@ class ClientService implements CrudOperations<Client> {
     if (item.adresse !== undefined) updateData.adresse = item.adresse;
     if (item.telephone !== undefined) updateData.telephone = item.telephone;
     if (item.email !== undefined) updateData.email = item.email;
+    if ((item as any).delaiPaiementJours !== undefined) updateData.delai_paiement_jours = (item as any).delaiPaiementJours;
     
     const { data, error } = await supabase
       .from('clients')
@@ -253,6 +258,7 @@ class ClientService implements CrudOperations<Client> {
       secteurActivite: item.secteurActivite || '',
       siteWeb: item.siteWeb,
       pieceJointes: item.pieceJointes,
+      delai_paiement_jours: data.delai_paiement_jours || 30,
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };

@@ -29,6 +29,7 @@ export interface Client extends AuditFields {
   email: string;
   siteWeb?: string;
   pieceJointes?: string[];
+  delai_paiement_jours?: number;
 }
 
 // RDV model
