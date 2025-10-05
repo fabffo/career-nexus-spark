@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, TrendingDown, Eye, Pencil, Trash2 } from "lucide-react";
+import { Plus, TrendingDown, Eye, Pencil, Trash2, Download } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +36,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -89,6 +90,8 @@ export default function FacturesAchats() {
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [availableYears, setAvailableYears] = useState<string[]>([]);
+  const [selectedFactureIds, setSelectedFactureIds] = useState<Set<string>>(new Set());
+  const [isDownloading, setIsDownloading] = useState(false);
   const [stats, setStats] = useState({
     totalFactures: 0,
     totalHT: 0,
@@ -200,7 +203,116 @@ export default function FacturesAchats() {
     }
   };
 
+  const toggleFactureSelection = (factureId: string) => {
+    const newSelection = new Set(selectedFactureIds);
+    if (newSelection.has(factureId)) {
+      newSelection.delete(factureId);
+    } else {
+      newSelection.add(factureId);
+    }
+    setSelectedFactureIds(newSelection);
+  };
+
+  const toggleAllFactures = () => {
+    if (selectedFactureIds.size === factures.length) {
+      setSelectedFactureIds(new Set());
+    } else {
+      setSelectedFactureIds(new Set(factures.map(f => f.id)));
+    }
+  };
+
+  const downloadSelectedFactures = async () => {
+    if (selectedFactureIds.size === 0) {
+      toast({
+        title: "Aucune facture sélectionnée",
+        description: "Veuillez sélectionner au moins une facture à télécharger",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsDownloading(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const factureId of Array.from(selectedFactureIds)) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-facture-pdf`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.access_token}`,
+            },
+            body: JSON.stringify({ facture_id: factureId }),
+          }
+        );
+
+        if (!response.ok) throw new Error('Erreur lors de la génération du PDF');
+
+        const blob = await response.blob();
+        const facture = factures.find(f => f.id === factureId);
+        const filename = `${facture?.numero_facture || factureId}.pdf`;
+        
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        successCount++;
+        
+        // Petit délai entre chaque téléchargement pour éviter de bloquer le navigateur
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        console.error(`Erreur lors du téléchargement de la facture ${factureId}:`, error);
+        errorCount++;
+      }
+    }
+
+    setIsDownloading(false);
+    
+    if (successCount > 0) {
+      toast({
+        title: "Téléchargement terminé",
+        description: `${successCount} facture(s) téléchargée(s)${errorCount > 0 ? `, ${errorCount} erreur(s)` : ''}`,
+      });
+    } else {
+      toast({
+        title: "Erreur",
+        description: "Impossible de télécharger les factures",
+        variant: "destructive",
+      });
+    }
+    
+    setSelectedFactureIds(new Set());
+  };
+
   const columns: ColumnDef<Facture>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={selectedFactureIds.size === factures.length && factures.length > 0}
+          onCheckedChange={toggleAllFactures}
+          aria-label="Tout sélectionner"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={selectedFactureIds.has(row.original.id)}
+          onCheckedChange={() => toggleFactureSelection(row.original.id)}
+          aria-label="Sélectionner la ligne"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
     {
       accessorKey: "numero_facture",
       header: "N° Facture",
@@ -345,15 +457,27 @@ export default function FacturesAchats() {
             Gérez vos factures fournisseurs et suivez vos paiements
           </p>
         </div>
-        <Button 
-          onClick={() => {
-            setSelectedFacture(null);
-            setOpenAddDialog(true);
-          }}
-          className="bg-red-600 hover:bg-red-700"
-        >
-          <Plus className="mr-2 h-4 w-4" /> Nouvelle facture d'achat
-        </Button>
+        <div className="flex gap-2">
+          {selectedFactureIds.size > 0 && (
+            <Button
+              onClick={downloadSelectedFactures}
+              disabled={isDownloading}
+              variant="outline"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              {isDownloading ? 'Téléchargement...' : `Télécharger (${selectedFactureIds.size})`}
+            </Button>
+          )}
+          <Button 
+            onClick={() => {
+              setSelectedFacture(null);
+              setOpenAddDialog(true);
+            }}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            <Plus className="mr-2 h-4 w-4" /> Nouvelle facture d'achat
+          </Button>
+        </div>
       </div>
 
       {/* Statistiques */}
