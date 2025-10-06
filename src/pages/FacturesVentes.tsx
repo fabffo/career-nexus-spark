@@ -303,7 +303,12 @@ export default function FacturesVentes() {
 
         const blob = await response.blob();
         const facture = factures.find(f => f.id === factureId);
-        const filename = `${facture?.numero_facture || factureId}.pdf`;
+        
+        // Nettoyer les noms pour le fichier
+        const cleanName = (name: string) => name.replace(/[^a-zA-Z0-9-_]/g, '_');
+        const emetteur = cleanName(facture?.emetteur_nom || 'Emetteur');
+        const destinataire = cleanName(facture?.destinataire_nom || 'Destinataire');
+        const filename = `${facture?.numero_facture || factureId}_${emetteur}_${destinataire}.pdf`;
         
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
