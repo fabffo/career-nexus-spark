@@ -9,17 +9,29 @@ import {
   CrudOperations,
 } from '@/types/models';
 
-// Candidat Service using Supabase
+// Import the new API service for candidats
+import { candidatApiService } from './api/candidatApiService';
+
+// Type for API response
+interface CandidatApiResponse {
+  id: string;
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone: string;
+  cv_url?: string;
+  recommandation_url?: string;
+  detail_cv?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Candidat Service using API
 class CandidatService implements CrudOperations<Candidat> {
   async getAll(): Promise<Candidat[]> {
-    const { data, error } = await supabase
-      .from('candidats')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const data = await candidatApiService.getAll() as unknown as CandidatApiResponse[];
     
-    if (error) throw error;
-    
-    return (data || []).map(item => ({
+    return data.map(item => ({
       id: item.id,
       nom: item.nom,
       prenom: item.prenom,
@@ -36,14 +48,7 @@ class CandidatService implements CrudOperations<Candidat> {
   }
 
   async getById(id: string): Promise<Candidat> {
-    const { data, error } = await supabase
-      .from('candidats')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-    
-    if (error) throw error;
-    if (!data) throw new Error(`Candidat with id ${id} not found`);
+    const data = await candidatApiService.getById(id) as unknown as CandidatApiResponse;
     
     return {
       id: data.id,
@@ -62,7 +67,7 @@ class CandidatService implements CrudOperations<Candidat> {
   }
 
   async create(item: Omit<Candidat, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'>): Promise<Candidat> {
-    const candidatData = {
+    const candidatData: any = {
       nom: item.nom,
       prenom: item.prenom,
       email: item.mail || '',
@@ -72,13 +77,7 @@ class CandidatService implements CrudOperations<Candidat> {
       detail_cv: item.detail_cv || null
     };
     
-    const { data, error } = await supabase
-      .from('candidats')
-      .insert(candidatData)
-      .select()
-      .single();
-    
-    if (error) throw error;
+    const data = await candidatApiService.create(candidatData) as unknown as CandidatApiResponse;
     
     return {
       id: data.id,
@@ -106,14 +105,7 @@ class CandidatService implements CrudOperations<Candidat> {
     if (item.recommandationUrl !== undefined) updateData.recommandation_url = item.recommandationUrl;
     if (item.detail_cv !== undefined) updateData.detail_cv = item.detail_cv;
     
-    const { data, error } = await supabase
-      .from('candidats')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
-    
-    if (error) throw error;
+    const data = await candidatApiService.update(id, updateData) as unknown as CandidatApiResponse;
     
     return {
       id: data.id,
@@ -132,21 +124,11 @@ class CandidatService implements CrudOperations<Candidat> {
   }
 
   async delete(id: string): Promise<void> {
-    const { error } = await supabase
-      .from('candidats')
-      .delete()
-      .eq('id', id);
-    
-    if (error) throw error;
+    await candidatApiService.delete(id);
   }
 
   async count(): Promise<number> {
-    const { count, error } = await supabase
-      .from('candidats')
-      .select('*', { count: 'exact', head: true });
-    
-    if (error) throw error;
-    return count || 0;
+    return await candidatApiService.count();
   }
 }
 
