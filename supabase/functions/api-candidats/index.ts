@@ -107,7 +107,10 @@ serve(async (req: Request) => {
     // PUT /api-candidats/:id - Update candidat
     if (method === 'PUT' && path.match(/^\/[a-f0-9-]+$/)) {
       const id = path.substring(1);
+      console.log(`Updating candidat ${id}`);
+      
       const body: CandidatUpdate = await req.json();
+      console.log('Update data:', JSON.stringify(body));
       
       const { data, error } = await supabase
         .from('candidats')
@@ -116,8 +119,12 @@ serve(async (req: Request) => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Update error:', error);
+        throw error;
+      }
 
+      console.log('Update successful:', data);
       return new Response(
         JSON.stringify({ success: true, data }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -166,11 +173,13 @@ serve(async (req: Request) => {
 
   } catch (error) {
     console.error('API Error:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error instanceof Error ? error.message : 'Internal server error' 
+        error: error instanceof Error ? error.message : 'Internal server error',
+        details: error instanceof Error ? error.stack : undefined
       }),
       {
         status: error instanceof Error && error.message === 'Unauthorized' ? 401 : 500,

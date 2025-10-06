@@ -45,19 +45,33 @@ class ApiClient {
     
     console.log(`API POST: ${url}`, data);
     
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(data),
-    });
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+      });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'API request failed');
+      if (!response.ok) {
+        let errorMessage = 'API request failed';
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch (e) {
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      return result.data;
+    } catch (error) {
+      console.error('API POST error:', error);
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        throw new Error('Erreur de connexion au serveur. Veuillez réessayer.');
+      }
+      throw error;
     }
-
-    const result = await response.json();
-    return result.data;
   }
 
   async put<T>(endpoint: string, id: string, data: any): Promise<T> {
@@ -66,19 +80,33 @@ class ApiClient {
     
     console.log(`API PUT: ${url}`, data);
     
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers,
-      body: JSON.stringify(data),
-    });
+    try {
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(data),
+      });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'API request failed');
+      if (!response.ok) {
+        let errorMessage = 'API request failed';
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch (e) {
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      return result.data;
+    } catch (error) {
+      console.error('API PUT error:', error);
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        throw new Error('Erreur de connexion au serveur. Veuillez réessayer.');
+      }
+      throw error;
     }
-
-    const result = await response.json();
-    return result.data;
   }
 
   async delete(endpoint: string, id: string): Promise<void> {
