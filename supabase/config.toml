@@ -103,6 +103,3 @@ verify_jwt = true
 
 [functions.generate-facture-pdf]
 verify_jwt = true
-
-[functions.api-candidats]
-verify_jwt = true

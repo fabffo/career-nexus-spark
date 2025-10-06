@@ -9,38 +9,24 @@ import {
   CrudOperations,
 } from '@/types/models';
 
-// Import the new API service for candidats
-import { candidatApiService } from './api/candidatApiService';
-
-// Type for API response
-interface CandidatApiResponse {
-  id: string;
-  nom: string;
-  prenom: string;
-  email: string;
-  telephone: string;
-  metier?: string;
-  adresse?: string;
-  cv_url?: string;
-  recommandation_url?: string;
-  detail_cv?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-// Candidat Service using API
+// Candidat Service using Supabase
 class CandidatService implements CrudOperations<Candidat> {
   async getAll(): Promise<Candidat[]> {
-    const data = await candidatApiService.getAll() as unknown as CandidatApiResponse[];
+    const { data, error } = await supabase
+      .from('candidats')
+      .select('*')
+      .order('created_at', { ascending: false });
     
-    return data.map(item => ({
+    if (error) throw error;
+    
+    return (data || []).map(item => ({
       id: item.id,
       nom: item.nom,
       prenom: item.prenom,
       mail: item.email || '',
       telephone: item.telephone || '',
-      metier: item.metier || '',
-      adresse: item.adresse || '',
+      metier: '',
+      adresse: '',
       cvUrl: item.cv_url || '',
       recommandationUrl: item.recommandation_url || '',
       detail_cv: item.detail_cv || '',
@@ -50,7 +36,14 @@ class CandidatService implements CrudOperations<Candidat> {
   }
 
   async getById(id: string): Promise<Candidat> {
-    const data = await candidatApiService.getById(id) as unknown as CandidatApiResponse;
+    const { data, error } = await supabase
+      .from('candidats')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    
+    if (error) throw error;
+    if (!data) throw new Error(`Candidat with id ${id} not found`);
     
     return {
       id: data.id,
@@ -58,8 +51,8 @@ class CandidatService implements CrudOperations<Candidat> {
       prenom: data.prenom,
       mail: data.email || '',
       telephone: data.telephone || '',
-      metier: data.metier || '',
-      adresse: data.adresse || '',
+      metier: '',
+      adresse: '',
       cvUrl: data.cv_url || '',
       recommandationUrl: data.recommandation_url || '',
       detail_cv: data.detail_cv || '',
@@ -69,19 +62,23 @@ class CandidatService implements CrudOperations<Candidat> {
   }
 
   async create(item: Omit<Candidat, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'>): Promise<Candidat> {
-    const candidatData: any = {
+    const candidatData = {
       nom: item.nom,
       prenom: item.prenom,
       email: item.mail || '',
       telephone: item.telephone || '',
-      metier: item.metier || null,
-      adresse: item.adresse || null,
       cv_url: item.cvUrl || null,
       recommandation_url: item.recommandationUrl || null,
       detail_cv: item.detail_cv || null
     };
     
-    const data = await candidatApiService.create(candidatData) as unknown as CandidatApiResponse;
+    const { data, error } = await supabase
+      .from('candidats')
+      .insert(candidatData)
+      .select()
+      .single();
+    
+    if (error) throw error;
     
     return {
       id: data.id,
@@ -89,8 +86,8 @@ class CandidatService implements CrudOperations<Candidat> {
       prenom: data.prenom,
       mail: data.email || '',
       telephone: data.telephone || '',
-      metier: data.metier || '',
-      adresse: data.adresse || '',
+      metier: item.metier || '',
+      adresse: item.adresse || '',
       cvUrl: data.cv_url || '',
       recommandationUrl: data.recommandation_url || '',
       detail_cv: data.detail_cv || '',
@@ -100,15 +97,11 @@ class CandidatService implements CrudOperations<Candidat> {
   }
 
   async update(id: string, item: Partial<Candidat>): Promise<Candidat> {
-    // Pour les mises à jour, utiliser Supabase directement car les payloads peuvent être volumineuses
-    // (notamment avec detail_cv qui contient le CV complet)
     const updateData: any = {};
     if (item.nom !== undefined) updateData.nom = item.nom;
     if (item.prenom !== undefined) updateData.prenom = item.prenom;
     if (item.mail !== undefined) updateData.email = item.mail;
     if (item.telephone !== undefined) updateData.telephone = item.telephone;
-    if (item.metier !== undefined) updateData.metier = item.metier;
-    if (item.adresse !== undefined) updateData.adresse = item.adresse;
     if (item.cvUrl !== undefined) updateData.cv_url = item.cvUrl;
     if (item.recommandationUrl !== undefined) updateData.recommandation_url = item.recommandationUrl;
     if (item.detail_cv !== undefined) updateData.detail_cv = item.detail_cv;
@@ -122,30 +115,38 @@ class CandidatService implements CrudOperations<Candidat> {
     
     if (error) throw error;
     
-    const candidatData: any = data;
-    
     return {
-      id: candidatData.id,
-      nom: candidatData.nom,
-      prenom: candidatData.prenom,
-      mail: candidatData.email || '',
-      telephone: candidatData.telephone || '',
-      metier: candidatData.metier || '',
-      adresse: candidatData.adresse || '',
-      cvUrl: candidatData.cv_url || '',
-      recommandationUrl: candidatData.recommandation_url || '',
-      detail_cv: candidatData.detail_cv || '',
-      createdAt: new Date(candidatData.created_at),
-      updatedAt: new Date(candidatData.updated_at),
+      id: data.id,
+      nom: data.nom,
+      prenom: data.prenom,
+      mail: data.email || '',
+      telephone: data.telephone || '',
+      metier: item.metier || '',
+      adresse: item.adresse || '',
+      cvUrl: data.cv_url || '',
+      recommandationUrl: data.recommandation_url || '',
+      detail_cv: data.detail_cv || '',
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
     };
   }
 
   async delete(id: string): Promise<void> {
-    await candidatApiService.delete(id);
+    const { error } = await supabase
+      .from('candidats')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
   }
 
   async count(): Promise<number> {
-    return await candidatApiService.count();
+    const { count, error } = await supabase
+      .from('candidats')
+      .select('*', { count: 'exact', head: true });
+    
+    if (error) throw error;
+    return count || 0;
   }
 }
 
