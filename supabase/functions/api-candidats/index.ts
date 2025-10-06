@@ -11,6 +11,8 @@ interface CandidatCreate {
   prenom: string;
   email?: string;
   telephone?: string;
+  metier?: string;
+  adresse?: string;
   cv_url?: string;
   recommandation_url?: string;
   detail_cv?: string;
