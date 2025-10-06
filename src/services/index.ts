@@ -100,6 +100,8 @@ class CandidatService implements CrudOperations<Candidat> {
   }
 
   async update(id: string, item: Partial<Candidat>): Promise<Candidat> {
+    // Pour les mises à jour, utiliser Supabase directement car les payloads peuvent être volumineuses
+    // (notamment avec detail_cv qui contient le CV complet)
     const updateData: any = {};
     if (item.nom !== undefined) updateData.nom = item.nom;
     if (item.prenom !== undefined) updateData.prenom = item.prenom;
@@ -111,21 +113,30 @@ class CandidatService implements CrudOperations<Candidat> {
     if (item.recommandationUrl !== undefined) updateData.recommandation_url = item.recommandationUrl;
     if (item.detail_cv !== undefined) updateData.detail_cv = item.detail_cv;
     
-    const data = await candidatApiService.update(id, updateData) as unknown as CandidatApiResponse;
+    const { data, error } = await supabase
+      .from('candidats')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    const candidatData: any = data;
     
     return {
-      id: data.id,
-      nom: data.nom,
-      prenom: data.prenom,
-      mail: data.email || '',
-      telephone: data.telephone || '',
-      metier: data.metier || '',
-      adresse: data.adresse || '',
-      cvUrl: data.cv_url || '',
-      recommandationUrl: data.recommandation_url || '',
-      detail_cv: data.detail_cv || '',
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
+      id: candidatData.id,
+      nom: candidatData.nom,
+      prenom: candidatData.prenom,
+      mail: candidatData.email || '',
+      telephone: candidatData.telephone || '',
+      metier: candidatData.metier || '',
+      adresse: candidatData.adresse || '',
+      cvUrl: candidatData.cv_url || '',
+      recommandationUrl: candidatData.recommandation_url || '',
+      detail_cv: candidatData.detail_cv || '',
+      createdAt: new Date(candidatData.created_at),
+      updatedAt: new Date(candidatData.updated_at),
     };
   }
 
