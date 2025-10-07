@@ -175,9 +175,18 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
         .from('societe_interne')
         .select('*')
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (societeError) throw societeError;
+
+      if (!societeData) {
+        toast({
+          title: "Erreur",
+          description: "Aucune société interne configurée. Veuillez configurer la société dans les paramètres.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       const montantHT = parseFloat(formData.montant_ht);
       const montantTVA = parseFloat(formData.montant_tva) || 0;
