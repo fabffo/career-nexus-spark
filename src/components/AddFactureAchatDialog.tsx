@@ -183,14 +183,14 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
       const montantTVA = parseFloat(formData.montant_tva) || 0;
       const montantTTC = montantHT + montantTVA;
 
-      // Créer la facture
-      const { data: factureData, error: factureError } = await supabase
+      // Créer la facture (sans select car les politiques RLS peuvent bloquer la lecture immédiate)
+      const { error: factureError } = await supabase
         .from('factures')
         .insert({
           numero_facture: formData.numero_facture,
           type_facture: 'ACHATS',
           date_emission: format(formData.date_emission, 'yyyy-MM-dd'),
-          date_echeance: format(formData.date_emission, 'yyyy-MM-dd'), // Même date par défaut
+          date_echeance: format(formData.date_emission, 'yyyy-MM-dd'),
           emetteur_type: emetteurType,
           emetteur_id: emetteurId,
           emetteur_nom: emetteurNom,
@@ -205,9 +205,7 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
           total_ttc: montantTTC,
           statut: formData.statut,
           reference_societe: factureUrl,
-        })
-        .select()
-        .single();
+        });
 
       if (factureError) throw factureError;
 
