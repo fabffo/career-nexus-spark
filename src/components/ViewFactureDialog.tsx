@@ -68,7 +68,12 @@ export default function ViewFactureDialog({
   const handleDownload = async () => {
     try {
       // Pour les factures d'achat, télécharger le fichier depuis le storage
-      if (facture.type_facture === 'ACHATS' && facture.reference_societe) {
+      if (facture.type_facture === 'ACHATS') {
+        if (!facture.reference_societe) {
+          alert('Aucun fichier n\'a été uploadé pour cette facture d\'achat.');
+          return;
+        }
+        
         console.log('Téléchargement facture achat, chemin:', facture.reference_societe);
         
         let bucket = 'factures';
@@ -101,7 +106,11 @@ export default function ViewFactureDialog({
         const downloadUrl = window.URL.createObjectURL(data);
         const link = document.createElement('a');
         link.href = downloadUrl;
-        link.download = `facture_${facture.numero_facture}.pdf`;
+        
+        // Extraire l'extension du fichier original
+        const extension = filePath.split('.').pop() || 'pdf';
+        link.download = `facture_${facture.numero_facture}.${extension}`;
+        
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -167,8 +176,15 @@ export default function ViewFactureDialog({
         <div className="space-y-6">
           {/* Actions */}
           <div className="flex justify-end gap-2 print:hidden">
-            <Button onClick={handleDownload} variant="outline">
-              <Download className="h-4 w-4 mr-2" /> Télécharger
+            <Button 
+              onClick={handleDownload} 
+              variant="outline"
+              disabled={facture.type_facture === 'ACHATS' && !facture.reference_societe}
+            >
+              <Download className="h-4 w-4 mr-2" /> 
+              {facture.type_facture === 'ACHATS' && !facture.reference_societe 
+                ? 'Aucun fichier' 
+                : 'Télécharger'}
             </Button>
             <Button onClick={handlePrint} variant="outline">
               <Printer className="h-4 w-4 mr-2" /> Imprimer
