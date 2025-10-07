@@ -181,6 +181,34 @@ export default function FacturesAchats() {
     if (!confirm("Êtes-vous sûr de vouloir supprimer cette facture ?")) return;
 
     try {
+      // Récupérer la facture pour supprimer le fichier associé
+      const facture = factures.find(f => f.id === id);
+      
+      // Supprimer le fichier du storage si présent
+      if (facture?.reference_societe) {
+        try {
+          let bucket = 'factures';
+          let filePath = facture.reference_societe;
+          
+          // Gérer les anciens formats d'URL
+          if (filePath.includes('candidats-files')) {
+            bucket = 'candidats-files';
+            const match = filePath.match(/candidats-files\/(.+)$/);
+            if (match) {
+              filePath = match[1];
+            }
+          }
+          
+          await supabase.storage
+            .from(bucket)
+            .remove([filePath]);
+        } catch (storageError) {
+          console.error('Erreur lors de la suppression du fichier:', storageError);
+          // Continue même si la suppression du fichier échoue
+        }
+      }
+
+      // Supprimer la facture de la base de données
       const { error } = await supabase
         .from('factures')
         .delete()
@@ -195,6 +223,7 @@ export default function FacturesAchats() {
 
       fetchFactures();
     } catch (error: any) {
+      console.error('Erreur lors de la suppression:', error);
       toast({
         title: "Erreur",
         description: "Impossible de supprimer la facture",
