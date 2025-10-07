@@ -1293,6 +1293,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_factures_storage: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       generate_invitation_token: {
         Args: Record<PropertyKey, never>
         Returns: string
