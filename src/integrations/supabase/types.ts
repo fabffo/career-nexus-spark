@@ -68,6 +68,7 @@ export type Database = {
           id: string
           invitation_sent_at: string | null
           invitation_token: string | null
+          metier: string | null
           nom: string
           prenom: string
           recommandation_url: string | null
@@ -83,6 +84,7 @@ export type Database = {
           id?: string
           invitation_sent_at?: string | null
           invitation_token?: string | null
+          metier?: string | null
           nom: string
           prenom: string
           recommandation_url?: string | null
@@ -98,6 +100,7 @@ export type Database = {
           id?: string
           invitation_sent_at?: string | null
           invitation_token?: string | null
+          metier?: string | null
           nom?: string
           prenom?: string
           recommandation_url?: string | null

@@ -25,7 +25,7 @@ class CandidatService implements CrudOperations<Candidat> {
       prenom: item.prenom,
       mail: item.email || '',
       telephone: item.telephone || '',
-      metier: '',
+      metier: item.metier || '',
       adresse: '',
       cvUrl: item.cv_url || '',
       recommandationUrl: item.recommandation_url || '',
@@ -51,7 +51,7 @@ class CandidatService implements CrudOperations<Candidat> {
       prenom: data.prenom,
       mail: data.email || '',
       telephone: data.telephone || '',
-      metier: '',
+      metier: data.metier || '',
       adresse: '',
       cvUrl: data.cv_url || '',
       recommandationUrl: data.recommandation_url || '',
@@ -67,6 +67,7 @@ class CandidatService implements CrudOperations<Candidat> {
       prenom: item.prenom,
       email: item.mail || '',
       telephone: item.telephone || '',
+      metier: item.metier || null,
       cv_url: item.cvUrl || null,
       recommandation_url: item.recommandationUrl || null,
       detail_cv: item.detail_cv || null
@@ -102,6 +103,7 @@ class CandidatService implements CrudOperations<Candidat> {
     if (item.prenom !== undefined) updateData.prenom = item.prenom;
     if (item.mail !== undefined) updateData.email = item.mail;
     if (item.telephone !== undefined) updateData.telephone = item.telephone;
+    if (item.metier !== undefined) updateData.metier = item.metier;
     if (item.cvUrl !== undefined) updateData.cv_url = item.cvUrl;
     if (item.recommandationUrl !== undefined) updateData.recommandation_url = item.recommandationUrl;
     if (item.detail_cv !== undefined) updateData.detail_cv = item.detail_cv;
@@ -121,7 +123,7 @@ class CandidatService implements CrudOperations<Candidat> {
       prenom: data.prenom,
       mail: data.email || '',
       telephone: data.telephone || '',
-      metier: item.metier || '',
+      metier: data.metier || '',
       adresse: item.adresse || '',
       cvUrl: data.cv_url || '',
       recommandationUrl: data.recommandation_url || '',
