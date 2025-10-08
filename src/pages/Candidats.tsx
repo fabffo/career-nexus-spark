@@ -3,10 +3,11 @@ import { candidatService } from '@/services';
 import { Candidat } from '@/types/models';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Eye, Mail, Phone, MapPin, FileText, Award, Paperclip, Copy, History, Upload, X, Sparkles, Send, Shield, UserPlus } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Mail, Phone, MapPin, FileText, Award, Paperclip, Copy, History, Upload, X, Sparkles, Send, Shield, UserPlus, FileUp } from 'lucide-react';
 import { ViewCandidatDialog } from '@/components/ViewCandidatDialog';
 import { CandidatHistoryDialog } from '@/components/CandidatHistoryDialog';
 import { CandidatAdminDialog } from '@/components/CandidatAdminDialog';
+import { ImportCsvDialog } from '@/components/ImportCsvDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { ColumnDef } from '@tanstack/react-table';
 import { useFileUpload } from '@/hooks/useFileUpload';
@@ -42,6 +43,7 @@ export default function Candidats() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isAnalyzeOpen, setIsAnalyzeOpen] = useState(false);
   const [isAdminDialogOpen, setIsAdminDialogOpen] = useState(false);
+  const [isImportCsvOpen, setIsImportCsvOpen] = useState(false);
   const [selectedCandidat, setSelectedCandidat] = useState<Candidat | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
@@ -597,6 +599,13 @@ export default function Candidats() {
             </Button>
           )}
           <Button 
+            onClick={() => setIsImportCsvOpen(true)} 
+            variant="outline"
+          >
+            <FileUp className="mr-2 h-4 w-4" />
+            Importer CSV
+          </Button>
+          <Button 
             onClick={() => setIsAnalyzeOpen(true)} 
             className="bg-gradient-to-r from-primary to-primary-hover"
             disabled
@@ -928,6 +937,13 @@ export default function Candidats() {
         open={isAdminDialogOpen}
         onOpenChange={setIsAdminDialogOpen}
         onUpdate={loadCandidats}
+      />
+
+      {/* Import CSV Dialog */}
+      <ImportCsvDialog
+        open={isImportCsvOpen}
+        onOpenChange={setIsImportCsvOpen}
+        onImportComplete={loadCandidats}
       />
     </div>
   );
