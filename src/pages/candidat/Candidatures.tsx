@@ -40,9 +40,9 @@ export default function Candidatures() {
           .from('rdvs')
           .select(`
             *,
-            poste:postes!rdvs_poste_id_fkey(
+            postes (
               *,
-              client:clients!postes_client_id_fkey(*)
+              clients (*)
             )
           `)
           .eq('candidat_id', candidatData.id)
@@ -51,10 +51,10 @@ export default function Candidatures() {
         if (rdvsData) {
           // Extraire les postes uniques
           const uniquePostes = rdvsData.reduce((acc: any[], rdv: any) => {
-            if (rdv.poste && !acc.find(p => p.id === rdv.poste.id)) {
+            if (rdv.postes && !acc.find(p => p.id === rdv.postes.id)) {
               const posteWithRdvs = {
-                ...rdv.poste,
-                rdvs: rdvsData.filter(r => r.poste_id === rdv.poste.id)
+                ...rdv.postes,
+                rdvs: rdvsData.filter(r => r.poste_id === rdv.postes.id)
               };
               acc.push(posteWithRdvs);
             }
@@ -136,10 +136,10 @@ export default function Candidatures() {
                     <div className="space-y-1">
                       <CardTitle className="text-lg">{poste.titre}</CardTitle>
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-muted-foreground">
-                        {poste.client && (
+                        {poste.clients && (
                           <div className="flex items-center gap-1">
                             <Building className="h-3 w-3" />
-                            {poste.client.raison_sociale}
+                            {poste.clients.raison_sociale}
                           </div>
                         )}
                         {poste.localisation && (
