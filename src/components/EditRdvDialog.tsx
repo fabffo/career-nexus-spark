@@ -269,79 +269,82 @@ L'équipe de recrutement`;
         if (referentError) throw referentError;
       }
 
-      // Handle Teams meeting creation or update
-      if (formData.type_rdv === 'TEAMS') {
-        // Collect attendee emails
-        const attendees = [];
-        
-        // Add candidate email if exists
-        const candidat = candidats.find(c => c.id === formData.candidat_id);
-        if (candidat?.email) attendees.push(candidat.email);
-        
-        // Add client referent emails if exists  
-        if (formData.rdv_type === 'CLIENT' && formData.referent_ids.length > 0) {
-          formData.referent_ids.forEach(referentId => {
-            const referent = referents.find(r => r.id === referentId);
-            if (referent?.email) attendees.push(referent.email);
-          });
-        }
-        
-        // Add additional emails
-        if (formData.teamsEmails) {
-          const additionalEmails = formData.teamsEmails
-            .split(/[,;\n]/)
-            .map(email => email.trim())
-            .filter(email => email && email.includes('@'));
-          attendees.push(...additionalEmails);
-        }
+      // Collect attendee emails for all types of RDV
+      const attendees = [];
+      
+      // Add candidate email if exists
+      const candidat = candidats.find(c => c.id === formData.candidat_id);
+      if (candidat?.email) attendees.push(candidat.email);
+      
+      // Add client referent emails if exists  
+      if (formData.rdv_type === 'CLIENT' && formData.referent_ids.length > 0) {
+        formData.referent_ids.forEach(referentId => {
+          const referent = referents.find(r => r.id === referentId);
+          if (referent?.email) attendees.push(referent.email);
+        });
+      }
+      
+      // Add recruiter email if exists
+      if (formData.rdv_type === 'RECRUTEUR' && formData.recruteur_id) {
+        const recruteur = profiles.find(p => p.id === formData.recruteur_id);
+        if (recruteur?.email) attendees.push(recruteur.email);
+      }
+      
+      // Add additional emails for Teams meetings
+      if (formData.type_rdv === 'TEAMS' && formData.teamsEmails) {
+        const additionalEmails = formData.teamsEmails
+          .split(/[,;\n]/)
+          .map(email => email.trim())
+          .filter(email => email && email.includes('@'));
+        attendees.push(...additionalEmails);
+      }
 
-        // If no Teams link exists, create one
-        if (!rdv.teams_link) {
-          const { data: meetingData, error: meetingError } = await supabase.functions.invoke('create-teams-meeting', {
-            body: {
-              rdvId: rdv.id,
-              startDateTime: updateData.date,
-              endDateTime: new Date(new Date(updateData.date).getTime() + 60 * 60 * 1000).toISOString(),
-              subject: `Entretien - ${candidat?.prenom} ${candidat?.nom} - ${clients.find(c => c.id === formData.client_id)?.raison_sociale}`,
-              attendees
-            }
-          });
-
-          if (!meetingError && meetingData?.joinUrl) {
-            toast({
-              title: "Lien Teams créé",
-              description: "Le lien de réunion Teams a été généré avec succès.",
-            });
+      // Handle Teams meeting creation (only for Teams RDV)
+      if (formData.type_rdv === 'TEAMS' && !rdv.teams_link) {
+        const { data: meetingData, error: meetingError } = await supabase.functions.invoke('create-teams-meeting', {
+          body: {
+            rdvId: rdv.id,
+            startDateTime: updateData.date,
+            endDateTime: new Date(new Date(updateData.date).getTime() + 60 * 60 * 1000).toISOString(),
+            subject: `Entretien - ${candidat?.prenom} ${candidat?.nom} - ${clients.find(c => c.id === formData.client_id)?.raison_sociale}`,
+            attendees
           }
-        }
+        });
 
-        // Send updated invitations to all attendees
-        if (attendees.length > 0) {
-          // Get the latest RDV data with Teams link
-          const { data: updatedRdv } = await supabase
-            .from('rdvs')
-            .select('*, candidat:candidats(*), client:clients(*)')
-            .eq('id', rdv.id)
-            .single();
-            
-          if (updatedRdv) {
-            const { error: emailError } = await supabase.functions.invoke('teams-integration', {
-              body: {
-                action: 'send-invitation',
-                data: {
-                  rdv: updatedRdv,
-                  recipients: attendees,
-                  message: generateEmailMessage(updatedRdv, updatedRdv.teams_link || '')
-                }
+        if (!meetingError && meetingData?.joinUrl) {
+          toast({
+            title: "Lien Teams créé",
+            description: "Le lien de réunion Teams a été généré avec succès.",
+          });
+        }
+      }
+
+      // Send updated invitations to all attendees (for all types of RDV)
+      if (attendees.length > 0) {
+        // Get the latest RDV data
+        const { data: updatedRdv } = await supabase
+          .from('rdvs')
+          .select('*, candidat:candidats(*), client:clients(*)')
+          .eq('id', rdv.id)
+          .single();
+          
+        if (updatedRdv) {
+          const { error: emailError } = await supabase.functions.invoke('teams-integration', {
+            body: {
+              action: 'send-invitation',
+              data: {
+                rdv: updatedRdv,
+                recipients: attendees,
+                message: generateEmailMessage(updatedRdv, updatedRdv.teams_link || '')
               }
-            });
-            
-            if (!emailError) {
-              toast({
-                title: "Invitations mises à jour",
-                description: `${attendees.length} invitation(s) envoyée(s) par email`,
-              });
             }
+          });
+          
+          if (!emailError) {
+            toast({
+              title: "Notifications envoyées",
+              description: `${attendees.length} notification(s) de mise à jour envoyée(s)`,
+            });
           }
         }
       }
