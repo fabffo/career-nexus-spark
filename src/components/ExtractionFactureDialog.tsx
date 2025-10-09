@@ -72,8 +72,6 @@ export default function ExtractionFactureDialog({
   const [factures, setFactures] = useState<FactureExtraite[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [apiKey, setApiKey] = useState("");
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const [currentFile, setCurrentFile] = useState("");
   const [progress, setProgress] = useState(0);
@@ -90,54 +88,24 @@ export default function ExtractionFactureDialog({
         try {
           const base64Data = (reader.result as string).split(',')[1];
           
-          const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': apiKey,
-              'anthropic-version': '2023-06-01'
-            },
-            body: JSON.stringify({
-              model: 'claude-sonnet-4-5-20250929',
-              max_tokens: 1024,
-              messages: [{
-                role: 'user',
-                content: [
-                  {
-                    type: 'document',
-                    source: {
-                      type: 'base64',
-                      media_type: 'application/pdf',
-                      data: base64Data
-                    }
-                  },
-                  {
-                    type: 'text',
-                    text: prompt
-                  }
-                ]
-              }]
-            })
+          // Appel de l'edge function au lieu de l'API directe
+          const { data, error } = await supabase.functions.invoke('extraire-facture', {
+            body: {
+              pdfBase64: base64Data,
+              prompt: prompt
+            }
           });
 
-          if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error?.message || 'Erreur API Anthropic');
+          if (error) {
+            throw new Error(error.message || 'Erreur lors de l\'extraction');
           }
 
-          const data = await response.json();
-          let texteReponse = data.content[0].text.trim();
-          
-          if (texteReponse.includes('```')) {
-            texteReponse = texteReponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+          if (data.error) {
+            throw new Error(data.error);
           }
-          
-          const donnees = JSON.parse(texteReponse);
+
+          const donnees = data.donnees;
           const valide = !!(donnees.fournisseur && donnees.numero_facture && donnees.montant_ttc);
-          
-          const coutInput = (data.usage.input_tokens / 1_000_000) * 3;
-          const coutOutput = (data.usage.output_tokens / 1_000_000) * 15;
-          const coutTotal = coutInput + coutOutput;
           
           const facture: FactureExtraite = {
             id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
@@ -145,11 +113,8 @@ export default function ExtractionFactureDialog({
             fileObject: file,
             donnees,
             valide,
-            tokens: {
-              input: data.usage.input_tokens,
-              output: data.usage.output_tokens
-            },
-            cout_estime: coutTotal
+            tokens: data.tokens,
+            cout_estime: data.cout_estime
           };
           
           resolve(facture);
@@ -166,16 +131,6 @@ export default function ExtractionFactureDialog({
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
-
-    if (!apiKey) {
-      toast({
-        title: "Configuration requise",
-        description: "Veuillez configurer votre clé API Anthropic",
-        variant: "destructive",
-      });
-      setShowSettings(true);
-      return;
-    }
 
     setIsProcessing(true);
     setProgress(0);
@@ -336,9 +291,9 @@ export default function ExtractionFactureDialog({
               <Upload className="h-4 w-4 mr-2" />
               Extraction
             </TabsTrigger>
-            <TabsTrigger value="settings">
+            <TabsTrigger value="prompt">
               <Settings className="h-4 w-4 mr-2" />
-              Configuration
+              Prompt
             </TabsTrigger>
           </TabsList>
 
@@ -524,34 +479,12 @@ export default function ExtractionFactureDialog({
             )}
           </TabsContent>
 
-          <TabsContent value="settings" className="space-y-4">
+          <TabsContent value="prompt" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Configuration de l'API</CardTitle>
+                <CardTitle>Configuration du prompt</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="api-key">Clé API Anthropic</Label>
-                  <Input
-                    id="api-key"
-                    type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="sk-ant-api03-..."
-                  />
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Obtenez votre clé sur{" "}
-                    <a
-                      href="https://console.anthropic.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline"
-                    >
-                      console.anthropic.com
-                    </a>
-                  </p>
-                </div>
-
                 <div>
                   <Label htmlFor="prompt">Prompt d'extraction</Label>
                   <Textarea
