@@ -206,13 +206,35 @@ export default function CandidatSignup() {
         <CardContent>
           <form onSubmit={handleSignup} className="space-y-4">
             <div className="space-y-2">
+              <Label htmlFor="nom">Nom</Label>
+              <Input
+                id="nom"
+                type="text"
+                value={userData.nom}
+                disabled
+                className="bg-muted cursor-not-allowed"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="prenom">Prénom</Label>
+              <Input
+                id="prenom"
+                type="text"
+                value={userData.prenom}
+                disabled
+                className="bg-muted cursor-not-allowed"
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
                 value={userData.email}
                 disabled
-                className="bg-muted"
+                className="bg-muted cursor-not-allowed"
               />
             </div>
             

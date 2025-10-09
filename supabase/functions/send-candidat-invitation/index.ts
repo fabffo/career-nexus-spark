@@ -57,7 +57,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Updated candidat:", candidat.email);
 
     // Créer le lien d'invitation
-    const invitationLink = `${baseUrl}/candidat/signup?token=${token}`;
+    const invitationLink = `${baseUrl}/candidat/signup?token=${token}&type=CANDIDAT`;
     
     console.log("Generated invitation link:", invitationLink);
 
