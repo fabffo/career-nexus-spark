@@ -106,8 +106,9 @@ export default function FacturesAchats() {
         if (selectedMonth !== "all") {
           // Filtrer par année ET mois
           const monthNum = parseInt(selectedMonth);
-          const startDate = new Date(yearNum, monthNum - 1, 1).toISOString().split("T")[0];
-          const endDate = new Date(yearNum, monthNum, 0).toISOString().split("T")[0];
+          const startDate = `${yearNum}-${monthNum.toString().padStart(2, '0')}-01`;
+          const lastDay = new Date(yearNum, monthNum, 0).getDate();
+          const endDate = `${yearNum}-${monthNum.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
           query = query.gte("date_emission", startDate).lte("date_emission", endDate);
         } else {
           // Filtrer par année uniquement
