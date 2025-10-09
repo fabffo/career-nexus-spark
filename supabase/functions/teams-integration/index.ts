@@ -87,6 +87,44 @@ serve(async (req) => {
       console.log('Sending invitation to:', recipients, 'isUpdate:', isUpdate);
       console.log('Message:', message);
       
+      // Générer le fichier iCal pour l'ajout au calendrier
+      const startDate = new Date(rdv.date);
+      const endDate = new Date(startDate);
+      endDate.setHours(endDate.getHours() + 1);
+      
+      const formatICalDate = (date: Date) => {
+        return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+      };
+      
+      const icalContent = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//RH Platform//Teams Meeting//FR',
+        'CALSCALE:GREGORIAN',
+        'METHOD:REQUEST',
+        'BEGIN:VEVENT',
+        `UID:${rdv.id}@rhplatform.com`,
+        `DTSTAMP:${formatICalDate(new Date())}`,
+        `DTSTART:${formatICalDate(startDate)}`,
+        `DTEND:${formatICalDate(endDate)}`,
+        `SUMMARY:Rendez-vous - ${rdv.candidatName || 'Candidat'}`,
+        `DESCRIPTION:${message.replace(/\n/g, '\\n')}\\n\\nRejoindre: ${teamsLink}`,
+        `LOCATION:Microsoft Teams`,
+        `URL:${teamsLink}`,
+        `STATUS:CONFIRMED`,
+        `SEQUENCE:${isUpdate ? '1' : '0'}`,
+        'BEGIN:VALARM',
+        'TRIGGER:-PT15M',
+        'ACTION:DISPLAY',
+        'DESCRIPTION:Rappel - Réunion dans 15 minutes',
+        'END:VALARM',
+        'END:VEVENT',
+        'END:VCALENDAR'
+      ].join('\r\n');
+      
+      // Encoder en base64 pour l'attachement
+      const icalBase64 = btoa(unescape(encodeURIComponent(icalContent)));
+      
       // Initialiser Resend
       const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
       
@@ -104,7 +142,7 @@ serve(async (req) => {
         // Ajouter un délai de 600ms entre chaque email (1.67 emails/sec max)
         await new Promise(resolve => setTimeout(resolve, index * 600));
         try {
-          // Envoyer l'email via Resend
+          // Envoyer l'email via Resend avec pièce jointe iCal
           const emailResponse = await resend.emails.send({
             from: 'RH Platform <noreply@wavyservices.fr>',
             to: [recipient],
@@ -124,8 +162,17 @@ serve(async (req) => {
                   Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur : <br>
                   <a href="${teamsLink}" style="color: #5B21B6;">${teamsLink}</a>
                 </p>
+                <p style="margin-top: 15px; font-size: 12px; color: #6B7280; font-style: italic;">
+                  💡 Un fichier calendrier (.ics) est joint à cet email pour ajouter automatiquement le rendez-vous à votre agenda.
+                </p>
               </div>
-            `
+            `,
+            attachments: [
+              {
+                filename: 'invitation.ics',
+                content: icalBase64,
+              }
+            ]
           });
           
           // Vérifier si l'email a vraiment été envoyé
