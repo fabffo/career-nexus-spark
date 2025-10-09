@@ -23,9 +23,25 @@ export default function CandidatSignup() {
   const token = searchParams.get("token");
 
   useEffect(() => {
-    // Vérifier d'abord si un utilisateur est déjà connecté
-    const checkExistingSession = async () => {
+    const checkAndLoad = async () => {
+      console.log("=== CandidatSignup: Starting ===");
+      console.log("Token from URL:", token);
+      
+      if (!token) {
+        console.error("No token provided");
+        toast({
+          title: "Erreur",
+          description: "Token d'invitation manquant dans le lien",
+          variant: "destructive",
+        });
+        navigate("/auth");
+        return;
+      }
+
+      // Vérifier si déjà connecté
       const { data: { session } } = await supabase.auth.getSession();
+      console.log("Current session:", session ? "exists" : "none");
+      
       if (session) {
         toast({
           title: "Information",
@@ -35,26 +51,17 @@ export default function CandidatSignup() {
         navigate("/");
         return;
       }
-      
-      if (!token) {
-        toast({
-          title: "Erreur",
-          description: "Token d'invitation manquant",
-          variant: "destructive",
-        });
-        navigate("/auth");
-        return;
-      }
 
       loadCandidatData();
     };
 
-    checkExistingSession();
+    checkAndLoad();
   }, [token]);
 
   const loadCandidatData = async () => {
     try {
-      console.log("Loading candidat data for token:", token);
+      console.log("=== Loading candidat data ===");
+      console.log("Token:", token);
       
       const { data, error } = await supabase
         .from("candidats")
@@ -62,40 +69,48 @@ export default function CandidatSignup() {
         .eq("invitation_token", token)
         .maybeSingle();
 
-      console.log("Candidat query result:", { data, error });
+      console.log("Query result - Data:", data);
+      console.log("Query result - Error:", error);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Database error:", error);
+        throw error;
+      }
 
       if (!data) {
+        console.error("No candidat found with this token");
         toast({
-          title: "Erreur",
-          description: "Token d'invitation invalide ou expiré. Veuillez demander un nouveau lien d'invitation.",
+          title: "Token invalide",
+          description: "Ce lien d'invitation n'existe pas ou a expiré. Veuillez demander un nouveau lien.",
           variant: "destructive",
         });
-        navigate("/auth");
+        setTimeout(() => navigate("/auth"), 2000);
         return;
       }
 
       if (data.user_id) {
+        console.log("Candidat already has user_id:", data.user_id);
         toast({
           title: "Compte déjà activé",
           description: "Ce compte a déjà été activé. Veuillez vous connecter.",
           variant: "default",
         });
-        navigate("/auth");
+        setTimeout(() => navigate("/auth"), 2000);
         return;
       }
 
-      console.log("Candidat loaded successfully:", data.nom, data.prenom);
+      console.log("✓ Candidat loaded successfully:", data.nom, data.prenom, data.email);
       setCandidat(data);
-    } catch (error) {
-      console.error("Error loading candidat:", error);
+    } catch (error: any) {
+      console.error("=== Error in loadCandidatData ===");
+      console.error("Error:", error);
+      console.error("Error message:", error.message);
       toast({
         title: "Erreur",
-        description: "Impossible de charger les données du candidat",
+        description: error.message || "Impossible de charger les données du candidat",
         variant: "destructive",
       });
-      navigate("/auth");
+      setTimeout(() => navigate("/auth"), 2000);
     }
   };
 
