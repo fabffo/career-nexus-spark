@@ -81,14 +81,19 @@ serve(async (req) => {
     }
 
     if (action === 'send-invitation') {
-      const { rdv, recipients, message } = data;
+      const { rdv, recipients, message, isUpdate } = data;
       const teamsLink = rdv.teams_link || `https://teams.microsoft.com/l/meeting/new?subject=${encodeURIComponent('Rendez-vous')}`;
       
-      console.log('Sending invitation to:', recipients);
+      console.log('Sending invitation to:', recipients, 'isUpdate:', isUpdate);
       console.log('Message:', message);
       
       // Initialiser Resend
       const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+      
+      // Déterminer le sujet et le titre selon si c'est une mise à jour ou non
+      const emailSubject = isUpdate ? 'Mise à jour - Réunion Teams' : 'Invitation à une réunion Teams';
+      const emailTitle = isUpdate ? 'Mise à jour de la réunion Teams' : 'Invitation à une réunion Teams';
+      const updateNotice = isUpdate ? '<div style="background-color: #FEF3C7; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #F59E0B;"><p style="margin: 0; color: #92400E; font-weight: bold;">⚠️ Cette réunion a été modifiée</p></div>' : '';
       
       // Envoyer les emails et enregistrer dans l'historique
       const sendPromises = recipients.map(async (recipient: string) => {
@@ -97,10 +102,11 @@ serve(async (req) => {
           const emailResponse = await resend.emails.send({
             from: 'RH Platform <noreply@wavyservices.fr>',
             to: [recipient],
-            subject: 'Invitation à une réunion Teams',
+            subject: emailSubject,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #5B21B6;">Invitation à une réunion Teams</h2>
+                <h2 style="color: #5B21B6;">${emailTitle}</h2>
+                ${updateNotice}
                 <div style="background-color: #F3F4F6; padding: 20px; border-radius: 8px; margin: 20px 0;">
                   ${message.replace(/\n/g, '<br>')}
                 </div>
@@ -126,10 +132,10 @@ serve(async (req) => {
           // Enregistrer dans l'historique avec le statut "sent"
           await supabase.from('email_history').insert({
             recipient_email: recipient,
-            subject: 'Invitation à une réunion Teams',
-            email_type: 'teams_invitation',
+            subject: emailSubject,
+            email_type: isUpdate ? 'teams_invitation_update' : 'teams_invitation',
             status: 'sent',
-            metadata: { rdv_id: rdv.id, message, email_response: emailResponse }
+            metadata: { rdv_id: rdv.id, message, email_response: emailResponse, isUpdate }
           });
           
           return { recipient, success: true };
@@ -139,11 +145,11 @@ serve(async (req) => {
           // Enregistrer dans l'historique avec le statut "failed"
           await supabase.from('email_history').insert({
             recipient_email: recipient,
-            subject: 'Invitation à une réunion Teams',
-            email_type: 'teams_invitation',
+            subject: emailSubject,
+            email_type: isUpdate ? 'teams_invitation_update' : 'teams_invitation',
             status: 'failed',
             error_message: (emailError as Error).message,
-            metadata: { rdv_id: rdv.id, message }
+            metadata: { rdv_id: rdv.id, message, isUpdate }
           });
           
           return { recipient, success: false, error: (emailError as Error).message };

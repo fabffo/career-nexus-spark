@@ -336,7 +336,8 @@ L'équipe de recrutement`;
               data: {
                 rdv: updatedRdv,
                 recipients: attendees,
-                message: generateEmailMessage(updatedRdv, updatedRdv.teams_link || '')
+                message: generateEmailMessage(updatedRdv, updatedRdv.teams_link || ''),
+                isUpdate: true
               }
             }
           });
