@@ -95,8 +95,14 @@ serve(async (req) => {
       const emailTitle = isUpdate ? 'Mise à jour de la réunion Teams' : 'Invitation à une réunion Teams';
       const updateNotice = isUpdate ? '<div style="background-color: #FEF3C7; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #F59E0B;"><p style="margin: 0; color: #92400E; font-weight: bold;">⚠️ Cette réunion a été modifiée</p></div>' : '';
       
-      // Envoyer les emails et enregistrer dans l'historique
-      const sendPromises = recipients.map(async (recipient: string) => {
+      // Dédupliquer les emails avant envoi
+      const uniqueRecipients = [...new Set(recipients)];
+      console.log('Unique recipients:', uniqueRecipients);
+      
+      // Envoyer les emails avec un délai pour éviter le rate limit
+      const sendPromises = uniqueRecipients.map(async (recipient: string, index: number) => {
+        // Ajouter un délai de 600ms entre chaque email (1.67 emails/sec max)
+        await new Promise(resolve => setTimeout(resolve, index * 600));
         try {
           // Envoyer l'email via Resend
           const emailResponse = await resend.emails.send({

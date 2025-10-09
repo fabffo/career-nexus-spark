@@ -230,13 +230,13 @@ L'équipe de recrutement`;
         date: new Date(formData.date).toISOString(),
         type_rdv: formData.type_rdv,
         rdv_type: formData.rdv_type,
-        candidat_id: formData.candidat_id || null,
-        client_id: formData.client_id || null,
-        poste_id: formData.poste_id || null,
+        candidat_id: formData.candidat_id || rdv.candidat_id || null,
+        client_id: formData.client_id || rdv.client_id || null,
+        poste_id: formData.poste_id || rdv.poste_id || null,
         lieu: formData.lieu || null,
         notes: formData.notes || null,
         statut: formData.statut,
-        recruteur_id: formData.rdv_type === 'RECRUTEUR' ? formData.recruteur_id : null,
+        recruteur_id: formData.rdv_type === 'RECRUTEUR' ? (formData.recruteur_id || rdv.recruteur_id) : null,
         additional_emails: formData.teamsEmails || null,
         // Ne pas inclure referent_id ici, on utilisera rdv_referents
       };
@@ -270,25 +270,25 @@ L'équipe de recrutement`;
         if (referentError) throw referentError;
       }
 
-      // Collect attendee emails for all types of RDV
-      const attendees = [];
+      // Collect attendee emails for all types of RDV - using Set to avoid duplicates
+      const attendeeSet = new Set<string>();
       
       // Add candidate email if exists
       const candidat = candidats.find(c => c.id === formData.candidat_id);
-      if (candidat?.email) attendees.push(candidat.email);
+      if (candidat?.email) attendeeSet.add(candidat.email);
       
       // Add client referent emails if exists  
       if (formData.rdv_type === 'CLIENT' && formData.referent_ids.length > 0) {
         formData.referent_ids.forEach(referentId => {
           const referent = referents.find(r => r.id === referentId);
-          if (referent?.email) attendees.push(referent.email);
+          if (referent?.email) attendeeSet.add(referent.email);
         });
       }
       
       // Add recruiter email if exists
       if (formData.rdv_type === 'RECRUTEUR' && formData.recruteur_id) {
         const recruteur = profiles.find(p => p.id === formData.recruteur_id);
-        if (recruteur?.email) attendees.push(recruteur.email);
+        if (recruteur?.email) attendeeSet.add(recruteur.email);
       }
       
       // Add additional emails for Teams meetings
@@ -297,8 +297,10 @@ L'équipe de recrutement`;
           .split(/[,;\n]/)
           .map(email => email.trim())
           .filter(email => email && email.includes('@'));
-        attendees.push(...additionalEmails);
+        additionalEmails.forEach(email => attendeeSet.add(email));
       }
+      
+      const attendees = Array.from(attendeeSet);
 
       // Handle Teams meeting creation (only for Teams RDV)
       if (formData.type_rdv === 'TEAMS' && !rdv.teams_link) {
