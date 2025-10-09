@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, TrendingDown, Eye, Pencil, Trash2, Download } from "lucide-react";
+import { Plus, TrendingDown, Eye, Pencil, Trash2, Download, Sparkles } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AddFactureAchatDialog from "@/components/AddFactureAchatDialog";
+import ExtractionFactureDialog from "@/components/ExtractionFactureDialog";
 import EditFactureDialog from "@/components/EditFactureDialog";
 import ViewFactureDialog from "@/components/ViewFactureDialog";
 import {
@@ -21,14 +22,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -38,18 +32,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export interface Facture {
   id: string;
   numero_facture: string;
-  type_facture: 'VENTES' | 'ACHATS';
+  type_facture: "VENTES" | "ACHATS";
   date_emission: string;
   date_echeance: string;
   emetteur_type: string;
@@ -69,7 +57,7 @@ export interface Facture {
   total_ttc: number;
   informations_paiement?: string;
   reference_societe?: string;
-  statut: 'BROUILLON' | 'VALIDEE' | 'PAYEE' | 'ANNULEE';
+  statut: "BROUILLON" | "VALIDEE" | "PAYEE" | "ANNULEE";
   created_at: string;
   updated_at: string;
   created_by?: string;
@@ -82,6 +70,7 @@ export default function FacturesAchats() {
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [openViewDialog, setOpenViewDialog] = useState(false);
+  const [openExtractionDialog, setOpenExtractionDialog] = useState(false);
   const [selectedFacture, setSelectedFacture] = useState<Facture | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -108,57 +97,54 @@ export default function FacturesAchats() {
   const fetchFactures = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from('factures')
-        .select('*')
-        .eq('type_facture', 'ACHATS');
+      let query = supabase.from("factures").select("*").eq("type_facture", "ACHATS");
 
       // Filtrer par année et mois si sélectionné
       if (selectedYear !== "all") {
         const yearNum = parseInt(selectedYear);
-        
+
         if (selectedMonth !== "all") {
           // Filtrer par année ET mois
           const monthNum = parseInt(selectedMonth);
-          const startDate = new Date(yearNum, monthNum - 1, 1).toISOString().split('T')[0];
-          const endDate = new Date(yearNum, monthNum, 0).toISOString().split('T')[0];
-          query = query.gte('date_emission', startDate).lte('date_emission', endDate);
+          const startDate = new Date(yearNum, monthNum - 1, 1).toISOString().split("T")[0];
+          const endDate = new Date(yearNum, monthNum, 0).toISOString().split("T")[0];
+          query = query.gte("date_emission", startDate).lte("date_emission", endDate);
         } else {
           // Filtrer par année uniquement
           const startDate = `${yearNum}-01-01`;
           const endDate = `${yearNum}-12-31`;
-          query = query.gte('date_emission', startDate).lte('date_emission', endDate);
+          query = query.gte("date_emission", startDate).lte("date_emission", endDate);
         }
       }
 
-      const { data, error } = await query.order('date_emission', { ascending: false });
+      const { data, error } = await query.order("date_emission", { ascending: false });
 
       if (error) throw error;
-      
-      const facturesData = (data || []).map(f => ({
+
+      const facturesData = (data || []).map((f) => ({
         ...f,
-        type_facture: f.type_facture as 'VENTES' | 'ACHATS',
-        statut: f.statut as 'BROUILLON' | 'VALIDEE' | 'PAYEE' | 'ANNULEE',
+        type_facture: f.type_facture as "VENTES" | "ACHATS",
+        statut: f.statut as "BROUILLON" | "VALIDEE" | "PAYEE" | "ANNULEE",
       }));
-      
+
       // Extraire les années disponibles
       const years = new Set<string>();
-      facturesData.forEach(f => {
+      facturesData.forEach((f) => {
         if (f.date_emission) {
           const year = new Date(f.date_emission).getFullYear().toString();
           years.add(year);
         }
       });
       setAvailableYears(Array.from(years).sort((a, b) => parseInt(b) - parseInt(a)));
-      
+
       setFactures(facturesData);
-      
+
       // Calculer les statistiques
       const totalHT = facturesData.reduce((sum, f) => sum + (f.total_ht || 0), 0);
       const totalTTC = facturesData.reduce((sum, f) => sum + (f.total_ttc || 0), 0);
-      const totalPayees = facturesData.filter(f => f.statut === 'PAYEE').length;
-      const totalEnAttente = facturesData.filter(f => f.statut === 'VALIDEE').length;
-      
+      const totalPayees = facturesData.filter((f) => f.statut === "PAYEE").length;
+      const totalEnAttente = facturesData.filter((f) => f.statut === "VALIDEE").length;
+
       setStats({
         totalFactures: facturesData.length,
         totalHT,
@@ -182,37 +168,32 @@ export default function FacturesAchats() {
 
     try {
       // Récupérer la facture pour supprimer le fichier associé
-      const facture = factures.find(f => f.id === id);
-      
+      const facture = factures.find((f) => f.id === id);
+
       // Supprimer le fichier du storage si présent
       if (facture?.reference_societe) {
         try {
-          let bucket = 'factures';
+          let bucket = "factures";
           let filePath = facture.reference_societe;
-          
+
           // Gérer les anciens formats d'URL
-          if (filePath.includes('candidats-files')) {
-            bucket = 'candidats-files';
+          if (filePath.includes("candidats-files")) {
+            bucket = "candidats-files";
             const match = filePath.match(/candidats-files\/(.+)$/);
             if (match) {
               filePath = match[1];
             }
           }
-          
-          await supabase.storage
-            .from(bucket)
-            .remove([filePath]);
+
+          await supabase.storage.from(bucket).remove([filePath]);
         } catch (storageError) {
-          console.error('Erreur lors de la suppression du fichier:', storageError);
+          console.error("Erreur lors de la suppression du fichier:", storageError);
           // Continue même si la suppression du fichier échoue
         }
       }
 
       // Supprimer la facture de la base de données
-      const { error } = await supabase
-        .from('factures')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from("factures").delete().eq("id", id);
 
       if (error) throw error;
 
@@ -223,7 +204,7 @@ export default function FacturesAchats() {
 
       fetchFactures();
     } catch (error: any) {
-      console.error('Erreur lors de la suppression:', error);
+      console.error("Erreur lors de la suppression:", error);
       toast({
         title: "Erreur",
         description: "Impossible de supprimer la facture",
@@ -246,7 +227,7 @@ export default function FacturesAchats() {
     if (selectedFactureIds.size === factures.length) {
       setSelectedFactureIds(new Set());
     } else {
-      setSelectedFactureIds(new Set(factures.map(f => f.id)));
+      setSelectedFactureIds(new Set(factures.map((f) => f.id)));
     }
   };
 
@@ -266,43 +247,42 @@ export default function FacturesAchats() {
 
     for (const factureId of Array.from(selectedFactureIds)) {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-facture-pdf`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session?.access_token}`,
-            },
-            body: JSON.stringify({ facture_id: factureId }),
-          }
-        );
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-facture-pdf`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ facture_id: factureId }),
+        });
 
-        if (!response.ok) throw new Error('Erreur lors de la génération du PDF');
+        if (!response.ok) throw new Error("Erreur lors de la génération du PDF");
 
         const blob = await response.blob();
-        const facture = factures.find(f => f.id === factureId);
-        
+        const facture = factures.find((f) => f.id === factureId);
+
         // Nettoyer les noms pour le fichier
-        const cleanName = (name: string) => name.replace(/[^a-zA-Z0-9-_]/g, '_');
-        const emetteur = cleanName(facture?.emetteur_nom || 'Emetteur');
-        const destinataire = cleanName(facture?.destinataire_nom || 'Destinataire');
+        const cleanName = (name: string) => name.replace(/[^a-zA-Z0-9-_]/g, "_");
+        const emetteur = cleanName(facture?.emetteur_nom || "Emetteur");
+        const destinataire = cleanName(facture?.destinataire_nom || "Destinataire");
         const filename = `${facture?.numero_facture || factureId}_${emetteur}_${destinataire}.pdf`;
-        
+
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = url;
         a.download = filename;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-        
+
         successCount++;
-        
+
         // Petit délai entre chaque téléchargement pour éviter de bloquer le navigateur
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       } catch (error) {
         console.error(`Erreur lors du téléchargement de la facture ${factureId}:`, error);
         errorCount++;
@@ -310,11 +290,11 @@ export default function FacturesAchats() {
     }
 
     setIsDownloading(false);
-    
+
     if (successCount > 0) {
       toast({
         title: "Téléchargement terminé",
-        description: `${successCount} facture(s) téléchargée(s)${errorCount > 0 ? `, ${errorCount} erreur(s)` : ''}`,
+        description: `${successCount} facture(s) téléchargée(s)${errorCount > 0 ? `, ${errorCount} erreur(s)` : ""}`,
       });
     } else {
       toast({
@@ -323,7 +303,7 @@ export default function FacturesAchats() {
         variant: "destructive",
       });
     }
-    
+
     setSelectedFactureIds(new Set());
   };
 
@@ -350,9 +330,7 @@ export default function FacturesAchats() {
     {
       accessorKey: "numero_facture",
       header: "N° Facture",
-      cell: ({ row }) => (
-        <span className="font-medium">{row.getValue("numero_facture")}</span>
-      ),
+      cell: ({ row }) => <span className="font-medium">{row.getValue("numero_facture")}</span>,
     },
     {
       accessorKey: "date_emission",
@@ -376,9 +354,9 @@ export default function FacturesAchats() {
       header: "Total HT",
       cell: ({ row }) => (
         <span>
-          {new Intl.NumberFormat('fr-FR', { 
-            style: 'currency', 
-            currency: 'EUR' 
+          {new Intl.NumberFormat("fr-FR", {
+            style: "currency",
+            currency: "EUR",
           }).format(row.getValue("total_ht") || 0)}
         </span>
       ),
@@ -388,9 +366,9 @@ export default function FacturesAchats() {
       header: "Total TTC",
       cell: ({ row }) => (
         <span className="font-medium">
-          {new Intl.NumberFormat('fr-FR', { 
-            style: 'currency', 
-            currency: 'EUR' 
+          {new Intl.NumberFormat("fr-FR", {
+            style: "currency",
+            currency: "EUR",
           }).format(row.getValue("total_ttc") || 0)}
         </span>
       ),
@@ -401,10 +379,10 @@ export default function FacturesAchats() {
       cell: ({ row }) => {
         const statut = row.getValue("statut") as string;
         const colors = {
-          BROUILLON: 'bg-gray-100 text-gray-800',
-          VALIDEE: 'bg-blue-100 text-blue-800',
-          PAYEE: 'bg-green-100 text-green-800',
-          ANNULEE: 'bg-red-100 text-red-800',
+          BROUILLON: "bg-gray-100 text-gray-800",
+          VALIDEE: "bg-blue-100 text-blue-800",
+          PAYEE: "bg-green-100 text-green-800",
+          ANNULEE: "bg-red-100 text-red-800",
         };
         return (
           <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[statut as keyof typeof colors]}`}>
@@ -440,12 +418,7 @@ export default function FacturesAchats() {
           >
             <Pencil className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleDelete(row.original.id)}
-            title="Supprimer"
-          >
+          <Button variant="ghost" size="icon" onClick={() => handleDelete(row.original.id)} title="Supprimer">
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </div>
@@ -487,22 +460,26 @@ export default function FacturesAchats() {
             <TrendingDown className="h-8 w-8 text-red-600" />
             Factures d'Achat
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Gérez vos factures fournisseurs et suivez vos paiements
-          </p>
+          <p className="text-muted-foreground mt-1">Gérez vos factures fournisseurs et suivez vos paiements</p>
         </div>
         <div className="flex gap-2">
           {selectedFactureIds.size > 0 && (
-            <Button
-              onClick={downloadSelectedFactures}
-              disabled={isDownloading}
-              variant="outline"
-            >
+            <Button onClick={downloadSelectedFactures} disabled={isDownloading} variant="outline">
               <Download className="mr-2 h-4 w-4" />
-              {isDownloading ? 'Téléchargement...' : `Télécharger (${selectedFactureIds.size})`}
+              {isDownloading ? "Téléchargement..." : `Télécharger (${selectedFactureIds.size})`}
             </Button>
           )}
-          <Button 
+
+          <Button
+            onClick={() => setOpenExtractionDialog(true)}
+            variant="outline"
+            className="border-purple-600 text-purple-600 hover:bg-purple-50"
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            Extraction IA
+          </Button>
+
+          <Button
             onClick={() => {
               setSelectedFacture(null);
               setOpenAddDialog(true);
@@ -530,10 +507,10 @@ export default function FacturesAchats() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {new Intl.NumberFormat('fr-FR', { 
-                style: 'currency', 
-                currency: 'EUR',
-                maximumFractionDigits: 0
+              {new Intl.NumberFormat("fr-FR", {
+                style: "currency",
+                currency: "EUR",
+                maximumFractionDigits: 0,
               }).format(stats.totalHT)}
             </div>
           </CardContent>
@@ -544,10 +521,10 @@ export default function FacturesAchats() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {new Intl.NumberFormat('fr-FR', { 
-                style: 'currency', 
-                currency: 'EUR',
-                maximumFractionDigits: 0
+              {new Intl.NumberFormat("fr-FR", {
+                style: "currency",
+                currency: "EUR",
+                maximumFractionDigits: 0,
               }).format(stats.totalTTC)}
             </div>
           </CardContent>
@@ -577,24 +554,22 @@ export default function FacturesAchats() {
           onChange={(event) => setGlobalFilter(event.target.value)}
           className="max-w-sm"
         />
-        
+
         <Select value={selectedYear} onValueChange={setSelectedYear}>
           <SelectTrigger className="w-[140px]">
             <SelectValue placeholder="Année" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Toutes les années</SelectItem>
-            {availableYears.map(year => (
-              <SelectItem key={year} value={year}>{year}</SelectItem>
+            {availableYears.map((year) => (
+              <SelectItem key={year} value={year}>
+                {year}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <Select 
-          value={selectedMonth} 
-          onValueChange={setSelectedMonth}
-          disabled={selectedYear === "all"}
-        >
+        <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={selectedYear === "all"}>
           <SelectTrigger className="w-[140px]">
             <SelectValue placeholder="Mois" />
           </SelectTrigger>
@@ -614,7 +589,7 @@ export default function FacturesAchats() {
             <SelectItem value="12">Décembre</SelectItem>
           </SelectContent>
         </Select>
-        
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="ml-auto">
@@ -649,9 +624,7 @@ export default function FacturesAchats() {
                 {headerGroup.headers.map((header) => {
                   return (
                     <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   );
                 })}
@@ -663,9 +636,7 @@ export default function FacturesAchats() {
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
+                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
                   ))}
                 </TableRow>
               ))
@@ -681,20 +652,10 @@ export default function FacturesAchats() {
       </div>
 
       <div className="flex items-center justify-end space-x-2 py-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-        >
+        <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
           Précédent
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-        >
+        <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
           Suivant
         </Button>
       </div>
@@ -720,13 +681,17 @@ export default function FacturesAchats() {
             facture={selectedFacture}
           />
 
-          <ViewFactureDialog
-            open={openViewDialog}
-            onOpenChange={setOpenViewDialog}
-            facture={selectedFacture}
-          />
+          <ViewFactureDialog open={openViewDialog} onOpenChange={setOpenViewDialog} facture={selectedFacture} />
         </>
       )}
+      <ExtractionFactureDialog
+        open={openExtractionDialog}
+        onOpenChange={setOpenExtractionDialog}
+        onSuccess={() => {
+          fetchFactures();
+          setOpenExtractionDialog(false);
+        }}
+      />
     </div>
   );
 }
