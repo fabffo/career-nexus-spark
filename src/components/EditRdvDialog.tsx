@@ -56,7 +56,7 @@ export function EditRdvDialog({ rdv, onSuccess }: EditRdvDialogProps) {
         recruteur_id: rdv.recruteur_id || '',
         referent_ids: [], // On chargera les référents après
         statut: rdv.statut || 'ENCOURS',
-        teamsEmails: '',
+        teamsEmails: rdv.additional_emails || '',
       });
       // Charger les référents liés au rendez-vous
       loadRdvReferents();
@@ -237,6 +237,7 @@ L'équipe de recrutement`;
         notes: formData.notes || null,
         statut: formData.statut,
         recruteur_id: formData.rdv_type === 'RECRUTEUR' ? formData.recruteur_id : null,
+        additional_emails: formData.teamsEmails || null,
         // Ne pas inclure referent_id ici, on utilisera rdv_referents
       };
 

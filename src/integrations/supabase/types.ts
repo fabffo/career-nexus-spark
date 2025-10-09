@@ -1021,6 +1021,7 @@ export type Database = {
       }
       rdvs: {
         Row: {
+          additional_emails: string | null
           candidat_id: string | null
           client_id: string | null
           created_at: string | null
@@ -1039,6 +1040,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          additional_emails?: string | null
           candidat_id?: string | null
           client_id?: string | null
           created_at?: string | null
@@ -1057,6 +1059,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          additional_emails?: string | null
           candidat_id?: string | null
           client_id?: string | null
           created_at?: string | null
