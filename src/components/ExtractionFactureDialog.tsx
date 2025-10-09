@@ -86,9 +86,12 @@ export default function ExtractionFactureDialog({
     return new Promise((resolve, reject) => {
       reader.onload = async () => {
         try {
+          console.log('📄 Lecture du fichier:', file.name);
           const base64Data = (reader.result as string).split(',')[1];
+          console.log('✓ Base64 encodé:', base64Data.length, 'bytes');
           
-          // Appel de l'edge function au lieu de l'API directe
+          // Appel de l'edge function
+          console.log('🚀 Appel edge function extraire-facture...');
           const { data, error } = await supabase.functions.invoke('extraire-facture', {
             body: {
               pdfBase64: base64Data,
@@ -96,17 +99,28 @@ export default function ExtractionFactureDialog({
             }
           });
 
+          console.log('📥 Réponse reçue:', { data, error });
+
           if (error) {
-            throw new Error(error.message || 'Erreur lors de l\'extraction');
+            console.error('❌ Erreur edge function:', error);
+            throw new Error(`Erreur serveur: ${error.message}`);
           }
 
-          if (data.error) {
+          if (data?.error) {
+            console.error('❌ Erreur dans la réponse:', data.error);
             throw new Error(data.error);
+          }
+
+          if (!data?.donnees) {
+            console.error('❌ Pas de données dans la réponse');
+            throw new Error('Pas de données extraites');
           }
 
           const donnees = data.donnees;
           const valide = !!(donnees.fournisseur && donnees.numero_facture && donnees.montant_ttc);
           
+          console.log('✅ Extraction réussie:', { valide, donnees: Object.keys(donnees) });
+
           const facture: FactureExtraite = {
             id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
             fichier: file.name,
@@ -119,11 +133,16 @@ export default function ExtractionFactureDialog({
           
           resolve(facture);
         } catch (error) {
+          console.error('❌ Erreur extraction:', error);
           reject(error);
         }
       };
       
-      reader.onerror = () => reject(new Error('Erreur lecture fichier'));
+      reader.onerror = () => {
+        console.error('❌ Erreur lecture fichier');
+        reject(new Error('Erreur lecture fichier'));
+      };
+      
       reader.readAsDataURL(file);
     });
   };
