@@ -23,45 +23,76 @@ export default function CandidatSignup() {
   const token = searchParams.get("token");
 
   useEffect(() => {
-    if (!token) {
-      toast({
-        title: "Erreur",
-        description: "Token d'invitation manquant",
-        variant: "destructive",
-      });
-      navigate("/auth");
-      return;
-    }
-
-    loadCandidatData();
-  }, [token]);
-
-  const loadCandidatData = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("candidats")
-        .select("*")
-        .eq("invitation_token", token)
-        .single();
-
-      if (error) throw error;
-
-      if (!data) {
+    // Vérifier d'abord si un utilisateur est déjà connecté
+    const checkExistingSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        toast({
+          title: "Information",
+          description: "Vous êtes déjà connecté. Veuillez vous déconnecter pour créer un nouveau compte.",
+          variant: "default",
+        });
+        navigate("/");
+        return;
+      }
+      
+      if (!token) {
         toast({
           title: "Erreur",
-          description: "Token d'invitation invalide ou expiré",
+          description: "Token d'invitation manquant",
           variant: "destructive",
         });
         navigate("/auth");
         return;
       }
 
+      loadCandidatData();
+    };
+
+    checkExistingSession();
+  }, [token]);
+
+  const loadCandidatData = async () => {
+    try {
+      console.log("Loading candidat data for token:", token);
+      
+      const { data, error } = await supabase
+        .from("candidats")
+        .select("*")
+        .eq("invitation_token", token)
+        .maybeSingle();
+
+      console.log("Candidat query result:", { data, error });
+
+      if (error) throw error;
+
+      if (!data) {
+        toast({
+          title: "Erreur",
+          description: "Token d'invitation invalide ou expiré. Veuillez demander un nouveau lien d'invitation.",
+          variant: "destructive",
+        });
+        navigate("/auth");
+        return;
+      }
+
+      if (data.user_id) {
+        toast({
+          title: "Compte déjà activé",
+          description: "Ce compte a déjà été activé. Veuillez vous connecter.",
+          variant: "default",
+        });
+        navigate("/auth");
+        return;
+      }
+
+      console.log("Candidat loaded successfully:", data.nom, data.prenom);
       setCandidat(data);
     } catch (error) {
       console.error("Error loading candidat:", error);
       toast({
         title: "Erreur",
-        description: "Impossible de charger les données",
+        description: "Impossible de charger les données du candidat",
         variant: "destructive",
       });
       navigate("/auth");
