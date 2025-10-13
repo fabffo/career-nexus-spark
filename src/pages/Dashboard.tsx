@@ -356,7 +356,6 @@ export default function Dashboard() {
                         {rdv.lieu && <span>{rdv.lieu}</span>}
                       </div>
                     </div>
-                    {getStatusBadge(rdv.statut)}
                   </div>
                 ))}
               </div>
@@ -388,7 +387,6 @@ export default function Dashboard() {
                         </span>
                       </div>
                     </div>
-                    {getStatusBadge(poste.statut)}
                   </div>
                 ))}
               </div>
@@ -422,9 +420,6 @@ export default function Dashboard() {
                         )}
                       </div>
                     </div>
-                    <Badge className="bg-green-100 text-green-800">
-                      ACTIF
-                    </Badge>
                   </div>
                 ))}
               </div>
