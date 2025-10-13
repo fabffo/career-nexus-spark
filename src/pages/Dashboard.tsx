@@ -451,32 +451,90 @@ export default function Dashboard() {
               {postesWithDetails.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">Aucun poste en cours</p>
               ) : (
-                postesWithDetails.map((poste) => (
-                  <div key={poste.id} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold text-lg">{poste.nomPoste}</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {poste.localisation && `📍 ${poste.localisation}`}
-                        </p>
+                postesWithDetails.map((poste) => {
+                  const now = new Date();
+                  return (
+                    <div key={poste.id} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="font-semibold text-lg">{poste.nomPoste}</h3>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {poste.localisation && `📍 ${poste.localisation}`}
+                          </p>
+                        </div>
+                        {getStatusBadge(poste.statut)}
                       </div>
-                      {getStatusBadge(poste.statut)}
+                      
+                      {poste.rdvs && poste.rdvs.length > 0 ? (
+                        <div className="space-y-2 mt-3">
+                          <p className="text-sm font-medium text-muted-foreground">
+                            {poste.rdvs.length} rendez-vous
+                          </p>
+                          <div className="space-y-2">
+                            {poste.rdvs.map((rdv) => {
+                              const rdvDate = new Date(rdv.date);
+                              const isRealise = rdv.statut === 'REALISE' || rdv.statut === 'TERMINE' || rdvDate < now;
+                              
+                              return (
+                                <div key={rdv.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
+                                  <div className="flex items-center gap-3">
+                                    {isRealise ? (
+                                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                    ) : (
+                                      <AlertCircle className="h-4 w-4 text-orange-600" />
+                                    )}
+                                    <div>
+                                      <p className="text-sm font-medium">
+                                        {rdv.candidat ? `${rdv.candidat.prenom} ${rdv.candidat.nom}` : 'Candidat inconnu'}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {format(rdvDate, 'dd MMM yyyy à HH:mm', { locale: fr })}
+                                        {rdv.typeRdv && ` • ${rdv.typeRdv}`}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {getStatusBadge(rdv.statut)}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">Aucun rendez-vous planifié</p>
+                      )}
                     </div>
-                    
-                    {poste.rdvs && poste.rdvs.length > 0 ? (
+                  );
+                })
+              )}
+            </TabsContent>
+
+            <TabsContent value="todo" className="space-y-4 mt-4">
+              {postesWithDetails
+                .filter(p => {
+                  const now = new Date();
+                  return p.rdvs?.some(r => r.statut === 'ENCOURS' && new Date(r.date) >= now);
+                })
+                .map((poste) => {
+                  const now = new Date();
+                  return (
+                    <div key={poste.id} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="font-semibold text-lg">{poste.nomPoste}</h3>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {poste.localisation && `📍 ${poste.localisation}`}
+                          </p>
+                        </div>
+                        {getStatusBadge(poste.statut)}
+                      </div>
+                      
                       <div className="space-y-2 mt-3">
-                        <p className="text-sm font-medium text-muted-foreground">
-                          {poste.rdvs.length} rendez-vous
-                        </p>
-                        <div className="space-y-2">
-                          {poste.rdvs.map((rdv) => (
+                        {poste.rdvs
+                          ?.filter(rdv => rdv.statut === 'ENCOURS' && new Date(rdv.date) >= now)
+                          .map((rdv) => (
                             <div key={rdv.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
                               <div className="flex items-center gap-3">
-                                {rdv.statut === 'REALISE' || rdv.statut === 'TERMINE' ? (
-                                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                                ) : (
-                                  <AlertCircle className="h-4 w-4 text-orange-600" />
-                                )}
+                                <AlertCircle className="h-4 w-4 text-orange-600" />
                                 <div>
                                   <p className="text-sm font-medium">
                                     {rdv.candidat ? `${rdv.candidat.prenom} ${rdv.candidat.nom}` : 'Candidat inconnu'}
@@ -490,98 +548,66 @@ export default function Dashboard() {
                               {getStatusBadge(rdv.statut)}
                             </div>
                           ))}
-                        </div>
                       </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic">Aucun rendez-vous planifié</p>
-                    )}
-                  </div>
-                ))
-              )}
-            </TabsContent>
-
-            <TabsContent value="todo" className="space-y-4 mt-4">
-              {postesWithDetails
-                .filter(p => p.rdvs?.some(r => r.statut === 'ENCOURS'))
-                .map((poste) => (
-                  <div key={poste.id} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold text-lg">{poste.nomPoste}</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {poste.localisation && `📍 ${poste.localisation}`}
-                        </p>
-                      </div>
-                      {getStatusBadge(poste.statut)}
                     </div>
-                    
-                    <div className="space-y-2 mt-3">
-                      {poste.rdvs
-                        ?.filter(rdv => rdv.statut === 'ENCOURS')
-                        .map((rdv) => (
-                          <div key={rdv.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
-                            <div className="flex items-center gap-3">
-                              <AlertCircle className="h-4 w-4 text-orange-600" />
-                              <div>
-                                <p className="text-sm font-medium">
-                                  {rdv.candidat ? `${rdv.candidat.prenom} ${rdv.candidat.nom}` : 'Candidat inconnu'}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {format(new Date(rdv.date), 'dd MMM yyyy à HH:mm', { locale: fr })}
-                                  {rdv.typeRdv && ` • ${rdv.typeRdv}`}
-                                </p>
-                              </div>
-                            </div>
-                            {getStatusBadge(rdv.statut)}
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                ))}
-              {postesWithDetails.filter(p => p.rdvs?.some(r => r.statut === 'ENCOURS')).length === 0 && (
+                  );
+                })}
+              {postesWithDetails.filter(p => {
+                const now = new Date();
+                return p.rdvs?.some(r => r.statut === 'ENCOURS' && new Date(r.date) >= now);
+              }).length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-8">Aucun rendez-vous à faire</p>
               )}
             </TabsContent>
 
             <TabsContent value="done" className="space-y-4 mt-4">
               {postesWithDetails
-                .filter(p => p.rdvs?.some(r => r.statut === 'REALISE' || r.statut === 'TERMINE'))
-                .map((poste) => (
-                  <div key={poste.id} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold text-lg">{poste.nomPoste}</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {poste.localisation && `📍 ${poste.localisation}`}
-                        </p>
+                .filter(p => {
+                  const now = new Date();
+                  return p.rdvs?.some(r => r.statut === 'REALISE' || r.statut === 'TERMINE' || new Date(r.date) < now);
+                })
+                .map((poste) => {
+                  const now = new Date();
+                  return (
+                    <div key={poste.id} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="font-semibold text-lg">{poste.nomPoste}</h3>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {poste.localisation && `📍 ${poste.localisation}`}
+                          </p>
+                        </div>
+                        {getStatusBadge(poste.statut)}
                       </div>
-                      {getStatusBadge(poste.statut)}
-                    </div>
-                    
-                    <div className="space-y-2 mt-3">
-                      {poste.rdvs
-                        ?.filter(rdv => rdv.statut === 'REALISE' || rdv.statut === 'TERMINE')
-                        .map((rdv) => (
-                          <div key={rdv.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
-                            <div className="flex items-center gap-3">
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              <div>
-                                <p className="text-sm font-medium">
-                                  {rdv.candidat ? `${rdv.candidat.prenom} ${rdv.candidat.nom}` : 'Candidat inconnu'}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {format(new Date(rdv.date), 'dd MMM yyyy à HH:mm', { locale: fr })}
-                                  {rdv.typeRdv && ` • ${rdv.typeRdv}`}
-                                </p>
+                      
+                      <div className="space-y-2 mt-3">
+                        {poste.rdvs
+                          ?.filter(rdv => rdv.statut === 'REALISE' || rdv.statut === 'TERMINE' || new Date(rdv.date) < now)
+                          .map((rdv) => (
+                            <div key={rdv.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
+                              <div className="flex items-center gap-3">
+                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                <div>
+                                  <p className="text-sm font-medium">
+                                    {rdv.candidat ? `${rdv.candidat.prenom} ${rdv.candidat.nom}` : 'Candidat inconnu'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {format(new Date(rdv.date), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                                    {rdv.typeRdv && ` • ${rdv.typeRdv}`}
+                                  </p>
+                                </div>
                               </div>
+                              {getStatusBadge(rdv.statut)}
                             </div>
-                            {getStatusBadge(rdv.statut)}
-                          </div>
-                        ))}
+                          ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              {postesWithDetails.filter(p => p.rdvs?.some(r => r.statut === 'REALISE' || r.statut === 'TERMINE')).length === 0 && (
+                  );
+                })}
+              {postesWithDetails.filter(p => {
+                const now = new Date();
+                return p.rdvs?.some(r => r.statut === 'REALISE' || r.statut === 'TERMINE' || new Date(r.date) < now);
+              }).length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-8">Aucun rendez-vous réalisé</p>
               )}
             </TabsContent>
