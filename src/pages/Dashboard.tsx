@@ -540,168 +540,198 @@ export default function Dashboard() {
             </TabsContent>
 
             <TabsContent value="todo" className="mt-4">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Colonne Postes avec RDV à faire */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-sm text-muted-foreground mb-3">Postes</h3>
-                  {postesWithDetails
-                    .filter(p => {
-                      const now = new Date();
-                      return p.rdvs?.some(r => r.statut === 'ENCOURS' && new Date(r.date) >= now);
-                    })
-                    .map((poste) => (
-                      <Button
-                        key={poste.id}
-                        variant={selectedPoste === poste.id ? "default" : "outline"}
-                        className="w-full justify-start text-left h-auto py-3 px-4"
-                        onClick={() => setSelectedPoste(selectedPoste === poste.id ? null : poste.id)}
-                      >
-                        <div className="flex items-center justify-between w-full">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{poste.nomPoste}</p>
-                            {poste.localisation && (
-                              <p className="text-xs text-muted-foreground truncate mt-1">📍 {poste.localisation}</p>
-                            )}
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {poste.rdvs?.filter(r => {
-                                const now = new Date();
-                                return r.statut === 'ENCOURS' && new Date(r.date) >= now;
-                              }).length || 0} RDV à faire
-                            </p>
-                          </div>
-                          <ChevronRight className="h-4 w-4 ml-2 flex-shrink-0" />
-                        </div>
-                      </Button>
-                    ))}
-                  {postesWithDetails.filter(p => {
-                    const now = new Date();
-                    return p.rdvs?.some(r => r.statut === 'ENCOURS' && new Date(r.date) >= now);
-                  }).length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-8">Aucun poste avec RDV à faire</p>
-                  )}
-                </div>
-
-                {/* Colonne RDV à faire */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-sm text-muted-foreground mb-3 flex items-center gap-2">
+              <div className="space-y-4">
+                {/* En-têtes des colonnes */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <h3 className="font-semibold text-sm text-muted-foreground">Postes</h3>
+                  <h3 className="font-semibold text-sm text-muted-foreground flex items-center gap-2">
                     <AlertCircle className="h-4 w-4 text-orange-600" />
                     RDV à faire
                   </h3>
-                  {postesWithDetails
-                    .filter(p => !selectedPoste || p.id === selectedPoste)
+                  <h3 className="font-semibold text-sm text-muted-foreground flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    RDV réalisés
+                  </h3>
+                </div>
+
+                {/* Lignes de postes avec leurs RDV */}
+                {postesWithDetails.filter(p => {
+                  const now = new Date();
+                  return p.rdvs?.some(r => r.statut === 'ENCOURS' && new Date(r.date) >= now);
+                }).length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">Aucun poste avec RDV à faire</p>
+                ) : (
+                  postesWithDetails
                     .filter(p => {
                       const now = new Date();
                       return p.rdvs?.some(r => r.statut === 'ENCOURS' && new Date(r.date) >= now);
                     })
-                    .flatMap(poste => {
+                    .map((poste) => {
                       const now = new Date();
                       const rdvsAFaire = poste.rdvs?.filter(rdv => 
                         rdv.statut === 'ENCOURS' && new Date(rdv.date) >= now
-                      ) || [];
+                      ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) || [];
                       
-                      return rdvsAFaire.map(rdv => ({
-                        rdv,
-                        posteNom: poste.nomPoste
-                      }));
+                      const rdvsRealises = poste.rdvs?.filter(rdv => 
+                        rdv.statut === 'REALISE' || rdv.statut === 'TERMINE' || new Date(rdv.date) < now
+                      ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) || [];
+
+                      return (
+                        <div key={poste.id} className="grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 border rounded-lg bg-card/50">
+                          {/* Poste */}
+                          <div className="space-y-1">
+                            <p className="font-medium">{poste.nomPoste}</p>
+                            {poste.localisation && (
+                              <p className="text-xs text-muted-foreground">📍 {poste.localisation}</p>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                              {rdvsAFaire.length} RDV à faire
+                            </p>
+                          </div>
+
+                          {/* RDV à faire */}
+                          <div className="space-y-2">
+                            {rdvsAFaire.length === 0 ? (
+                              <p className="text-xs text-muted-foreground italic">Aucun RDV à faire</p>
+                            ) : (
+                              rdvsAFaire.map(rdv => (
+                                <div key={rdv.id} className="p-2 border rounded bg-background space-y-1">
+                                  <p className="text-sm font-medium">
+                                    {rdv.candidat ? `${rdv.candidat.prenom} ${rdv.candidat.nom}` : 'Candidat inconnu'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {format(new Date(rdv.date), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                                  </p>
+                                  {rdv.typeRdv && (
+                                    <p className="text-xs text-muted-foreground">{rdv.typeRdv}</p>
+                                  )}
+                                </div>
+                              ))
+                            )}
+                          </div>
+
+                          {/* RDV réalisés */}
+                          <div className="space-y-2">
+                            {rdvsRealises.length === 0 ? (
+                              <p className="text-xs text-muted-foreground italic">Aucun RDV réalisé</p>
+                            ) : (
+                              rdvsRealises.map(rdv => (
+                                <div key={rdv.id} className="p-2 border rounded bg-background space-y-1">
+                                  <p className="text-sm font-medium">
+                                    {rdv.candidat ? `${rdv.candidat.prenom} ${rdv.candidat.nom}` : 'Candidat inconnu'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {format(new Date(rdv.date), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                                  </p>
+                                  {rdv.typeRdv && (
+                                    <p className="text-xs text-muted-foreground">{rdv.typeRdv}</p>
+                                  )}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      );
                     })
-                    .sort((a, b) => new Date(a.rdv.date).getTime() - new Date(b.rdv.date).getTime())
-                    .map(({ rdv, posteNom }) => (
-                      <div key={rdv.id} className="p-3 border rounded-lg bg-card space-y-1">
-                        <p className="text-sm font-medium">
-                          {rdv.candidat ? `${rdv.candidat.prenom} ${rdv.candidat.nom}` : 'Candidat inconnu'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(rdv.date), 'dd MMM yyyy à HH:mm', { locale: fr })}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {rdv.typeRdv && `${rdv.typeRdv} • `}{posteNom}
-                        </p>
-                      </div>
-                    ))}
-                </div>
+                )}
               </div>
             </TabsContent>
 
             <TabsContent value="done" className="mt-4">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Colonne Postes avec RDV réalisés */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-sm text-muted-foreground mb-3">Postes</h3>
-                  {postesWithDetails
-                    .filter(p => {
-                      const now = new Date();
-                      return p.rdvs?.some(r => r.statut === 'REALISE' || r.statut === 'TERMINE' || new Date(r.date) < now);
-                    })
-                    .map((poste) => (
-                      <Button
-                        key={poste.id}
-                        variant={selectedPoste === poste.id ? "default" : "outline"}
-                        className="w-full justify-start text-left h-auto py-3 px-4"
-                        onClick={() => setSelectedPoste(selectedPoste === poste.id ? null : poste.id)}
-                      >
-                        <div className="flex items-center justify-between w-full">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{poste.nomPoste}</p>
-                            {poste.localisation && (
-                              <p className="text-xs text-muted-foreground truncate mt-1">📍 {poste.localisation}</p>
-                            )}
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {poste.rdvs?.filter(r => {
-                                const now = new Date();
-                                return r.statut === 'REALISE' || r.statut === 'TERMINE' || new Date(r.date) < now;
-                              }).length || 0} RDV réalisés
-                            </p>
-                          </div>
-                          <ChevronRight className="h-4 w-4 ml-2 flex-shrink-0" />
-                        </div>
-                      </Button>
-                    ))}
-                  {postesWithDetails.filter(p => {
-                    const now = new Date();
-                    return p.rdvs?.some(r => r.statut === 'REALISE' || r.statut === 'TERMINE' || new Date(r.date) < now);
-                  }).length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-8">Aucun poste avec RDV réalisés</p>
-                  )}
-                </div>
-
-                {/* Colonne RDV réalisés */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-sm text-muted-foreground mb-3 flex items-center gap-2">
+              <div className="space-y-4">
+                {/* En-têtes des colonnes */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <h3 className="font-semibold text-sm text-muted-foreground">Postes</h3>
+                  <h3 className="font-semibold text-sm text-muted-foreground flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-orange-600" />
+                    RDV à faire
+                  </h3>
+                  <h3 className="font-semibold text-sm text-muted-foreground flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
                     RDV réalisés
                   </h3>
-                  {postesWithDetails
-                    .filter(p => !selectedPoste || p.id === selectedPoste)
+                </div>
+
+                {/* Lignes de postes avec leurs RDV */}
+                {postesWithDetails.filter(p => {
+                  const now = new Date();
+                  return p.rdvs?.some(r => r.statut === 'REALISE' || r.statut === 'TERMINE' || new Date(r.date) < now);
+                }).length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">Aucun poste avec RDV réalisés</p>
+                ) : (
+                  postesWithDetails
                     .filter(p => {
                       const now = new Date();
                       return p.rdvs?.some(r => r.statut === 'REALISE' || r.statut === 'TERMINE' || new Date(r.date) < now);
                     })
-                    .flatMap(poste => {
+                    .map((poste) => {
                       const now = new Date();
+                      const rdvsAFaire = poste.rdvs?.filter(rdv => 
+                        rdv.statut === 'ENCOURS' && new Date(rdv.date) >= now
+                      ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) || [];
+                      
                       const rdvsRealises = poste.rdvs?.filter(rdv => 
                         rdv.statut === 'REALISE' || rdv.statut === 'TERMINE' || new Date(rdv.date) < now
-                      ) || [];
-                      
-                      return rdvsRealises.map(rdv => ({
-                        rdv,
-                        posteNom: poste.nomPoste
-                      }));
+                      ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) || [];
+
+                      return (
+                        <div key={poste.id} className="grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 border rounded-lg bg-card/50">
+                          {/* Poste */}
+                          <div className="space-y-1">
+                            <p className="font-medium">{poste.nomPoste}</p>
+                            {poste.localisation && (
+                              <p className="text-xs text-muted-foreground">📍 {poste.localisation}</p>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                              {rdvsRealises.length} RDV réalisés
+                            </p>
+                          </div>
+
+                          {/* RDV à faire */}
+                          <div className="space-y-2">
+                            {rdvsAFaire.length === 0 ? (
+                              <p className="text-xs text-muted-foreground italic">Aucun RDV à faire</p>
+                            ) : (
+                              rdvsAFaire.map(rdv => (
+                                <div key={rdv.id} className="p-2 border rounded bg-background space-y-1">
+                                  <p className="text-sm font-medium">
+                                    {rdv.candidat ? `${rdv.candidat.prenom} ${rdv.candidat.nom}` : 'Candidat inconnu'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {format(new Date(rdv.date), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                                  </p>
+                                  {rdv.typeRdv && (
+                                    <p className="text-xs text-muted-foreground">{rdv.typeRdv}</p>
+                                  )}
+                                </div>
+                              ))
+                            )}
+                          </div>
+
+                          {/* RDV réalisés */}
+                          <div className="space-y-2">
+                            {rdvsRealises.length === 0 ? (
+                              <p className="text-xs text-muted-foreground italic">Aucun RDV réalisé</p>
+                            ) : (
+                              rdvsRealises.map(rdv => (
+                                <div key={rdv.id} className="p-2 border rounded bg-background space-y-1">
+                                  <p className="text-sm font-medium">
+                                    {rdv.candidat ? `${rdv.candidat.prenom} ${rdv.candidat.nom}` : 'Candidat inconnu'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {format(new Date(rdv.date), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                                  </p>
+                                  {rdv.typeRdv && (
+                                    <p className="text-xs text-muted-foreground">{rdv.typeRdv}</p>
+                                  )}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      );
                     })
-                    .sort((a, b) => new Date(b.rdv.date).getTime() - new Date(a.rdv.date).getTime())
-                    .map(({ rdv, posteNom }) => (
-                      <div key={rdv.id} className="p-3 border rounded-lg bg-card space-y-1">
-                        <p className="text-sm font-medium">
-                          {rdv.candidat ? `${rdv.candidat.prenom} ${rdv.candidat.nom}` : 'Candidat inconnu'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(rdv.date), 'dd MMM yyyy à HH:mm', { locale: fr })}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {rdv.typeRdv && `${rdv.typeRdv} • `}{posteNom}
-                        </p>
-                      </div>
-                    ))}
-                </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
