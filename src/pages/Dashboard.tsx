@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   candidatService, 
   clientService, 
@@ -12,10 +13,15 @@ import { contratService, prestataireService } from '@/services/contratService';
 import { supabase } from '@/integrations/supabase/client';
 import { Candidat, Client, Rdv, PosteClient } from '@/types/models';
 import { Contrat } from '@/types/contrat';
-import { Users, Building2, Calendar, Briefcase, TrendingUp, Clock, UserCheck, FileText } from 'lucide-react';
+import { Users, Building2, Calendar, Briefcase, TrendingUp, Clock, UserCheck, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+
+interface PosteWithDetails extends PosteClient {
+  localisation?: string;
+  rdvs?: Array<Rdv & { candidat?: Candidat; client?: Client }>;
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -30,6 +36,7 @@ export default function Dashboard() {
   const [recentRdvs, setRecentRdvs] = useState<Rdv[]>([]);
   const [activePostes, setActivePostes] = useState<PosteClient[]>([]);
   const [activeContrats, setActiveContrats] = useState<Contrat[]>([]);
+  const [postesWithDetails, setPostesWithDetails] = useState<PosteWithDetails[]>([]);
 
   useEffect(() => {
     loadDashboardData();
@@ -135,6 +142,81 @@ export default function Dashboard() {
 
       // Get active contracts
       setActiveContrats(contratsActifs.slice(0, 5));
+
+      // Charger les postes avec les candidats et RDVs
+      const { data: postesWithRdvs } = await supabase
+        .from('postes')
+        .select(`
+          *,
+          rdvs:rdvs(
+            *,
+            candidat:candidats(*),
+            client:clients(*)
+          )
+        `)
+        .in('statut', ['OUVERT', 'ENCOURS'])
+        .order('created_at', { ascending: false });
+
+      if (postesWithRdvs) {
+        const mappedPostes: PosteWithDetails[] = postesWithRdvs.map(poste => ({
+          id: poste.id,
+          createdAt: new Date(poste.created_at),
+          updatedAt: new Date(poste.updated_at),
+          clientId: poste.client_id,
+          nomPoste: poste.titre,
+          dateCreation: new Date(poste.created_at),
+          typeContrat: poste.type_contrat,
+          typePrestation: (poste.type_prestation || 'RECRUTEMENT') as any,
+          salaireMin: poste.salaire_min,
+          salaireMax: poste.salaire_max,
+          detail: poste.description || '',
+          statut: poste.statut as any,
+          titre: poste.titre,
+          description: poste.description,
+          localisation: poste.localisation,
+          competences: poste.competences,
+          rdvs: (poste.rdvs || []).map((rdv: any) => ({
+            ...rdv,
+            id: rdv.id,
+            date: new Date(rdv.date),
+            createdAt: new Date(rdv.created_at),
+            updatedAt: new Date(rdv.updated_at),
+            candidatId: rdv.candidat_id,
+            clientId: rdv.client_id,
+            typeRdv: rdv.type_rdv,
+            rdvType: rdv.rdv_type,
+            recruteurId: rdv.recruteur_id,
+            referentId: rdv.referent_id,
+            posteId: rdv.poste_id,
+            statut: rdv.statut,
+            lieu: rdv.lieu,
+            notes: rdv.notes,
+            candidat: rdv.candidat ? {
+              id: rdv.candidat.id,
+              nom: rdv.candidat.nom,
+              prenom: rdv.candidat.prenom,
+              email: rdv.candidat.email,
+              telephone: rdv.candidat.telephone,
+              metier: rdv.candidat.metier,
+              cvUrl: rdv.candidat.cv_url,
+              recommandationUrl: rdv.candidat.recommandation_url,
+              detailCv: rdv.candidat.detail_cv,
+              createdAt: new Date(rdv.candidat.created_at),
+              updatedAt: new Date(rdv.candidat.updated_at)
+            } : undefined,
+            client: rdv.client ? {
+              id: rdv.client.id,
+              raisonSociale: rdv.client.raison_sociale,
+              email: rdv.client.email,
+              telephone: rdv.client.telephone,
+              adresse: rdv.client.adresse,
+              createdAt: new Date(rdv.client.created_at),
+              updatedAt: new Date(rdv.client.updated_at)
+            } : undefined
+          }))
+        }));
+        setPostesWithDetails(mappedPostes);
+      }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     }
@@ -348,6 +430,164 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Postes en cours avec candidats et RDVs */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Briefcase className="h-5 w-5 text-primary" />
+            Suivi des postes en cours
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="all" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="all">Tous les postes</TabsTrigger>
+              <TabsTrigger value="todo">RDV à faire</TabsTrigger>
+              <TabsTrigger value="done">RDV réalisés</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="all" className="space-y-4 mt-4">
+              {postesWithDetails.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Aucun poste en cours</p>
+              ) : (
+                postesWithDetails.map((poste) => (
+                  <div key={poste.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-lg">{poste.nomPoste}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {poste.localisation && `📍 ${poste.localisation}`}
+                        </p>
+                      </div>
+                      {getStatusBadge(poste.statut)}
+                    </div>
+                    
+                    {poste.rdvs && poste.rdvs.length > 0 ? (
+                      <div className="space-y-2 mt-3">
+                        <p className="text-sm font-medium text-muted-foreground">
+                          {poste.rdvs.length} rendez-vous
+                        </p>
+                        <div className="space-y-2">
+                          {poste.rdvs.map((rdv) => (
+                            <div key={rdv.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
+                              <div className="flex items-center gap-3">
+                                {rdv.statut === 'REALISE' || rdv.statut === 'TERMINE' ? (
+                                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <AlertCircle className="h-4 w-4 text-orange-600" />
+                                )}
+                                <div>
+                                  <p className="text-sm font-medium">
+                                    {rdv.candidat ? `${rdv.candidat.prenom} ${rdv.candidat.nom}` : 'Candidat inconnu'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {format(new Date(rdv.date), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                                    {rdv.typeRdv && ` • ${rdv.typeRdv}`}
+                                  </p>
+                                </div>
+                              </div>
+                              {getStatusBadge(rdv.statut)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">Aucun rendez-vous planifié</p>
+                    )}
+                  </div>
+                ))
+              )}
+            </TabsContent>
+
+            <TabsContent value="todo" className="space-y-4 mt-4">
+              {postesWithDetails
+                .filter(p => p.rdvs?.some(r => r.statut === 'ENCOURS'))
+                .map((poste) => (
+                  <div key={poste.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-lg">{poste.nomPoste}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {poste.localisation && `📍 ${poste.localisation}`}
+                        </p>
+                      </div>
+                      {getStatusBadge(poste.statut)}
+                    </div>
+                    
+                    <div className="space-y-2 mt-3">
+                      {poste.rdvs
+                        ?.filter(rdv => rdv.statut === 'ENCOURS')
+                        .map((rdv) => (
+                          <div key={rdv.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
+                            <div className="flex items-center gap-3">
+                              <AlertCircle className="h-4 w-4 text-orange-600" />
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {rdv.candidat ? `${rdv.candidat.prenom} ${rdv.candidat.nom}` : 'Candidat inconnu'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(rdv.date), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                                  {rdv.typeRdv && ` • ${rdv.typeRdv}`}
+                                </p>
+                              </div>
+                            </div>
+                            {getStatusBadge(rdv.statut)}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                ))}
+              {postesWithDetails.filter(p => p.rdvs?.some(r => r.statut === 'ENCOURS')).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8">Aucun rendez-vous à faire</p>
+              )}
+            </TabsContent>
+
+            <TabsContent value="done" className="space-y-4 mt-4">
+              {postesWithDetails
+                .filter(p => p.rdvs?.some(r => r.statut === 'REALISE' || r.statut === 'TERMINE'))
+                .map((poste) => (
+                  <div key={poste.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-lg">{poste.nomPoste}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {poste.localisation && `📍 ${poste.localisation}`}
+                        </p>
+                      </div>
+                      {getStatusBadge(poste.statut)}
+                    </div>
+                    
+                    <div className="space-y-2 mt-3">
+                      {poste.rdvs
+                        ?.filter(rdv => rdv.statut === 'REALISE' || rdv.statut === 'TERMINE')
+                        .map((rdv) => (
+                          <div key={rdv.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
+                            <div className="flex items-center gap-3">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {rdv.candidat ? `${rdv.candidat.prenom} ${rdv.candidat.nom}` : 'Candidat inconnu'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(rdv.date), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                                  {rdv.typeRdv && ` • ${rdv.typeRdv}`}
+                                </p>
+                              </div>
+                            </div>
+                            {getStatusBadge(rdv.statut)}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                ))}
+              {postesWithDetails.filter(p => p.rdvs?.some(r => r.statut === 'REALISE' || r.statut === 'TERMINE')).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8">Aucun rendez-vous réalisé</p>
+              )}
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 }
