@@ -509,8 +509,11 @@ export default function Candidats() {
       header: 'Actions',
       size: 280,
       enableHiding: false,
+      meta: {
+        className: 'sticky right-0 bg-background shadow-[-2px_0_4px_rgba(0,0,0,0.1)]',
+      },
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 bg-background">
           <Button
             variant="ghost"
             size="icon"
