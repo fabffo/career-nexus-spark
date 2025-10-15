@@ -507,7 +507,8 @@ export default function Candidats() {
     {
       id: 'actions',
       header: 'Actions',
-      size: 220,
+      size: 280,
+      enableHiding: false,
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
           <Button
