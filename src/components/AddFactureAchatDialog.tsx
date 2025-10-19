@@ -8,11 +8,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Upload, X } from "lucide-react";
+import { CalendarIcon, Upload, X, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useFileUpload } from "@/hooks/useFileUpload";
+import CreateFournisseurQuickDialog from "./CreateFournisseurQuickDialog";
 
 interface AddFactureAchatDialogProps {
   open: boolean;
@@ -37,6 +38,7 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
   const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
   const [prestataires, setPrestataires] = useState<Prestataire[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [showCreateFournisseur, setShowCreateFournisseur] = useState(false);
   const { uploadFile, isUploading } = useFileUpload();
   const { toast } = useToast();
 
@@ -236,12 +238,26 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
     }
   };
 
+  const handleFournisseurCreated = async (fournisseurId: string, type: 'GENERAL' | 'SERVICE') => {
+    // Recharger la liste des fournisseurs
+    await fetchData();
+    // Sélectionner automatiquement le nouveau fournisseur
+    setFormData({ ...formData, fournisseur_id: fournisseurId });
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Nouvelle facture d'achat</DialogTitle>
-        </DialogHeader>
+    <>
+      <CreateFournisseurQuickDialog
+        open={showCreateFournisseur}
+        onOpenChange={setShowCreateFournisseur}
+        onSuccess={handleFournisseurCreated}
+      />
+      
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Nouvelle facture d'achat</DialogTitle>
+          </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Numéro de facture */}
@@ -314,10 +330,23 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
           {/* Sélection du fournisseur ou prestataire */}
           {formData.fournisseur_type && (
             <div className="space-y-2">
-              <Label>
-                {formData.fournisseur_type === 'PRESTATAIRE' ? 'Prestataire' : 'Fournisseur'}{' '}
-                <span className="text-destructive">*</span>
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label>
+                  {formData.fournisseur_type === 'PRESTATAIRE' ? 'Prestataire' : 'Fournisseur'}{' '}
+                  <span className="text-destructive">*</span>
+                </Label>
+                {formData.fournisseur_type === 'FOURNISSEUR' && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowCreateFournisseur(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Nouveau
+                  </Button>
+                )}
+              </div>
               <Select
                 value={formData.fournisseur_id}
                 onValueChange={(value) => setFormData({ ...formData, fournisseur_id: value })}
@@ -452,5 +481,6 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
         </form>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
