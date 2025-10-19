@@ -1,13 +1,18 @@
 import { useState } from "react";
-import { Upload, Download, FileText, CheckCircle, XCircle, Loader2, Settings, Trash2, Eye, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Upload,
+  Download,
+  FileText,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Settings,
+  Trash2,
+  Eye,
+  Sparkles,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -44,6 +49,90 @@ interface ExtractionFactureDialogProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
 }
+interface ExtractionFactureDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
+}
+
+// ========== AJOUTEZ CE BLOC ICI ==========
+// SYSTÈME DE NORMALISATION DES FOURNISSEURS
+const FOURNISSEURS_REGLES = {
+  // SNCF et variantes
+  SNCF: ["SNCF CONNECT", "SNCF TGV", "SNCF VOYAGES", "SNCF RESEAU"],
+
+  // Adobe et variantes
+  Adobe: ["Adobe Systems Software Ireland Ltd", "Adobe Inc", "Adobe Systems", "Adobe Ireland"],
+
+  // Shell et variantes
+  "STATION SHELL": [
+    "STATION SHELL A10 AIRE DES PLAINES DE BEAUCE",
+    "STATION SHELL SARL ROUX",
+    "SHELL EXPRESS",
+    "SHELL FRANCE",
+  ],
+
+  // TotalEnergies
+  TotalEnergies: [
+    "TotalEnergies SARL ARTSTATIONS RELAIS MARNE VERDUN",
+    "TOTAL ENERGIES",
+    "TOTAL ACCESS",
+    "STATION TOTAL",
+  ],
+
+  // RH Solutions
+  RHSOLUTIONS: ["RHSOLUTIONS PORTAGE SALARIAL", "RH SOLUTIONS"],
+
+  // Uber
+  Uber: ["Uber B.V.", "Uber BV", "Uber France", "UBER EATS"],
+
+  // Services IT
+  OpenAI: ["OpenAI, LLC", "OpenAI Inc"],
+  LinkedIn: ["LinkedIn Ireland Unlimited Company", "LinkedIn Corporation"],
+  Indeed: ["Indeed Ireland Operations Limited", "Indeed Inc"],
+  Microsoft: ["Microsoft Corporation", "Microsoft Ireland"],
+
+  // Restaurants
+  "AU BUREAU": ["AU BUREAU PUB & BRASSERIE", "AU BUREAU PUB BRASSERIE"],
+  HIPPOPOTAMUS: ["HIPPOPOTAMUS RESTAURANT", "HIPPOPOTAMUS GRILL"],
+  COJEAN: ["COJEAN BEAUGRENELLE", "COJEAN PARIS"],
+
+  // Autres
+  BOULANGER: ["BOULANGER PARIS MARAIS BHV", "BOULANGER FRANCE"],
+  "Les Echos": ["LES ECHOS SAS", "LES ECHOS SA"],
+};
+
+// Fonction de normalisation intelligente
+const normaliserFournisseur = (nom: string): string => {
+  if (!nom) return nom;
+
+  const nomUpper = nom.toUpperCase().trim();
+
+  // Chercher dans les règles exactes
+  for (const [nomNormalise, variantes] of Object.entries(FOURNISSEURS_REGLES)) {
+    if (variantes.some((v) => nomUpper.includes(v.toUpperCase()))) {
+      return nomNormalise;
+    }
+  }
+
+  // Règles génériques pour nettoyer
+  let nomNettoye = nom;
+
+  // Retirer les suffixes juridiques
+  nomNettoye = nomNettoye.replace(/\b(SAS|SARL|SA|EURL|Ltd|LLC|Inc|Corporation|Limited|BV|B\.V\.)\b/gi, "").trim();
+
+  // Retirer les localisations génériques
+  nomNettoye = nomNettoye.replace(/\b(PARIS|FRANCE|IRELAND|AIRE DES?|STATION|RELAIS)\s+.*/i, "").trim();
+
+  // Si ça commence par STATION, garder le nom principal
+  if (nomNettoye.match(/^STATION\s+(\w+)/i)) {
+    const match = nomNettoye.match(/^STATION\s+(\w+)/i);
+    return `STATION ${match![1].toUpperCase()}`;
+  }
+
+  return nomNettoye.trim();
+};
+// ========== FIN DU BLOC À AJOUTER ==========
 
 const DEFAULT_PROMPT = `Extrais ces données de la facture en JSON strict :
 {
@@ -64,11 +153,7 @@ Règles importantes :
 
 Retourne UNIQUEMENT le JSON valide, sans markdown ni texte additionnel.`;
 
-export default function ExtractionFactureDialog({ 
-  open, 
-  onOpenChange, 
-  onSuccess 
-}: ExtractionFactureDialogProps) {
+export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess }: ExtractionFactureDialogProps) {
   const [factures, setFactures] = useState<FactureExtraite[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -80,46 +165,54 @@ export default function ExtractionFactureDialog({
 
   const extraireFacture = async (file: File): Promise<FactureExtraite> => {
     setCurrentFile(file.name);
-    
+
     const reader = new FileReader();
-    
+
     return new Promise((resolve, reject) => {
       reader.onload = async () => {
         try {
-          console.log('📄 Lecture du fichier:', file.name);
-          const base64Data = (reader.result as string).split(',')[1];
-          console.log('✓ Base64 encodé:', base64Data.length, 'bytes');
-          
+          console.log("📄 Lecture du fichier:", file.name);
+          const base64Data = (reader.result as string).split(",")[1];
+          console.log("✓ Base64 encodé:", base64Data.length, "bytes");
+
           // Appel de l'edge function
-          console.log('🚀 Appel edge function extraire-facture...');
-          const { data, error } = await supabase.functions.invoke('extraire-facture', {
+          console.log("🚀 Appel edge function extraire-facture...");
+          const { data, error } = await supabase.functions.invoke("extraire-facture", {
             body: {
               pdfBase64: base64Data,
-              prompt: prompt
-            }
+              prompt: prompt,
+            },
           });
 
-          console.log('📥 Réponse reçue:', { data, error });
+          console.log("📥 Réponse reçue:", { data, error });
 
           if (error) {
-            console.error('❌ Erreur edge function:', error);
+            console.error("❌ Erreur edge function:", error);
             throw new Error(`Erreur serveur: ${error.message}`);
           }
 
           if (data?.error) {
-            console.error('❌ Erreur dans la réponse:', data.error);
+            console.error("❌ Erreur dans la réponse:", data.error);
             throw new Error(data.error);
           }
 
           if (!data?.donnees) {
-            console.error('❌ Pas de données dans la réponse');
-            throw new Error('Pas de données extraites');
+            console.error("❌ Pas de données dans la réponse");
+            throw new Error("Pas de données extraites");
           }
 
           const donnees = data.donnees;
+
+          // ========== AJOUTEZ CES 4 LIGNES ==========
+          // Normaliser le nom du fournisseur
+          if (donnees.fournisseur) {
+            donnees.fournisseur = normaliserFournisseur(donnees.fournisseur);
+          }
+          // ==========================================
+
           const valide = !!(donnees.fournisseur && donnees.numero_facture && donnees.montant_ttc);
-          
-          console.log('✅ Extraction réussie:', { valide, donnees: Object.keys(donnees) });
+
+          console.log("✅ Extraction réussie:", { valide, donnees: Object.keys(donnees) });
 
           const facture: FactureExtraite = {
             id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
@@ -128,21 +221,21 @@ export default function ExtractionFactureDialog({
             donnees,
             valide,
             tokens: data.tokens,
-            cout_estime: data.cout_estime
+            cout_estime: data.cout_estime,
           };
-          
+
           resolve(facture);
         } catch (error) {
-          console.error('❌ Erreur extraction:', error);
+          console.error("❌ Erreur extraction:", error);
           reject(error);
         }
       };
-      
+
       reader.onerror = () => {
-        console.error('❌ Erreur lecture fichier');
-        reject(new Error('Erreur lecture fichier'));
+        console.error("❌ Erreur lecture fichier");
+        reject(new Error("Erreur lecture fichier"));
       };
-      
+
       reader.readAsDataURL(file);
     });
   };
@@ -158,7 +251,7 @@ export default function ExtractionFactureDialog({
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       setProgress(Math.round(((i + 1) / files.length) * 100));
-      
+
       try {
         const facture = await extraireFacture(file);
         nouvelles.push(facture);
@@ -174,28 +267,28 @@ export default function ExtractionFactureDialog({
             montant_ht: null,
             montant_ttc: null,
             montant_tva: null,
-            date_facture: null
+            date_facture: null,
           },
           valide: false,
-          erreur: error instanceof Error ? error.message : 'Erreur inconnue'
+          erreur: error instanceof Error ? error.message : "Erreur inconnue",
         });
       }
     }
 
-    setFactures(prev => [...nouvelles, ...prev]);
+    setFactures((prev) => [...nouvelles, ...prev]);
     setIsProcessing(false);
-    setCurrentFile('');
+    setCurrentFile("");
     setProgress(0);
 
     toast({
       title: "Extraction terminée",
-      description: `${nouvelles.filter(f => f.valide).length}/${nouvelles.length} factures extraites avec succès`,
+      description: `${nouvelles.filter((f) => f.valide).length}/${nouvelles.length} factures extraites avec succès`,
     });
   };
 
   const sauvegarderFactures = async () => {
-    const facturesValides = factures.filter(f => f.valide);
-    
+    const facturesValides = factures.filter((f) => f.valide);
+
     if (facturesValides.length === 0) {
       toast({
         title: "Aucune facture valide",
@@ -216,42 +309,40 @@ export default function ExtractionFactureDialog({
         const fileName = `${timestamp}_${facture.fichier}`;
         const filePath = `factures-achats/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('factures')
-          .upload(filePath, facture.fileObject, {
-            contentType: 'application/pdf',
-          });
+        const { error: uploadError } = await supabase.storage.from("factures").upload(filePath, facture.fileObject, {
+          contentType: "application/pdf",
+        });
 
         if (uploadError) throw uploadError;
 
         // 2. Obtenir l'URL publique
-        const { data: { publicUrl } } = supabase.storage
-          .from('factures')
-          .getPublicUrl(filePath);
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("factures").getPublicUrl(filePath);
 
         // 3. Récupérer l'utilisateur connecté
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
         // 4. Insérer la facture dans la base de données
-        const { error: insertError } = await supabase
-          .from('factures')
-          .insert({
-            numero_facture: facture.donnees.numero_facture || `FA-${timestamp}`,
-            type_facture: 'ACHATS',
-            date_emission: facture.donnees.date_facture || new Date().toISOString().split('T')[0],
-            date_echeance: facture.donnees.date_facture || new Date().toISOString().split('T')[0],
-            emetteur_type: 'Fournisseur',
-            emetteur_nom: facture.donnees.fournisseur || 'Fournisseur inconnu',
-            destinataire_type: 'Entreprise',
-            destinataire_nom: 'Votre Entreprise', // À adapter selon votre contexte
-            total_ht: facture.donnees.montant_ht || 0,
-            total_tva: facture.donnees.montant_tva || 0,
-            total_ttc: facture.donnees.montant_ttc || 0,
-            informations_paiement: facture.donnees.libelle,
-            reference_societe: filePath,
-            statut: 'VALIDEE',
-            created_by: user?.id,
-          });
+        const { error: insertError } = await supabase.from("factures").insert({
+          numero_facture: facture.donnees.numero_facture || `FA-${timestamp}`,
+          type_facture: "ACHATS",
+          date_emission: facture.donnees.date_facture || new Date().toISOString().split("T")[0],
+          date_echeance: facture.donnees.date_facture || new Date().toISOString().split("T")[0],
+          emetteur_type: "Fournisseur",
+          emetteur_nom: facture.donnees.fournisseur || "Fournisseur inconnu",
+          destinataire_type: "Entreprise",
+          destinataire_nom: "Votre Entreprise", // À adapter selon votre contexte
+          total_ht: facture.donnees.montant_ht || 0,
+          total_tva: facture.donnees.montant_tva || 0,
+          total_ttc: facture.donnees.montant_ttc || 0,
+          informations_paiement: facture.donnees.libelle,
+          reference_societe: filePath,
+          statut: "VALIDEE",
+          created_by: user?.id,
+        });
 
         if (insertError) throw insertError;
 
@@ -267,9 +358,9 @@ export default function ExtractionFactureDialog({
     if (successCount > 0) {
       toast({
         title: "Factures sauvegardées",
-        description: `${successCount} facture(s) ajoutée(s) avec succès${errorCount > 0 ? `, ${errorCount} erreur(s)` : ''}`,
+        description: `${successCount} facture(s) ajoutée(s) avec succès${errorCount > 0 ? `, ${errorCount} erreur(s)` : ""}`,
       });
-      
+
       // Réinitialiser et fermer
       setFactures([]);
       onSuccess();
@@ -285,8 +376,8 @@ export default function ExtractionFactureDialog({
 
   const stats = {
     total: factures.length,
-    valides: factures.filter(f => f.valide).length,
-    erreurs: factures.filter(f => f.erreur).length,
+    valides: factures.filter((f) => f.valide).length,
+    erreurs: factures.filter((f) => f.erreur).length,
     montantTotal: factures.reduce((acc, f) => acc + (f.donnees.montant_ttc || 0), 0),
     coutTotal: factures.reduce((acc, f) => acc + (f.cout_estime || 0), 0),
   };
@@ -324,7 +415,7 @@ export default function ExtractionFactureDialog({
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     <Upload className="h-10 w-10 text-muted-foreground mb-2" />
                     <p className="text-sm font-medium">
-                      {isProcessing ? `Traitement... ${progress}%` : 'Cliquez ou glissez vos factures PDF'}
+                      {isProcessing ? `Traitement... ${progress}%` : "Cliquez ou glissez vos factures PDF"}
                     </p>
                   </div>
                   <input
@@ -347,10 +438,7 @@ export default function ExtractionFactureDialog({
                       <span className="text-muted-foreground">{progress}%</span>
                     </div>
                     <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
-                      <div 
-                        className="bg-primary h-2 transition-all duration-300"
-                        style={{ width: `${progress}%` }}
-                      />
+                      <div className="bg-primary h-2 transition-all duration-300" style={{ width: `${progress}%` }} />
                     </div>
                   </div>
                 )}
@@ -390,10 +478,10 @@ export default function ExtractionFactureDialog({
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      {new Intl.NumberFormat('fr-FR', { 
-                        style: 'currency', 
-                        currency: 'EUR',
-                        maximumFractionDigits: 0
+                      {new Intl.NumberFormat("fr-FR", {
+                        style: "currency",
+                        currency: "EUR",
+                        maximumFractionDigits: 0,
                       }).format(stats.montantTotal)}
                     </div>
                   </CardContent>
@@ -403,9 +491,7 @@ export default function ExtractionFactureDialog({
                     <CardTitle className="text-sm">Coût IA</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-xl font-bold text-purple-600">
-                      ${(stats.coutTotal * 100).toFixed(3)}¢
-                    </div>
+                    <div className="text-xl font-bold text-purple-600">${(stats.coutTotal * 100).toFixed(3)}¢</div>
                   </CardContent>
                 </Card>
               </div>
@@ -416,14 +502,14 @@ export default function ExtractionFactureDialog({
               <ScrollArea className="h-[400px]">
                 <div className="space-y-3 pr-4">
                   {factures.map((facture) => (
-                    <Card 
+                    <Card
                       key={facture.id}
                       className={`${
                         facture.valide
-                          ? 'border-green-300 bg-green-50/50'
+                          ? "border-green-300 bg-green-50/50"
                           : facture.erreur
-                          ? 'border-red-300 bg-red-50/50'
-                          : 'border-yellow-300 bg-yellow-50/50'
+                            ? "border-red-300 bg-red-50/50"
+                            : "border-yellow-300 bg-yellow-50/50"
                       }`}
                     >
                       <CardContent className="p-4">
@@ -436,37 +522,39 @@ export default function ExtractionFactureDialog({
                             ) : (
                               <XCircle className="h-6 w-6 text-yellow-600 flex-shrink-0" />
                             )}
-                            
+
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
                                 <FileText className="h-4 w-4" />
                                 <h3 className="font-semibold">{facture.fichier}</h3>
                                 {facture.valide && <Badge variant="default">Prête</Badge>}
                               </div>
-                              
+
                               {facture.erreur ? (
                                 <p className="text-sm text-red-600">{facture.erreur}</p>
                               ) : (
                                 <div className="grid grid-cols-4 gap-3 text-sm">
                                   <div>
                                     <span className="text-muted-foreground">Fournisseur:</span>
-                                    <p className="font-medium">{facture.donnees.fournisseur || '-'}</p>
+                                    <p className="font-medium">{facture.donnees.fournisseur || "-"}</p>
                                   </div>
                                   <div>
                                     <span className="text-muted-foreground">N° Facture:</span>
-                                    <p className="font-medium">{facture.donnees.numero_facture || '-'}</p>
+                                    <p className="font-medium">{facture.donnees.numero_facture || "-"}</p>
                                   </div>
                                   <div>
                                     <span className="text-muted-foreground">Montant TTC:</span>
                                     <p className="font-semibold text-green-600">
-                                      {facture.donnees.montant_ttc 
-                                        ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(facture.donnees.montant_ttc)
-                                        : '-'}
+                                      {facture.donnees.montant_ttc
+                                        ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
+                                            facture.donnees.montant_ttc,
+                                          )
+                                        : "-"}
                                     </p>
                                   </div>
                                   <div>
                                     <span className="text-muted-foreground">Date:</span>
-                                    <p className="font-medium">{facture.donnees.date_facture || '-'}</p>
+                                    <p className="font-medium">{facture.donnees.date_facture || "-"}</p>
                                   </div>
                                 </div>
                               )}
@@ -474,17 +562,13 @@ export default function ExtractionFactureDialog({
                           </div>
 
                           <div className="flex gap-1 ml-4">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setSelectedFacture(facture)}
-                            >
+                            <Button variant="ghost" size="icon" onClick={() => setSelectedFacture(facture)}>
                               <Eye className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => setFactures(prev => prev.filter(f => f.id !== facture.id))}
+                              onClick={() => setFactures((prev) => prev.filter((f) => f.id !== facture.id))}
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
@@ -513,12 +597,7 @@ export default function ExtractionFactureDialog({
                     rows={12}
                     className="font-mono text-sm"
                   />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPrompt(DEFAULT_PROMPT)}
-                    className="mt-2"
-                  >
+                  <Button variant="outline" size="sm" onClick={() => setPrompt(DEFAULT_PROMPT)} className="mt-2">
                     Réinitialiser
                   </Button>
                 </div>
@@ -531,7 +610,8 @@ export default function ExtractionFactureDialog({
           <div className="text-sm text-muted-foreground">
             {factures.length > 0 && (
               <span>
-                {stats.valides} facture{stats.valides > 1 ? 's' : ''} prête{stats.valides > 1 ? 's' : ''} à être sauvegardée{stats.valides > 1 ? 's' : ''}
+                {stats.valides} facture{stats.valides > 1 ? "s" : ""} prête{stats.valides > 1 ? "s" : ""} à être
+                sauvegardée{stats.valides > 1 ? "s" : ""}
               </span>
             )}
           </div>
@@ -539,10 +619,7 @@ export default function ExtractionFactureDialog({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Annuler
             </Button>
-            <Button
-              onClick={sauvegarderFactures}
-              disabled={stats.valides === 0 || isSaving}
-            >
+            <Button onClick={sauvegarderFactures} disabled={stats.valides === 0 || isSaving}>
               {isSaving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -551,7 +628,7 @@ export default function ExtractionFactureDialog({
               ) : (
                 <>
                   <Download className="mr-2 h-4 w-4" />
-                  Sauvegarder {stats.valides > 0 ? `(${stats.valides})` : ''}
+                  Sauvegarder {stats.valides > 0 ? `(${stats.valides})` : ""}
                 </>
               )}
             </Button>
@@ -573,38 +650,44 @@ export default function ExtractionFactureDialog({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Fournisseur</Label>
-                    <p className="text-sm">{selectedFacture.donnees.fournisseur || '-'}</p>
+                    <p className="text-sm">{selectedFacture.donnees.fournisseur || "-"}</p>
                   </div>
                   <div>
                     <Label>N° Facture</Label>
-                    <p className="text-sm">{selectedFacture.donnees.numero_facture || '-'}</p>
+                    <p className="text-sm">{selectedFacture.donnees.numero_facture || "-"}</p>
                   </div>
                   <div>
                     <Label>Date</Label>
-                    <p className="text-sm">{selectedFacture.donnees.date_facture || '-'}</p>
+                    <p className="text-sm">{selectedFacture.donnees.date_facture || "-"}</p>
                   </div>
                   <div>
                     <Label>Montant HT</Label>
                     <p className="text-sm">
-                      {selectedFacture.donnees.montant_ht 
-                        ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(selectedFacture.donnees.montant_ht)
-                        : '-'}
+                      {selectedFacture.donnees.montant_ht
+                        ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
+                            selectedFacture.donnees.montant_ht,
+                          )
+                        : "-"}
                     </p>
                   </div>
                   <div>
                     <Label>TVA</Label>
                     <p className="text-sm">
-                      {selectedFacture.donnees.montant_tva 
-                        ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(selectedFacture.donnees.montant_tva)
-                        : '-'}
+                      {selectedFacture.donnees.montant_tva
+                        ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
+                            selectedFacture.donnees.montant_tva,
+                          )
+                        : "-"}
                     </p>
                   </div>
                   <div>
                     <Label>Montant TTC</Label>
                     <p className="text-sm font-semibold text-green-600">
-                      {selectedFacture.donnees.montant_ttc 
-                        ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(selectedFacture.donnees.montant_ttc)
-                        : '-'}
+                      {selectedFacture.donnees.montant_ttc
+                        ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
+                            selectedFacture.donnees.montant_ttc,
+                          )
+                        : "-"}
                     </p>
                   </div>
                 </div>
@@ -616,8 +699,8 @@ export default function ExtractionFactureDialog({
                 )}
                 {selectedFacture.tokens && (
                   <div className="text-xs text-muted-foreground">
-                    Tokens: {selectedFacture.tokens.input + selectedFacture.tokens.output} • 
-                    Coût: ${(selectedFacture.cout_estime! * 100).toFixed(4)}¢
+                    Tokens: {selectedFacture.tokens.input + selectedFacture.tokens.output} • Coût: $
+                    {(selectedFacture.cout_estime! * 100).toFixed(4)}¢
                   </div>
                 )}
               </div>
