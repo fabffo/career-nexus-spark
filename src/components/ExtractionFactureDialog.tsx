@@ -59,7 +59,7 @@ interface ExtractionFactureDialogProps {
 // SYSTÈME DE NORMALISATION DES FOURNISSEURS
 const FOURNISSEURS_REGLES = {
   // SNCF et variantes
-  SNCF: ["SNCF CONNECT", "SNCF TGV", "SNCF VOYAGES", "SNCF RESEAU"],
+  SNCF: ["SNCF CONNECT", "SNCF TGV", "SNCF VOYAGES", "SNCF RESEAU", "SNCF Voyageurs"],
 
   // Adobe et variantes
   Adobe: ["Adobe Systems Software Ireland Ltd", "Adobe Inc", "Adobe Systems", "Adobe Ireland"],
@@ -96,6 +96,9 @@ const FOURNISSEURS_REGLES = {
   "AU BUREAU": ["AU BUREAU PUB & BRASSERIE", "AU BUREAU PUB BRASSERIE"],
   HIPPOPOTAMUS: ["HIPPOPOTAMUS RESTAURANT", "HIPPOPOTAMUS GRILL"],
   COJEAN: ["COJEAN BEAUGRENELLE", "COJEAN PARIS"],
+
+  // Hotel
+  IBIS: ["IBIS MARSEILLE EUROMEDITERRANÉE"],
 
   // Autres
   BOULANGER: ["BOULANGER PARIS MARAIS BHV", "BOULANGER FRANCE"],
