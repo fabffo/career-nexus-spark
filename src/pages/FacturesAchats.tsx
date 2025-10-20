@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, TrendingDown, Eye, Pencil, Trash2, Download, Sparkles } from "lucide-react";
+import { Plus, TrendingDown, Eye, Pencil, Trash2, Download, Sparkles, UserPlus } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,7 @@ import AddFactureAchatDialog from "@/components/AddFactureAchatDialog";
 import ExtractionFactureDialog from "@/components/ExtractionFactureDialog";
 import EditFactureDialog from "@/components/EditFactureDialog";
 import ViewFactureDialog from "@/components/ViewFactureDialog";
+import CreateFournisseurQuickDialog from "@/components/CreateFournisseurQuickDialog";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -71,7 +72,14 @@ export default function FacturesAchats() {
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [openViewDialog, setOpenViewDialog] = useState(false);
   const [openExtractionDialog, setOpenExtractionDialog] = useState(false);
+  const [openCreateFournisseur, setOpenCreateFournisseur] = useState(false);
   const [selectedFacture, setSelectedFacture] = useState<Facture | null>(null);
+  const [fournisseurInitialData, setFournisseurInitialData] = useState<{
+    raison_sociale?: string;
+    adresse?: string;
+    telephone?: string;
+    email?: string;
+  } | undefined>(undefined);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -419,6 +427,22 @@ export default function FacturesAchats() {
           >
             <Pencil className="h-4 w-4" />
           </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              setFournisseurInitialData({
+                raison_sociale: row.original.emetteur_nom,
+                adresse: row.original.emetteur_adresse,
+                telephone: row.original.emetteur_telephone,
+                email: row.original.emetteur_email,
+              });
+              setOpenCreateFournisseur(true);
+            }}
+            title="Créer fournisseur"
+          >
+            <UserPlus className="h-4 w-4 text-blue-600" />
+          </Button>
           <Button variant="ghost" size="icon" onClick={() => handleDelete(row.original.id)} title="Supprimer">
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
@@ -692,6 +716,20 @@ export default function FacturesAchats() {
           fetchFactures();
           setOpenExtractionDialog(false);
         }}
+      />
+
+      <CreateFournisseurQuickDialog
+        open={openCreateFournisseur}
+        onOpenChange={setOpenCreateFournisseur}
+        onSuccess={() => {
+          toast({
+            title: "Succès",
+            description: "Fournisseur créé avec succès",
+          });
+          setOpenCreateFournisseur(false);
+          setFournisseurInitialData(undefined);
+        }}
+        initialData={fournisseurInitialData}
       />
     </div>
   );

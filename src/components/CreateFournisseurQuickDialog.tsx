@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,12 +11,19 @@ interface CreateFournisseurQuickDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: (fournisseurId: string, type: 'GENERAL' | 'SERVICE') => void;
+  initialData?: {
+    raison_sociale?: string;
+    adresse?: string;
+    telephone?: string;
+    email?: string;
+  };
 }
 
 export default function CreateFournisseurQuickDialog({ 
   open, 
   onOpenChange, 
-  onSuccess 
+  onSuccess,
+  initialData 
 }: CreateFournisseurQuickDialogProps) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -42,6 +49,25 @@ export default function CreateFournisseurQuickDialog({
       site_web: '',
     });
   };
+
+  useEffect(() => {
+    if (open) {
+      if (initialData) {
+        // Préremplir avec les données initiales si présentes
+        setFormData({
+          type: '',
+          raison_sociale: initialData.raison_sociale || '',
+          secteur_activite: '',
+          adresse: initialData.adresse || '',
+          telephone: initialData.telephone || '',
+          email: initialData.email || '',
+          site_web: '',
+        });
+      } else {
+        resetForm();
+      }
+    }
+  }, [open, initialData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
