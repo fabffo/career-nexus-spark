@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, TrendingDown, Eye, Pencil, Trash2, Download, Sparkles, UserPlus } from "lucide-react";
+import { Plus, TrendingDown, Eye, Pencil, Trash2, Download, Sparkles, UserPlus, CheckCircle2, AlertCircle } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -89,6 +89,7 @@ export default function FacturesAchats() {
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [selectedFactureIds, setSelectedFactureIds] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
+  const [existingFournisseurs, setExistingFournisseurs] = useState<Set<string>>(new Set());
   const [stats, setStats] = useState({
     totalFactures: 0,
     totalHT: 0,
@@ -100,7 +101,40 @@ export default function FacturesAchats() {
 
   useEffect(() => {
     fetchFactures();
+    fetchFournisseurs();
   }, [selectedYear, selectedMonth]);
+
+  const fetchFournisseurs = async () => {
+    try {
+      // Récupérer les fournisseurs de services
+      const { data: services } = await supabase
+        .from("fournisseurs_services")
+        .select("raison_sociale");
+      
+      // Récupérer les fournisseurs généraux
+      const { data: generaux } = await supabase
+        .from("fournisseurs_generaux")
+        .select("raison_sociale");
+
+      const fournisseursSet = new Set<string>();
+      
+      services?.forEach(f => {
+        if (f.raison_sociale) {
+          fournisseursSet.add(f.raison_sociale.toLowerCase().trim());
+        }
+      });
+      
+      generaux?.forEach(f => {
+        if (f.raison_sociale) {
+          fournisseursSet.add(f.raison_sociale.toLowerCase().trim());
+        }
+      });
+
+      setExistingFournisseurs(fournisseursSet);
+    } catch (error) {
+      console.error("Erreur lors du chargement des fournisseurs:", error);
+    }
+  };
 
   const fetchFactures = async () => {
     setLoading(true);
@@ -357,6 +391,25 @@ export default function FacturesAchats() {
     {
       accessorKey: "emetteur_nom",
       header: "Fournisseur",
+      cell: ({ row }) => {
+        const emetteurNom = row.getValue("emetteur_nom") as string;
+        const exists = existingFournisseurs.has(emetteurNom?.toLowerCase().trim());
+        
+        return (
+          <div className="flex items-center gap-2">
+            {exists ? (
+              <div title="Fournisseur existant">
+                <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+              </div>
+            ) : (
+              <div title="Fournisseur à créer">
+                <AlertCircle className="h-4 w-4 text-orange-600 flex-shrink-0" />
+              </div>
+            )}
+            <span>{emetteurNom}</span>
+          </div>
+        );
+      },
     },
     {
       accessorKey: "total_ht",
@@ -440,6 +493,12 @@ export default function FacturesAchats() {
               setOpenCreateFournisseur(true);
             }}
             title="Créer fournisseur"
+            className={
+              existingFournisseurs.has(row.original.emetteur_nom?.toLowerCase().trim())
+                ? "opacity-50 cursor-not-allowed"
+                : ""
+            }
+            disabled={existingFournisseurs.has(row.original.emetteur_nom?.toLowerCase().trim())}
           >
             <UserPlus className="h-4 w-4 text-blue-600" />
           </Button>
@@ -728,6 +787,7 @@ export default function FacturesAchats() {
           });
           setOpenCreateFournisseur(false);
           setFournisseurInitialData(undefined);
+          fetchFournisseurs(); // Recharger la liste des fournisseurs
         }}
         initialData={fournisseurInitialData}
       />
