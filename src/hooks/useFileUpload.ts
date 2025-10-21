@@ -11,7 +11,13 @@ export const useFileUpload = () => {
       setIsUploading(true);
       
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
+      // Sanitize filename: remove spaces and special characters
+      const sanitizedName = file.name
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9._-]/g, '')
+        .substring(0, 100); // Limit length
+      const timestamp = Date.now();
+      const fileName = `${timestamp}_${sanitizedName}`;
       const filePath = fileName;
 
       const { error: uploadError } = await supabase.storage
