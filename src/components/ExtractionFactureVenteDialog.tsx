@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Upload,
   Download,
@@ -81,6 +81,16 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
   const { toast } = useToast();
 
   console.log("🟢 ExtractionFactureVenteDialog - open:", open);
+
+  // Reset state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setFactures([]);
+      setSelectedFacture(null);
+      setProgress(0);
+      setCurrentFile("");
+    }
+  }, [open]);
 
   const extraireFacture = async (file: File): Promise<FactureExtraite> => {
     setCurrentFile(file.name);
