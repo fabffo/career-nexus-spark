@@ -4,7 +4,7 @@ import { Contrat, Prestataire, FournisseurServices, FournisseurGeneral, Fourniss
 // Service pour les contrats
 export const contratService = {
   async getAll() {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('contrats')
       .select(`
         *,
@@ -21,7 +21,7 @@ export const contratService = {
   },
 
   async getById(id: string) {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('contrats')
       .select(`
         *,
@@ -298,7 +298,7 @@ export const fournisseurGeneralService = {
 // Service pour les fournisseurs État & organismes sociaux
 export const fournisseurEtatOrganismeService = {
   async getAll() {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('fournisseurs_etat_organismes')
       .select('*')
       .order('created_at', { ascending: false });
@@ -308,20 +308,20 @@ export const fournisseurEtatOrganismeService = {
   },
 
   async getById(id: string) {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('fournisseurs_etat_organismes')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
     return data as FournisseurEtatOrganisme;
   },
 
   async create(fournisseur: Omit<FournisseurEtatOrganisme, 'id' | 'created_at' | 'updated_at'>) {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('fournisseurs_etat_organismes')
-      .insert(fournisseur as any)
+      .insert(fournisseur)
       .select()
       .single();
 
@@ -330,9 +330,9 @@ export const fournisseurEtatOrganismeService = {
   },
 
   async update(id: string, fournisseur: Partial<FournisseurEtatOrganisme>) {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('fournisseurs_etat_organismes')
-      .update(fournisseur as any)
+      .update(fournisseur)
       .eq('id', id)
       .select()
       .single();
@@ -342,7 +342,7 @@ export const fournisseurEtatOrganismeService = {
   },
 
   async delete(id: string) {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('fournisseurs_etat_organismes')
       .delete()
       .eq('id', id);
