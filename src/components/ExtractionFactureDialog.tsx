@@ -80,8 +80,9 @@ const FOURNISSEURS_REGLES = {
     "STATION TOTAL",
   ],
 
-  // RH Solutions
+  // Fournisseurs
   RHSOLUTIONS: ["RHSOLUTIONS PORTAGE SALARIAL", "RH SOLUTIONS"],
+  BENOME: ["SASU BENOME"],
 
   // Uber
   Uber: ["Uber B.V.", "Uber BV", "Uber France", "UBER EATS"],
