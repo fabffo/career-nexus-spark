@@ -63,14 +63,13 @@ const DEFAULT_PROMPT = `Extrais ces données de la facture de VENTE en JSON stri
   "est_avoir": false
 }
 
-Règles importantes :
-- Si une valeur est absente, mettre null
-- Montants en nombre décimal (pas de string) TOUJOURS EN POSITIF
+Règles CRITIQUES :
+- "est_avoir" est OBLIGATOIRE : true si facture AVOIR/CREDIT, false sinon
+- Mets "est_avoir": true si tu vois "AVOIR", "CREDIT NOTE", "NOTE DE CRÉDIT", "REMBOURSEMENT"
+- Montants TOUJOURS EN POSITIF (même pour un avoir)
 - Date au format ISO (YYYY-MM-DD)
+- Si une valeur est absente, mettre null
 - Numéro de facture exact avec tous les préfixes
-- Pour une facture de vente, le client est le DESTINATAIRE de la facture
-- "est_avoir" : true si c'est une facture d'AVOIR/CREDIT, false sinon
-- Indices pour détecter un avoir : mention "avoir", "credit note", "remboursement", "note de crédit", montants précédés d'un signe "-"
 
 Retourne UNIQUEMENT le JSON valide, sans markdown ni texte additionnel.`;
 
@@ -136,15 +135,22 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
 
           const donnees = data.donnees;
           
+          // Détection automatique des avoirs si l'IA ne l'a pas fait
+          if (donnees.est_avoir === null || donnees.est_avoir === undefined) {
+            const texteAVerifier = `${donnees.numero_facture || ''} ${donnees.libelle || ''}`.toUpperCase();
+            donnees.est_avoir = texteAVerifier.includes('AVOIR') || 
+                                texteAVerifier.includes('CREDIT') ||
+                                texteAVerifier.includes('REMBOURSEMENT') ||
+                                texteAVerifier.includes('NOTE DE CRÉDIT');
+            console.log("🔍 Détection automatique est_avoir:", donnees.est_avoir, "pour:", texteAVerifier.substring(0, 60));
+          }
+          
           // Si c'est un avoir, appliquer les montants négatifs
-          if (donnees.est_avoir && donnees.montant_ht) {
-            donnees.montant_ht = Math.abs(donnees.montant_ht) * -1;
-          }
-          if (donnees.est_avoir && donnees.montant_ttc) {
-            donnees.montant_ttc = Math.abs(donnees.montant_ttc) * -1;
-          }
-          if (donnees.est_avoir && donnees.montant_tva) {
-            donnees.montant_tva = Math.abs(donnees.montant_tva) * -1;
+          if (donnees.est_avoir) {
+            console.log("💰 Conversion montants en négatif pour avoir");
+            if (donnees.montant_ht) donnees.montant_ht = Math.abs(donnees.montant_ht) * -1;
+            if (donnees.montant_ttc) donnees.montant_ttc = Math.abs(donnees.montant_ttc) * -1;
+            if (donnees.montant_tva) donnees.montant_tva = Math.abs(donnees.montant_tva) * -1;
           }
           
           const valide = !!(donnees.client && donnees.numero_facture && donnees.montant_ttc);
