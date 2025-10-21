@@ -437,7 +437,7 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
                     <CardTitle className="text-base">Factures extraites</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ScrollArea className="h-[300px]">
+                    <ScrollArea className="h-[500px]">
                       <div className="space-y-2">
                         {factures.map((facture) => (
                           <div

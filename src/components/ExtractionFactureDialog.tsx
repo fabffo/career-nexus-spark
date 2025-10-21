@@ -508,7 +508,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
 
             {/* Liste des factures */}
             {factures.length > 0 && (
-              <ScrollArea className="h-[400px]">
+              <ScrollArea className="h-[500px]">
                 <div className="space-y-3 pr-4">
                   {factures.map((facture) => (
                     <Card
