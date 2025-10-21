@@ -39,6 +39,7 @@ import MissionsClients from "./pages/MissionsClients";
 import MissionsFournisseurs from "./pages/MissionsFournisseurs";
 import FournisseursGeneraux from "./pages/FournisseursGeneraux";
 import FournisseursServices from "./pages/FournisseursServices";
+import FournisseursEtatOrganismes from "./pages/FournisseursEtatOrganismes";
 import Factures from "./pages/Factures";
 import FacturesVentes from "./pages/FacturesVentes";
 import FacturesAchats from "./pages/FacturesAchats";
@@ -94,6 +95,7 @@ const App = () => (
               <Route path="prestataires" element={<Prestataires />} />
               <Route path="fournisseurs-generaux" element={<FournisseursGeneraux />} />
               <Route path="fournisseurs-services" element={<FournisseursServices />} />
+              <Route path="fournisseurs-etat-organismes" element={<FournisseursEtatOrganismes />} />
               <Route path="contrats" element={<Contrats />} />
               <Route path="contrats-clients" element={<ContratsClients />} />
               <Route path="contrats-fournisseurs" element={<ContratsFournisseurs />} />

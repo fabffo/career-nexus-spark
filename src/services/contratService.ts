@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { Contrat, Prestataire, FournisseurServices, FournisseurGeneral } from '@/types/contrat';
+import { Contrat, Prestataire, FournisseurServices, FournisseurGeneral, FournisseurEtatOrganisme } from '@/types/contrat';
 
 // Service pour les contrats
 export const contratService = {
@@ -11,7 +11,8 @@ export const contratService = {
         client:clients(*),
         prestataire:prestataires(*),
         fournisseur_services:fournisseurs_services(*),
-        fournisseur_general:fournisseurs_generaux(*)
+        fournisseur_general:fournisseurs_generaux(*),
+        fournisseur_etat_organisme:fournisseurs_etat_organismes(*)
       `)
       .order('created_at', { ascending: false });
 
@@ -27,7 +28,8 @@ export const contratService = {
         client:clients(*),
         prestataire:prestataires(*),
         fournisseur_services:fournisseurs_services(*),
-        fournisseur_general:fournisseurs_generaux(*)
+        fournisseur_general:fournisseurs_generaux(*),
+        fournisseur_etat_organisme:fournisseurs_etat_organismes(*)
       `)
       .eq('id', id)
       .single();
@@ -286,6 +288,62 @@ export const fournisseurGeneralService = {
   async delete(id: string) {
     const { error } = await supabase
       .from('fournisseurs_generaux')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  }
+};
+
+// Service pour les fournisseurs État & organismes sociaux
+export const fournisseurEtatOrganismeService = {
+  async getAll() {
+    const { data, error } = await supabase
+      .from('fournisseurs_etat_organismes')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getById(id: string) {
+    const { data, error } = await supabase
+      .from('fournisseurs_etat_organismes')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async create(fournisseur: Omit<FournisseurEtatOrganisme, 'id' | 'created_at' | 'updated_at'>) {
+    const { data, error } = await supabase
+      .from('fournisseurs_etat_organismes')
+      .insert(fournisseur)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async update(id: string, fournisseur: Partial<FournisseurEtatOrganisme>) {
+    const { data, error } = await supabase
+      .from('fournisseurs_etat_organismes')
+      .update(fournisseur)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase
+      .from('fournisseurs_etat_organismes')
       .delete()
       .eq('id', id);
 

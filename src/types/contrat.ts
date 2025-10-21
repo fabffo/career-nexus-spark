@@ -1,5 +1,5 @@
 // Types pour la gestion des contrats
-export type ContratType = 'CLIENT' | 'PRESTATAIRE' | 'FOURNISSEUR_SERVICES' | 'FOURNISSEUR_GENERAL';
+export type ContratType = 'CLIENT' | 'PRESTATAIRE' | 'FOURNISSEUR_SERVICES' | 'FOURNISSEUR_GENERAL' | 'FOURNISSEUR_ETAT_ORGANISME';
 export type ContratStatut = 'BROUILLON' | 'ACTIF' | 'TERMINE' | 'ANNULE' | 'ARCHIVE';
 
 export interface Contrat {
@@ -15,6 +15,7 @@ export interface Contrat {
   prestataire_id?: string;
   fournisseur_services_id?: string;
   fournisseur_general_id?: string;
+  fournisseur_etat_organisme_id?: string;
   montant?: number;
   description?: string;
   piece_jointe_url?: string;
@@ -26,6 +27,7 @@ export interface Contrat {
   prestataire?: any;
   fournisseur_services?: any;
   fournisseur_general?: any;
+  fournisseur_etat_organisme?: any;
   parent?: Contrat;
 }
 
@@ -58,6 +60,18 @@ export interface FournisseurServices {
 }
 
 export interface FournisseurGeneral {
+  id: string;
+  raison_sociale: string;
+  secteur_activite?: string;
+  adresse?: string;
+  telephone?: string;
+  email?: string;
+  site_web?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface FournisseurEtatOrganisme {
   id: string;
   raison_sociale: string;
   secteur_activite?: string;
