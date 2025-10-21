@@ -80,6 +80,8 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
   const [selectedFacture, setSelectedFacture] = useState<FactureExtraite | null>(null);
   const { toast } = useToast();
 
+  console.log("🟢 ExtractionFactureVenteDialog - open:", open);
+
   const extraireFacture = async (file: File): Promise<FactureExtraite> => {
     setCurrentFile(file.name);
 

@@ -534,7 +534,11 @@ export default function FacturesVentes() {
             </Button>
           )}
           <Button 
-            onClick={() => setOpenExtractionDialog(true)}
+            onClick={() => {
+              console.log("🔵 Clic sur Extraire par IA - openExtractionDialog:", openExtractionDialog);
+              setOpenExtractionDialog(true);
+              console.log("🔵 État après setOpenExtractionDialog(true)");
+            }}
             variant="outline"
             className="border-purple-600 text-purple-600 hover:bg-purple-50"
           >
