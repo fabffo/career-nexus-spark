@@ -53,6 +53,7 @@ export function Sidebar() {
         { path: '/salaries', label: 'Salariés', icon: Users },
         { path: '/fournisseurs-generaux', label: 'Fournisseurs Généraux', icon: Building2 },
         { path: '/fournisseurs-services', label: 'Fournisseurs Services', icon: Building2 },
+        { path: '/fournisseurs-etat-organismes', label: 'Fournisseurs État & organismes sociaux', icon: Building2 },
       ]
     },
     {
