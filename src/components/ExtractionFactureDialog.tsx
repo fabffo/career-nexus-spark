@@ -310,7 +310,12 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
       try {
         // 1. Upload le fichier PDF dans Supabase Storage
         const timestamp = Date.now();
-        const fileName = `${timestamp}_${facture.fichier}`;
+        // Nettoyer le nom du fichier : supprimer espaces et caractères spéciaux
+        const cleanFileName = facture.fichier
+          .replace(/\s+/g, '_')
+          .replace(/[^a-zA-Z0-9._-]/g, '')
+          .substring(0, 100);
+        const fileName = `${timestamp}_${cleanFileName}`;
         const filePath = `factures-achats/${fileName}`;
 
         const { error: uploadError } = await supabase.storage.from("factures").upload(filePath, facture.fileObject, {
