@@ -31,6 +31,7 @@ interface FactureData {
   montant_ttc: number | null;
   montant_tva: number | null;
   date_facture: string | null;
+  est_avoir: boolean | null;
 }
 
 interface FactureExtraite {
@@ -58,15 +59,18 @@ const DEFAULT_PROMPT = `Extrais ces données de la facture de VENTE en JSON stri
   "montant_ht": 0.00,
   "montant_ttc": 0.00,
   "montant_tva": 0.00,
-  "date_facture": "YYYY-MM-DD"
+  "date_facture": "YYYY-MM-DD",
+  "est_avoir": false
 }
 
 Règles importantes :
 - Si une valeur est absente, mettre null
-- Montants en nombre décimal (pas de string)
+- Montants en nombre décimal (pas de string) TOUJOURS EN POSITIF
 - Date au format ISO (YYYY-MM-DD)
 - Numéro de facture exact avec tous les préfixes
 - Pour une facture de vente, le client est le DESTINATAIRE de la facture
+- "est_avoir" : true si c'est une facture d'AVOIR/CREDIT, false sinon
+- Indices pour détecter un avoir : mention "avoir", "credit note", "remboursement", "note de crédit", montants précédés d'un signe "-"
 
 Retourne UNIQUEMENT le JSON valide, sans markdown ni texte additionnel.`;
 
@@ -131,6 +135,18 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
           }
 
           const donnees = data.donnees;
+          
+          // Si c'est un avoir, appliquer les montants négatifs
+          if (donnees.est_avoir && donnees.montant_ht) {
+            donnees.montant_ht = Math.abs(donnees.montant_ht) * -1;
+          }
+          if (donnees.est_avoir && donnees.montant_ttc) {
+            donnees.montant_ttc = Math.abs(donnees.montant_ttc) * -1;
+          }
+          if (donnees.est_avoir && donnees.montant_tva) {
+            donnees.montant_tva = Math.abs(donnees.montant_tva) * -1;
+          }
+          
           const valide = !!(donnees.client && donnees.numero_facture && donnees.montant_ttc);
 
           console.log("✅ Extraction réussie:", { valide, donnees: Object.keys(donnees) });
@@ -189,6 +205,7 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
             montant_ttc: null,
             montant_tva: null,
             date_facture: null,
+            est_avoir: null,
           },
           valide: false,
           erreur: error instanceof Error ? error.message : "Erreur inconnue",
@@ -455,11 +472,14 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
                                 ) : (
                                   <XCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
                                 )}
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                    <span className="font-medium text-sm truncate">{facture.fichier}</span>
-                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                      <span className="font-medium text-sm truncate">{facture.fichier}</span>
+                                      {facture.donnees.est_avoir && (
+                                        <Badge variant="destructive" className="text-xs">AVOIR</Badge>
+                                      )}
+                                    </div>
                                   {facture.erreur ? (
                                     <p className="text-xs text-red-600">{facture.erreur}</p>
                                   ) : (
@@ -472,17 +492,17 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
                                         <span className="text-muted-foreground">N° Facture:</span>{" "}
                                         <span className="font-medium">{facture.donnees.numero_facture || "-"}</span>
                                       </div>
-                                      <div>
-                                        <span className="text-muted-foreground">Montant TTC:</span>{" "}
-                                        <span className="font-medium">
-                                          {facture.donnees.montant_ttc
-                                            ? new Intl.NumberFormat("fr-FR", {
-                                                style: "currency",
-                                                currency: "EUR",
-                                              }).format(facture.donnees.montant_ttc)
-                                            : "-"}
-                                        </span>
-                                      </div>
+                                       <div>
+                                         <span className="text-muted-foreground">Montant TTC:</span>{" "}
+                                         <span className={`font-medium ${facture.donnees.est_avoir ? 'text-red-600' : ''}`}>
+                                           {facture.donnees.montant_ttc
+                                             ? new Intl.NumberFormat("fr-FR", {
+                                                 style: "currency",
+                                                 currency: "EUR",
+                                               }).format(facture.donnees.montant_ttc)
+                                             : "-"}
+                                         </span>
+                                       </div>
                                       <div>
                                         <span className="text-muted-foreground">Date:</span>{" "}
                                         <span className="font-medium">{facture.donnees.date_facture || "-"}</span>
