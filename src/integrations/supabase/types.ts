@@ -172,6 +172,7 @@ export type Database = {
           date_debut: string
           date_fin: string | null
           description: string | null
+          fournisseur_etat_organisme_id: string | null
           fournisseur_general_id: string | null
           fournisseur_services_id: string | null
           id: string
@@ -192,6 +193,7 @@ export type Database = {
           date_debut: string
           date_fin?: string | null
           description?: string | null
+          fournisseur_etat_organisme_id?: string | null
           fournisseur_general_id?: string | null
           fournisseur_services_id?: string | null
           id?: string
@@ -212,6 +214,7 @@ export type Database = {
           date_debut?: string
           date_fin?: string | null
           description?: string | null
+          fournisseur_etat_organisme_id?: string | null
           fournisseur_general_id?: string | null
           fournisseur_services_id?: string | null
           id?: string
@@ -231,6 +234,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrats_fournisseur_etat_organisme_id_fkey"
+            columns: ["fournisseur_etat_organisme_id"]
+            isOneToOne: false
+            referencedRelation: "fournisseurs_etat_organismes"
             referencedColumns: ["id"]
           },
           {
@@ -471,6 +481,42 @@ export type Database = {
           total_ttc?: number | null
           total_tva?: number | null
           type_facture?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      fournisseurs_etat_organismes: {
+        Row: {
+          adresse: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          raison_sociale: string
+          secteur_activite: string | null
+          site_web: string | null
+          telephone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          adresse?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          raison_sociale: string
+          secteur_activite?: string | null
+          site_web?: string | null
+          telephone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          adresse?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          raison_sociale?: string
+          secteur_activite?: string | null
+          site_web?: string | null
+          telephone?: string | null
           updated_at?: string | null
         }
         Relationships: []

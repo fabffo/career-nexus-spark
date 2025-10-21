@@ -43,7 +43,7 @@ export const contratService = {
     
     const { data, error } = await supabase
       .from('contrats')
-      .insert({ ...contrat, created_by: user?.id })
+      .insert({ ...contrat, created_by: user?.id } as any)
       .select()
       .single();
 
@@ -54,7 +54,7 @@ export const contratService = {
   async update(id: string, contrat: Partial<Contrat>) {
     const { data, error } = await supabase
       .from('contrats')
-      .update(contrat)
+      .update(contrat as any)
       .eq('id', id)
       .select()
       .single();
@@ -304,7 +304,7 @@ export const fournisseurEtatOrganismeService = {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return (data || []) as FournisseurEtatOrganisme[];
   },
 
   async getById(id: string) {
@@ -315,30 +315,30 @@ export const fournisseurEtatOrganismeService = {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as FournisseurEtatOrganisme;
   },
 
   async create(fournisseur: Omit<FournisseurEtatOrganisme, 'id' | 'created_at' | 'updated_at'>) {
     const { data, error } = await supabase
       .from('fournisseurs_etat_organismes')
-      .insert(fournisseur)
+      .insert(fournisseur as any)
       .select()
       .single();
 
     if (error) throw error;
-    return data;
+    return data as FournisseurEtatOrganisme;
   },
 
   async update(id: string, fournisseur: Partial<FournisseurEtatOrganisme>) {
     const { data, error } = await supabase
       .from('fournisseurs_etat_organismes')
-      .update(fournisseur)
+      .update(fournisseur as any)
       .eq('id', id)
       .select()
       .single();
 
     if (error) throw error;
-    return data;
+    return data as FournisseurEtatOrganisme;
   },
 
   async delete(id: string) {
