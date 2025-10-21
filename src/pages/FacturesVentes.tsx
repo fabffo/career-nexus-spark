@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, FileText, Eye, Pencil, Copy, Trash2, TrendingUp, Download } from "lucide-react";
+import { Plus, FileText, Eye, Pencil, Copy, Trash2, TrendingUp, Download, Sparkles } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import AddFactureDialog from "@/components/AddFactureDialog";
 import EditFactureDialog from "@/components/EditFactureDialog";
 import ViewFactureDialog from "@/components/ViewFactureDialog";
+import ExtractionFactureVenteDialog from "@/components/ExtractionFactureVenteDialog";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -95,6 +96,7 @@ export default function FacturesVentes() {
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [openViewDialog, setOpenViewDialog] = useState(false);
+  const [openExtractionDialog, setOpenExtractionDialog] = useState(false);
   const [selectedFacture, setSelectedFacture] = useState<Facture | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -532,6 +534,14 @@ export default function FacturesVentes() {
             </Button>
           )}
           <Button 
+            onClick={() => setOpenExtractionDialog(true)}
+            variant="outline"
+            className="border-purple-600 text-purple-600 hover:bg-purple-50"
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            Extraire par IA
+          </Button>
+          <Button 
             onClick={() => {
               setSelectedFacture(null);
               setOpenAddDialog(true);
@@ -748,6 +758,12 @@ export default function FacturesVentes() {
             open={openViewDialog}
             onOpenChange={setOpenViewDialog}
             facture={selectedFacture}
+          />
+
+          <ExtractionFactureVenteDialog
+            open={openExtractionDialog}
+            onOpenChange={setOpenExtractionDialog}
+            onSuccess={fetchFactures}
           />
         </>
       )}
