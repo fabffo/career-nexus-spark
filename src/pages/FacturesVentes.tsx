@@ -748,6 +748,12 @@ export default function FacturesVentes() {
         onSuccess={fetchFactures}
         initialData={selectedFacture}
       />
+
+      <ExtractionFactureVenteDialog
+        open={openExtractionDialog}
+        onOpenChange={setOpenExtractionDialog}
+        onSuccess={fetchFactures}
+      />
       
       {selectedFacture && (
         <>
@@ -762,12 +768,6 @@ export default function FacturesVentes() {
             open={openViewDialog}
             onOpenChange={setOpenViewDialog}
             facture={selectedFacture}
-          />
-
-          <ExtractionFactureVenteDialog
-            open={openExtractionDialog}
-            onOpenChange={setOpenExtractionDialog}
-            onSuccess={fetchFactures}
           />
         </>
       )}
