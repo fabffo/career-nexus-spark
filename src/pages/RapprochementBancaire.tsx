@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import Papa from "papaparse";
+import * as XLSX from "xlsx";
 import { format, parse, isValid } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -102,54 +103,163 @@ export default function RapprochementBancaire() {
 
       setFactures(facturesFormatted);
 
-      // Parser le CSV
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-          const transactionsParsed: TransactionBancaire[] = results.data
-            .map((row: any) => {
-              const dateStr = row.DATE || row.date || row.Date;
-              const date = parseDate(dateStr);
-              if (!date) return null;
+      const fileName = file.name.toLowerCase();
+      const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
 
-              const debit = parseAmount(row.Débit || row.DEBIT || row.debit || "0");
-              const credit = parseAmount(row.Crédit || row.CREDIT || row.credit || "0");
+      if (isExcel) {
+        // Parser Excel
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = new Uint8Array(e.target?.result as ArrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+
+            console.log("Excel data:", jsonData.slice(0, 5)); // Debug
+
+            // Trouver la ligne d'en-tête
+            let headerRow = 0;
+            for (let i = 0; i < Math.min(10, jsonData.length); i++) {
+              const row = jsonData[i];
+              if (row && row.some((cell: any) => 
+                String(cell).toUpperCase().includes('DATE') || 
+                String(cell).toUpperCase().includes('LIBELLE')
+              )) {
+                headerRow = i;
+                break;
+              }
+            }
+
+            const headers = jsonData[headerRow].map((h: any) => String(h).trim());
+            console.log("Headers found:", headers); // Debug
+
+            const transactionsParsed: TransactionBancaire[] = [];
+            
+            for (let i = headerRow + 1; i < jsonData.length; i++) {
+              const row = jsonData[i];
+              if (!row || row.length === 0) continue;
+
+              const rowObj: any = {};
+              headers.forEach((header, index) => {
+                rowObj[header] = row[index];
+              });
+
+              // Trouver les colonnes
+              const dateValue = rowObj.DATE || rowObj.date || rowObj.Date || row[0];
+              const libelleValue = rowObj.LIBELLE || rowObj.libelle || rowObj.Libelle || row[1];
+              const debitValue = rowObj.Débit || rowObj.DEBIT || rowObj.debit || rowObj["Débit"] || row[2];
+              const creditValue = rowObj.Crédit || rowObj.CREDIT || rowObj.credit || rowObj["Crédit"] || row[3];
+
+              if (!dateValue) continue;
+
+              // Convertir la date Excel si nécessaire
+              let date: Date | null = null;
+              if (typeof dateValue === 'number') {
+                // Date Excel (nombre de jours depuis 1900-01-01)
+                const excelDate = XLSX.SSF.parse_date_code(dateValue);
+                if (excelDate && typeof excelDate === 'object' && 'y' in excelDate) {
+                  date = new Date(
+                    (excelDate as any).y, 
+                    ((excelDate as any).m || 1) - 1, 
+                    (excelDate as any).d || 1
+                  );
+                }
+              } else {
+                date = parseDate(String(dateValue));
+              }
+
+              if (!date) continue;
+
+              const debit = parseAmount(String(debitValue || "0"));
+              const credit = parseAmount(String(creditValue || "0"));
               const montant = credit > 0 ? credit : -debit;
 
-              return {
+              transactionsParsed.push({
                 date: format(date, "yyyy-MM-dd"),
-                libelle: row.LIBELLE || row.libelle || row.Libelle || "",
+                libelle: String(libelleValue || ""),
                 debit,
                 credit,
                 montant,
-              };
-            })
-            .filter((t): t is TransactionBancaire => t !== null);
+              });
+            }
 
-          setTransactions(transactionsParsed);
+            console.log("Transactions parsed:", transactionsParsed.length); // Debug
 
-          // Effectuer le rapprochement automatique
-          const rapprochementsResult = performMatching(transactionsParsed, facturesFormatted);
-          setRapprochements(rapprochementsResult);
+            setTransactions(transactionsParsed);
 
-          toast({
-            title: "Fichier importé",
-            description: `${transactionsParsed.length} transactions importées`,
-          });
+            // Effectuer le rapprochement automatique
+            const rapprochementsResult = performMatching(transactionsParsed, facturesFormatted);
+            setRapprochements(rapprochementsResult);
 
-          setLoading(false);
-        },
-        error: (error) => {
-          console.error("Erreur parsing CSV:", error);
-          toast({
-            title: "Erreur",
-            description: "Impossible de lire le fichier",
-            variant: "destructive",
-          });
-          setLoading(false);
-        },
-      });
+            toast({
+              title: "Fichier importé",
+              description: `${transactionsParsed.length} transactions importées`,
+            });
+
+            setLoading(false);
+          } catch (error) {
+            console.error("Erreur parsing Excel:", error);
+            toast({
+              title: "Erreur",
+              description: "Impossible de lire le fichier Excel",
+              variant: "destructive",
+            });
+            setLoading(false);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        // Parser CSV
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            const transactionsParsed: TransactionBancaire[] = results.data
+              .map((row: any) => {
+                const dateStr = row.DATE || row.date || row.Date;
+                const date = parseDate(dateStr);
+                if (!date) return null;
+
+                const debit = parseAmount(row.Débit || row.DEBIT || row.debit || "0");
+                const credit = parseAmount(row.Crédit || row.CREDIT || row.credit || "0");
+                const montant = credit > 0 ? credit : -debit;
+
+                return {
+                  date: format(date, "yyyy-MM-dd"),
+                  libelle: row.LIBELLE || row.libelle || row.Libelle || "",
+                  debit,
+                  credit,
+                  montant,
+                };
+              })
+              .filter((t): t is TransactionBancaire => t !== null);
+
+            setTransactions(transactionsParsed);
+
+            // Effectuer le rapprochement automatique
+            const rapprochementsResult = performMatching(transactionsParsed, facturesFormatted);
+            setRapprochements(rapprochementsResult);
+
+            toast({
+              title: "Fichier importé",
+              description: `${transactionsParsed.length} transactions importées`,
+            });
+
+            setLoading(false);
+          },
+          error: (error) => {
+            console.error("Erreur parsing CSV:", error);
+            toast({
+              title: "Erreur",
+              description: "Impossible de lire le fichier CSV",
+              variant: "destructive",
+            });
+            setLoading(false);
+          },
+        });
+      }
     } catch (error) {
       console.error("Erreur:", error);
       toast({
