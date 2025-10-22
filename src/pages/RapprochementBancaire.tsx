@@ -414,14 +414,26 @@ export default function RapprochementBancaire() {
   const currentRapprochements = rapprochements.slice(startIndex, endIndex);
 
   const scrollTable = (direction: "left" | "right") => {
+    console.log("scrollTable called:", direction);
+    console.log("scrollRef.current:", scrollRef.current);
+    
     if (scrollRef.current) {
+      const element = scrollRef.current;
+      console.log("Element scrollWidth:", element.scrollWidth);
+      console.log("Element clientWidth:", element.clientWidth);
+      console.log("Element scrollLeft before:", element.scrollLeft);
+      
       const scrollAmount = 400;
-      const currentScroll = scrollRef.current.scrollLeft;
+      const currentScroll = element.scrollLeft;
       const newScrollLeft = direction === "left" 
         ? Math.max(0, currentScroll - scrollAmount)
         : currentScroll + scrollAmount;
       
-      scrollRef.current.scrollLeft = newScrollLeft;
+      element.scrollLeft = newScrollLeft;
+      
+      console.log("Element scrollLeft after:", element.scrollLeft);
+    } else {
+      console.log("scrollRef.current is null!");
     }
   };
 
