@@ -657,18 +657,18 @@ export default function RapprochementBancaire() {
 
               <PaginationControls />
               <div className="w-full overflow-x-auto rounded-md border" ref={scrollRef} onScroll={handleScroll}>
-                <Table className="min-w-[1200px]">
+                <Table className="min-w-[1800px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="min-w-[150px]">Statut</TableHead>
-                      <TableHead className="min-w-[120px]">Date</TableHead>
-                      <TableHead className="min-w-[250px]">Libellé</TableHead>
-                      <TableHead className="text-right min-w-[120px]">Débit</TableHead>
-                      <TableHead className="text-right min-w-[120px]">Crédit</TableHead>
-                      <TableHead className="min-w-[180px]">Facture</TableHead>
-                      <TableHead className="min-w-[180px]">Partenaire</TableHead>
-                      <TableHead className="text-right min-w-[150px]">Montant Facture</TableHead>
-                      <TableHead className="text-right min-w-[100px]">Score</TableHead>
+                      <TableHead className="w-[180px]">Statut</TableHead>
+                      <TableHead className="w-[140px]">Date</TableHead>
+                      <TableHead className="w-[350px]">Libellé</TableHead>
+                      <TableHead className="text-right w-[140px]">Débit</TableHead>
+                      <TableHead className="text-right w-[140px]">Crédit</TableHead>
+                      <TableHead className="w-[200px]">Facture</TableHead>
+                      <TableHead className="w-[200px]">Partenaire</TableHead>
+                      <TableHead className="text-right w-[180px]">Montant Facture</TableHead>
+                      <TableHead className="text-right w-[120px]">Score</TableHead>
                     </TableRow>
                   </TableHeader>
                     <TableBody>
