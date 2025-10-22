@@ -656,22 +656,21 @@ export default function RapprochementBancaire() {
               </div>
 
               <PaginationControls />
-              <div className="w-full overflow-x-auto" ref={scrollRef} onScroll={handleScroll}>
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Statut</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Libellé</TableHead>
-                        <TableHead className="text-right">Débit</TableHead>
-                        <TableHead className="text-right">Crédit</TableHead>
-                        <TableHead>Facture</TableHead>
-                        <TableHead>Partenaire</TableHead>
-                        <TableHead className="text-right">Montant Facture</TableHead>
-                        <TableHead className="text-right">Score</TableHead>
-                      </TableRow>
-                    </TableHeader>
+              <div className="w-full overflow-x-auto rounded-md border" ref={scrollRef} onScroll={handleScroll}>
+                <Table className="min-w-[1200px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[150px]">Statut</TableHead>
+                      <TableHead className="min-w-[120px]">Date</TableHead>
+                      <TableHead className="min-w-[250px]">Libellé</TableHead>
+                      <TableHead className="text-right min-w-[120px]">Débit</TableHead>
+                      <TableHead className="text-right min-w-[120px]">Crédit</TableHead>
+                      <TableHead className="min-w-[180px]">Facture</TableHead>
+                      <TableHead className="min-w-[180px]">Partenaire</TableHead>
+                      <TableHead className="text-right min-w-[150px]">Montant Facture</TableHead>
+                      <TableHead className="text-right min-w-[100px]">Score</TableHead>
+                    </TableRow>
+                  </TableHeader>
                     <TableBody>
                   {currentRapprochements.map((rapprochement, index) => (
                     <TableRow key={index}>
@@ -759,7 +758,6 @@ export default function RapprochementBancaire() {
               </div>
             </div>
             <PaginationControls />
-          </div>
           </CardContent>
         </Card>
       )}
