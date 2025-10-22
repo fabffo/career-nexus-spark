@@ -631,38 +631,43 @@ export default function RapprochementBancaire() {
             </div>
           </CardHeader>
           <CardContent>
-            <PaginationControls />
-            <div className="rounded-md border">
-              {/* Contrôles de défilement horizontal */}
-              <div className="flex items-center gap-2 border-b p-2 bg-muted/50">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => scrollTable("left")}
-                  className="h-8 w-8"
-                  disabled={scrollProgress === 0}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div className="flex-1 h-2 bg-background rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-primary transition-all duration-300 rounded-full" 
-                    style={{ width: `${Math.min(100, scrollProgress + 20)}%` }} 
-                  />
+              <PaginationControls />
+              <div className="rounded-md border">
+                {/* Contrôles de défilement horizontal */}
+                <div className="flex items-center gap-2 border-b p-2 bg-muted/50">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => scrollTable("left")}
+                    className="h-8 w-8"
+                    disabled={scrollProgress === 0}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="flex-1 h-2 bg-background rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary transition-all duration-300 rounded-full" 
+                      style={{ width: `${Math.min(100, scrollProgress + 20)}%` }} 
+                    />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => scrollTable("right")}
+                    className="h-8 w-8"
+                    disabled={scrollProgress >= 99}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => scrollTable("right")}
-                  className="h-8 w-8"
-                  disabled={scrollProgress >= 99}
+                
+                <div 
+                  className="w-full overflow-x-auto" 
+                  ref={scrollRef} 
+                  onScroll={handleScroll}
+                  style={{ maxHeight: '600px', overflowY: 'auto' }}
                 >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-              
-              <div className="w-full overflow-x-auto" ref={scrollRef} onScroll={handleScroll}>
-                <Table className="min-w-[1800px]">
+                  <Table className="min-w-[1800px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[180px]">Statut</TableHead>
