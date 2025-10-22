@@ -677,22 +677,21 @@ export default function RapprochementBancaire() {
                   className="w-full overflow-x-auto" 
                   ref={scrollRef} 
                   onScroll={handleScroll}
-                  style={{ maxHeight: '600px', overflowY: 'auto' }}
                 >
-                  <Table className="min-w-[1800px]">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[180px]">Statut</TableHead>
-                      <TableHead className="w-[140px]">Date</TableHead>
-                      <TableHead className="w-[350px]">Libellé</TableHead>
-                      <TableHead className="text-right w-[140px]">Débit</TableHead>
-                      <TableHead className="text-right w-[140px]">Crédit</TableHead>
-                      <TableHead className="w-[200px]">Facture</TableHead>
-                      <TableHead className="w-[200px]">Partenaire</TableHead>
-                      <TableHead className="text-right w-[180px]">Montant Facture</TableHead>
-                      <TableHead className="text-right w-[120px]">Score</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                  <Table className="w-[1800px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[180px] whitespace-nowrap">Statut</TableHead>
+                        <TableHead className="w-[140px] whitespace-nowrap">Date</TableHead>
+                        <TableHead className="w-[350px] whitespace-nowrap">Libellé</TableHead>
+                        <TableHead className="text-right w-[140px] whitespace-nowrap">Débit</TableHead>
+                        <TableHead className="text-right w-[140px] whitespace-nowrap">Crédit</TableHead>
+                        <TableHead className="w-[200px] whitespace-nowrap">Facture</TableHead>
+                        <TableHead className="w-[200px] whitespace-nowrap">Partenaire</TableHead>
+                        <TableHead className="text-right w-[180px] whitespace-nowrap">Montant Facture</TableHead>
+                        <TableHead className="text-right w-[120px] whitespace-nowrap">Score</TableHead>
+                      </TableRow>
+                    </TableHeader>
                     <TableBody>
                   {currentRapprochements.map((rapprochement, index) => (
                     <TableRow key={index}>
