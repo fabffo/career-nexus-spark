@@ -415,15 +415,17 @@ export default function RapprochementBancaire() {
 
   const scrollTable = (direction: "left" | "right") => {
     if (scrollRef.current) {
-      const scrollAmount = 300;
+      const scrollAmount = 400;
+      const currentScroll = scrollRef.current.scrollLeft;
       const newScrollLeft = direction === "left" 
-        ? scrollRef.current.scrollLeft - scrollAmount
-        : scrollRef.current.scrollLeft + scrollAmount;
+        ? Math.max(0, currentScroll - scrollAmount)
+        : currentScroll + scrollAmount;
       
-      scrollRef.current.scrollTo({
-        left: newScrollLeft,
-        behavior: "smooth"
-      });
+      console.log("Scroll attempt:", { direction, currentScroll, newScrollLeft, element: scrollRef.current });
+      
+      scrollRef.current.scrollLeft = newScrollLeft;
+    } else {
+      console.log("scrollRef.current is null");
     }
   };
 
@@ -432,6 +434,7 @@ export default function RapprochementBancaire() {
       const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
       const maxScroll = scrollWidth - clientWidth;
       const progress = maxScroll > 0 ? (scrollLeft / maxScroll) * 100 : 0;
+      console.log("Scroll progress:", { scrollLeft, scrollWidth, clientWidth, maxScroll, progress });
       setScrollProgress(progress);
     }
   };
