@@ -44,6 +44,7 @@ export default function RapprochementBancaire() {
   const [factures, setFactures] = useState<FactureMatch[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -426,6 +427,15 @@ export default function RapprochementBancaire() {
     }
   };
 
+  const handleScroll = () => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      const maxScroll = scrollWidth - clientWidth;
+      const progress = maxScroll > 0 ? (scrollLeft / maxScroll) * 100 : 0;
+      setScrollProgress(progress);
+    }
+  };
+
   const PaginationControls = () => (
     <div className="flex items-center justify-between px-2 py-4">
       <div className="flex items-center gap-2">
@@ -624,24 +634,29 @@ export default function RapprochementBancaire() {
                   size="icon"
                   onClick={() => scrollTable("left")}
                   className="h-8 w-8"
+                  disabled={scrollProgress === 0}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <div className="flex-1 h-2 bg-background rounded-full overflow-hidden">
-                  <div className="h-full bg-primary/20 rounded-full" style={{ width: "60%" }} />
+                  <div 
+                    className="h-full bg-primary transition-all duration-300 rounded-full" 
+                    style={{ width: `${Math.min(100, scrollProgress + 20)}%` }} 
+                  />
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => scrollTable("right")}
                   className="h-8 w-8"
+                  disabled={scrollProgress >= 99}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
 
               <PaginationControls />
-              <div className="w-full overflow-x-auto" ref={scrollRef}>
+              <div className="w-full overflow-x-auto" ref={scrollRef} onScroll={handleScroll}>
                 <div className="rounded-md border">
                   <Table>
                     <TableHeader>
