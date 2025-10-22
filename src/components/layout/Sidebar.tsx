@@ -93,6 +93,7 @@ export function Sidebar() {
         { path: '/factures', label: 'Toutes les factures', icon: FileText },
         { path: '/factures-ventes', label: 'Factures de vente', icon: FileText },
         { path: '/factures-achats', label: 'Factures d\'achat', icon: FileText },
+        { path: '/rapprochement-bancaire', label: 'Rapprochement bancaire', icon: FileText },
       ]
     },
     {

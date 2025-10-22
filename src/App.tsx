@@ -44,6 +44,7 @@ import Factures from "./pages/Factures";
 import FacturesVentes from "./pages/FacturesVentes";
 import FacturesAchats from "./pages/FacturesAchats";
 import Parametres from "./pages/Parametres";
+import RapprochementBancaire from "./pages/RapprochementBancaire";
 
 const queryClient = new QueryClient();
 
@@ -107,6 +108,7 @@ const App = () => (
               <Route path="factures" element={<Factures />} />
               <Route path="factures-ventes" element={<FacturesVentes />} />
               <Route path="factures-achats" element={<FacturesAchats />} />
+              <Route path="rapprochement-bancaire" element={<RapprochementBancaire />} />
               <Route path="rdv" element={<RendezVous />} />
               <Route path="matching" element={<Matching />} />
               <Route path="commentaires" element={<Dashboard />} />
