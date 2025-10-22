@@ -145,6 +145,21 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
             console.log("🔍 Détection automatique est_avoir:", donnees.est_avoir, "pour:", texteAVerifier.substring(0, 60));
           }
           
+          // Formater le numéro de facture selon le type
+          if (donnees.numero_facture) {
+            // Extraire la partie numérique du numéro
+            const numeroMatch = donnees.numero_facture.match(/\d+/);
+            const numeroSeul = numeroMatch ? numeroMatch[0].padStart(5, '0') : '00000';
+            
+            // Appliquer le bon préfixe
+            if (donnees.est_avoir) {
+              donnees.numero_facture = `AVO-A-${numeroSeul}`;
+            } else {
+              donnees.numero_facture = `FAC-V-${numeroSeul}`;
+            }
+            console.log("📝 Numéro formaté:", donnees.numero_facture);
+          }
+          
           // Si c'est un avoir, appliquer les montants négatifs
           if (donnees.est_avoir) {
             console.log("💰 Conversion montants en négatif pour avoir");
