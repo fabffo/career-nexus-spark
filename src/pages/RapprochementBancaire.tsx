@@ -11,7 +11,6 @@ import { fr } from "date-fns/locale";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface TransactionBancaire {
   date: string;
@@ -642,7 +641,7 @@ export default function RapprochementBancaire() {
               </div>
 
               <PaginationControls />
-              <ScrollArea className="w-full" ref={scrollRef}>
+              <div className="w-full overflow-x-auto" ref={scrollRef}>
                 <div className="rounded-md border">
                   <Table>
                     <TableHeader>
@@ -742,9 +741,8 @@ export default function RapprochementBancaire() {
                     ))}
                   </TableBody>
                 </Table>
-                <ScrollBar orientation="horizontal" />
               </div>
-            </ScrollArea>
+            </div>
             <PaginationControls />
           </div>
           </CardContent>
