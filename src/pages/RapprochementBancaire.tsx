@@ -626,9 +626,10 @@ export default function RapprochementBancaire() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <PaginationControls />
+            <div className="rounded-md border">
               {/* Contrôles de défilement horizontal */}
-              <div className="flex items-center gap-2 border rounded-lg p-2 bg-muted/50">
+              <div className="flex items-center gap-2 border-b p-2 bg-muted/50">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -654,9 +655,8 @@ export default function RapprochementBancaire() {
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
-
-              <PaginationControls />
-              <div className="w-full overflow-x-auto rounded-md border" ref={scrollRef} onScroll={handleScroll}>
+              
+              <div className="w-full overflow-x-auto" ref={scrollRef} onScroll={handleScroll}>
                 <Table className="min-w-[1800px]">
                   <TableHeader>
                     <TableRow>
