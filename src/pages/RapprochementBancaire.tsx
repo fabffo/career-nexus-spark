@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download } from "lucide-react";
+import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -10,6 +10,7 @@ import { format, parse, isValid } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface TransactionBancaire {
   date: string;
@@ -41,6 +42,8 @@ export default function RapprochementBancaire() {
   const [rapprochements, setRapprochements] = useState<Rapprochement[]>([]);
   const [loading, setLoading] = useState(false);
   const [factures, setFactures] = useState<FactureMatch[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
   const { toast } = useToast();
 
   const parseDate = (dateStr: string): Date | null => {
@@ -402,6 +405,78 @@ export default function RapprochementBancaire() {
     unmatched: rapprochements.filter((r) => r.status === "unmatched").length,
   };
 
+  // Pagination
+  const totalPages = Math.ceil(rapprochements.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentRapprochements = rapprochements.slice(startIndex, endIndex);
+
+  const PaginationControls = () => (
+    <div className="flex items-center justify-between px-2 py-4">
+      <div className="flex items-center gap-2">
+        <p className="text-sm text-muted-foreground">
+          Affichage de {startIndex + 1} à {Math.min(endIndex, rapprochements.length)} sur {rapprochements.length} résultats
+        </p>
+        <Select
+          value={itemsPerPage.toString()}
+          onValueChange={(value) => {
+            setItemsPerPage(parseInt(value));
+            setCurrentPage(1);
+          }}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="10">10 par page</SelectItem>
+            <SelectItem value="20">20 par page</SelectItem>
+            <SelectItem value="50">50 par page</SelectItem>
+            <SelectItem value="100">100 par page</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setCurrentPage(1)}
+          disabled={currentPage === 1}
+        >
+          <ChevronsLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+          disabled={currentPage === 1}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <div className="flex items-center gap-1 px-2">
+          <span className="text-sm">
+            Page {currentPage} sur {totalPages}
+          </span>
+        </div>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+          disabled={currentPage === totalPages}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setCurrentPage(totalPages)}
+          disabled={currentPage === totalPages}
+        >
+          <ChevronsRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
@@ -526,6 +601,7 @@ export default function RapprochementBancaire() {
             </div>
           </CardHeader>
           <CardContent>
+            <PaginationControls />
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
@@ -542,7 +618,7 @@ export default function RapprochementBancaire() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rapprochements.map((rapprochement, index) => (
+                  {currentRapprochements.map((rapprochement, index) => (
                     <TableRow key={index}>
                       <TableCell>
                         {rapprochement.status === "matched" ? (
@@ -626,6 +702,7 @@ export default function RapprochementBancaire() {
                 </TableBody>
               </Table>
             </div>
+            <PaginationControls />
           </CardContent>
         </Card>
       )}
