@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { fr } from "date-fns/locale";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface TransactionBancaire {
   date: string;
@@ -44,6 +45,7 @@ export default function RapprochementBancaire() {
   const [factures, setFactures] = useState<FactureMatch[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const parseDate = (dateStr: string): Date | null => {
@@ -411,6 +413,20 @@ export default function RapprochementBancaire() {
   const endIndex = startIndex + itemsPerPage;
   const currentRapprochements = rapprochements.slice(startIndex, endIndex);
 
+  const scrollTable = (direction: "left" | "right") => {
+    if (scrollRef.current) {
+      const scrollAmount = 300;
+      const newScrollLeft = direction === "left" 
+        ? scrollRef.current.scrollLeft - scrollAmount
+        : scrollRef.current.scrollLeft + scrollAmount;
+      
+      scrollRef.current.scrollTo({
+        left: newScrollLeft,
+        behavior: "smooth"
+      });
+    }
+  };
+
   const PaginationControls = () => (
     <div className="flex items-center justify-between px-2 py-4">
       <div className="flex items-center gap-2">
@@ -601,23 +617,48 @@ export default function RapprochementBancaire() {
             </div>
           </CardHeader>
           <CardContent>
-            <PaginationControls />
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Statut</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Libellé</TableHead>
-                    <TableHead className="text-right">Débit</TableHead>
-                    <TableHead className="text-right">Crédit</TableHead>
-                    <TableHead>Facture</TableHead>
-                    <TableHead>Partenaire</TableHead>
-                    <TableHead className="text-right">Montant Facture</TableHead>
-                    <TableHead className="text-right">Score</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+            <div className="space-y-4">
+              {/* Contrôles de défilement horizontal */}
+              <div className="flex items-center gap-2 border rounded-lg p-2 bg-muted/50">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => scrollTable("left")}
+                  className="h-8 w-8"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex-1 h-2 bg-background rounded-full overflow-hidden">
+                  <div className="h-full bg-primary/20 rounded-full" style={{ width: "60%" }} />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => scrollTable("right")}
+                  className="h-8 w-8"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <PaginationControls />
+              <ScrollArea className="w-full" ref={scrollRef}>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Statut</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Libellé</TableHead>
+                        <TableHead className="text-right">Débit</TableHead>
+                        <TableHead className="text-right">Crédit</TableHead>
+                        <TableHead>Facture</TableHead>
+                        <TableHead>Partenaire</TableHead>
+                        <TableHead className="text-right">Montant Facture</TableHead>
+                        <TableHead className="text-right">Score</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                   {currentRapprochements.map((rapprochement, index) => (
                     <TableRow key={index}>
                       <TableCell>
@@ -697,12 +738,15 @@ export default function RapprochementBancaire() {
                           {rapprochement.score}%
                         </Badge>
                       </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <ScrollBar orientation="horizontal" />
+              </div>
+            </ScrollArea>
             <PaginationControls />
+          </div>
           </CardContent>
         </Card>
       )}
