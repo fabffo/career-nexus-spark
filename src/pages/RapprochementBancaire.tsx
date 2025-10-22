@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -421,11 +421,7 @@ export default function RapprochementBancaire() {
         ? Math.max(0, currentScroll - scrollAmount)
         : currentScroll + scrollAmount;
       
-      console.log("Scroll attempt:", { direction, currentScroll, newScrollLeft, element: scrollRef.current });
-      
       scrollRef.current.scrollLeft = newScrollLeft;
-    } else {
-      console.log("scrollRef.current is null");
     }
   };
 
@@ -434,10 +430,16 @@ export default function RapprochementBancaire() {
       const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
       const maxScroll = scrollWidth - clientWidth;
       const progress = maxScroll > 0 ? (scrollLeft / maxScroll) * 100 : 0;
-      console.log("Scroll progress:", { scrollLeft, scrollWidth, clientWidth, maxScroll, progress });
       setScrollProgress(progress);
     }
   };
+
+  useEffect(() => {
+    const scrollElement = scrollRef.current;
+    if (scrollElement) {
+      handleScroll();
+    }
+  }, [rapprochements]);
 
   const PaginationControls = () => (
     <div className="flex items-center justify-between px-2 py-4">
