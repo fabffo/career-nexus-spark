@@ -414,26 +414,14 @@ export default function RapprochementBancaire() {
   const currentRapprochements = rapprochements.slice(startIndex, endIndex);
 
   const scrollTable = (direction: "left" | "right") => {
-    console.log("scrollTable called:", direction);
-    console.log("scrollRef.current:", scrollRef.current);
-    
     if (scrollRef.current) {
-      const element = scrollRef.current;
-      console.log("Element scrollWidth:", element.scrollWidth);
-      console.log("Element clientWidth:", element.clientWidth);
-      console.log("Element scrollLeft before:", element.scrollLeft);
-      
       const scrollAmount = 400;
-      const currentScroll = element.scrollLeft;
+      const currentScroll = scrollRef.current.scrollLeft;
       const newScrollLeft = direction === "left" 
         ? Math.max(0, currentScroll - scrollAmount)
         : currentScroll + scrollAmount;
       
-      element.scrollLeft = newScrollLeft;
-      
-      console.log("Element scrollLeft after:", element.scrollLeft);
-    } else {
-      console.log("scrollRef.current is null!");
+      scrollRef.current.scrollLeft = newScrollLeft;
     }
   };
 
@@ -678,106 +666,106 @@ export default function RapprochementBancaire() {
                   ref={scrollRef} 
                   onScroll={handleScroll}
                 >
-                  <Table className="w-[1800px]">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[180px] whitespace-nowrap">Statut</TableHead>
-                        <TableHead className="w-[140px] whitespace-nowrap">Date</TableHead>
-                        <TableHead className="w-[350px] whitespace-nowrap">Libellé</TableHead>
-                        <TableHead className="text-right w-[140px] whitespace-nowrap">Débit</TableHead>
-                        <TableHead className="text-right w-[140px] whitespace-nowrap">Crédit</TableHead>
-                        <TableHead className="w-[200px] whitespace-nowrap">Facture</TableHead>
-                        <TableHead className="w-[200px] whitespace-nowrap">Partenaire</TableHead>
-                        <TableHead className="text-right w-[180px] whitespace-nowrap">Montant Facture</TableHead>
-                        <TableHead className="text-right w-[120px] whitespace-nowrap">Score</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                  {currentRapprochements.map((rapprochement, index) => (
-                    <TableRow key={index}>
-                      <TableCell>
-                        {rapprochement.status === "matched" ? (
-                          <Badge className="bg-green-100 text-green-800">
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Rapproché
-                          </Badge>
-                        ) : rapprochement.status === "uncertain" ? (
-                          <Badge className="bg-orange-100 text-orange-800">
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                            Incertain
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-red-100 text-red-800">
-                            <XCircle className="h-3 w-3 mr-1" />
-                            Non rapproché
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(rapprochement.transaction.date), "dd/MM/yyyy")}
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate" title={rapprochement.transaction.libelle}>
-                        {rapprochement.transaction.libelle}
-                      </TableCell>
-                      <TableCell className="text-right text-red-600">
-                        {rapprochement.transaction.debit > 0
-                          ? new Intl.NumberFormat("fr-FR", {
-                              style: "currency",
-                              currency: "EUR",
-                            }).format(rapprochement.transaction.debit)
-                          : ""}
-                      </TableCell>
-                      <TableCell className="text-right text-green-600">
-                        {rapprochement.transaction.credit > 0
-                          ? new Intl.NumberFormat("fr-FR", {
-                              style: "currency",
-                              currency: "EUR",
-                            }).format(rapprochement.transaction.credit)
-                          : ""}
-                      </TableCell>
-                      <TableCell>
-                        {rapprochement.facture ? (
-                          <div className="flex flex-col">
-                            <span className="font-medium">{rapprochement.facture.numero_facture}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {rapprochement.facture.type_facture}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {rapprochement.facture?.partenaire_nom || "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {rapprochement.facture
-                          ? new Intl.NumberFormat("fr-FR", {
-                              style: "currency",
-                              currency: "EUR",
-                            }).format(rapprochement.facture.total_ttc)
-                          : "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge
-                          variant="outline"
-                          className={
-                            rapprochement.score >= 70
-                              ? "border-green-600 text-green-600"
-                              : rapprochement.score >= 40
-                              ? "border-orange-600 text-orange-600"
-                              : "border-red-600 text-red-600"
-                          }
-                        >
-                          {rapprochement.score}%
-                        </Badge>
-                      </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
+                  <table className="w-full border-collapse" style={{ minWidth: '1800px' }}>
+                    <thead className="bg-muted">
+                      <tr className="border-b">
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground" style={{ minWidth: '180px' }}>Statut</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground" style={{ minWidth: '140px' }}>Date</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground" style={{ minWidth: '350px' }}>Libellé</th>
+                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground" style={{ minWidth: '140px' }}>Débit</th>
+                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground" style={{ minWidth: '140px' }}>Crédit</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground" style={{ minWidth: '200px' }}>Facture</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground" style={{ minWidth: '200px' }}>Partenaire</th>
+                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground" style={{ minWidth: '180px' }}>Montant Facture</th>
+                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground" style={{ minWidth: '120px' }}>Score</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                   {currentRapprochements.map((rapprochement, index) => (
+                     <tr key={index} className="border-b transition-colors hover:bg-muted/50">
+                       <td className="p-4 align-middle">
+                         {rapprochement.status === "matched" ? (
+                           <Badge className="bg-green-100 text-green-800">
+                             <CheckCircle className="h-3 w-3 mr-1" />
+                             Rapproché
+                           </Badge>
+                         ) : rapprochement.status === "uncertain" ? (
+                           <Badge className="bg-orange-100 text-orange-800">
+                             <AlertCircle className="h-3 w-3 mr-1" />
+                             Incertain
+                           </Badge>
+                         ) : (
+                           <Badge className="bg-red-100 text-red-800">
+                             <XCircle className="h-3 w-3 mr-1" />
+                             Non rapproché
+                           </Badge>
+                         )}
+                       </td>
+                       <td className="p-4 align-middle">
+                         {format(new Date(rapprochement.transaction.date), "dd/MM/yyyy")}
+                       </td>
+                       <td className="p-4 align-middle max-w-xs truncate" title={rapprochement.transaction.libelle}>
+                         {rapprochement.transaction.libelle}
+                       </td>
+                       <td className="p-4 align-middle text-right text-red-600">
+                         {rapprochement.transaction.debit > 0
+                           ? new Intl.NumberFormat("fr-FR", {
+                               style: "currency",
+                               currency: "EUR",
+                             }).format(rapprochement.transaction.debit)
+                           : ""}
+                       </td>
+                       <td className="p-4 align-middle text-right text-green-600">
+                         {rapprochement.transaction.credit > 0
+                           ? new Intl.NumberFormat("fr-FR", {
+                               style: "currency",
+                               currency: "EUR",
+                             }).format(rapprochement.transaction.credit)
+                           : ""}
+                       </td>
+                       <td className="p-4 align-middle">
+                         {rapprochement.facture ? (
+                           <div className="flex flex-col">
+                             <span className="font-medium">{rapprochement.facture.numero_facture}</span>
+                             <span className="text-xs text-muted-foreground">
+                               {rapprochement.facture.type_facture}
+                             </span>
+                           </div>
+                         ) : (
+                           <span className="text-muted-foreground">-</span>
+                         )}
+                       </td>
+                       <td className="p-4 align-middle">
+                         {rapprochement.facture?.partenaire_nom || "-"}
+                       </td>
+                       <td className="p-4 align-middle text-right">
+                         {rapprochement.facture
+                           ? new Intl.NumberFormat("fr-FR", {
+                               style: "currency",
+                               currency: "EUR",
+                             }).format(rapprochement.facture.total_ttc)
+                           : "-"}
+                       </td>
+                       <td className="p-4 align-middle text-right">
+                         <Badge
+                           variant="outline"
+                           className={
+                             rapprochement.score >= 70
+                               ? "border-green-600 text-green-600"
+                               : rapprochement.score >= 40
+                               ? "border-orange-600 text-orange-600"
+                               : "border-red-600 text-red-600"
+                           }
+                         >
+                           {rapprochement.score}%
+                         </Badge>
+                       </td>
+                     </tr>
+                     ))}
+                   </tbody>
+                 </table>
+               </div>
+             </div>
             <PaginationControls />
           </CardContent>
         </Card>
