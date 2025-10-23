@@ -107,17 +107,25 @@ export default function TvaMensuel() {
       const allLignes: RapprochementLigne[] = [];
       const factureIds = new Set<string>();
 
+      console.log("Fichiers récupérés:", fichiers?.length);
+
       fichiers?.forEach(fichier => {
         const data = fichier.fichier_data as any;
+        console.log("Structure fichier_data:", data);
+        
         if (data?.rapprochements) {
+          console.log("Nombre de rapprochements:", data.rapprochements.length);
           data.rapprochements.forEach((rap: any) => {
             const transaction = rap.transaction;
             const facture = rap.facture;
             const status = rap.status; // matched, uncertain, unmatched
             
+            console.log("Rapprochement:", { status, facture });
+            
             // Collecter les IDs de factures pour récupérer la TVA
             if (facture?.id) {
               factureIds.add(facture.id);
+              console.log("ID facture ajouté:", facture.id);
             }
 
             allLignes.push({
@@ -138,8 +146,11 @@ export default function TvaMensuel() {
         }
       });
 
+      console.log("IDs de factures collectés:", Array.from(factureIds));
+
       // Récupérer les infos complètes des factures pour avoir le total_tva
       if (factureIds.size > 0) {
+        console.log("Récupération des factures pour les IDs:", Array.from(factureIds));
         const { data: factures, error: facturesError } = await supabase
           .from("factures")
           .select("id, numero_facture, type_facture, total_tva")
@@ -147,17 +158,25 @@ export default function TvaMensuel() {
 
         if (facturesError) throw facturesError;
 
+        console.log("Factures récupérées:", factures);
+
         // Mapper les TVA sur les lignes
         const factureMap = new Map(factures?.map(f => [f.numero_facture, f]) || []);
+        console.log("Map des factures:", factureMap);
+        
         allLignes.forEach(ligne => {
           if (ligne.facture) {
             const factureData = factureMap.get(ligne.facture.numero_facture);
+            console.log(`Recherche facture ${ligne.facture.numero_facture}:`, factureData);
             if (factureData) {
               ligne.facture.total_tva = factureData.total_tva || 0;
+              console.log(`TVA assignée: ${ligne.facture.total_tva}`);
             }
           }
         });
       }
+
+      console.log("Lignes finales avec TVA:", allLignes);
 
       setLignes(allLignes);
 
