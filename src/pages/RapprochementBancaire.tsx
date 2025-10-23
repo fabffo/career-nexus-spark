@@ -90,6 +90,8 @@ export default function RapprochementBancaire() {
   const [manualStatusChanges, setManualStatusChanges] = useState<Record<string, "matched" | "unmatched" | "uncertain">>({});
   const [fichiersRapprochement, setFichiersRapprochement] = useState<FichierRapprochement[]>([]);
   const [selectedFichier, setSelectedFichier] = useState<FichierRapprochement | null>(null);
+  const [historiqueStatusChanges, setHistoriqueStatusChanges] = useState<Record<string, "matched" | "unmatched" | "uncertain">>({});
+  const [savingHistorique, setSavingHistorique] = useState(false);
   const { toast } = useToast();
 
   // Charger les fichiers de rapprochement validés
@@ -138,6 +140,115 @@ export default function RapprochementBancaire() {
       }
       return r;
     }));
+  };
+
+  const handleHistoriqueStatusChange = (fichierId: string, transactionKey: string, newStatus: "matched" | "unmatched" | "uncertain") => {
+    const key = `${fichierId}-${transactionKey}`;
+    setHistoriqueStatusChanges(prev => ({
+      ...prev,
+      [key]: newStatus
+    }));
+
+    // Mettre à jour le statut dans le fichier sélectionné
+    setFichiersRapprochement(prev => prev.map(fichier => {
+      if (fichier.id === fichierId && fichier.fichier_data) {
+        const updatedRapprochements = fichier.fichier_data.rapprochements.map(r => {
+          const rKey = `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`;
+          if (rKey === transactionKey) {
+            return { ...r, status: newStatus };
+          }
+          return r;
+        });
+        
+        return {
+          ...fichier,
+          fichier_data: {
+            ...fichier.fichier_data,
+            rapprochements: updatedRapprochements
+          }
+        };
+      }
+      return fichier;
+    }));
+
+    // Mettre à jour selectedFichier si c'est celui modifié
+    if (selectedFichier?.id === fichierId) {
+      setSelectedFichier(prev => {
+        if (!prev || !prev.fichier_data) return prev;
+        const updatedRapprochements = prev.fichier_data.rapprochements.map(r => {
+          const rKey = `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`;
+          if (rKey === transactionKey) {
+            return { ...r, status: newStatus };
+          }
+          return r;
+        });
+        
+        return {
+          ...prev,
+          fichier_data: {
+            ...prev.fichier_data,
+            rapprochements: updatedRapprochements
+          }
+        };
+      });
+    }
+  };
+
+  const handleSaveHistoriqueChanges = async () => {
+    if (!selectedFichier) return;
+    
+    setSavingHistorique(true);
+    
+    try {
+      // Recalculer le nombre de lignes rapprochées
+      const lignesRapprochees = selectedFichier.fichier_data.rapprochements.filter(
+        r => r.status === "matched"
+      ).length;
+
+      const { error } = await supabase
+        .from("fichiers_rapprochement")
+        .update({
+          fichier_data: selectedFichier.fichier_data as any,
+          lignes_rapprochees: lignesRapprochees,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", selectedFichier.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Modifications enregistrées",
+        description: "Les statuts ont été mis à jour avec succès",
+      });
+
+      // Nettoyer les changements en attente pour ce fichier
+      setHistoriqueStatusChanges(prev => {
+        const newChanges = { ...prev };
+        Object.keys(newChanges).forEach(key => {
+          if (key.startsWith(`${selectedFichier.id}-`)) {
+            delete newChanges[key];
+          }
+        });
+        return newChanges;
+      });
+
+      // Recharger les fichiers
+      await loadFichiersRapprochement();
+      
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'enregistrer les modifications",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingHistorique(false);
+    }
+  };
+
+  const hasHistoriqueChanges = (fichierId: string) => {
+    return Object.keys(historiqueStatusChanges).some(key => key.startsWith(`${fichierId}-`));
   };
 
   const getTransactionKey = (transaction: TransactionBancaire) => {
@@ -1261,6 +1372,16 @@ export default function RapprochementBancaire() {
                                     <SelectItem value="unmatched">Non rapprochées</SelectItem>
                                   </SelectContent>
                                 </Select>
+                                {hasHistoriqueChanges(fichier.id) && (
+                                  <Button
+                                    size="sm"
+                                    onClick={handleSaveHistoriqueChanges}
+                                    disabled={savingHistorique}
+                                  >
+                                    <Check className="h-4 w-4 mr-2" />
+                                    {savingHistorique ? "Enregistrement..." : "Enregistrer"}
+                                  </Button>
+                                )}
                               </div>
                             </div>
                             <div className="rounded-md border overflow-auto max-h-[500px]">
@@ -1283,28 +1404,38 @@ export default function RapprochementBancaire() {
                                     .map((rapprochement, index) => (
                                       <TableRow key={index}>
                                         <TableCell>
-                                          <Badge
-                                            variant={
-                                              rapprochement.status === "matched"
-                                                ? "default"
-                                                : rapprochement.status === "uncertain"
-                                                ? "secondary"
-                                                : "outline"
-                                            }
-                                            className={
-                                              rapprochement.status === "matched"
-                                                ? "bg-green-100 text-green-800 border-green-200"
-                                                : rapprochement.status === "uncertain"
-                                                ? "bg-orange-100 text-orange-800 border-orange-200"
-                                                : "bg-red-100 text-red-800 border-red-200"
-                                            }
+                                          <Select
+                                            value={rapprochement.status}
+                                            onValueChange={(value) => handleHistoriqueStatusChange(
+                                              fichier.id,
+                                              `${rapprochement.transaction.date}-${rapprochement.transaction.libelle}-${rapprochement.transaction.montant}`,
+                                              value as "matched" | "unmatched" | "uncertain"
+                                            )}
                                           >
-                                            {rapprochement.status === "matched"
-                                              ? "Rapproché"
-                                              : rapprochement.status === "uncertain"
-                                              ? "Incertain"
-                                              : "Non rapproché"}
-                                          </Badge>
+                                            <SelectTrigger className="w-[160px] h-9">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="matched">
+                                                <div className="flex items-center gap-2">
+                                                  <CheckCircle className="h-3 w-3 text-green-600" />
+                                                  <span>Rapproché</span>
+                                                </div>
+                                              </SelectItem>
+                                              <SelectItem value="uncertain">
+                                                <div className="flex items-center gap-2">
+                                                  <AlertCircle className="h-3 w-3 text-orange-600" />
+                                                  <span>Incertain</span>
+                                                </div>
+                                              </SelectItem>
+                                              <SelectItem value="unmatched">
+                                                <div className="flex items-center gap-2">
+                                                  <XCircle className="h-3 w-3 text-red-600" />
+                                                  <span>Non rapproché</span>
+                                                </div>
+                                              </SelectItem>
+                                            </SelectContent>
+                                          </Select>
                                         </TableCell>
                                         <TableCell>
                                           {format(new Date(rapprochement.transaction.date), "dd/MM/yyyy")}
