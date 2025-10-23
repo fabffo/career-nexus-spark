@@ -358,22 +358,17 @@ export default function RapprochementBancaire() {
       let bestScore = 0;
 
       for (const facture of factures) {
-        let score = 0;
-
-        // 1. Vérifier le montant (40 points)
+        // Règle stricte : le montant doit correspondre exactement
         const montantTransaction = Math.abs(transaction.montant);
         const montantFacture = Math.abs(facture.total_ttc);
         const diffMontant = Math.abs(montantTransaction - montantFacture);
         
-        if (diffMontant < 0.01) {
-          score += 40; // Montant exact
-        } else if (diffMontant < 1) {
-          score += 35; // Très proche
-        } else if (diffMontant < 10) {
-          score += 25; // Proche
-        } else if (diffMontant / montantFacture < 0.05) {
-          score += 15; // Moins de 5% de différence
+        // Si le montant ne correspond pas (tolérance 0.01€), on ignore cette facture
+        if (diffMontant >= 0.01) {
+          continue;
         }
+
+        let score = 40; // Score de base pour correspondance du montant
 
         // 2. Vérifier le type de transaction (10 points)
         if (transaction.credit > 0 && facture.type_facture === "VENTES") {
