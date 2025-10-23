@@ -144,8 +144,8 @@ export default function EditRapprochementHistoriqueDialog({
         const { error } = await supabase
           .from("rapprochements_bancaires")
           .update({
-            facture_id: selectedFactureId || null,
-            abonnement_id: selectedAbonnementId || null,
+            facture_id: selectedFactureId && selectedFactureId !== "none" ? selectedFactureId : null,
+            abonnement_id: selectedAbonnementId && selectedAbonnementId !== "none" ? selectedAbonnementId : null,
             notes,
             updated_at: new Date().toISOString(),
           })
@@ -161,8 +161,8 @@ export default function EditRapprochementHistoriqueDialog({
             transaction_debit: transaction.debit,
             transaction_credit: transaction.credit,
             transaction_montant: transaction.montant,
-            facture_id: selectedFactureId || null,
-            abonnement_id: selectedAbonnementId || null,
+            facture_id: selectedFactureId && selectedFactureId !== "none" ? selectedFactureId : null,
+            abonnement_id: selectedAbonnementId && selectedAbonnementId !== "none" ? selectedAbonnementId : null,
             notes,
             created_by: authData.user?.id,
           })
@@ -174,7 +174,7 @@ export default function EditRapprochementHistoriqueDialog({
       }
 
       // 2. Créer le paiement d'abonnement si nécessaire
-      if (selectedAbonnementId && rapprochementId) {
+      if (selectedAbonnementId && selectedAbonnementId !== "none" && rapprochementId) {
         // Vérifier si un paiement existe déjà pour ce rapprochement
         const { data: existingPaiement } = await supabase
           .from("paiements_abonnements")
@@ -232,7 +232,7 @@ export default function EditRapprochementHistoriqueDialog({
             return {
               ...r,
               status,
-              facture: selectedFactureId ? factures.find(f => f.id === selectedFactureId) || null : null,
+              facture: selectedFactureId && selectedFactureId !== "none" ? factures.find(f => f.id === selectedFactureId) || null : null,
               notes,
               isManual: true,
               manualId: rapprochementId,
@@ -364,7 +364,7 @@ export default function EditRapprochementHistoriqueDialog({
                 <SelectValue placeholder="Sélectionner une facture (optionnel)" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
-                <SelectItem value="">
+                <SelectItem value="none">
                   <span className="text-muted-foreground">Aucune facture</span>
                 </SelectItem>
                 {filteredFactures.map((facture) => (
@@ -406,7 +406,7 @@ export default function EditRapprochementHistoriqueDialog({
                 <SelectValue placeholder="Sélectionner un abonnement (optionnel)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">
+                <SelectItem value="none">
                   <span className="text-muted-foreground">Aucun abonnement</span>
                 </SelectItem>
                 {abonnements.map((abonnement) => (
