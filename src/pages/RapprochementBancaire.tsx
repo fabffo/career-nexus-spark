@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon } from "lucide-react";
+import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -64,6 +64,7 @@ export default function RapprochementBancaire() {
   const [rapprochementsManuels, setRapprochementsManuels] = useState<RapprochementManuel[]>([]);
   const [manuelDialogOpen, setManuelDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionBancaire | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
   const { toast } = useToast();
 
   const parseDate = (dateStr: string): Date | null => {
@@ -449,6 +450,148 @@ export default function RapprochementBancaire() {
     setRapprochements(rapprochementsResult);
   };
 
+  const handleValidateRapprochement = async () => {
+    if (transactions.length === 0 || rapprochements.length === 0) {
+      toast({
+        title: "Erreur",
+        description: "Aucune donnée à valider",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsValidating(true);
+
+    try {
+      // Trouver les dates min et max des transactions
+      const dates = transactions.map(t => new Date(t.date));
+      const dateDebut = format(new Date(Math.min(...dates.map(d => d.getTime()))), 'yyyy-MM-dd');
+      const dateFin = format(new Date(Math.max(...dates.map(d => d.getTime()))), 'yyyy-MM-dd');
+
+      // Vérifier si ces dates sont déjà rapprochées
+      const { data: checkData, error: checkError } = await supabase
+        .rpc('check_dates_already_reconciled', {
+          p_date_debut: dateDebut,
+          p_date_fin: dateFin
+        });
+
+      if (checkError) {
+        console.error("Erreur lors de la vérification:", checkError);
+        toast({
+          title: "Erreur",
+          description: "Erreur lors de la vérification des dates",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (checkData && checkData.length > 0 && checkData[0].is_reconciled) {
+        const numeroExistant = checkData[0].numero_rapprochement;
+        toast({
+          title: "Dates déjà rapprochées",
+          description: `Les dates du ${format(new Date(dateDebut), 'dd/MM/yyyy', { locale: fr })} au ${format(new Date(dateFin), 'dd/MM/yyyy', { locale: fr })} sont déjà rapprochées par le rapprochement ${numeroExistant}`,
+          variant: "destructive",
+        });
+        setIsValidating(false);
+        return;
+      }
+
+      // Générer le numéro de rapprochement
+      const { data: numeroData, error: numeroError } = await supabase
+        .rpc('get_next_rapprochement_numero');
+
+      if (numeroError || !numeroData) {
+        console.error("Erreur lors de la génération du numéro:", numeroError);
+        toast({
+          title: "Erreur",
+          description: "Erreur lors de la génération du numéro de rapprochement",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const numeroRapprochement = numeroData;
+
+      // Calculer les statistiques
+      const lignesRapprochees = rapprochements.filter(r => r.status === 'matched').length;
+
+      // Enregistrer le fichier de rapprochement
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { error: insertError } = await supabase
+        .from('fichiers_rapprochement')
+        .insert({
+          numero_rapprochement: numeroRapprochement,
+          date_debut: dateDebut,
+          date_fin: dateFin,
+          fichier_data: {
+            transactions,
+            rapprochements,
+            rapprochementsManuels
+          } as any,
+          statut: 'VALIDE',
+          total_lignes: transactions.length,
+          lignes_rapprochees: lignesRapprochees,
+          created_by: user?.id
+        } as any);
+
+      if (insertError) {
+        console.error("Erreur lors de l'enregistrement:", insertError);
+        toast({
+          title: "Erreur",
+          description: "Erreur lors de l'enregistrement du rapprochement",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Mettre à jour les factures rapprochées
+      const facturesRapprochees = rapprochements
+        .filter(r => r.status === 'matched' && r.facture?.id)
+        .map(r => r.facture!.id);
+
+      if (facturesRapprochees.length > 0) {
+        const { error: updateError } = await supabase
+          .from('factures')
+          .update({
+            numero_rapprochement: numeroRapprochement,
+            date_rapprochement: new Date().toISOString()
+          } as any)
+          .in('id', facturesRapprochees);
+
+        if (updateError) {
+          console.error("Erreur lors de la mise à jour des factures:", updateError);
+          toast({
+            title: "Erreur",
+            description: "Erreur lors de la mise à jour des factures",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      toast({
+        title: "Rapprochement validé",
+        description: `Rapprochement ${numeroRapprochement} validé avec succès ! ${lignesRapprochees}/${transactions.length} lignes rapprochées.`,
+      });
+
+      // Réinitialiser l'état
+      setTransactions([]);
+      setRapprochements([]);
+      setRapprochementsManuels([]);
+
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue",
+        variant: "destructive",
+      });
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
   const exportResults = () => {
     const csv = Papa.unparse(
       rapprochements.map((r) => ({
@@ -700,10 +843,21 @@ export default function RapprochementBancaire() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Résultats du rapprochement</CardTitle>
-              <Button onClick={exportResults} variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Exporter
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={exportResults} variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-2" />
+                  Exporter
+                </Button>
+                <Button 
+                  onClick={handleValidateRapprochement} 
+                  disabled={isValidating}
+                  size="sm"
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  {isValidating ? "Validation..." : "Valider"}
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>

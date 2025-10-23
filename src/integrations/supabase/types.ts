@@ -404,6 +404,7 @@ export type Database = {
           created_by: string | null
           date_echeance: string
           date_emission: string
+          date_rapprochement: string | null
           destinataire_adresse: string | null
           destinataire_email: string | null
           destinataire_id: string | null
@@ -419,6 +420,7 @@ export type Database = {
           id: string
           informations_paiement: string | null
           numero_facture: string
+          numero_rapprochement: string | null
           reference_societe: string | null
           statut: string | null
           total_ht: number | null
@@ -432,6 +434,7 @@ export type Database = {
           created_by?: string | null
           date_echeance: string
           date_emission?: string
+          date_rapprochement?: string | null
           destinataire_adresse?: string | null
           destinataire_email?: string | null
           destinataire_id?: string | null
@@ -447,6 +450,7 @@ export type Database = {
           id?: string
           informations_paiement?: string | null
           numero_facture: string
+          numero_rapprochement?: string | null
           reference_societe?: string | null
           statut?: string | null
           total_ht?: number | null
@@ -460,6 +464,7 @@ export type Database = {
           created_by?: string | null
           date_echeance?: string
           date_emission?: string
+          date_rapprochement?: string | null
           destinataire_adresse?: string | null
           destinataire_email?: string | null
           destinataire_id?: string | null
@@ -475,6 +480,7 @@ export type Database = {
           id?: string
           informations_paiement?: string | null
           numero_facture?: string
+          numero_rapprochement?: string | null
           reference_societe?: string | null
           statut?: string | null
           total_ht?: number | null
@@ -482,6 +488,48 @@ export type Database = {
           total_tva?: number | null
           type_facture?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      fichiers_rapprochement: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          date_debut: string
+          date_fin: string
+          fichier_data: Json
+          id: string
+          lignes_rapprochees: number
+          numero_rapprochement: string
+          statut: string
+          total_lignes: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          date_debut: string
+          date_fin: string
+          fichier_data: Json
+          id?: string
+          lignes_rapprochees?: number
+          numero_rapprochement: string
+          statut?: string
+          total_lignes?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          date_debut?: string
+          date_fin?: string
+          fichier_data?: Json
+          id?: string
+          lignes_rapprochees?: number
+          numero_rapprochement?: string
+          statut?: string
+          total_lignes?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1029,6 +1077,27 @@ export type Database = {
         }
         Relationships: []
       }
+      rapprochement_sequences: {
+        Row: {
+          created_at: string | null
+          last_number: number
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          last_number?: number
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          created_at?: string | null
+          last_number?: number
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
       rapprochements_bancaires: {
         Row: {
           created_at: string
@@ -1403,6 +1472,13 @@ export type Database = {
     }
     Functions: {
       can_access_factures_storage: { Args: never; Returns: boolean }
+      check_dates_already_reconciled: {
+        Args: { p_date_debut: string; p_date_fin: string }
+        Returns: {
+          is_reconciled: boolean
+          numero_rapprochement: string
+        }[]
+      }
       generate_invitation_token: { Args: never; Returns: string }
       generate_numero_facture: { Args: { p_type: string }; Returns: string }
       get_next_avenant_number: {
@@ -1414,6 +1490,7 @@ export type Database = {
         Args: { p_type_facture?: string }
         Returns: string
       }
+      get_next_rapprochement_numero: { Args: never; Returns: string }
       user_has_role: {
         Args: {
           allowed_roles: Database["public"]["Enums"]["user_role"][]
