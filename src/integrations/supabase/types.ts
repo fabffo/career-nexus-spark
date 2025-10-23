@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      abonnements_consommations: {
+        Row: {
+          abonnement_id: string
+          created_at: string
+          created_by: string | null
+          date_consommation: string
+          description: string | null
+          id: string
+          libelle: string
+          montant: number
+          rapprochement_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          abonnement_id: string
+          created_at?: string
+          created_by?: string | null
+          date_consommation: string
+          description?: string | null
+          id?: string
+          libelle: string
+          montant: number
+          rapprochement_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          abonnement_id?: string
+          created_at?: string
+          created_by?: string | null
+          date_consommation?: string
+          description?: string | null
+          id?: string
+          libelle?: string
+          montant?: number
+          rapprochement_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "abonnements_consommations_abonnement_id_fkey"
+            columns: ["abonnement_id"]
+            isOneToOne: false
+            referencedRelation: "abonnements_partenaires"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "abonnements_consommations_rapprochement_id_fkey"
+            columns: ["rapprochement_id"]
+            isOneToOne: false
+            referencedRelation: "rapprochements_bancaires"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       abonnements_partenaires: {
         Row: {
           actif: boolean | null

@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Search } from "lucide-react";
+import { Search, Plus, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 interface TransactionBancaire {
@@ -30,6 +30,12 @@ interface FactureMatch {
   statut: string;
 }
 
+interface Consommation {
+  montant: number;
+  libelle: string;
+  description?: string;
+}
+
 interface RapprochementManuelDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -48,6 +54,7 @@ export default function RapprochementManuelDialog({
   const [selectedFactureId, setSelectedFactureId] = useState<string>("");
   const [selectedAbonnementId, setSelectedAbonnementId] = useState<string>("");
   const [abonnements, setAbonnements] = useState<any[]>([]);
+  const [consommations, setConsommations] = useState<Consommation[]>([]);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -174,12 +181,38 @@ export default function RapprochementManuelDialog({
             variant: "destructive",
           });
         }
+
+        // Créer les consommations si elles existent
+        if (consommations.length > 0) {
+          const consommationsToInsert = consommations.map((c) => ({
+            abonnement_id: selectedAbonnementId,
+            rapprochement_id: rapprochementId,
+            date_consommation: transaction.date,
+            montant: c.montant,
+            libelle: c.libelle,
+            description: c.description || null,
+            created_by: authData.user?.id,
+          }));
+
+          const { error: consommationError } = await supabase
+            .from("abonnements_consommations")
+            .insert(consommationsToInsert);
+
+          if (consommationError) {
+            console.error("Erreur lors de la création des consommations:", consommationError);
+            toast({
+              title: "Attention",
+              description: "Erreur lors de l'enregistrement des consommations",
+              variant: "destructive",
+            });
+          }
+        }
       }
 
       toast({
         title: "Succès",
         description: selectedAbonnementId 
-          ? "Rapprochement enregistré et paiement d'abonnement créé"
+          ? `Rapprochement enregistré, paiement d'abonnement créé${consommations.length > 0 ? ` et ${consommations.length} consommation(s) ajoutée(s)` : ""}`
           : "Rapprochement manuel enregistré",
       });
 
@@ -187,6 +220,7 @@ export default function RapprochementManuelDialog({
       onOpenChange(false);
       setSelectedFactureId("");
       setSelectedAbonnementId("");
+      setConsommations([]);
       setNotes("");
       setSearchTerm("");
     } catch (error) {
@@ -325,6 +359,87 @@ export default function RapprochementManuelDialog({
               </p>
             )}
           </div>
+
+          {/* Consommations d'abonnement */}
+          {selectedAbonnementId && (
+            <div className="space-y-3 p-4 border rounded-lg">
+              <div className="flex items-center justify-between">
+                <Label>Consommations supplémentaires</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setConsommations([...consommations, { montant: 0, libelle: "" }])}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Ajouter
+                </Button>
+              </div>
+              {consommations.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Aucune consommation supplémentaire
+                </p>
+              )}
+              {consommations.map((consommation, index) => (
+                <div key={index} className="grid grid-cols-12 gap-2 items-start">
+                  <div className="col-span-5">
+                    <Input
+                      placeholder="Libellé"
+                      value={consommation.libelle}
+                      onChange={(e) => {
+                        const updated = [...consommations];
+                        updated[index].libelle = e.target.value;
+                        setConsommations(updated);
+                      }}
+                    />
+                  </div>
+                  <div className="col-span-3">
+                    <Input
+                      type="number"
+                      placeholder="Montant"
+                      value={consommation.montant || ""}
+                      onChange={(e) => {
+                        const updated = [...consommations];
+                        updated[index].montant = parseFloat(e.target.value) || 0;
+                        setConsommations(updated);
+                      }}
+                    />
+                  </div>
+                  <div className="col-span-3">
+                    <Input
+                      placeholder="Description (opt.)"
+                      value={consommation.description || ""}
+                      onChange={(e) => {
+                        const updated = [...consommations];
+                        updated[index].description = e.target.value;
+                        setConsommations(updated);
+                      }}
+                    />
+                  </div>
+                  <div className="col-span-1">
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => {
+                        setConsommations(consommations.filter((_, i) => i !== index));
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {consommations.length > 0 && (
+                <div className="pt-2 border-t text-sm font-medium">
+                  Total consommations: {new Intl.NumberFormat("fr-FR", {
+                    style: "currency",
+                    currency: "EUR",
+                  }).format(consommations.reduce((sum, c) => sum + c.montant, 0))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Notes */}
           <div className="space-y-2">

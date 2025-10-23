@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Search, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Search, CheckCircle, XCircle, AlertCircle, Plus, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 interface TransactionBancaire {
@@ -40,6 +40,13 @@ interface Rapprochement {
   notes?: string | null;
 }
 
+interface Consommation {
+  id?: string;
+  montant: number;
+  libelle: string;
+  description?: string;
+}
+
 interface EditRapprochementHistoriqueDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -61,6 +68,7 @@ export default function EditRapprochementHistoriqueDialog({
   const [selectedFactureId, setSelectedFactureId] = useState<string>("");
   const [selectedAbonnementId, setSelectedAbonnementId] = useState<string>("");
   const [abonnements, setAbonnements] = useState<any[]>([]);
+  const [consommations, setConsommations] = useState<Consommation[]>([]);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -92,8 +100,8 @@ export default function EditRapprochementHistoriqueDialog({
       setSelectedFactureId(rapprochement.facture?.id || "");
       setNotes(rapprochement.notes || "");
       
-      // Charger l'abonnement associé si existe dans rapprochements_bancaires
-      const loadAbonnement = async () => {
+      // Charger l'abonnement et les consommations associés
+      const loadAbonnementAndConsommations = async () => {
         if (!rapprochement.manualId) return;
         
         const { data } = await supabase
@@ -104,10 +112,25 @@ export default function EditRapprochementHistoriqueDialog({
         
         if (data?.abonnement_id) {
           setSelectedAbonnementId(data.abonnement_id);
+          
+          // Charger les consommations existantes
+          const { data: consommationsData } = await supabase
+            .from("abonnements_consommations")
+            .select("*")
+            .eq("rapprochement_id", rapprochement.manualId);
+          
+          if (consommationsData) {
+            setConsommations(consommationsData.map(c => ({
+              id: c.id,
+              montant: Number(c.montant),
+              libelle: c.libelle,
+              description: c.description || undefined,
+            })));
+          }
         }
       };
       
-      loadAbonnement();
+      loadAbonnementAndConsommations();
     }
   }, [rapprochement, open]);
 
@@ -211,6 +234,34 @@ export default function EditRapprochementHistoriqueDialog({
 
           if (updateError) {
             console.error("Erreur lors de la mise à jour du paiement:", updateError);
+          }
+        }
+
+        // Gérer les consommations
+        // Supprimer les anciennes consommations
+        await supabase
+          .from("abonnements_consommations")
+          .delete()
+          .eq("rapprochement_id", rapprochementId);
+
+        // Créer les nouvelles consommations
+        if (consommations.length > 0) {
+          const consommationsToInsert = consommations.map((c) => ({
+            abonnement_id: selectedAbonnementId,
+            rapprochement_id: rapprochementId,
+            date_consommation: transaction.date,
+            montant: c.montant,
+            libelle: c.libelle,
+            description: c.description || null,
+            created_by: authData.user?.id,
+          }));
+
+          const { error: consommationError } = await supabase
+            .from("abonnements_consommations")
+            .insert(consommationsToInsert);
+
+          if (consommationError) {
+            console.error("Erreur lors de la création des consommations:", consommationError);
           }
         }
       }
@@ -426,12 +477,93 @@ export default function EditRapprochementHistoriqueDialog({
                 ))}
               </SelectContent>
             </Select>
-            {selectedAbonnementId && (
+            {selectedAbonnementId && selectedAbonnementId !== "none" && (
               <p className="text-xs text-muted-foreground">
                 Un paiement d'abonnement sera créé ou mis à jour
               </p>
             )}
           </div>
+
+          {/* Consommations d'abonnement */}
+          {selectedAbonnementId && selectedAbonnementId !== "none" && (
+            <div className="space-y-3 p-4 border rounded-lg">
+              <div className="flex items-center justify-between">
+                <Label>Consommations supplémentaires</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setConsommations([...consommations, { montant: 0, libelle: "" }])}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Ajouter
+                </Button>
+              </div>
+              {consommations.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Aucune consommation supplémentaire
+                </p>
+              )}
+              {consommations.map((consommation, index) => (
+                <div key={index} className="grid grid-cols-12 gap-2 items-start">
+                  <div className="col-span-5">
+                    <Input
+                      placeholder="Libellé"
+                      value={consommation.libelle}
+                      onChange={(e) => {
+                        const updated = [...consommations];
+                        updated[index].libelle = e.target.value;
+                        setConsommations(updated);
+                      }}
+                    />
+                  </div>
+                  <div className="col-span-3">
+                    <Input
+                      type="number"
+                      placeholder="Montant"
+                      value={consommation.montant || ""}
+                      onChange={(e) => {
+                        const updated = [...consommations];
+                        updated[index].montant = parseFloat(e.target.value) || 0;
+                        setConsommations(updated);
+                      }}
+                    />
+                  </div>
+                  <div className="col-span-3">
+                    <Input
+                      placeholder="Description (opt.)"
+                      value={consommation.description || ""}
+                      onChange={(e) => {
+                        const updated = [...consommations];
+                        updated[index].description = e.target.value;
+                        setConsommations(updated);
+                      }}
+                    />
+                  </div>
+                  <div className="col-span-1">
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => {
+                        setConsommations(consommations.filter((_, i) => i !== index));
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {consommations.length > 0 && (
+                <div className="pt-2 border-t text-sm font-medium">
+                  Total consommations: {new Intl.NumberFormat("fr-FR", {
+                    style: "currency",
+                    currency: "EUR",
+                  }).format(consommations.reduce((sum, c) => sum + c.montant, 0))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Notes */}
           <div className="space-y-2">
