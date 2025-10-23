@@ -1387,13 +1387,22 @@ export default function RapprochementBancaire() {
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {fichier.fichier_data.rapprochements
+                                   {fichier.fichier_data.rapprochements
                                     .filter(r => statusFilter === "all" || r.status === statusFilter)
                                     .map((rapprochement, index) => (
-                                      <TableRow key={index}>
+                                      <TableRow 
+                                        key={index}
+                                        className="cursor-pointer hover:bg-muted/50"
+                                        onClick={() => {
+                                          setSelectedHistoriqueRapprochement(rapprochement);
+                                          setSelectedHistoriqueFichierId(fichier.id);
+                                          setEditHistoriqueDialogOpen(true);
+                                        }}
+                                      >
                                         <TableCell>
                                           <div
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                              e.stopPropagation();
                                               const nextStatus = rapprochement.status === "matched" ? "uncertain" : rapprochement.status === "uncertain" ? "unmatched" : "matched";
                                               handleHistoriqueStatusChange(
                                                 fichier.id,
