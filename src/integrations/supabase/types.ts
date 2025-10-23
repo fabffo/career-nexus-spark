@@ -1029,6 +1029,63 @@ export type Database = {
         }
         Relationships: []
       }
+      rapprochements_bancaires: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          facture_id: string | null
+          id: string
+          notes: string | null
+          transaction_credit: number | null
+          transaction_date: string
+          transaction_debit: number | null
+          transaction_libelle: string
+          transaction_montant: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          facture_id?: string | null
+          id?: string
+          notes?: string | null
+          transaction_credit?: number | null
+          transaction_date: string
+          transaction_debit?: number | null
+          transaction_libelle: string
+          transaction_montant: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          facture_id?: string | null
+          id?: string
+          notes?: string | null
+          transaction_credit?: number | null
+          transaction_date?: string
+          transaction_debit?: number | null
+          transaction_libelle?: string
+          transaction_montant?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rapprochements_bancaires_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rapprochements_bancaires_facture_id_fkey"
+            columns: ["facture_id"]
+            isOneToOne: false
+            referencedRelation: "factures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rdv_referents: {
         Row: {
           created_at: string
@@ -1345,26 +1402,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      can_access_factures_storage: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      generate_invitation_token: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_numero_facture: {
-        Args: { p_type: string }
-        Returns: string
-      }
+      can_access_factures_storage: { Args: never; Returns: boolean }
+      generate_invitation_token: { Args: never; Returns: string }
+      generate_numero_facture: { Args: { p_type: string }; Returns: string }
       get_next_avenant_number: {
         Args: { p_parent_numero: string }
         Returns: string
       }
-      get_next_contract_number: {
-        Args: { p_year: number }
-        Returns: string
-      }
+      get_next_contract_number: { Args: { p_year: number }; Returns: string }
       get_next_facture_numero: {
         Args: { p_type_facture?: string }
         Returns: string

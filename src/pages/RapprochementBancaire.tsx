@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +11,7 @@ import { fr } from "date-fns/locale";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import RapprochementManuelDialog from "@/components/RapprochementManuelDialog";
 
 interface TransactionBancaire {
   date: string;
@@ -30,11 +31,25 @@ interface FactureMatch {
   statut: string;
 }
 
+interface RapprochementManuel {
+  id: string;
+  transaction_date: string;
+  transaction_libelle: string;
+  transaction_debit: number;
+  transaction_credit: number;
+  transaction_montant: number;
+  facture_id: string | null;
+  notes: string | null;
+}
+
 interface Rapprochement {
   transaction: TransactionBancaire;
   facture: FactureMatch | null;
   score: number; // 0-100, score de confiance du match
   status: "matched" | "unmatched" | "uncertain";
+  isManual?: boolean;
+  manualId?: string;
+  notes?: string | null;
 }
 
 export default function RapprochementBancaire() {
@@ -46,6 +61,9 @@ export default function RapprochementBancaire() {
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [scrollProgress, setScrollProgress] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [rapprochementsManuels, setRapprochementsManuels] = useState<RapprochementManuel[]>([]);
+  const [manuelDialogOpen, setManuelDialogOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionBancaire | null>(null);
   const { toast } = useToast();
 
   const parseDate = (dateStr: string): Date | null => {
@@ -81,6 +99,20 @@ export default function RapprochementBancaire() {
     return isNaN(num) ? 0 : num;
   };
 
+  const loadRapprochementsManuels = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("rapprochements_bancaires")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setRapprochementsManuels(data || []);
+    } catch (error) {
+      console.error("Erreur chargement rapprochements manuels:", error);
+    }
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -88,6 +120,9 @@ export default function RapprochementBancaire() {
     setLoading(true);
 
     try {
+      // Charger les rapprochements manuels
+      await loadRapprochementsManuels();
+
       // Charger toutes les factures
       const { data: facturesData, error: facturesError } = await supabase
         .from("factures")
@@ -281,6 +316,32 @@ export default function RapprochementBancaire() {
     factures: FactureMatch[]
   ): Rapprochement[] => {
     return transactions.map((transaction) => {
+      // Vérifier si un rapprochement manuel existe pour cette transaction
+      const manuelMatch = rapprochementsManuels.find(
+        (rm) =>
+          rm.transaction_date === transaction.date &&
+          rm.transaction_libelle === transaction.libelle &&
+          rm.transaction_montant === transaction.montant
+      );
+
+      if (manuelMatch) {
+        // Rapprochement manuel trouvé
+        const facture = manuelMatch.facture_id
+          ? factures.find((f) => f.id === manuelMatch.facture_id) || null
+          : null;
+
+        return {
+          transaction,
+          facture,
+          score: facture ? 100 : 0,
+          status: facture ? "matched" : "unmatched",
+          isManual: true,
+          manualId: manuelMatch.id,
+          notes: manuelMatch.notes,
+        } as Rapprochement;
+      }
+
+      // Sinon, effectuer le rapprochement automatique
       let bestMatch: FactureMatch | null = null;
       let bestScore = 0;
 
@@ -369,8 +430,23 @@ export default function RapprochementBancaire() {
         facture: bestMatch,
         score: bestScore,
         status,
+        isManual: false,
       };
     });
+  };
+
+  const handleManualRapprochement = (transaction: TransactionBancaire) => {
+    setSelectedTransaction(transaction);
+    setManuelDialogOpen(true);
+  };
+
+  const handleManualSuccess = async () => {
+    // Recharger les rapprochements manuels
+    await loadRapprochementsManuels();
+    
+    // Recalculer les rapprochements avec les nouvelles données
+    const rapprochementsResult = performMatching(transactions, factures);
+    setRapprochements(rapprochementsResult);
   };
 
   const exportResults = () => {
@@ -667,7 +743,7 @@ export default function RapprochementBancaire() {
                   onScroll={handleScroll}
                   style={{ maxHeight: '600px' }}
                 >
-                  <table className="w-full border-collapse" style={{ minWidth: '1800px' }}>
+                  <table className="w-full border-collapse" style={{ minWidth: '2000px' }}>
                     <thead className="bg-muted sticky top-0 z-10">
                       <tr className="border-b">
                         <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '180px' }}>Statut</th>
@@ -679,28 +755,37 @@ export default function RapprochementBancaire() {
                         <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '200px' }}>Partenaire</th>
                         <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '180px' }}>Montant Facture</th>
                         <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '120px' }}>Score</th>
+                        <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px' }}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
                    {currentRapprochements.map((rapprochement, index) => (
                      <tr key={index} className="border-b transition-colors hover:bg-muted/50">
                        <td className="p-4 align-middle">
-                         {rapprochement.status === "matched" ? (
-                           <Badge className="bg-green-100 text-green-800">
-                             <CheckCircle className="h-3 w-3 mr-1" />
-                             Rapproché
-                           </Badge>
-                         ) : rapprochement.status === "uncertain" ? (
-                           <Badge className="bg-orange-100 text-orange-800">
-                             <AlertCircle className="h-3 w-3 mr-1" />
-                             Incertain
-                           </Badge>
-                         ) : (
-                           <Badge className="bg-red-100 text-red-800">
-                             <XCircle className="h-3 w-3 mr-1" />
-                             Non rapproché
-                           </Badge>
-                         )}
+                         <div className="flex flex-col gap-1">
+                           {rapprochement.status === "matched" ? (
+                             <Badge className="bg-green-100 text-green-800">
+                               <CheckCircle className="h-3 w-3 mr-1" />
+                               Rapproché
+                             </Badge>
+                           ) : rapprochement.status === "uncertain" ? (
+                             <Badge className="bg-orange-100 text-orange-800">
+                               <AlertCircle className="h-3 w-3 mr-1" />
+                               Incertain
+                             </Badge>
+                           ) : (
+                             <Badge className="bg-red-100 text-red-800">
+                               <XCircle className="h-3 w-3 mr-1" />
+                               Non rapproché
+                             </Badge>
+                           )}
+                           {rapprochement.isManual && (
+                             <Badge variant="outline" className="text-xs border-blue-600 text-blue-600">
+                               <LinkIcon className="h-2 w-2 mr-1" />
+                               Manuel
+                             </Badge>
+                           )}
+                         </div>
                        </td>
                        <td className="p-4 align-middle">
                          {format(new Date(rapprochement.transaction.date), "dd/MM/yyyy")}
@@ -748,18 +833,35 @@ export default function RapprochementBancaire() {
                            : "-"}
                        </td>
                        <td className="p-4 align-middle text-right">
-                         <Badge
+                         {rapprochement.isManual ? (
+                           <Badge variant="outline" className="border-blue-600 text-blue-600">
+                             100% (Manuel)
+                           </Badge>
+                         ) : (
+                           <Badge
+                             variant="outline"
+                             className={
+                               rapprochement.score >= 70
+                                 ? "border-green-600 text-green-600"
+                                 : rapprochement.score >= 40
+                                 ? "border-orange-600 text-orange-600"
+                                 : "border-red-600 text-red-600"
+                             }
+                           >
+                             {rapprochement.score}%
+                           </Badge>
+                         )}
+                       </td>
+                       <td className="p-4 align-middle text-center">
+                         <Button
                            variant="outline"
-                           className={
-                             rapprochement.score >= 70
-                               ? "border-green-600 text-green-600"
-                               : rapprochement.score >= 40
-                               ? "border-orange-600 text-orange-600"
-                               : "border-red-600 text-red-600"
-                           }
+                           size="sm"
+                           onClick={() => handleManualRapprochement(rapprochement.transaction)}
+                           className="gap-2"
                          >
-                           {rapprochement.score}%
-                         </Badge>
+                           <LinkIcon className="h-4 w-4" />
+                           {rapprochement.isManual ? "Modifier" : "Rapprocher"}
+                         </Button>
                        </td>
                      </tr>
                      ))}
@@ -771,6 +873,14 @@ export default function RapprochementBancaire() {
           </CardContent>
         </Card>
       )}
+
+      <RapprochementManuelDialog
+        open={manuelDialogOpen}
+        onOpenChange={setManuelDialogOpen}
+        transaction={selectedTransaction}
+        factures={factures}
+        onSuccess={handleManualSuccess}
+      />
     </div>
   );
 }
