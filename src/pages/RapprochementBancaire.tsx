@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter } from "lucide-react";
+import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter, History, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import RapprochementManuelDialog from "@/components/RapprochementManuelDialog";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface TransactionBancaire {
   date: string;
@@ -55,7 +55,25 @@ interface Rapprochement {
   notes?: string | null;
 }
 
+interface FichierRapprochement {
+  id: string;
+  numero_rapprochement: string;
+  date_debut: string;
+  date_fin: string;
+  fichier_data: {
+    transactions: TransactionBancaire[];
+    rapprochements: Rapprochement[];
+    rapprochementsManuels: RapprochementManuel[];
+  };
+  statut: string;
+  total_lignes: number;
+  lignes_rapprochees: number;
+  created_at: string;
+  created_by: string;
+}
+
 export default function RapprochementBancaire() {
+  const [activeTab, setActiveTab] = useState<"en_cours" | "historique">("en_cours");
   const [transactions, setTransactions] = useState<TransactionBancaire[]>([]);
   const [rapprochements, setRapprochements] = useState<Rapprochement[]>([]);
   const [loading, setLoading] = useState(false);
@@ -70,12 +88,41 @@ export default function RapprochementBancaire() {
   const [isValidating, setIsValidating] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"all" | "matched" | "unmatched" | "uncertain">("all");
   const [manualStatusChanges, setManualStatusChanges] = useState<Record<string, "matched" | "unmatched" | "uncertain">>({});
+  const [fichiersRapprochement, setFichiersRapprochement] = useState<FichierRapprochement[]>([]);
+  const [selectedFichier, setSelectedFichier] = useState<FichierRapprochement | null>(null);
   const { toast } = useToast();
+
+  // Charger les fichiers de rapprochement validés
+  useEffect(() => {
+    if (activeTab === "historique") {
+      loadFichiersRapprochement();
+    }
+  }, [activeTab]);
 
   // Réinitialiser la page quand le filtre change
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter]);
+  }, [statusFilter, activeTab]);
+
+  const loadFichiersRapprochement = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("fichiers_rapprochement")
+        .select("*")
+        .eq("statut", "VALIDE")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setFichiersRapprochement((data || []) as unknown as FichierRapprochement[]);
+    } catch (error) {
+      console.error("Erreur chargement fichiers rapprochement:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger l'historique des rapprochements",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleStatusChange = (transactionKey: string, newStatus: "matched" | "unmatched" | "uncertain") => {
     setManualStatusChanges(prev => ({
@@ -791,6 +838,22 @@ export default function RapprochementBancaire() {
         </div>
       </div>
 
+      {/* Onglets principaux */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "en_cours" | "historique")}>
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="en_cours" className="gap-2">
+            <Clock className="h-4 w-4" />
+            En cours
+          </TabsTrigger>
+          <TabsTrigger value="historique" className="gap-2">
+            <History className="h-4 w-4" />
+            Historique
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Contenu: En cours */}
+        <TabsContent value="en_cours" className="space-y-6 mt-6">
+
       {/* Zone d'upload */}
       <Card>
         <CardHeader>
@@ -1129,6 +1192,195 @@ export default function RapprochementBancaire() {
           </CardContent>
         </Card>
       )}
+
+        </TabsContent>
+
+        {/* Contenu: Historique */}
+        <TabsContent value="historique" className="space-y-6 mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Rapprochements validés
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {fichiersRapprochement.length === 0 ? (
+                <div className="text-center py-12">
+                  <History className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Aucun rapprochement validé pour le moment</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {fichiersRapprochement.map((fichier) => (
+                    <Card key={fichier.id} className="hover:bg-muted/50 transition-colors cursor-pointer"
+                      onClick={() => setSelectedFichier(selectedFichier?.id === fichier.id ? null : fichier)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <Badge className="bg-primary text-primary-foreground">
+                                {fichier.numero_rapprochement}
+                              </Badge>
+                              <span className="font-medium">
+                                {format(new Date(fichier.date_debut), "dd/MM/yyyy", { locale: fr })} - {format(new Date(fichier.date_fin), "dd/MM/yyyy", { locale: fr })}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                              <span>{fichier.total_lignes} transactions</span>
+                              <span className="flex items-center gap-1">
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                {fichier.lignes_rapprochees} rapprochées
+                              </span>
+                              <span>
+                                Créé le {format(new Date(fichier.created_at), "dd/MM/yyyy 'à' HH:mm", { locale: fr })}
+                              </span>
+                            </div>
+                          </div>
+                          <ChevronRight className={`h-5 w-5 transition-transform ${selectedFichier?.id === fichier.id ? 'rotate-90' : ''}`} />
+                        </div>
+
+                        {/* Détails du rapprochement */}
+                        {selectedFichier?.id === fichier.id && fichier.fichier_data && (
+                          <div className="mt-6 pt-6 border-t">
+                            <div className="mb-4 flex items-center justify-between">
+                              <h4 className="font-semibold">Détails des transactions</h4>
+                              <div className="flex items-center gap-2">
+                                <Select
+                                  value={statusFilter}
+                                  onValueChange={(v) => setStatusFilter(v as any)}
+                                >
+                                  <SelectTrigger className="w-[180px] h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all">Toutes</SelectItem>
+                                    <SelectItem value="matched">Rapprochées</SelectItem>
+                                    <SelectItem value="uncertain">Incertaines</SelectItem>
+                                    <SelectItem value="unmatched">Non rapprochées</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            <div className="rounded-md border overflow-auto max-h-[500px]">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Statut</TableHead>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Libellé</TableHead>
+                                    <TableHead className="text-right">Débit</TableHead>
+                                    <TableHead className="text-right">Crédit</TableHead>
+                                    <TableHead>Facture</TableHead>
+                                    <TableHead>Partenaire</TableHead>
+                                    <TableHead className="text-right">Score</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {fichier.fichier_data.rapprochements
+                                    .filter(r => statusFilter === "all" || r.status === statusFilter)
+                                    .map((rapprochement, index) => (
+                                      <TableRow key={index}>
+                                        <TableCell>
+                                          <Badge
+                                            variant={
+                                              rapprochement.status === "matched"
+                                                ? "default"
+                                                : rapprochement.status === "uncertain"
+                                                ? "secondary"
+                                                : "outline"
+                                            }
+                                            className={
+                                              rapprochement.status === "matched"
+                                                ? "bg-green-100 text-green-800 border-green-200"
+                                                : rapprochement.status === "uncertain"
+                                                ? "bg-orange-100 text-orange-800 border-orange-200"
+                                                : "bg-red-100 text-red-800 border-red-200"
+                                            }
+                                          >
+                                            {rapprochement.status === "matched"
+                                              ? "Rapproché"
+                                              : rapprochement.status === "uncertain"
+                                              ? "Incertain"
+                                              : "Non rapproché"}
+                                          </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                          {format(new Date(rapprochement.transaction.date), "dd/MM/yyyy")}
+                                        </TableCell>
+                                        <TableCell className="max-w-xs truncate">
+                                          {rapprochement.transaction.libelle}
+                                        </TableCell>
+                                        <TableCell className="text-right text-red-600">
+                                          {rapprochement.transaction.debit > 0
+                                            ? new Intl.NumberFormat("fr-FR", {
+                                                style: "currency",
+                                                currency: "EUR",
+                                              }).format(rapprochement.transaction.debit)
+                                            : ""}
+                                        </TableCell>
+                                        <TableCell className="text-right text-green-600">
+                                          {rapprochement.transaction.credit > 0
+                                            ? new Intl.NumberFormat("fr-FR", {
+                                                style: "currency",
+                                                currency: "EUR",
+                                              }).format(rapprochement.transaction.credit)
+                                            : ""}
+                                        </TableCell>
+                                        <TableCell>
+                                          {rapprochement.facture ? (
+                                            <div className="flex flex-col">
+                                              <span className="font-medium">
+                                                {rapprochement.facture.numero_facture}
+                                              </span>
+                                              <span className="text-xs text-muted-foreground">
+                                                {rapprochement.facture.type_facture}
+                                              </span>
+                                            </div>
+                                          ) : (
+                                            "-"
+                                          )}
+                                        </TableCell>
+                                        <TableCell>
+                                          {rapprochement.facture?.partenaire_nom || "-"}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                          {rapprochement.isManual ? (
+                                            <Badge variant="outline" className="border-blue-600 text-blue-600">
+                                              100% (Manuel)
+                                            </Badge>
+                                          ) : (
+                                            <Badge
+                                              variant="outline"
+                                              className={
+                                                rapprochement.score >= 70
+                                                  ? "border-green-600 text-green-600"
+                                                  : rapprochement.score >= 40
+                                                  ? "border-orange-600 text-orange-600"
+                                                  : "border-red-600 text-red-600"
+                                              }
+                                            >
+                                              {rapprochement.score}%
+                                            </Badge>
+                                          )}
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <RapprochementManuelDialog
         open={manuelDialogOpen}
