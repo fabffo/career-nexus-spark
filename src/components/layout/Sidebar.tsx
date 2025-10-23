@@ -94,6 +94,7 @@ export function Sidebar() {
         { path: '/factures-ventes', label: 'Factures de vente', icon: FileText },
         { path: '/factures-achats', label: 'Factures d\'achat', icon: FileText },
         { path: '/rapprochement-bancaire', label: 'Rapprochement bancaire', icon: FileText },
+        { path: '/tva-mensuel', label: 'TVA Mensuel', icon: FileText },
       ]
     },
     {
