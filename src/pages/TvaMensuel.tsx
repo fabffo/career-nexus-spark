@@ -93,13 +93,13 @@ export default function TvaMensuel() {
       const startDate = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1);
       const endDate = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0);
 
-      // Récupérer les fichiers de rapprochement validés pour la période
+      // Récupérer les fichiers de rapprochement validés qui chevauchent la période
       const { data: fichiers, error: fichierError } = await supabase
         .from("fichiers_rapprochement")
         .select("fichier_data, date_debut, date_fin")
         .eq("statut", "VALIDE")
-        .gte("date_debut", startDate.toISOString().split('T')[0])
-        .lte("date_fin", endDate.toISOString().split('T')[0]);
+        .lte("date_debut", endDate.toISOString().split('T')[0])
+        .gte("date_fin", startDate.toISOString().split('T')[0]);
 
       if (fichierError) throw fichierError;
 
