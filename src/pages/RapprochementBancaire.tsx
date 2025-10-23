@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter, History, Clock } from "lucide-react";
+import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter, History, Clock, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import RapprochementManuelDialog from "@/components/RapprochementManuelDialog";
+import EditRapprochementHistoriqueDialog from "@/components/EditRapprochementHistoriqueDialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface TransactionBancaire {
@@ -92,6 +93,9 @@ export default function RapprochementBancaire() {
   const [selectedFichier, setSelectedFichier] = useState<FichierRapprochement | null>(null);
   const [historiqueStatusChanges, setHistoriqueStatusChanges] = useState<Record<string, "matched" | "unmatched" | "uncertain">>({});
   const [savingHistorique, setSavingHistorique] = useState(false);
+  const [editHistoriqueDialogOpen, setEditHistoriqueDialogOpen] = useState(false);
+  const [selectedHistoriqueRapprochement, setSelectedHistoriqueRapprochement] = useState<Rapprochement | null>(null);
+  const [selectedHistoriqueFichierId, setSelectedHistoriqueFichierId] = useState<string>("");
   const { toast } = useToast();
 
   // Charger les fichiers de rapprochement validés
@@ -1379,6 +1383,7 @@ export default function RapprochementBancaire() {
                                     <TableHead>Facture</TableHead>
                                     <TableHead>Partenaire</TableHead>
                                     <TableHead className="text-right">Score</TableHead>
+                                    <TableHead className="text-center">Actions</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -1463,6 +1468,20 @@ export default function RapprochementBancaire() {
                                             </Badge>
                                           )}
                                         </TableCell>
+                                        <TableCell className="text-center">
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSelectedHistoriqueRapprochement(rapprochement);
+                                              setSelectedHistoriqueFichierId(fichier.id);
+                                              setEditHistoriqueDialogOpen(true);
+                                            }}
+                                          >
+                                            <Pencil className="h-4 w-4" />
+                                          </Button>
+                                        </TableCell>
                                       </TableRow>
                                     ))}
                                 </TableBody>
@@ -1486,6 +1505,21 @@ export default function RapprochementBancaire() {
         transaction={selectedTransaction}
         factures={factures}
         onSuccess={handleManualSuccess}
+      />
+
+      <EditRapprochementHistoriqueDialog
+        open={editHistoriqueDialogOpen}
+        onOpenChange={setEditHistoriqueDialogOpen}
+        rapprochement={selectedHistoriqueRapprochement}
+        factures={factures}
+        fichierId={selectedHistoriqueFichierId}
+        onSuccess={async () => {
+          await loadFichiersRapprochement();
+          toast({
+            title: "Succès",
+            description: "Rapprochement modifié avec succès",
+          });
+        }}
       />
     </div>
   );
