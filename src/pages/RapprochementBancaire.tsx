@@ -1161,7 +1161,7 @@ export default function RapprochementBancaire() {
                   <table className="w-full border-collapse" style={{ minWidth: '2000px' }}>
                     <thead className="bg-muted sticky top-0 z-10">
                       <tr className="border-b">
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '180px' }}>Statut</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '80px' }}>Statut</th>
                         <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '140px' }}>Date</th>
                         <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '350px' }}>Libellé</th>
                         <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '140px' }}>Débit</th>
@@ -1177,43 +1177,26 @@ export default function RapprochementBancaire() {
                    {currentRapprochements.map((rapprochement, index) => (
                        <tr key={index} className="border-b transition-colors hover:bg-muted/50">
                         <td className="p-4 align-middle">
-                          <div className="flex flex-col gap-2">
-                            <Select
-                              value={rapprochement.status}
-                              onValueChange={(value) => handleStatusChange(
-                                getTransactionKey(rapprochement.transaction),
-                                value as "matched" | "unmatched" | "uncertain"
-                              )}
+                          <div className="flex items-center gap-2">
+                            <div
+                              onClick={() => {
+                                const nextStatus = rapprochement.status === "matched" ? "uncertain" : rapprochement.status === "uncertain" ? "unmatched" : "matched";
+                                handleStatusChange(
+                                  getTransactionKey(rapprochement.transaction),
+                                  nextStatus
+                                );
+                              }}
+                              className="cursor-pointer hover:scale-110 transition-transform"
+                              title={rapprochement.status === "matched" ? "Rapproché" : rapprochement.status === "uncertain" ? "Incertain" : "Non rapproché"}
                             >
-                              <SelectTrigger className="w-[160px] h-9">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="matched">
-                                  <div className="flex items-center gap-2">
-                                    <CheckCircle className="h-3 w-3 text-green-600" />
-                                    <span>Rapproché</span>
-                                  </div>
-                                </SelectItem>
-                                <SelectItem value="uncertain">
-                                  <div className="flex items-center gap-2">
-                                    <AlertCircle className="h-3 w-3 text-orange-600" />
-                                    <span>Incertain</span>
-                                  </div>
-                                </SelectItem>
-                                <SelectItem value="unmatched">
-                                  <div className="flex items-center gap-2">
-                                    <XCircle className="h-3 w-3 text-red-600" />
-                                    <span>Non rapproché</span>
-                                  </div>
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
+                              {rapprochement.status === "matched" && <CheckCircle className="h-5 w-5 text-green-600" />}
+                              {rapprochement.status === "uncertain" && <AlertCircle className="h-5 w-5 text-orange-600" />}
+                              {rapprochement.status === "unmatched" && <XCircle className="h-5 w-5 text-red-600" />}
+                            </div>
                             {rapprochement.isManual && (
-                              <Badge variant="outline" className="text-xs border-blue-600 text-blue-600">
-                                <LinkIcon className="h-2 w-2 mr-1" />
-                                Manuel
-                              </Badge>
+                              <div title="Rapprochement manuel">
+                                <LinkIcon className="h-3 w-3 text-blue-600" />
+                              </div>
                             )}
                           </div>
                         </td>
@@ -1404,38 +1387,22 @@ export default function RapprochementBancaire() {
                                     .map((rapprochement, index) => (
                                       <TableRow key={index}>
                                         <TableCell>
-                                          <Select
-                                            value={rapprochement.status}
-                                            onValueChange={(value) => handleHistoriqueStatusChange(
-                                              fichier.id,
-                                              `${rapprochement.transaction.date}-${rapprochement.transaction.libelle}-${rapprochement.transaction.montant}`,
-                                              value as "matched" | "unmatched" | "uncertain"
-                                            )}
+                                          <div
+                                            onClick={() => {
+                                              const nextStatus = rapprochement.status === "matched" ? "uncertain" : rapprochement.status === "uncertain" ? "unmatched" : "matched";
+                                              handleHistoriqueStatusChange(
+                                                fichier.id,
+                                                `${rapprochement.transaction.date}-${rapprochement.transaction.libelle}-${rapprochement.transaction.montant}`,
+                                                nextStatus
+                                              );
+                                            }}
+                                            className="cursor-pointer hover:scale-110 transition-transform inline-block"
+                                            title={rapprochement.status === "matched" ? "Rapproché" : rapprochement.status === "uncertain" ? "Incertain" : "Non rapproché"}
                                           >
-                                            <SelectTrigger className="w-[160px] h-9">
-                                              <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="matched">
-                                                <div className="flex items-center gap-2">
-                                                  <CheckCircle className="h-3 w-3 text-green-600" />
-                                                  <span>Rapproché</span>
-                                                </div>
-                                              </SelectItem>
-                                              <SelectItem value="uncertain">
-                                                <div className="flex items-center gap-2">
-                                                  <AlertCircle className="h-3 w-3 text-orange-600" />
-                                                  <span>Incertain</span>
-                                                </div>
-                                              </SelectItem>
-                                              <SelectItem value="unmatched">
-                                                <div className="flex items-center gap-2">
-                                                  <XCircle className="h-3 w-3 text-red-600" />
-                                                  <span>Non rapproché</span>
-                                                </div>
-                                              </SelectItem>
-                                            </SelectContent>
-                                          </Select>
+                                            {rapprochement.status === "matched" && <CheckCircle className="h-5 w-5 text-green-600" />}
+                                            {rapprochement.status === "uncertain" && <AlertCircle className="h-5 w-5 text-orange-600" />}
+                                            {rapprochement.status === "unmatched" && <XCircle className="h-5 w-5 text-red-600" />}
+                                          </div>
                                         </TableCell>
                                         <TableCell>
                                           {format(new Date(rapprochement.transaction.date), "dd/MM/yyyy")}
