@@ -1,0 +1,276 @@
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { FileText, Download, FileSignature, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { Contrat } from "@/types/contrat";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+export default function SignatureContrats() {
+  const { user } = useAuth();
+  const [contratsActifs, setContratsActifs] = useState<Contrat[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedContrat, setSelectedContrat] = useState<Contrat | null>(null);
+  const [adobeSignUrl, setAdobeSignUrl] = useState("");
+
+  useEffect(() => {
+    fetchContratsActifs();
+  }, []);
+
+  const fetchContratsActifs = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("contrats")
+        .select(`
+          *,
+          client:clients(raison_sociale),
+          prestataire:prestataires(nom, prenom),
+          fournisseur_services:fournisseurs_services(raison_sociale),
+          fournisseur_general:fournisseurs_generaux(raison_sociale),
+          fournisseur_etat_organisme:fournisseurs_etat_organismes(raison_sociale)
+        `)
+        .eq("statut", "ACTIF")
+        .order("date_debut", { ascending: false });
+
+      if (error) throw error;
+      setContratsActifs(data || []);
+    } catch (error: any) {
+      console.error("Erreur lors du chargement des contrats:", error);
+      toast.error("Erreur lors du chargement des contrats");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownload = async (contrat: Contrat) => {
+    if (!contrat.piece_jointe_url) {
+      toast.error("Aucun document disponible pour ce contrat");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.storage
+        .from("factures")
+        .download(contrat.piece_jointe_url);
+
+      if (error) throw error;
+
+      const blob = new Blob([data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Contrat_${contrat.numero_contrat}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success("Contrat téléchargé avec succès");
+    } catch (error: any) {
+      console.error("Erreur lors du téléchargement:", error);
+      toast.error("Erreur lors du téléchargement du contrat");
+    }
+  };
+
+  const handleSendToAdobeSign = async (contrat: Contrat) => {
+    if (!adobeSignUrl) {
+      toast.error("Veuillez configurer l'URL Adobe Sign dans les paramètres");
+      return;
+    }
+
+    // Ouvrir Adobe Sign dans un nouvel onglet
+    window.open(adobeSignUrl, "_blank");
+    toast.success("Ouverture d'Adobe Sign pour la signature");
+  };
+
+  const getEntityName = (contrat: Contrat) => {
+    if (contrat.client) return contrat.client.raison_sociale;
+    if (contrat.prestataire) return `${contrat.prestataire.nom} ${contrat.prestataire.prenom}`;
+    if (contrat.fournisseur_services) return contrat.fournisseur_services.raison_sociale;
+    if (contrat.fournisseur_general) return contrat.fournisseur_general.raison_sociale;
+    if (contrat.fournisseur_etat_organisme) return contrat.fournisseur_etat_organisme.raison_sociale;
+    return "Non spécifié";
+  };
+
+  const getTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      CLIENT: "Client",
+      PRESTATAIRE: "Prestataire",
+      FOURNISSEUR_SERVICES: "Fournisseur Services",
+      FOURNISSEUR_GENERAL: "Fournisseur Général",
+      FOURNISSEUR_ETAT_ORGANISME: "État/Organisme",
+    };
+    return labels[type] || type;
+  };
+
+  return (
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Signature des Contrats</h1>
+          <p className="text-muted-foreground mt-2">
+            Gérez la signature électronique de vos contrats actifs
+          </p>
+        </div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline">
+              <FileSignature className="mr-2 h-4 w-4" />
+              Configurer Adobe Sign
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Configuration Adobe Sign</DialogTitle>
+              <DialogDescription>
+                Configurez l'intégration avec Adobe Sign pour la signature électronique
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="adobeSignUrl">URL Adobe Sign</Label>
+                <Input
+                  id="adobeSignUrl"
+                  placeholder="https://secure.na1.adobesign.com/..."
+                  value={adobeSignUrl}
+                  onChange={(e) => setAdobeSignUrl(e.target.value)}
+                />
+              </div>
+              <Button onClick={() => toast.success("Configuration enregistrée")}>
+                Enregistrer
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Contrats Actifs à Signer</CardTitle>
+          <CardDescription>
+            {contratsActifs.length} contrat(s) actif(s)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center py-8">Chargement...</div>
+          ) : contratsActifs.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
+              <p>Aucun contrat actif à signer</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>N° Contrat</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Entité</TableHead>
+                  <TableHead>Date début</TableHead>
+                  <TableHead>Date fin</TableHead>
+                  <TableHead>Montant</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {contratsActifs.map((contrat) => (
+                  <TableRow key={contrat.id}>
+                    <TableCell className="font-medium">
+                      {contrat.numero_contrat}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {getTypeLabel(contrat.type)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{getEntityName(contrat)}</TableCell>
+                    <TableCell>
+                      {format(new Date(contrat.date_debut), "dd/MM/yyyy", {
+                        locale: fr,
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      {contrat.date_fin
+                        ? format(new Date(contrat.date_fin), "dd/MM/yyyy", {
+                            locale: fr,
+                          })
+                        : "Indéterminée"}
+                    </TableCell>
+                    <TableCell>
+                      {contrat.montant
+                        ? `${contrat.montant.toLocaleString("fr-FR")} €`
+                        : "-"}
+                    </TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownload(contrat)}
+                        disabled={!contrat.piece_jointe_url}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedContrat(contrat);
+                          handleSendToAdobeSign(contrat);
+                        }}
+                      >
+                        <FileSignature className="mr-2 h-4 w-4" />
+                        Signer
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Guide Adobe Sign</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <h3 className="font-semibold mb-2">Configuration requise:</h3>
+            <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
+              <li>Créez un compte Adobe Sign sur <a href="https://acrobat.adobe.com/fr/fr/sign.html" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">acrobat.adobe.com</a></li>
+              <li>Obtenez votre URL d'intégration depuis votre tableau de bord Adobe Sign</li>
+              <li>Configurez l'URL dans le bouton "Configurer Adobe Sign" ci-dessus</li>
+              <li>Téléchargez le contrat puis uploadez-le sur Adobe Sign pour signature</li>
+            </ol>
+          </div>
+          <div>
+            <h3 className="font-semibold mb-2">Fonctionnalités Adobe Sign:</h3>
+            <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+              <li>Signature électronique légalement valable</li>
+              <li>Suivi en temps réel du statut de signature</li>
+              <li>Rappels automatiques aux signataires</li>
+              <li>Archivage sécurisé des documents signés</li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

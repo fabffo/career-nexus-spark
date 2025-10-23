@@ -47,6 +47,7 @@ import Parametres from "./pages/Parametres";
 import RapprochementBancaire from "./pages/RapprochementBancaire";
 import TvaMensuel from "./pages/TvaMensuel";
 import Fiscalite from "./pages/Fiscalite";
+import SignatureContrats from "./pages/SignatureContrats";
 
 const queryClient = new QueryClient();
 
@@ -113,6 +114,7 @@ const App = () => (
               <Route path="rapprochement-bancaire" element={<RapprochementBancaire />} />
               <Route path="tva-mensuel" element={<TvaMensuel />} />
               <Route path="fiscalite" element={<Fiscalite />} />
+              <Route path="signature-contrats" element={<SignatureContrats />} />
               <Route path="rdv" element={<RendezVous />} />
               <Route path="matching" element={<Matching />} />
               <Route path="commentaires" element={<Dashboard />} />
