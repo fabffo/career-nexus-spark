@@ -75,6 +75,8 @@ export interface Facture {
   updated_at: string;
   created_by?: string;
   lignes?: FactureLigne[];
+  numero_rapprochement?: string;
+  date_rapprochement?: string;
 }
 
 export interface FactureLigne {
@@ -433,6 +435,20 @@ export default function FacturesVentes() {
           <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[statut as keyof typeof colors]}`}>
             {statut}
           </span>
+        );
+      },
+    },
+    {
+      accessorKey: "numero_rapprochement",
+      header: "Rapprochement",
+      cell: ({ row }) => {
+        const numero = row.getValue("numero_rapprochement") as string;
+        return numero ? (
+          <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            {numero}
+          </span>
+        ) : (
+          <span className="text-muted-foreground text-xs">Non rapproché</span>
         );
       },
     },

@@ -29,6 +29,8 @@ interface FactureMatch {
   partenaire_nom: string;
   total_ttc: number;
   statut: string;
+  numero_rapprochement?: string;
+  date_rapprochement?: string;
 }
 
 interface RapprochementManuel {
@@ -140,6 +142,8 @@ export default function RapprochementBancaire() {
         partenaire_nom: f.type_facture === "VENTES" ? f.destinataire_nom : f.emetteur_nom,
         total_ttc: f.total_ttc || 0,
         statut: f.statut,
+        numero_rapprochement: f.numero_rapprochement,
+        date_rapprochement: f.date_rapprochement,
       }));
 
       setFactures(facturesFormatted);
@@ -572,13 +576,33 @@ export default function RapprochementBancaire() {
 
       toast({
         title: "Rapprochement validé",
-        description: `Rapprochement ${numeroRapprochement} validé avec succès ! ${lignesRapprochees}/${transactions.length} lignes rapprochées.`,
+        description: `Rapprochement ${numeroRapprochement} validé avec succès ! ${lignesRapprochees}/${transactions.length} lignes rapprochées. Vous pouvez continuer à travailler sur les lignes non rapprochées.`,
       });
 
-      // Réinitialiser l'état
-      setTransactions([]);
-      setRapprochements([]);
-      setRapprochementsManuels([]);
+      // Recharger les factures pour mettre à jour le statut
+      const { data: facturesData, error: facturesError } = await supabase
+        .from("factures")
+        .select("*")
+        .in("statut", ["VALIDEE", "PAYEE"]);
+
+      if (!facturesError && facturesData) {
+        const facturesFormatted: FactureMatch[] = facturesData.map((f) => ({
+          id: f.id,
+          numero_facture: f.numero_facture,
+          type_facture: f.type_facture as "VENTES" | "ACHATS",
+          date_emission: f.date_emission,
+          partenaire_nom: f.type_facture === "VENTES" ? f.destinataire_nom : f.emetteur_nom,
+          total_ttc: f.total_ttc || 0,
+          statut: f.statut,
+          numero_rapprochement: f.numero_rapprochement,
+          date_rapprochement: f.date_rapprochement,
+        }));
+        setFactures(facturesFormatted);
+        
+        // Recalculer les rapprochements avec les factures mises à jour
+        const rapprochementsResult = performMatching(transactions, facturesFormatted);
+        setRapprochements(rapprochementsResult);
+      }
 
     } catch (error) {
       console.error("Erreur:", error);
