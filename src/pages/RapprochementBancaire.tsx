@@ -69,12 +69,33 @@ export default function RapprochementBancaire() {
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionBancaire | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"all" | "matched" | "unmatched" | "uncertain">("all");
+  const [manualStatusChanges, setManualStatusChanges] = useState<Record<string, "matched" | "unmatched" | "uncertain">>({});
   const { toast } = useToast();
 
   // Réinitialiser la page quand le filtre change
   useEffect(() => {
     setCurrentPage(1);
   }, [statusFilter]);
+
+  const handleStatusChange = (transactionKey: string, newStatus: "matched" | "unmatched" | "uncertain") => {
+    setManualStatusChanges(prev => ({
+      ...prev,
+      [transactionKey]: newStatus
+    }));
+
+    // Mettre à jour le statut dans le tableau des rapprochements
+    setRapprochements(prev => prev.map(r => {
+      const key = `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`;
+      if (key === transactionKey) {
+        return { ...r, status: newStatus };
+      }
+      return r;
+    }));
+  };
+
+  const getTransactionKey = (transaction: TransactionBancaire) => {
+    return `${transaction.date}-${transaction.libelle}-${transaction.montant}`;
+  };
 
   const parseDate = (dateStr: string): Date | null => {
     // Format attendu: DD/MM/YYYY
@@ -980,33 +1001,48 @@ export default function RapprochementBancaire() {
                     </thead>
                     <tbody>
                    {currentRapprochements.map((rapprochement, index) => (
-                     <tr key={index} className="border-b transition-colors hover:bg-muted/50">
-                       <td className="p-4 align-middle">
-                         <div className="flex flex-col gap-1">
-                           {rapprochement.status === "matched" ? (
-                             <Badge className="bg-green-100 text-green-800">
-                               <CheckCircle className="h-3 w-3 mr-1" />
-                               Rapproché
-                             </Badge>
-                           ) : rapprochement.status === "uncertain" ? (
-                             <Badge className="bg-orange-100 text-orange-800">
-                               <AlertCircle className="h-3 w-3 mr-1" />
-                               Incertain
-                             </Badge>
-                           ) : (
-                             <Badge className="bg-red-100 text-red-800">
-                               <XCircle className="h-3 w-3 mr-1" />
-                               Non rapproché
-                             </Badge>
-                           )}
-                           {rapprochement.isManual && (
-                             <Badge variant="outline" className="text-xs border-blue-600 text-blue-600">
-                               <LinkIcon className="h-2 w-2 mr-1" />
-                               Manuel
-                             </Badge>
-                           )}
-                         </div>
-                       </td>
+                       <tr key={index} className="border-b transition-colors hover:bg-muted/50">
+                        <td className="p-4 align-middle">
+                          <div className="flex flex-col gap-2">
+                            <Select
+                              value={rapprochement.status}
+                              onValueChange={(value) => handleStatusChange(
+                                getTransactionKey(rapprochement.transaction),
+                                value as "matched" | "unmatched" | "uncertain"
+                              )}
+                            >
+                              <SelectTrigger className="w-[160px] h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="matched">
+                                  <div className="flex items-center gap-2">
+                                    <CheckCircle className="h-3 w-3 text-green-600" />
+                                    <span>Rapproché</span>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="uncertain">
+                                  <div className="flex items-center gap-2">
+                                    <AlertCircle className="h-3 w-3 text-orange-600" />
+                                    <span>Incertain</span>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="unmatched">
+                                  <div className="flex items-center gap-2">
+                                    <XCircle className="h-3 w-3 text-red-600" />
+                                    <span>Non rapproché</span>
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {rapprochement.isManual && (
+                              <Badge variant="outline" className="text-xs border-blue-600 text-blue-600">
+                                <LinkIcon className="h-2 w-2 mr-1" />
+                                Manuel
+                              </Badge>
+                            )}
+                          </div>
+                        </td>
                        <td className="p-4 align-middle">
                          {format(new Date(rapprochement.transaction.date), "dd/MM/yyyy")}
                        </td>
