@@ -93,63 +93,79 @@ export default function TvaMensuel() {
       const startDate = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1);
       const endDate = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0);
 
-      const { data: rapprochements, error } = await supabase
-        .from("rapprochements_bancaires")
-        .select(`
-          id,
-          transaction_date,
-          transaction_libelle,
-          transaction_montant,
-          transaction_credit,
-          transaction_debit,
-          facture:factures (
-            numero_facture,
-            total_tva,
-            type_facture
-          )
-        `)
-        .gte("transaction_date", startDate.toISOString().split('T')[0])
-        .lte("transaction_date", endDate.toISOString().split('T')[0]);
-
-      if (error) throw error;
-
-      // Récupérer les statuts des lignes depuis les fichiers de rapprochement validés
+      // Récupérer les fichiers de rapprochement validés pour la période
       const { data: fichiers, error: fichierError } = await supabase
         .from("fichiers_rapprochement")
-        .select("fichier_data")
+        .select("fichier_data, date_debut, date_fin")
         .eq("statut", "VALIDE")
         .gte("date_debut", startDate.toISOString().split('T')[0])
         .lte("date_fin", endDate.toISOString().split('T')[0]);
 
       if (fichierError) throw fichierError;
 
-      // Construire un map des statuts
-      const statutMap = new Map<string, string>();
+      // Extraire toutes les lignes de rapprochement du JSON
+      const allLignes: RapprochementLigne[] = [];
+      const factureIds = new Set<string>();
+
       fichiers?.forEach(fichier => {
         const data = fichier.fichier_data as any;
         if (data?.rapprochements) {
           data.rapprochements.forEach((rap: any) => {
-            const key = `${rap.transaction_date}_${rap.transaction_libelle}_${rap.transaction_montant}`;
-            statutMap.set(key, rap.statut || "NON_RAPPROCHE");
+            const transaction = rap.transaction;
+            const facture = rap.facture;
+            const status = rap.status; // matched, uncertain, unmatched
+            
+            // Collecter les IDs de factures pour récupérer la TVA
+            if (facture?.id) {
+              factureIds.add(facture.id);
+            }
+
+            allLignes.push({
+              id: `${transaction.date}_${transaction.libelle}_${Math.abs(transaction.montant)}`,
+              transaction_date: transaction.date,
+              transaction_libelle: transaction.libelle,
+              transaction_montant: transaction.montant,
+              transaction_credit: transaction.credit || 0,
+              transaction_debit: transaction.debit || 0,
+              statut: status === "matched" ? "RAPPROCHE" : status === "uncertain" ? "INCERTAIN" : "NON_RAPPROCHE",
+              facture: facture ? {
+                numero_facture: facture.numero_facture,
+                total_tva: 0, // Sera rempli après
+                type_facture: facture.type_facture,
+              } : undefined,
+            });
           });
         }
       });
 
-      const lignesWithStatus = (rapprochements || []).map(rap => {
-        const key = `${rap.transaction_date}_${rap.transaction_libelle}_${rap.transaction_montant}`;
-        return {
-          ...rap,
-          statut: statutMap.get(key) || "NON_RAPPROCHE",
-        };
-      });
+      // Récupérer les infos complètes des factures pour avoir le total_tva
+      if (factureIds.size > 0) {
+        const { data: factures, error: facturesError } = await supabase
+          .from("factures")
+          .select("id, numero_facture, type_facture, total_tva")
+          .in("id", Array.from(factureIds));
 
-      setLignes(lignesWithStatus);
+        if (facturesError) throw facturesError;
+
+        // Mapper les TVA sur les lignes
+        const factureMap = new Map(factures?.map(f => [f.numero_facture, f]) || []);
+        allLignes.forEach(ligne => {
+          if (ligne.facture) {
+            const factureData = factureMap.get(ligne.facture.numero_facture);
+            if (factureData) {
+              ligne.facture.total_tva = factureData.total_tva || 0;
+            }
+          }
+        });
+      }
+
+      setLignes(allLignes);
 
       // Calculer les stats
       let tva_collectee = 0;
       let tva_deductible = 0;
 
-      lignesWithStatus.forEach(ligne => {
+      allLignes.forEach(ligne => {
         if (ligne.statut === "RAPPROCHE" && ligne.facture) {
           const tva = ligne.facture.total_tva || 0;
           if (ligne.facture.type_facture === "VENTES") {
@@ -166,6 +182,7 @@ export default function TvaMensuel() {
         tva_a_payer: tva_collectee - tva_deductible,
       });
     } catch (error: any) {
+      console.error("Erreur chargement TVA:", error);
       toast({
         title: "Erreur",
         description: "Impossible de charger les données TVA",
