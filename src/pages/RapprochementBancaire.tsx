@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check } from "lucide-react";
+import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import RapprochementManuelDialog from "@/components/RapprochementManuelDialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface TransactionBancaire {
   date: string;
@@ -67,7 +68,13 @@ export default function RapprochementBancaire() {
   const [manuelDialogOpen, setManuelDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionBancaire | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"all" | "matched" | "unmatched" | "uncertain">("all");
   const { toast } = useToast();
+
+  // Réinitialiser la page quand le filtre change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter]);
 
   const parseDate = (dateStr: string): Date | null => {
     // Format attendu: DD/MM/YYYY
@@ -643,18 +650,25 @@ export default function RapprochementBancaire() {
     window.URL.revokeObjectURL(url);
   };
 
-  const stats = {
-    total: rapprochements.length,
-    matched: rapprochements.filter((r) => r.status === "matched").length,
-    uncertain: rapprochements.filter((r) => r.status === "uncertain").length,
-    unmatched: rapprochements.filter((r) => r.status === "unmatched").length,
-  };
+  // Filtrage par statut
+  const filteredRapprochements = rapprochements.filter(r => {
+    if (statusFilter === "all") return true;
+    return r.status === statusFilter;
+  });
 
   // Pagination
-  const totalPages = Math.ceil(rapprochements.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredRapprochements.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentRapprochements = rapprochements.slice(startIndex, endIndex);
+  const currentRapprochements = filteredRapprochements.slice(startIndex, endIndex);
+
+  // Statistiques par statut
+  const stats = {
+    all: rapprochements.length,
+    matched: rapprochements.filter(r => r.status === "matched").length,
+    uncertain: rapprochements.filter(r => r.status === "uncertain").length,
+    unmatched: rapprochements.filter(r => r.status === "unmatched").length,
+  };
 
   const scrollTable = (direction: "left" | "right") => {
     if (scrollRef.current) {
@@ -688,7 +702,7 @@ export default function RapprochementBancaire() {
     <div className="flex items-center justify-between px-2 py-4">
       <div className="flex items-center gap-2">
         <p className="text-sm text-muted-foreground">
-          Affichage de {startIndex + 1} à {Math.min(endIndex, rapprochements.length)} sur {rapprochements.length} résultats
+          Affichage de {startIndex + 1} à {Math.min(endIndex, filteredRapprochements.length)} sur {filteredRapprochements.length} résultats {statusFilter !== "all" && `(${stats.all} au total)`}
         </p>
         <Select
           value={itemsPerPage.toString()}
@@ -804,7 +818,7 @@ export default function RapprochementBancaire() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="text-2xl font-bold">{stats.all}</div>
             </CardContent>
           </Card>
 
@@ -819,7 +833,7 @@ export default function RapprochementBancaire() {
               <div className="text-2xl font-bold text-green-600">
                 {stats.matched}
                 <span className="text-sm font-normal text-muted-foreground ml-2">
-                  ({Math.round((stats.matched / stats.total) * 100)}%)
+                  ({Math.round((stats.matched / stats.all) * 100)}%)
                 </span>
               </div>
             </CardContent>
@@ -836,7 +850,7 @@ export default function RapprochementBancaire() {
               <div className="text-2xl font-bold text-orange-600">
                 {stats.uncertain}
                 <span className="text-sm font-normal text-muted-foreground ml-2">
-                  ({Math.round((stats.uncertain / stats.total) * 100)}%)
+                  ({Math.round((stats.uncertain / stats.all) * 100)}%)
                 </span>
               </div>
             </CardContent>
@@ -853,7 +867,7 @@ export default function RapprochementBancaire() {
               <div className="text-2xl font-bold text-red-600">
                 {stats.unmatched}
                 <span className="text-sm font-normal text-muted-foreground ml-2">
-                  ({Math.round((stats.unmatched / stats.total) * 100)}%)
+                  ({Math.round((stats.unmatched / stats.all) * 100)}%)
                 </span>
               </div>
             </CardContent>
@@ -865,27 +879,60 @@ export default function RapprochementBancaire() {
       {rapprochements.length > 0 && (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Résultats du rapprochement</CardTitle>
-              <div className="flex gap-2">
-                <Button onClick={exportResults} variant="outline" size="sm">
-                  <Download className="h-4 w-4 mr-2" />
-                  Exporter
-                </Button>
-                <Button 
-                  onClick={handleValidateRapprochement} 
-                  disabled={isValidating}
-                  size="sm"
-                  className="bg-primary hover:bg-primary/90"
-                >
-                  <Check className="h-4 w-4 mr-2" />
-                  {isValidating ? "Validation..." : "Valider"}
-                </Button>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <CardTitle>Résultats du rapprochement</CardTitle>
+                <div className="flex gap-2">
+                  <Button onClick={exportResults} variant="outline" size="sm">
+                    <Download className="h-4 w-4 mr-2" />
+                    Exporter
+                  </Button>
+                  <Button 
+                    onClick={handleValidateRapprochement} 
+                    disabled={isValidating}
+                    size="sm"
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    <Check className="h-4 w-4 mr-2" />
+                    {isValidating ? "Validation..." : "Valider"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Filtres par statut */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Filtrer par statut :</span>
+                </div>
+                <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                  <TabsList>
+                    <TabsTrigger value="all" className="gap-2">
+                      Toutes
+                      <Badge variant="secondary">{stats.all}</Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="matched" className="gap-2">
+                      Rapprochées
+                      <Badge className="bg-green-100 text-green-800 hover:bg-green-200">{stats.matched}</Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="uncertain" className="gap-2">
+                      Incertaines
+                      <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-200">{stats.uncertain}</Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="unmatched" className="gap-2">
+                      Non rapprochées
+                      <Badge className="bg-red-100 text-red-800 hover:bg-red-200">{stats.unmatched}</Badge>
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
             </div>
           </CardHeader>
           <CardContent>
               <PaginationControls />
+              <div className="text-sm text-muted-foreground mb-2">
+                Affichage de {startIndex + 1} à {Math.min(endIndex, filteredRapprochements.length)} sur {filteredRapprochements.length} transaction(s) {statusFilter !== "all" && `(${stats.all} au total)`}
+              </div>
               <div className="rounded-md border">
                 {/* Contrôles de défilement horizontal */}
                 <div className="flex items-center gap-2 border-b p-2 bg-muted/50">
