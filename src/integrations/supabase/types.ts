@@ -273,6 +273,65 @@ export type Database = {
           },
         ]
       }
+      echeances_fiscales: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          date_echeance: string
+          date_paiement: string | null
+          description: string | null
+          id: string
+          justificatif_url: string | null
+          libelle: string
+          montant_estime: number | null
+          montant_paye: number | null
+          notes: string | null
+          statut: string
+          type_impot_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          date_echeance: string
+          date_paiement?: string | null
+          description?: string | null
+          id?: string
+          justificatif_url?: string | null
+          libelle: string
+          montant_estime?: number | null
+          montant_paye?: number | null
+          notes?: string | null
+          statut?: string
+          type_impot_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          date_echeance?: string
+          date_paiement?: string | null
+          description?: string | null
+          id?: string
+          justificatif_url?: string | null
+          libelle?: string
+          montant_estime?: number | null
+          montant_paye?: number | null
+          notes?: string | null
+          statut?: string
+          type_impot_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "echeances_fiscales_type_impot_id_fkey"
+            columns: ["type_impot_id"]
+            isOneToOne: false
+            referencedRelation: "types_impots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_history: {
         Row: {
           created_at: string
@@ -1077,6 +1136,44 @@ export type Database = {
         }
         Relationships: []
       }
+      rappels_fiscaux: {
+        Row: {
+          created_at: string | null
+          date_envoi: string | null
+          date_rappel: string
+          echeance_id: string
+          envoye: boolean | null
+          id: string
+          jours_avant: number
+        }
+        Insert: {
+          created_at?: string | null
+          date_envoi?: string | null
+          date_rappel: string
+          echeance_id: string
+          envoye?: boolean | null
+          id?: string
+          jours_avant: number
+        }
+        Update: {
+          created_at?: string | null
+          date_envoi?: string | null
+          date_rappel?: string
+          echeance_id?: string
+          envoye?: boolean | null
+          id?: string
+          jours_avant?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rappels_fiscaux_echeance_id_fkey"
+            columns: ["echeance_id"]
+            isOneToOne: false
+            referencedRelation: "echeances_fiscales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rapprochement_sequences: {
         Row: {
           created_at: string | null
@@ -1463,6 +1560,48 @@ export type Database = {
           libelle?: string
           taux?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      types_impots: {
+        Row: {
+          code: string
+          couleur: string
+          created_at: string | null
+          description: string | null
+          icone: string | null
+          id: string
+          is_active: boolean | null
+          libelle: string
+          ordre: number | null
+          periodicite: string
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          couleur?: string
+          created_at?: string | null
+          description?: string | null
+          icone?: string | null
+          id?: string
+          is_active?: boolean | null
+          libelle: string
+          ordre?: number | null
+          periodicite: string
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          couleur?: string
+          created_at?: string | null
+          description?: string | null
+          icone?: string | null
+          id?: string
+          is_active?: boolean | null
+          libelle?: string
+          ordre?: number | null
+          periodicite?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
