@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      abonnements_partenaires: {
+        Row: {
+          actif: boolean | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          jour_prelevement: number | null
+          montant_mensuel: number | null
+          nature: string
+          nom: string
+          notes: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          actif?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          jour_prelevement?: number | null
+          montant_mensuel?: number | null
+          nature: string
+          nom: string
+          notes?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          actif?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          jour_prelevement?: number | null
+          montant_mensuel?: number | null
+          nature?: string
+          nom?: string
+          notes?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       analyse_poste_candidat: {
         Row: {
           analysis: string | null
@@ -895,6 +934,57 @@ export type Database = {
           },
         ]
       }
+      paiements_abonnements: {
+        Row: {
+          abonnement_id: string
+          created_at: string | null
+          created_by: string | null
+          date_paiement: string
+          id: string
+          montant: number
+          notes: string | null
+          rapprochement_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          abonnement_id: string
+          created_at?: string | null
+          created_by?: string | null
+          date_paiement: string
+          id?: string
+          montant: number
+          notes?: string | null
+          rapprochement_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          abonnement_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          date_paiement?: string
+          id?: string
+          montant?: number
+          notes?: string | null
+          rapprochement_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paiements_abonnements_abonnement_id_fkey"
+            columns: ["abonnement_id"]
+            isOneToOne: false
+            referencedRelation: "abonnements_partenaires"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paiements_abonnements_rapprochement_id_fkey"
+            columns: ["rapprochement_id"]
+            isOneToOne: false
+            referencedRelation: "rapprochements_bancaires"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       param_type_intervenant: {
         Row: {
           code: string
@@ -1197,6 +1287,7 @@ export type Database = {
       }
       rapprochements_bancaires: {
         Row: {
+          abonnement_id: string | null
           created_at: string
           created_by: string | null
           facture_id: string | null
@@ -1210,6 +1301,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          abonnement_id?: string | null
           created_at?: string
           created_by?: string | null
           facture_id?: string | null
@@ -1223,6 +1315,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          abonnement_id?: string | null
           created_at?: string
           created_by?: string | null
           facture_id?: string | null
@@ -1236,6 +1329,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "rapprochements_bancaires_abonnement_id_fkey"
+            columns: ["abonnement_id"]
+            isOneToOne: false
+            referencedRelation: "abonnements_partenaires"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "rapprochements_bancaires_created_by_fkey"
             columns: ["created_by"]

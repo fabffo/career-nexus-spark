@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -46,10 +46,31 @@ export default function RapprochementManuelDialog({
   onSuccess,
 }: RapprochementManuelDialogProps) {
   const [selectedFactureId, setSelectedFactureId] = useState<string>("");
+  const [selectedAbonnementId, setSelectedAbonnementId] = useState<string>("");
+  const [abonnements, setAbonnements] = useState<any[]>([]);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
+
+  // Charger les abonnements actifs
+  useEffect(() => {
+    const loadAbonnements = async () => {
+      const { data, error } = await supabase
+        .from("abonnements_partenaires")
+        .select("*")
+        .eq("actif", true)
+        .order("nom");
+
+      if (!error && data) {
+        setAbonnements(data);
+      }
+    };
+
+    if (open) {
+      loadAbonnements();
+    }
+  }, [open]);
 
   const filteredFactures = factures.filter((f) => {
     const search = searchTerm.toLowerCase();
@@ -61,10 +82,20 @@ export default function RapprochementManuelDialog({
   });
 
   const handleSave = async () => {
-    if (!transaction || !selectedFactureId) {
+    if (!transaction) {
       toast({
         title: "Erreur",
-        description: "Veuillez sélectionner une facture",
+        description: "Transaction manquante",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation: au moins une facture ou un abonnement doit être sélectionné
+    if (!selectedFactureId && !selectedAbonnementId) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez sélectionner au moins une facture ou un abonnement",
         variant: "destructive",
       });
       return;
@@ -84,12 +115,15 @@ export default function RapprochementManuelDialog({
         .eq("transaction_montant", transaction.montant)
         .maybeSingle();
 
+      let rapprochementId = existing?.id;
+
       if (existing) {
         // Mettre à jour
         const { error } = await supabase
           .from("rapprochements_bancaires")
           .update({
             facture_id: selectedFactureId === "aucune" ? null : selectedFactureId,
+            abonnement_id: selectedAbonnementId || null,
             notes,
             updated_at: new Date().toISOString(),
           })
@@ -98,7 +132,7 @@ export default function RapprochementManuelDialog({
         if (error) throw error;
       } else {
         // Créer un nouveau
-        const { error } = await supabase
+        const { data: newRapprochement, error } = await supabase
           .from("rapprochements_bancaires")
           .insert({
             transaction_date: transaction.date,
@@ -107,21 +141,52 @@ export default function RapprochementManuelDialog({
             transaction_credit: transaction.credit,
             transaction_montant: transaction.montant,
             facture_id: selectedFactureId === "aucune" ? null : selectedFactureId,
+            abonnement_id: selectedAbonnementId || null,
             notes,
+            created_by: authData.user?.id,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        rapprochementId = newRapprochement.id;
+      }
+
+      // Si un abonnement est sélectionné, créer automatiquement un paiement d'abonnement
+      if (selectedAbonnementId && rapprochementId) {
+        const { error: paiementError } = await supabase
+          .from("paiements_abonnements")
+          .insert({
+            abonnement_id: selectedAbonnementId,
+            rapprochement_id: rapprochementId,
+            date_paiement: transaction.date,
+            montant: Math.abs(transaction.montant),
+            notes: `Créé automatiquement depuis le rapprochement bancaire`,
             created_by: authData.user?.id,
           });
 
-        if (error) throw error;
+        if (paiementError) {
+          console.error("Erreur lors de la création du paiement:", paiementError);
+          // On ne bloque pas le process, juste un warning
+          toast({
+            title: "Attention",
+            description: "Rapprochement enregistré mais erreur lors de la création du paiement d'abonnement",
+            variant: "destructive",
+          });
+        }
       }
 
       toast({
         title: "Succès",
-        description: "Rapprochement manuel enregistré",
+        description: selectedAbonnementId 
+          ? "Rapprochement enregistré et paiement d'abonnement créé"
+          : "Rapprochement manuel enregistré",
       });
 
       onSuccess();
       onOpenChange(false);
       setSelectedFactureId("");
+      setSelectedAbonnementId("");
       setNotes("");
       setSearchTerm("");
     } catch (error) {
@@ -186,14 +251,14 @@ export default function RapprochementManuelDialog({
 
           {/* Facture selection */}
           <div className="space-y-2">
-            <Label>Facture à rapprocher *</Label>
+            <Label>Facture à rapprocher</Label>
             <Select value={selectedFactureId} onValueChange={setSelectedFactureId}>
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner une facture" />
+                <SelectValue placeholder="Sélectionner une facture (optionnel)" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
                 <SelectItem value="aucune">
-                  <span className="text-muted-foreground">Aucune facture (dissocier)</span>
+                  <span className="text-muted-foreground">Aucune facture</span>
                 </SelectItem>
                 {filteredFactures.map((facture) => (
                   <SelectItem key={facture.id} value={facture.id}>
@@ -226,6 +291,41 @@ export default function RapprochementManuelDialog({
             </Select>
           </div>
 
+          {/* Abonnement selection */}
+          <div className="space-y-2">
+            <Label>Abonnement partenaire</Label>
+            <Select value={selectedAbonnementId} onValueChange={setSelectedAbonnementId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner un abonnement (optionnel)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">
+                  <span className="text-muted-foreground">Aucun abonnement</span>
+                </SelectItem>
+                {abonnements.map((abonnement) => (
+                  <SelectItem key={abonnement.id} value={abonnement.id}>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{abonnement.nom}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {abonnement.nature}
+                      </Badge>
+                      {abonnement.montant_mensuel && (
+                        <span className="text-sm text-muted-foreground">
+                          {Number(abonnement.montant_mensuel).toFixed(2)} €/mois
+                        </span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedAbonnementId && (
+              <p className="text-xs text-muted-foreground">
+                Un paiement d'abonnement sera automatiquement créé
+              </p>
+            )}
+          </div>
+
           {/* Notes */}
           <div className="space-y-2">
             <Label>Notes (optionnel)</Label>
@@ -242,7 +342,10 @@ export default function RapprochementManuelDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Annuler
           </Button>
-          <Button onClick={handleSave} disabled={loading || !selectedFactureId}>
+          <Button 
+            onClick={handleSave} 
+            disabled={loading || (!selectedFactureId && !selectedAbonnementId)}
+          >
             {loading ? "Enregistrement..." : "Enregistrer"}
           </Button>
         </DialogFooter>

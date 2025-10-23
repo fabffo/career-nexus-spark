@@ -48,6 +48,8 @@ import RapprochementBancaire from "./pages/RapprochementBancaire";
 import TvaMensuel from "./pages/TvaMensuel";
 import Fiscalite from "./pages/Fiscalite";
 import SignatureContrats from "./pages/SignatureContrats";
+import AbonnementsPartenaires from "./pages/AbonnementsPartenaires";
+import PaiementsAbonnements from "./pages/PaiementsAbonnements";
 
 const queryClient = new QueryClient();
 
@@ -112,6 +114,8 @@ const App = () => (
               <Route path="factures-ventes" element={<FacturesVentes />} />
               <Route path="factures-achats" element={<FacturesAchats />} />
               <Route path="rapprochement-bancaire" element={<RapprochementBancaire />} />
+              <Route path="abonnements-partenaires" element={<AbonnementsPartenaires />} />
+              <Route path="paiements-abonnements" element={<PaiementsAbonnements />} />
               <Route path="tva-mensuel" element={<TvaMensuel />} />
               <Route path="fiscalite" element={<Fiscalite />} />
               <Route path="signature-contrats" element={<SignatureContrats />} />

@@ -95,6 +95,8 @@ export function Sidebar() {
         { path: '/factures-ventes', label: 'Factures de vente', icon: FileText },
         { path: '/factures-achats', label: 'Factures d\'achat', icon: FileText },
         { path: '/rapprochement-bancaire', label: 'Rapprochement bancaire', icon: FileText },
+        { path: '/abonnements-partenaires', label: 'Abonnements Partenaires', icon: FileText },
+        { path: '/paiements-abonnements', label: 'Paiements Abonnements', icon: FileText },
         { path: '/tva-mensuel', label: 'TVA Mensuel', icon: FileText },
         { path: '/fiscalite', label: 'Gestion Fiscale SASU', icon: FileText },
       ]
