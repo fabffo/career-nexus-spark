@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useFileUpload } from "@/hooks/useFileUpload";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { FileUploadField } from "@/components/FileUploadField";
+import { ExternalLink } from "lucide-react";
 
 interface EditAbonnementDialogProps {
   open: boolean;
@@ -42,6 +45,10 @@ export function EditAbonnementDialog({
   abonnement,
 }: EditAbonnementDialogProps) {
   const queryClient = useQueryClient();
+  const { uploadFile, deleteFile } = useFileUpload();
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [existingDocumentUrl, setExistingDocumentUrl] = useState<string | null>(null);
+  
   const { register, handleSubmit, reset, setValue, watch } = useForm();
 
   const nature = watch("nature");
@@ -57,11 +64,29 @@ export function EditAbonnementDialog({
         actif: abonnement.actif,
         notes: abonnement.notes || "",
       });
+      setExistingDocumentUrl(abonnement.document_url || null);
+      setDocumentFile(null);
     }
   }, [abonnement, reset]);
 
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
+      let documentUrl = existingDocumentUrl;
+      
+      if (documentFile) {
+        try {
+          // Delete old document if exists
+          if (existingDocumentUrl) {
+            await deleteFile(existingDocumentUrl);
+          }
+          // Upload new document
+          documentUrl = await uploadFile(documentFile, "candidats-files");
+        } catch (error) {
+          console.error("Error uploading document:", error);
+          throw new Error("Erreur lors du téléchargement du document");
+        }
+      }
+      
       const { error } = await supabase
         .from("abonnements_partenaires")
         .update({
@@ -71,6 +96,7 @@ export function EditAbonnementDialog({
           jour_prelevement: data.jour_prelevement ? parseInt(data.jour_prelevement) : null,
           actif: data.actif,
           notes: data.notes || null,
+          document_url: documentUrl,
         })
         .eq("id", abonnement.id);
 
@@ -151,6 +177,17 @@ export function EditAbonnementDialog({
             <Label htmlFor="notes">Notes</Label>
             <Textarea id="notes" {...register("notes")} rows={3} />
           </div>
+
+          <FileUploadField
+            label="Document"
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+            currentFileUrl={existingDocumentUrl || undefined}
+            onFileSelect={setDocumentFile}
+            onFileRemove={() => {
+              setExistingDocumentUrl(null);
+              setDocumentFile(null);
+            }}
+          />
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

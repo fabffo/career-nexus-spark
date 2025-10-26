@@ -73,6 +73,7 @@ export type Database = {
           actif: boolean | null
           created_at: string | null
           created_by: string | null
+          document_url: string | null
           id: string
           jour_prelevement: number | null
           montant_mensuel: number | null
@@ -85,6 +86,7 @@ export type Database = {
           actif?: boolean | null
           created_at?: string | null
           created_by?: string | null
+          document_url?: string | null
           id?: string
           jour_prelevement?: number | null
           montant_mensuel?: number | null
@@ -97,6 +99,7 @@ export type Database = {
           actif?: boolean | null
           created_at?: string | null
           created_by?: string | null
+          document_url?: string | null
           id?: string
           jour_prelevement?: number | null
           montant_mensuel?: number | null

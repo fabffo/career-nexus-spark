@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useFileUpload } from "@/hooks/useFileUpload";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { FileUploadField } from "@/components/FileUploadField";
 
 interface AddAbonnementDialogProps {
   open: boolean;
@@ -37,6 +39,9 @@ const NATURES = [
 
 export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogProps) {
   const queryClient = useQueryClient();
+  const { uploadFile } = useFileUpload();
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  
   const { register, handleSubmit, reset, setValue, watch } = useForm({
     defaultValues: {
       nom: "",
@@ -53,6 +58,17 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
+      let documentUrl = null;
+      
+      if (documentFile) {
+        try {
+          documentUrl = await uploadFile(documentFile, "candidats-files");
+        } catch (error) {
+          console.error("Error uploading document:", error);
+          throw new Error("Erreur lors du téléchargement du document");
+        }
+      }
+      
       const { error } = await supabase.from("abonnements_partenaires").insert({
         nom: data.nom,
         nature: data.nature,
@@ -60,6 +76,7 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
         jour_prelevement: data.jour_prelevement ? parseInt(data.jour_prelevement) : null,
         actif: data.actif,
         notes: data.notes || null,
+        document_url: documentUrl,
       });
 
       if (error) throw error;
@@ -68,6 +85,7 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
       queryClient.invalidateQueries({ queryKey: ["abonnements-partenaires"] });
       toast.success("Abonnement créé");
       reset();
+      setDocumentFile(null);
       onOpenChange(false);
     },
     onError: (error) => {
@@ -140,6 +158,13 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
             <Label htmlFor="notes">Notes</Label>
             <Textarea id="notes" {...register("notes")} rows={3} />
           </div>
+
+          <FileUploadField
+            label="Document"
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+            onFileSelect={setDocumentFile}
+            onFileRemove={() => setDocumentFile(null)}
+          />
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import {
   Table,
@@ -106,19 +106,20 @@ export default function AbonnementsPartenaires() {
               <TableHead>Jour prélèvement</TableHead>
               <TableHead>Statut</TableHead>
               <TableHead>Notes</TableHead>
+              <TableHead>Document</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
+                <TableCell colSpan={8} className="text-center">
                   Chargement...
                 </TableCell>
               </TableRow>
             ) : abonnements.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
+                <TableCell colSpan={8} className="text-center">
                   Aucun abonnement
                 </TableCell>
               </TableRow>
@@ -148,6 +149,21 @@ export default function AbonnementsPartenaires() {
                   </TableCell>
                   <TableCell className="max-w-xs truncate">
                     {abonnement.notes || "-"}
+                  </TableCell>
+                  <TableCell>
+                    {abonnement.document_url ? (
+                      <a
+                        href={abonnement.document_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-primary hover:underline"
+                      >
+                        <FileText className="h-4 w-4" />
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    ) : (
+                      "-"
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
