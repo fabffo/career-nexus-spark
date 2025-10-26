@@ -50,6 +50,7 @@ import Fiscalite from "./pages/Fiscalite";
 import SignatureContrats from "./pages/SignatureContrats";
 import AbonnementsPartenaires from "./pages/AbonnementsPartenaires";
 import PaiementsAbonnements from "./pages/PaiementsAbonnements";
+import ChargesSalaries from "./pages/ChargesSalaries";
 
 const queryClient = new QueryClient();
 
@@ -116,6 +117,7 @@ const App = () => (
               <Route path="rapprochement-bancaire" element={<RapprochementBancaire />} />
               <Route path="abonnements-partenaires" element={<AbonnementsPartenaires />} />
               <Route path="paiements-abonnements" element={<PaiementsAbonnements />} />
+              <Route path="charges-salaries" element={<ChargesSalaries />} />
               <Route path="tva-mensuel" element={<TvaMensuel />} />
               <Route path="fiscalite" element={<Fiscalite />} />
               <Route path="signature-contrats" element={<SignatureContrats />} />

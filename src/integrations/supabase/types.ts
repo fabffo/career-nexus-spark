@@ -203,6 +203,60 @@ export type Database = {
         }
         Relationships: []
       }
+      charges_salaries: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          date_paiement: string
+          id: string
+          montant: number
+          notes: string | null
+          rapprochement_id: string | null
+          salarie_id: string
+          type_charge: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          date_paiement: string
+          id?: string
+          montant: number
+          notes?: string | null
+          rapprochement_id?: string | null
+          salarie_id: string
+          type_charge: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          date_paiement?: string
+          id?: string
+          montant?: number
+          notes?: string | null
+          rapprochement_id?: string | null
+          salarie_id?: string
+          type_charge?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "charges_salaries_rapprochement_id_fkey"
+            columns: ["rapprochement_id"]
+            isOneToOne: false
+            referencedRelation: "fichiers_rapprochement"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "charges_salaries_salarie_id_fkey"
+            columns: ["salarie_id"]
+            isOneToOne: false
+            referencedRelation: "salaries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           adresse: string | null
