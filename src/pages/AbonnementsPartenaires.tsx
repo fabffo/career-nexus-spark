@@ -152,15 +152,31 @@ export default function AbonnementsPartenaires() {
                   </TableCell>
                   <TableCell>
                     {abonnement.document_url ? (
-                      <a
-                        href={abonnement.document_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-primary hover:underline"
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(abonnement.document_url);
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = abonnement.document_url.split('/').pop() || 'document';
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                            toast.success("Document téléchargé");
+                          } catch (error) {
+                            console.error('Erreur téléchargement:', error);
+                            toast.error("Erreur lors du téléchargement");
+                          }
+                        }}
                       >
-                        <FileText className="h-4 w-4" />
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Télécharger
+                      </Button>
                     ) : (
                       "-"
                     )}
