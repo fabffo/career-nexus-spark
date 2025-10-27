@@ -53,29 +53,42 @@ export default function RapprochementManuelDialog({
 }: RapprochementManuelDialogProps) {
   const [selectedFactureId, setSelectedFactureId] = useState<string>("");
   const [selectedAbonnementId, setSelectedAbonnementId] = useState<string>("");
+  const [selectedDeclarationId, setSelectedDeclarationId] = useState<string>("");
   const [abonnements, setAbonnements] = useState<any[]>([]);
+  const [declarations, setDeclarations] = useState<any[]>([]);
   const [consommations, setConsommations] = useState<Consommation[]>([]);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
-  // Charger les abonnements actifs
+  // Charger les abonnements et déclarations actifs
   useEffect(() => {
-    const loadAbonnements = async () => {
-      const { data, error } = await supabase
-        .from("abonnements_partenaires")
-        .select("*")
-        .eq("actif", true)
-        .order("nom");
+    const loadData = async () => {
+      const [abonnementsRes, declarationsRes] = await Promise.all([
+        supabase
+          .from("abonnements_partenaires")
+          .select("*")
+          .eq("actif", true)
+          .order("nom"),
+        supabase
+          .from("declarations_charges_sociales")
+          .select("*")
+          .eq("actif", true)
+          .order("nom")
+      ]);
 
-      if (!error && data) {
-        setAbonnements(data);
+      if (!abonnementsRes.error && abonnementsRes.data) {
+        setAbonnements(abonnementsRes.data);
+      }
+      
+      if (!declarationsRes.error && declarationsRes.data) {
+        setDeclarations(declarationsRes.data);
       }
     };
 
     if (open) {
-      loadAbonnements();
+      loadData();
     }
   }, [open]);
 
@@ -98,11 +111,11 @@ export default function RapprochementManuelDialog({
       return;
     }
 
-    // Validation: au moins une facture ou un abonnement doit être sélectionné
-    if (!selectedFactureId && !selectedAbonnementId) {
+    // Validation: au moins une facture, un abonnement ou une déclaration doit être sélectionné
+    if (!selectedFactureId && !selectedAbonnementId && !selectedDeclarationId) {
       toast({
         title: "Erreur",
-        description: "Veuillez sélectionner au moins une facture ou un abonnement",
+        description: "Veuillez sélectionner au moins une facture, un abonnement ou une déclaration",
         variant: "destructive",
       });
       return;
@@ -131,6 +144,7 @@ export default function RapprochementManuelDialog({
           .update({
             facture_id: selectedFactureId === "aucune" ? null : selectedFactureId,
             abonnement_id: selectedAbonnementId || null,
+            declaration_charge_id: selectedDeclarationId || null,
             notes,
             updated_at: new Date().toISOString(),
           })
@@ -149,6 +163,7 @@ export default function RapprochementManuelDialog({
             transaction_montant: transaction.montant,
             facture_id: selectedFactureId === "aucune" ? null : selectedFactureId,
             abonnement_id: selectedAbonnementId || null,
+            declaration_charge_id: selectedDeclarationId || null,
             notes,
             created_by: authData.user?.id,
           })
@@ -209,10 +224,35 @@ export default function RapprochementManuelDialog({
         }
       }
 
+      // Si une déclaration est sélectionnée, créer automatiquement un paiement de déclaration
+      if (selectedDeclarationId && rapprochementId) {
+        const { error: paiementError } = await supabase
+          .from("paiements_declarations_charges")
+          .insert({
+            declaration_charge_id: selectedDeclarationId,
+            rapprochement_id: rapprochementId,
+            date_paiement: transaction.date,
+            montant: Math.abs(transaction.montant),
+            notes: `Créé automatiquement depuis le rapprochement bancaire`,
+            created_by: authData.user?.id,
+          });
+
+        if (paiementError) {
+          console.error("Erreur lors de la création du paiement:", paiementError);
+          toast({
+            title: "Attention",
+            description: "Rapprochement enregistré mais erreur lors de la création du paiement de déclaration",
+            variant: "destructive",
+          });
+        }
+      }
+
       toast({
         title: "Succès",
         description: selectedAbonnementId 
           ? `Rapprochement enregistré, paiement d'abonnement créé${consommations.length > 0 ? ` et ${consommations.length} consommation(s) ajoutée(s)` : ""}`
+          : selectedDeclarationId
+          ? "Rapprochement enregistré, paiement de déclaration créé"
           : "Rapprochement manuel enregistré",
       });
 
@@ -220,6 +260,7 @@ export default function RapprochementManuelDialog({
       onOpenChange(false);
       setSelectedFactureId("");
       setSelectedAbonnementId("");
+      setSelectedDeclarationId("");
       setConsommations([]);
       setNotes("");
       setSearchTerm("");
@@ -356,6 +397,44 @@ export default function RapprochementManuelDialog({
             {selectedAbonnementId && (
               <p className="text-xs text-muted-foreground">
                 Un paiement d'abonnement sera automatiquement créé
+              </p>
+            )}
+          </div>
+
+          {/* Déclaration de charges sociales selection */}
+          <div className="space-y-2">
+            <Label>Déclaration de charges sociales</Label>
+            <Select value={selectedDeclarationId} onValueChange={setSelectedDeclarationId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner une déclaration (optionnel)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">
+                  <span className="text-muted-foreground">Aucune déclaration</span>
+                </SelectItem>
+                {declarations.map((declaration) => (
+                  <SelectItem key={declaration.id} value={declaration.id}>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{declaration.nom}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {declaration.type_charge}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {declaration.organisme}
+                      </span>
+                      {declaration.montant_estime && (
+                        <span className="text-sm text-muted-foreground">
+                          ~{Number(declaration.montant_estime).toFixed(2)} €
+                        </span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedDeclarationId && (
+              <p className="text-xs text-muted-foreground">
+                Un paiement de déclaration sera automatiquement créé
               </p>
             )}
           </div>

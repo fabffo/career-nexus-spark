@@ -67,29 +67,42 @@ export default function EditRapprochementHistoriqueDialog({
   const [status, setStatus] = useState<"matched" | "unmatched" | "uncertain">("unmatched");
   const [selectedFactureId, setSelectedFactureId] = useState<string>("");
   const [selectedAbonnementId, setSelectedAbonnementId] = useState<string>("");
+  const [selectedDeclarationId, setSelectedDeclarationId] = useState<string>("");
   const [abonnements, setAbonnements] = useState<any[]>([]);
+  const [declarations, setDeclarations] = useState<any[]>([]);
   const [consommations, setConsommations] = useState<Consommation[]>([]);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
-  // Charger les abonnements actifs
+  // Charger les abonnements et déclarations actifs
   useEffect(() => {
-    const loadAbonnements = async () => {
-      const { data, error } = await supabase
-        .from("abonnements_partenaires")
-        .select("*")
-        .eq("actif", true)
-        .order("nom");
+    const loadData = async () => {
+      const [abonnementsRes, declarationsRes] = await Promise.all([
+        supabase
+          .from("abonnements_partenaires")
+          .select("*")
+          .eq("actif", true)
+          .order("nom"),
+        supabase
+          .from("declarations_charges_sociales")
+          .select("*")
+          .eq("actif", true)
+          .order("nom")
+      ]);
 
-      if (!error && data) {
-        setAbonnements(data);
+      if (!abonnementsRes.error && abonnementsRes.data) {
+        setAbonnements(abonnementsRes.data);
+      }
+      
+      if (!declarationsRes.error && declarationsRes.data) {
+        setDeclarations(declarationsRes.data);
       }
     };
 
     if (open) {
-      loadAbonnements();
+      loadData();
     }
   }, [open]);
 
@@ -100,13 +113,13 @@ export default function EditRapprochementHistoriqueDialog({
       setSelectedFactureId(rapprochement.facture?.id || "");
       setNotes(rapprochement.notes || "");
       
-      // Charger l'abonnement et les consommations associés
-      const loadAbonnementAndConsommations = async () => {
+      // Charger l'abonnement, la déclaration et les consommations associés
+      const loadAssociatedData = async () => {
         if (!rapprochement.manualId) return;
         
         const { data } = await supabase
           .from("rapprochements_bancaires")
-          .select("abonnement_id")
+          .select("abonnement_id, declaration_charge_id")
           .eq("id", rapprochement.manualId)
           .maybeSingle();
         
@@ -128,9 +141,13 @@ export default function EditRapprochementHistoriqueDialog({
             })));
           }
         }
+        
+        if (data?.declaration_charge_id) {
+          setSelectedDeclarationId(data.declaration_charge_id);
+        }
       };
       
-      loadAbonnementAndConsommations();
+      loadAssociatedData();
     }
   }, [rapprochement, open]);
 
@@ -169,6 +186,7 @@ export default function EditRapprochementHistoriqueDialog({
           .update({
             facture_id: selectedFactureId && selectedFactureId !== "none" ? selectedFactureId : null,
             abonnement_id: selectedAbonnementId && selectedAbonnementId !== "none" ? selectedAbonnementId : null,
+            declaration_charge_id: selectedDeclarationId && selectedDeclarationId !== "none" ? selectedDeclarationId : null,
             notes,
             updated_at: new Date().toISOString(),
           })
@@ -186,6 +204,7 @@ export default function EditRapprochementHistoriqueDialog({
             transaction_montant: transaction.montant,
             facture_id: selectedFactureId && selectedFactureId !== "none" ? selectedFactureId : null,
             abonnement_id: selectedAbonnementId && selectedAbonnementId !== "none" ? selectedAbonnementId : null,
+            declaration_charge_id: selectedDeclarationId && selectedDeclarationId !== "none" ? selectedDeclarationId : null,
             notes,
             created_by: authData.user?.id,
           })
@@ -262,6 +281,46 @@ export default function EditRapprochementHistoriqueDialog({
 
           if (consommationError) {
             console.error("Erreur lors de la création des consommations:", consommationError);
+          }
+        }
+      }
+
+      // Créer le paiement de déclaration si nécessaire
+      if (selectedDeclarationId && selectedDeclarationId !== "none" && rapprochementId) {
+        const { data: existingPaiement } = await supabase
+          .from("paiements_declarations_charges")
+          .select("id")
+          .eq("rapprochement_id", rapprochementId)
+          .maybeSingle();
+
+        if (!existingPaiement) {
+          const { error: paiementError } = await supabase
+            .from("paiements_declarations_charges")
+            .insert({
+              declaration_charge_id: selectedDeclarationId,
+              rapprochement_id: rapprochementId,
+              date_paiement: transaction.date,
+              montant: Math.abs(transaction.montant),
+              notes: `Créé depuis l'édition du rapprochement historique`,
+              created_by: authData.user?.id,
+            });
+
+          if (paiementError) {
+            console.error("Erreur lors de la création du paiement:", paiementError);
+          }
+        } else {
+          const { error: updateError } = await supabase
+            .from("paiements_declarations_charges")
+            .update({
+              declaration_charge_id: selectedDeclarationId,
+              date_paiement: transaction.date,
+              montant: Math.abs(transaction.montant),
+              notes: notes || null,
+            })
+            .eq("id", existingPaiement.id);
+
+          if (updateError) {
+            console.error("Erreur lors de la mise à jour du paiement:", updateError);
           }
         }
       }
@@ -480,6 +539,44 @@ export default function EditRapprochementHistoriqueDialog({
             {selectedAbonnementId && selectedAbonnementId !== "none" && (
               <p className="text-xs text-muted-foreground">
                 Un paiement d'abonnement sera créé ou mis à jour
+              </p>
+            )}
+          </div>
+
+          {/* Déclaration de charges sociales selection */}
+          <div className="space-y-2">
+            <Label>Déclaration de charges sociales</Label>
+            <Select value={selectedDeclarationId} onValueChange={setSelectedDeclarationId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner une déclaration (optionnel)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">
+                  <span className="text-muted-foreground">Aucune déclaration</span>
+                </SelectItem>
+                {declarations.map((declaration) => (
+                  <SelectItem key={declaration.id} value={declaration.id}>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{declaration.nom}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {declaration.type_charge}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {declaration.organisme}
+                      </span>
+                      {declaration.montant_estime && (
+                        <span className="text-sm text-muted-foreground">
+                          ~{Number(declaration.montant_estime).toFixed(2)} €
+                        </span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedDeclarationId && selectedDeclarationId !== "none" && (
+              <p className="text-xs text-muted-foreground">
+                Un paiement de déclaration sera créé ou mis à jour
               </p>
             )}
           </div>

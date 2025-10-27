@@ -1176,6 +1176,57 @@ export type Database = {
           },
         ]
       }
+      paiements_declarations_charges: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          date_paiement: string
+          declaration_charge_id: string
+          id: string
+          montant: number
+          notes: string | null
+          rapprochement_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          date_paiement: string
+          declaration_charge_id: string
+          id?: string
+          montant: number
+          notes?: string | null
+          rapprochement_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          date_paiement?: string
+          declaration_charge_id?: string
+          id?: string
+          montant?: number
+          notes?: string | null
+          rapprochement_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paiements_declarations_charges_declaration_charge_id_fkey"
+            columns: ["declaration_charge_id"]
+            isOneToOne: false
+            referencedRelation: "declarations_charges_sociales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paiements_declarations_charges_rapprochement_id_fkey"
+            columns: ["rapprochement_id"]
+            isOneToOne: false
+            referencedRelation: "rapprochements_bancaires"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       param_type_intervenant: {
         Row: {
           code: string
@@ -1481,6 +1532,7 @@ export type Database = {
           abonnement_id: string | null
           created_at: string
           created_by: string | null
+          declaration_charge_id: string | null
           facture_id: string | null
           id: string
           notes: string | null
@@ -1495,6 +1547,7 @@ export type Database = {
           abonnement_id?: string | null
           created_at?: string
           created_by?: string | null
+          declaration_charge_id?: string | null
           facture_id?: string | null
           id?: string
           notes?: string | null
@@ -1509,6 +1562,7 @@ export type Database = {
           abonnement_id?: string | null
           created_at?: string
           created_by?: string | null
+          declaration_charge_id?: string | null
           facture_id?: string | null
           id?: string
           notes?: string | null
@@ -1532,6 +1586,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rapprochements_bancaires_declaration_charge_id_fkey"
+            columns: ["declaration_charge_id"]
+            isOneToOne: false
+            referencedRelation: "declarations_charges_sociales"
             referencedColumns: ["id"]
           },
           {
