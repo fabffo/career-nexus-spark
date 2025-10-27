@@ -227,7 +227,7 @@ export default function TvaMensuel() {
         console.log("Map des factures:", factureMap);
         
         allLignes.forEach(ligne => {
-          if (ligne.facture) {
+          if (ligne.facture && !ligne.facture.total_tva) {
             const factureData = factureMap.get(ligne.facture.numero_facture);
             console.log(`Recherche facture ${ligne.facture.numero_facture}:`, factureData);
             if (factureData) {
