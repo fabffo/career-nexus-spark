@@ -146,6 +146,52 @@ export default function TvaMensuel() {
         }
       });
 
+      // Récupérer aussi les rapprochements manuels de la période
+      const { data: rapprochementsManuels, error: manuelsError } = await supabase
+        .from("rapprochements_bancaires")
+        .select(`
+          id,
+          transaction_date,
+          transaction_libelle,
+          transaction_montant,
+          transaction_credit,
+          transaction_debit,
+          facture_id,
+          factures (
+            id,
+            numero_facture,
+            type_facture,
+            total_tva
+          )
+        `)
+        .gte("transaction_date", startDate.toISOString().split('T')[0])
+        .lte("transaction_date", endDate.toISOString().split('T')[0])
+        .not("facture_id", "is", null);
+
+      if (manuelsError) throw manuelsError;
+
+      console.log("Rapprochements manuels récupérés:", rapprochementsManuels?.length);
+
+      // Ajouter les rapprochements manuels aux lignes
+      rapprochementsManuels?.forEach((rap: any) => {
+        if (rap.factures) {
+          allLignes.push({
+            id: `manual_${rap.id}`,
+            transaction_date: rap.transaction_date,
+            transaction_libelle: rap.transaction_libelle,
+            transaction_montant: rap.transaction_montant,
+            transaction_credit: rap.transaction_credit || 0,
+            transaction_debit: rap.transaction_debit || 0,
+            statut: "RAPPROCHE",
+            facture: {
+              numero_facture: rap.factures.numero_facture,
+              total_tva: rap.factures.total_tva || 0,
+              type_facture: rap.factures.type_facture,
+            },
+          });
+        }
+      });
+
       console.log("IDs de factures collectés:", Array.from(factureIds));
 
       // Récupérer les infos complètes des factures pour avoir le total_tva
