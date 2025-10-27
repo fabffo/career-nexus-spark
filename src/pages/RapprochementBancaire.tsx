@@ -164,7 +164,7 @@ export default function RapprochementBancaire() {
       
       // Enrichir chaque fichier avec les rapprochements manuels de la période
       const enrichedFiles = await Promise.all((data || []).map(async (fichier: any) => {
-        // Charger les rapprochements manuels directs
+        // Charger les rapprochements manuels directs (avec facture_id renseigné)
         const { data: rapprochementsManuelsDirects, error: directsError } = await supabase
           .from("rapprochements_bancaires")
           .select(`
@@ -188,13 +188,22 @@ export default function RapprochementBancaire() {
           .lte("transaction_date", fichier.date_fin)
           .not("facture_id", "is", null);
 
-        // Charger les rapprochements via la table de liaison
+        // Charger tous les rapprochements bancaires de la période
+        const { data: allRapprochements } = await supabase
+          .from("rapprochements_bancaires")
+          .select("id, transaction_date")
+          .gte("transaction_date", fichier.date_debut)
+          .lte("transaction_date", fichier.date_fin);
+
+        const rapprochementIds = (allRapprochements || []).map(r => r.id);
+
+        // Charger les rapprochements via la table de liaison pour ces IDs
         const { data: rapprochementsViaLiaison, error: liaisonError } = await supabase
           .from("rapprochements_factures")
           .select(`
             id,
             rapprochement_id,
-            rapprochements_bancaires!inner (
+            rapprochements_bancaires (
               id,
               transaction_date,
               transaction_libelle,
@@ -212,8 +221,7 @@ export default function RapprochementBancaire() {
               emetteur_nom
             )
           `)
-          .gte("rapprochements_bancaires.transaction_date", fichier.date_debut)
-          .lte("rapprochements_bancaires.transaction_date", fichier.date_fin);
+          .in("rapprochement_id", rapprochementIds.length > 0 ? rapprochementIds : ["00000000-0000-0000-0000-000000000000"]);
 
         // Créer les objets Rapprochement pour les rapprochements manuels directs
         const rapprochementsManuelsFormatted: Rapprochement[] = [];
