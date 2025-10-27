@@ -64,6 +64,19 @@ export default function RapprochementManuelDialog({
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
+  // Réinitialiser les états quand le dialogue se ferme
+  useEffect(() => {
+    if (!open) {
+      setSelectedFactureIds([]);
+      setSelectedAbonnementId("");
+      setSelectedDeclarationId("");
+      setConsommations([]);
+      setNotes("");
+      setSearchTerm("");
+      setFacturesNonRapprochees([]);
+    }
+  }, [open]);
+
   // Charger les abonnements et déclarations actifs
   useEffect(() => {
     const loadData = async () => {
