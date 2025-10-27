@@ -92,13 +92,21 @@ export default function RapprochementManuelDialog({
     }
   }, [open]);
 
-  const filteredFactures = factures.filter((f) => {
+  // Filtrer les factures de ventes et d'achats non rapprochées
+  const facturesVentes = factures.filter((f) => {
     const search = searchTerm.toLowerCase();
-    return (
-      f.numero_facture.toLowerCase().includes(search) ||
+    const matchesSearch = f.numero_facture.toLowerCase().includes(search) ||
       f.partenaire_nom.toLowerCase().includes(search) ||
-      f.total_ttc.toString().includes(search)
-    );
+      f.total_ttc.toString().includes(search);
+    return f.type_facture === "VENTES" && matchesSearch;
+  });
+
+  const facturesAchats = factures.filter((f) => {
+    const search = searchTerm.toLowerCase();
+    const matchesSearch = f.numero_facture.toLowerCase().includes(search) ||
+      f.partenaire_nom.toLowerCase().includes(search) ||
+      f.total_ttc.toString().includes(search);
+    return f.type_facture === "ACHATS" && matchesSearch;
   });
 
   const selectedFactures = factures.filter((f) => selectedFactureIds.includes(f.id));
@@ -356,13 +364,13 @@ export default function RapprochementManuelDialog({
             </div>
           </div>
 
-          {/* Facture selection */}
+          {/* Factures de ventes */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label>Factures à rapprocher (sélection multiple)</Label>
+              <Label className="text-green-600 font-semibold">Factures de ventes non rapprochées</Label>
               {selectedFactureIds.length > 0 && (
                 <div className="text-sm">
-                  <span className="text-muted-foreground">Total: </span>
+                  <span className="text-muted-foreground">Total sélectionné: </span>
                   <span className={`font-semibold ${Math.abs(transaction.montant - totalFacturesSelectionnees) < 0.01 ? 'text-green-600' : 'text-orange-600'}`}>
                     {new Intl.NumberFormat("fr-FR", {
                       style: "currency",
@@ -375,17 +383,17 @@ export default function RapprochementManuelDialog({
                 </div>
               )}
             </div>
-            <div className="border rounded-lg max-h-[300px] overflow-y-auto">
-              {filteredFactures.length === 0 ? (
+            <div className="border rounded-lg max-h-[250px] overflow-y-auto">
+              {facturesVentes.length === 0 ? (
                 <div className="p-4 text-center text-sm text-muted-foreground">
-                  Aucune facture trouvée
+                  Aucune facture de vente non rapprochée
                 </div>
               ) : (
-                filteredFactures.map((facture) => (
+                facturesVentes.map((facture) => (
                   <div
                     key={facture.id}
                     className={`flex items-center gap-3 p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer ${
-                      selectedFactureIds.includes(facture.id) ? 'bg-muted' : ''
+                      selectedFactureIds.includes(facture.id) ? 'bg-green-50 dark:bg-green-950' : ''
                     }`}
                     onClick={() => toggleFactureSelection(facture.id)}
                   >
@@ -395,22 +403,58 @@ export default function RapprochementManuelDialog({
                       onChange={() => toggleFactureSelection(facture.id)}
                       className="h-4 w-4"
                     />
-                    <div className="flex-1 grid grid-cols-5 gap-2 items-center">
+                    <div className="flex-1 grid grid-cols-4 gap-2 items-center">
                       <span className="font-medium">{facture.numero_facture}</span>
-                      <Badge
-                        variant="outline"
-                        className={
-                          facture.type_facture === "VENTES"
-                            ? "border-green-600 text-green-600"
-                            : "border-orange-600 text-orange-600"
-                        }
-                      >
-                        {facture.type_facture}
-                      </Badge>
                       <span className="text-sm text-muted-foreground truncate">
                         {facture.partenaire_nom}
                       </span>
-                      <span className="font-medium text-right">
+                      <span className="font-medium text-right text-green-600">
+                        {new Intl.NumberFormat("fr-FR", {
+                          style: "currency",
+                          currency: "EUR",
+                        }).format(facture.total_ttc)}
+                      </span>
+                      <span className="text-xs text-muted-foreground text-right">
+                        {format(new Date(facture.date_emission), "dd/MM/yyyy")}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Factures d'achats */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-orange-600 font-semibold">Factures d'achats non rapprochées</Label>
+            </div>
+            <div className="border rounded-lg max-h-[250px] overflow-y-auto">
+              {facturesAchats.length === 0 ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  Aucune facture d'achat non rapprochée
+                </div>
+              ) : (
+                facturesAchats.map((facture) => (
+                  <div
+                    key={facture.id}
+                    className={`flex items-center gap-3 p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer ${
+                      selectedFactureIds.includes(facture.id) ? 'bg-orange-50 dark:bg-orange-950' : ''
+                    }`}
+                    onClick={() => toggleFactureSelection(facture.id)}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedFactureIds.includes(facture.id)}
+                      onChange={() => toggleFactureSelection(facture.id)}
+                      className="h-4 w-4"
+                    />
+                    <div className="flex-1 grid grid-cols-4 gap-2 items-center">
+                      <span className="font-medium">{facture.numero_facture}</span>
+                      <span className="text-sm text-muted-foreground truncate">
+                        {facture.partenaire_nom}
+                      </span>
+                      <span className="font-medium text-right text-orange-600">
                         {new Intl.NumberFormat("fr-FR", {
                           style: "currency",
                           currency: "EUR",
