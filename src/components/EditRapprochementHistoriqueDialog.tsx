@@ -65,7 +65,7 @@ export default function EditRapprochementHistoriqueDialog({
   onSuccess,
 }: EditRapprochementHistoriqueDialogProps) {
   const [status, setStatus] = useState<"matched" | "unmatched" | "uncertain">("unmatched");
-  const [selectedFactureId, setSelectedFactureId] = useState<string>("");
+  const [selectedFactureIds, setSelectedFactureIds] = useState<string[]>([]);
   const [selectedAbonnementId, setSelectedAbonnementId] = useState<string>("");
   const [selectedDeclarationId, setSelectedDeclarationId] = useState<string>("");
   const [abonnements, setAbonnements] = useState<any[]>([]);
@@ -110,12 +110,21 @@ export default function EditRapprochementHistoriqueDialog({
   useEffect(() => {
     if (rapprochement && open) {
       setStatus(rapprochement.status);
-      setSelectedFactureId(rapprochement.facture?.id || "");
       setNotes(rapprochement.notes || "");
       
-      // Charger l'abonnement, la déclaration et les consommations associés
+      // Charger les factures, l'abonnement, la déclaration et les consommations associés
       const loadAssociatedData = async () => {
         if (!rapprochement.manualId) return;
+        
+        // Charger les factures associées depuis la table de jonction
+        const { data: facturesData } = await supabase
+          .from("rapprochements_factures")
+          .select("facture_id")
+          .eq("rapprochement_id", rapprochement.manualId);
+        
+        if (facturesData) {
+          setSelectedFactureIds(facturesData.map(f => f.facture_id));
+        }
         
         const { data } = await supabase
           .from("rapprochements_bancaires")
@@ -151,14 +160,33 @@ export default function EditRapprochementHistoriqueDialog({
     }
   }, [rapprochement, open]);
 
-  const filteredFactures = factures.filter((f) => {
+  // Filtrer les factures de ventes et d'achats
+  const facturesVentes = factures.filter((f) => {
     const search = searchTerm.toLowerCase();
-    return (
-      f.numero_facture.toLowerCase().includes(search) ||
+    const matchesSearch = f.numero_facture.toLowerCase().includes(search) ||
       f.partenaire_nom.toLowerCase().includes(search) ||
-      f.total_ttc.toString().includes(search)
-    );
+      f.total_ttc.toString().includes(search);
+    return f.type_facture === "VENTES" && matchesSearch;
   });
+
+  const facturesAchats = factures.filter((f) => {
+    const search = searchTerm.toLowerCase();
+    const matchesSearch = f.numero_facture.toLowerCase().includes(search) ||
+      f.partenaire_nom.toLowerCase().includes(search) ||
+      f.total_ttc.toString().includes(search);
+    return f.type_facture === "ACHATS" && matchesSearch;
+  });
+
+  const selectedFactures = factures.filter((f) => selectedFactureIds.includes(f.id));
+  const totalFacturesSelectionnees = selectedFactures.reduce((sum, f) => sum + f.total_ttc, 0);
+
+  const toggleFactureSelection = (factureId: string) => {
+    setSelectedFactureIds((prev) =>
+      prev.includes(factureId)
+        ? prev.filter((id) => id !== factureId)
+        : [...prev, factureId]
+    );
+  };
 
   const handleSave = async () => {
     if (!rapprochement) return;
@@ -184,7 +212,6 @@ export default function EditRapprochementHistoriqueDialog({
         const { error } = await supabase
           .from("rapprochements_bancaires")
           .update({
-            facture_id: selectedFactureId && selectedFactureId !== "none" ? selectedFactureId : null,
             abonnement_id: selectedAbonnementId && selectedAbonnementId !== "none" ? selectedAbonnementId : null,
             declaration_charge_id: selectedDeclarationId && selectedDeclarationId !== "none" ? selectedDeclarationId : null,
             notes,
@@ -202,7 +229,6 @@ export default function EditRapprochementHistoriqueDialog({
             transaction_debit: transaction.debit,
             transaction_credit: transaction.credit,
             transaction_montant: transaction.montant,
-            facture_id: selectedFactureId && selectedFactureId !== "none" ? selectedFactureId : null,
             abonnement_id: selectedAbonnementId && selectedAbonnementId !== "none" ? selectedAbonnementId : null,
             declaration_charge_id: selectedDeclarationId && selectedDeclarationId !== "none" ? selectedDeclarationId : null,
             notes,
@@ -213,6 +239,34 @@ export default function EditRapprochementHistoriqueDialog({
 
         if (error) throw error;
         rapprochementId = newRapprochement.id;
+      }
+
+      // Gérer les factures associées
+      if (rapprochementId && selectedFactureIds.length > 0) {
+        // Supprimer les anciennes associations
+        await supabase
+          .from("rapprochements_factures")
+          .delete()
+          .eq("rapprochement_id", rapprochementId);
+
+        // Créer les nouvelles associations
+        const facturesAssociations = selectedFactureIds.map((factureId) => ({
+          rapprochement_id: rapprochementId,
+          facture_id: factureId,
+          created_by: authData.user?.id,
+        }));
+
+        const { error: facturesError } = await supabase
+          .from("rapprochements_factures")
+          .insert(facturesAssociations);
+
+        if (facturesError) throw facturesError;
+      } else if (rapprochementId) {
+        // Supprimer toutes les associations si aucune facture n'est sélectionnée
+        await supabase
+          .from("rapprochements_factures")
+          .delete()
+          .eq("rapprochement_id", rapprochementId);
       }
 
       // 2. Créer le paiement d'abonnement si nécessaire
@@ -342,7 +396,7 @@ export default function EditRapprochementHistoriqueDialog({
             return {
               ...r,
               status,
-              facture: selectedFactureId && selectedFactureId !== "none" ? factures.find(f => f.id === selectedFactureId) || null : null,
+              facture: null, // Les factures sont maintenant gérées via la table rapprochements_factures
               notes,
               isManual: true,
               manualId: rapprochementId,
@@ -466,46 +520,110 @@ export default function EditRapprochementHistoriqueDialog({
             </div>
           </div>
 
-          {/* Facture selection */}
-          <div className="space-y-2">
-            <Label>Facture associée</Label>
-            <Select value={selectedFactureId} onValueChange={setSelectedFactureId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner une facture (optionnel)" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                <SelectItem value="none">
-                  <span className="text-muted-foreground">Aucune facture</span>
-                </SelectItem>
-                {filteredFactures.map((facture) => (
-                  <SelectItem key={facture.id} value={facture.id}>
-                    <div className="flex items-center justify-between gap-4 w-full">
+          {/* Factures de ventes */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-green-600 font-semibold">Factures de ventes non rapprochées</Label>
+              {selectedFactureIds.length > 0 && (
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Total sélectionné: </span>
+                  <span className={`font-semibold ${Math.abs(transaction.montant - totalFacturesSelectionnees) < 0.01 ? 'text-green-600' : 'text-orange-600'}`}>
+                    {new Intl.NumberFormat("fr-FR", {
+                      style: "currency",
+                      currency: "EUR",
+                    }).format(totalFacturesSelectionnees)}
+                  </span>
+                  <span className="text-muted-foreground ml-2">
+                    ({selectedFactureIds.length} facture{selectedFactureIds.length > 1 ? 's' : ''})
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="border rounded-lg max-h-[250px] overflow-y-auto">
+              {facturesVentes.length === 0 ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  Aucune facture de vente non rapprochée
+                </div>
+              ) : (
+                facturesVentes.map((facture) => (
+                  <div
+                    key={facture.id}
+                    className={`flex items-center gap-3 p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer ${
+                      selectedFactureIds.includes(facture.id) ? 'bg-green-50 dark:bg-green-950' : ''
+                    }`}
+                    onClick={() => toggleFactureSelection(facture.id)}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedFactureIds.includes(facture.id)}
+                      onChange={() => toggleFactureSelection(facture.id)}
+                      className="h-4 w-4"
+                    />
+                    <div className="flex-1 grid grid-cols-4 gap-2 items-center">
                       <span className="font-medium">{facture.numero_facture}</span>
-                      <Badge
-                        variant="outline"
-                        className={
-                          facture.type_facture === "VENTES"
-                            ? "border-green-600 text-green-600"
-                            : "border-orange-600 text-orange-600"
-                        }
-                      >
-                        {facture.type_facture}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">{facture.partenaire_nom}</span>
-                      <span className="font-medium">
+                      <span className="text-sm text-muted-foreground truncate">
+                        {facture.partenaire_nom}
+                      </span>
+                      <span className="font-medium text-right text-green-600">
                         {new Intl.NumberFormat("fr-FR", {
                           style: "currency",
                           currency: "EUR",
                         }).format(facture.total_ttc)}
                       </span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground text-right">
                         {format(new Date(facture.date_emission), "dd/MM/yyyy")}
                       </span>
                     </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Factures d'achats */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-orange-600 font-semibold">Factures d'achats non rapprochées</Label>
+            </div>
+            <div className="border rounded-lg max-h-[250px] overflow-y-auto">
+              {facturesAchats.length === 0 ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  Aucune facture d'achat non rapprochée
+                </div>
+              ) : (
+                facturesAchats.map((facture) => (
+                  <div
+                    key={facture.id}
+                    className={`flex items-center gap-3 p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer ${
+                      selectedFactureIds.includes(facture.id) ? 'bg-orange-50 dark:bg-orange-950' : ''
+                    }`}
+                    onClick={() => toggleFactureSelection(facture.id)}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedFactureIds.includes(facture.id)}
+                      onChange={() => toggleFactureSelection(facture.id)}
+                      className="h-4 w-4"
+                    />
+                    <div className="flex-1 grid grid-cols-4 gap-2 items-center">
+                      <span className="font-medium">{facture.numero_facture}</span>
+                      <span className="text-sm text-muted-foreground truncate">
+                        {facture.partenaire_nom}
+                      </span>
+                      <span className="font-medium text-right text-orange-600">
+                        {new Intl.NumberFormat("fr-FR", {
+                          style: "currency",
+                          currency: "EUR",
+                        }).format(facture.total_ttc)}
+                      </span>
+                      <span className="text-xs text-muted-foreground text-right">
+                        {format(new Date(facture.date_emission), "dd/MM/yyyy")}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           {/* Abonnement selection */}
