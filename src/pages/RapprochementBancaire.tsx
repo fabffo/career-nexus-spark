@@ -259,10 +259,13 @@ export default function RapprochementBancaire() {
         }
 
         // Ajouter les rapprochements via liaison
+        console.log(`📊 Rapprochements via liaison trouvés pour ${fichier.numero_rapprochement}:`, rapprochementsViaLiaison?.length || 0);
         if (!liaisonError && rapprochementsViaLiaison) {
           rapprochementsViaLiaison.forEach((rap: any) => {
             if (rap.factures && rap.rapprochements_bancaires) {
               const rb = rap.rapprochements_bancaires;
+              console.log(`  ✓ Ajout:`, rb.transaction_libelle?.substring(0, 40), '→', rap.factures.numero_facture);
+              
               rapprochementsManuelsFormatted.push({
                 transaction: {
                   date: rb.transaction_date,
@@ -307,18 +310,20 @@ export default function RapprochementBancaire() {
           !existingTransactionKeys.has(`${r.transaction.date}_${r.transaction.libelle}_${r.transaction.montant}`)
         );
 
-        console.log(`Fichier ${fichier.numero_rapprochement}: ${existingRapprochements.length} auto + ${newRapprochements.length} manuels`);
+        const combinedRapprochements = [...existingRapprochements, ...newRapprochements];
+        const matchedCount = combinedRapprochements.filter((r: Rapprochement) => r.status === "matched").length;
+        
+        console.log(`📦 Fichier ${fichier.numero_rapprochement}: ${existingRapprochements.length} auto + ${newRapprochements.length} nouveaux manuels = ${combinedRapprochements.length} total (${matchedCount} matched)`);
 
         return {
           ...fichier,
           fichier_data: {
             ...fichier.fichier_data,
             transactions: fichier.fichier_data?.transactions || [],
-            rapprochements: [...existingRapprochements, ...newRapprochements],
+            rapprochements: combinedRapprochements,
             rapprochementsManuels: fichier.fichier_data?.rapprochementsManuels || [],
           },
-          lignes_rapprochees: existingRapprochements.filter((r: Rapprochement) => r.status === "matched").length + 
-                              newRapprochements.filter(r => r.status === "matched").length,
+          lignes_rapprochees: matchedCount,
         };
       }));
 
