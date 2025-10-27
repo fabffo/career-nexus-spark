@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableRow, TableHeader } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { Receipt } from "lucide-react";
+import { Receipt, RefreshCcw } from "lucide-react";
 
 interface RapprochementLigne {
   id: string;
@@ -36,6 +37,7 @@ export default function TvaMensuel() {
   const [availablePeriods, setAvailablePeriods] = useState<{ month: string; year: string }[]>([]);
   const [lignes, setLignes] = useState<RapprochementLigne[]>([]);
   const [stats, setStats] = useState<PeriodeStat>({ tva_collectee: 0, tva_deductible: 0, tva_a_payer: 0 });
+  const [isRecalculating, setIsRecalculating] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -277,6 +279,128 @@ export default function TvaMensuel() {
     return format(date, "MMMM", { locale: fr });
   };
 
+  const recalculerTVA = async () => {
+    if (!selectedMonth || !selectedYear) return;
+    
+    setIsRecalculating(true);
+    try {
+      // Récupérer toutes les factures validées
+      const { data: factures, error: facturesError } = await supabase
+        .from("factures")
+        .select("id, numero_facture, type_facture, total_tva, total_ttc")
+        .in("statut", ["VALIDEE", "PAYEE"]);
+
+      if (facturesError) throw facturesError;
+
+      // Créer une map pour recherche rapide par numéro de facture
+      const factureMapByNumero = new Map(factures?.map(f => [f.numero_facture, f]) || []);
+      
+      // Créer une map pour recherche par montant approximatif (±1%)
+      const factureMapByMontant = new Map<number, typeof factures>();
+      factures?.forEach(f => {
+        const montantKey = Math.round(f.total_ttc * 100) / 100;
+        if (!factureMapByMontant.has(montantKey)) {
+          factureMapByMontant.set(montantKey, []);
+        }
+        factureMapByMontant.get(montantKey)?.push(f);
+      });
+
+      // Parcourir les lignes et essayer d'associer les factures manquantes
+      const updatedLignes = lignes.map(ligne => {
+        // Si la ligne a déjà une facture avec TVA, ne pas toucher
+        if (ligne.facture && ligne.facture.total_tva > 0) {
+          return ligne;
+        }
+
+        // Chercher une facture correspondante
+        let factureCorrespondante = null;
+
+        // 1. Recherche par numéro de facture si présent dans le libellé
+        if (ligne.facture?.numero_facture) {
+          factureCorrespondante = factureMapByNumero.get(ligne.facture.numero_facture);
+        }
+
+        // 2. Recherche par montant si pas trouvé
+        if (!factureCorrespondante) {
+          const montantTransaction = Math.abs(ligne.transaction_montant);
+          const montantKey = Math.round(montantTransaction * 100) / 100;
+          
+          // Chercher avec une tolérance de ±2%
+          for (let tolerance = 0; tolerance <= 2; tolerance += 0.5) {
+            const montantMin = montantKey * (1 - tolerance / 100);
+            const montantMax = montantKey * (1 + tolerance / 100);
+            
+            for (const [key, facturesList] of factureMapByMontant.entries()) {
+              if (key >= montantMin && key <= montantMax) {
+                // Prendre la première facture correspondante
+                const facture = facturesList.find(f => 
+                  (ligne.transaction_credit > 0 && f.type_facture === "VENTES") ||
+                  (ligne.transaction_debit > 0 && f.type_facture === "ACHATS")
+                );
+                if (facture) {
+                  factureCorrespondante = facture;
+                  break;
+                }
+              }
+            }
+            if (factureCorrespondante) break;
+          }
+        }
+
+        // Si une facture a été trouvée, mettre à jour la ligne
+        if (factureCorrespondante) {
+          return {
+            ...ligne,
+            facture: {
+              numero_facture: factureCorrespondante.numero_facture,
+              total_tva: factureCorrespondante.total_tva || 0,
+              type_facture: factureCorrespondante.type_facture,
+            }
+          };
+        }
+
+        return ligne;
+      });
+
+      setLignes(updatedLignes);
+
+      // Recalculer les stats
+      let tva_collectee = 0;
+      let tva_deductible = 0;
+
+      updatedLignes.forEach(ligne => {
+        if (ligne.statut === "RAPPROCHE" && ligne.facture) {
+          const tva = ligne.facture.total_tva || 0;
+          if (ligne.facture.type_facture === "VENTES") {
+            tva_collectee += tva;
+          } else if (ligne.facture.type_facture === "ACHATS") {
+            tva_deductible += tva;
+          }
+        }
+      });
+
+      setStats({
+        tva_collectee,
+        tva_deductible,
+        tva_a_payer: tva_collectee - tva_deductible,
+      });
+
+      toast({
+        title: "Recalcul terminé",
+        description: "Les factures et TVA ont été recalculées",
+      });
+    } catch (error: any) {
+      console.error("Erreur recalcul:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de recalculer la TVA",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -327,6 +451,21 @@ export default function TvaMensuel() {
       {/* Résumé TVA */}
       {selectedMonth && selectedYear && (
         <>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">
+              Résumé TVA - {getMonthName(selectedMonth)} {selectedYear}
+            </h2>
+            <Button
+              onClick={recalculerTVA}
+              disabled={isRecalculating}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCcw className={`h-4 w-4 mr-2 ${isRecalculating ? "animate-spin" : ""}`} />
+              Recalculer TVA
+            </Button>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardHeader>
