@@ -112,50 +112,66 @@ export default function EditRapprochementHistoriqueDialog({
   const [facturesNonRapprochees, setFacturesNonRapprochees] = useState<FactureMatch[]>([]);
 
   useEffect(() => {
+    console.log("===== EDIT HISTORIQUE DIALOG =====");
+    console.log("Dialog open:", open);
+    console.log("Factures reçues en prop:", factures.length);
+    console.log("Rapprochement:", rapprochement);
+    
     const loadFacturesNonRapprochees = async () => {
-      console.log("Historique - Total factures reçues:", factures.length);
+      // Si pas de factures passées en prop, impossible de continuer
+      if (!factures || factures.length === 0) {
+        console.warn("⚠️ Aucune facture passée au composant EditRapprochementHistoriqueDialog");
+        setFacturesNonRapprochees([]);
+        return;
+      }
+
+      console.log("✓ Factures reçues:", factures.length);
       
-      // Filtrer d'abord par numero_rapprochement dans la table factures
-      let nonRapprochees = factures.filter(f => !f.numero_rapprochement);
-      console.log("Historique - Factures sans numero_rapprochement:", nonRapprochees.length);
+      // Filtrer par numero_rapprochement
+      const nonRapprocheesBase = factures.filter(f => !f.numero_rapprochement);
+      console.log("✓ Factures sans numero_rapprochement:", nonRapprocheesBase.length);
+      console.log("  Détail:", nonRapprocheesBase.slice(0, 5).map(f => ({ id: f.id, numero: f.numero_facture, type: f.type_facture })));
       
-      // Récupérer toutes les factures déjà rapprochées dans la table de jonction
+      // Récupérer les IDs de factures dans la table de jonction
       const { data: facturesRapprochees, error } = await supabase
         .from("rapprochements_factures")
         .select("facture_id");
 
       if (error) {
-        console.error("Erreur chargement rapprochements_factures:", error);
+        console.error("❌ Erreur chargement rapprochements_factures:", error);
       } else {
-        console.log("Historique - Factures dans rapprochements_factures:", facturesRapprochees?.length || 0);
+        console.log("✓ Table de jonction - Factures rapprochées:", facturesRapprochees?.length || 0);
       }
 
       const idsRapproches = new Set(facturesRapprochees?.map(r => r.facture_id) || []);
       
-      // Si on est en mode édition, inclure les factures actuellement sélectionnées
+      // Si on édite un rapprochement existant, récupérer ses factures
       if (rapprochement?.manualId) {
+        console.log("✓ Mode édition - rapprochement ID:", rapprochement.manualId);
         const { data: currentFactures } = await supabase
           .from("rapprochements_factures")
           .select("facture_id")
           .eq("rapprochement_id", rapprochement.manualId);
         
-        console.log("Historique - Factures du rapprochement actuel:", currentFactures?.length || 0);
+        console.log("  Factures du rapprochement actuel:", currentFactures?.length || 0);
         currentFactures?.forEach(f => idsRapproches.delete(f.facture_id));
       }
       
-      // Filtrer aussi celles qui sont dans la table de jonction
-      nonRapprochees = nonRapprochees.filter(f => !idsRapproches.has(f.id));
+      // Filtrer les factures de la table de jonction
+      const facturesFinales = nonRapprocheesBase.filter(f => !idsRapproches.has(f.id));
       
-      console.log("Historique - Factures finales non rapprochées:", nonRapprochees.length);
-      console.log("Historique - Détail factures:", nonRapprochees.map(f => ({ numero: f.numero_facture, type: f.type_facture })));
+      console.log("✅ RÉSULTAT FINAL:", facturesFinales.length, "factures disponibles");
+      console.log("  Ventes:", facturesFinales.filter(f => f.type_facture === 'VENTES').length);
+      console.log("  Achats:", facturesFinales.filter(f => f.type_facture === 'ACHATS').length);
+      console.log("=====================================");
       
-      setFacturesNonRapprochees(nonRapprochees);
+      setFacturesNonRapprochees(facturesFinales);
     };
 
-    if (open && factures.length > 0) {
+    if (open) {
       loadFacturesNonRapprochees();
     }
-  }, [open, factures, rapprochement]);
+  }, [open, factures, rapprochement?.manualId]);
 
   // Initialiser les valeurs au chargement
   useEffect(() => {

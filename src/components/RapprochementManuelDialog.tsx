@@ -98,36 +98,49 @@ export default function RapprochementManuelDialog({
   const [facturesNonRapprochees, setFacturesNonRapprochees] = useState<FactureMatch[]>([]);
 
   useEffect(() => {
+    console.log("===== RAPPROCHEMENT MANUEL DIALOG =====");
+    console.log("Dialog open:", open);
+    console.log("Factures reçues en prop:", factures.length);
+    
     const loadFacturesNonRapprochees = async () => {
-      console.log("Total factures reçues:", factures.length);
+      // Si pas de factures passées en prop
+      if (!factures || factures.length === 0) {
+        console.warn("⚠️ Aucune facture passée au composant RapprochementManuelDialog");
+        setFacturesNonRapprochees([]);
+        return;
+      }
+
+      console.log("✓ Factures reçues:", factures.length);
       
-      // Filtrer d'abord par numero_rapprochement dans la table factures
-      let nonRapprochees = factures.filter(f => !f.numero_rapprochement);
-      console.log("Factures sans numero_rapprochement:", nonRapprochees.length);
+      // Filtrer par numero_rapprochement
+      const nonRapprocheesBase = factures.filter(f => !f.numero_rapprochement);
+      console.log("✓ Factures sans numero_rapprochement:", nonRapprocheesBase.length);
       
-      // Ensuite, récupérer les factures dans la table de jonction rapprochements_factures
+      // Récupérer les factures dans la table de jonction
       const { data: facturesRapprochees, error } = await supabase
         .from("rapprochements_factures")
         .select("facture_id");
 
       if (error) {
-        console.error("Erreur chargement rapprochements_factures:", error);
+        console.error("❌ Erreur chargement rapprochements_factures:", error);
       } else {
-        console.log("Factures dans rapprochements_factures:", facturesRapprochees?.length || 0);
+        console.log("✓ Table de jonction - Factures rapprochées:", facturesRapprochees?.length || 0);
       }
 
       const idsRapproches = new Set(facturesRapprochees?.map(r => r.facture_id) || []);
       
-      // Filtrer aussi celles qui sont dans la table de jonction
-      nonRapprochees = nonRapprochees.filter(f => !idsRapproches.has(f.id));
+      // Filtrer les factures de la table de jonction
+      const facturesFinales = nonRapprocheesBase.filter(f => !idsRapproches.has(f.id));
       
-      console.log("Factures finales non rapprochées:", nonRapprochees.length);
-      console.log("Détail factures:", nonRapprochees.map(f => ({ numero: f.numero_facture, type: f.type_facture })));
+      console.log("✅ RÉSULTAT FINAL:", facturesFinales.length, "factures disponibles");
+      console.log("  Ventes:", facturesFinales.filter(f => f.type_facture === 'VENTES').length);
+      console.log("  Achats:", facturesFinales.filter(f => f.type_facture === 'ACHATS').length);
+      console.log("=======================================");
       
-      setFacturesNonRapprochees(nonRapprochees);
+      setFacturesNonRapprochees(facturesFinales);
     };
 
-    if (open && factures.length > 0) {
+    if (open) {
       loadFacturesNonRapprochees();
     }
   }, [open, factures]);
