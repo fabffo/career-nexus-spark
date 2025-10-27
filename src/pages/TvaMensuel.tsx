@@ -105,7 +105,7 @@ export default function TvaMensuel() {
 
       if (fichierError) throw fichierError;
 
-      // D'abord, récupérer les rapprochements manuels de la période
+      // D'abord, récupérer les rapprochements manuels de la période (directs)
       const { data: rapprochementsManuels, error: manuelsError } = await supabase
         .from("rapprochements_bancaires")
         .select(`
@@ -129,7 +129,35 @@ export default function TvaMensuel() {
 
       if (manuelsError) throw manuelsError;
 
-      console.log("Rapprochements manuels récupérés:", rapprochementsManuels?.length);
+      // Récupérer aussi les rapprochements via la table de liaison rapprochements_factures
+      const { data: rapprochementsViaLiaison, error: liaisonError } = await supabase
+        .from("rapprochements_factures")
+        .select(`
+          id,
+          rapprochement_id,
+          facture_id,
+          rapprochements_bancaires!inner (
+            id,
+            transaction_date,
+            transaction_libelle,
+            transaction_montant,
+            transaction_credit,
+            transaction_debit
+          ),
+          factures (
+            id,
+            numero_facture,
+            type_facture,
+            total_tva
+          )
+        `)
+        .gte("rapprochements_bancaires.transaction_date", startDate.toISOString().split('T')[0])
+        .lte("rapprochements_bancaires.transaction_date", endDate.toISOString().split('T')[0]);
+
+      if (liaisonError) throw liaisonError;
+
+      console.log("Rapprochements manuels directs:", rapprochementsManuels?.length);
+      console.log("Rapprochements via liaison:", rapprochementsViaLiaison?.length);
 
       // Créer un Set pour tracker les transactions déjà traitées
       const processedTransactions = new Set<string>();
@@ -137,7 +165,7 @@ export default function TvaMensuel() {
       // Extraire toutes les lignes de rapprochement
       const allLignes: RapprochementLigne[] = [];
 
-      // Ajouter d'abord les rapprochements manuels (prioritaires)
+      // Ajouter d'abord les rapprochements manuels directs (prioritaires)
       rapprochementsManuels?.forEach((rap: any) => {
         if (rap.factures) {
           const transactionKey = `${rap.transaction_date}_${rap.transaction_libelle}_${Math.abs(rap.transaction_montant)}`;
@@ -150,6 +178,32 @@ export default function TvaMensuel() {
             transaction_montant: rap.transaction_montant,
             transaction_credit: rap.transaction_credit || 0,
             transaction_debit: rap.transaction_debit || 0,
+            statut: "RAPPROCHE",
+            facture: {
+              numero_facture: rap.factures.numero_facture,
+              total_tva: rap.factures.total_tva || 0,
+              type_facture: rap.factures.type_facture,
+            },
+          });
+        }
+      });
+
+      // Ajouter les rapprochements via table de liaison (une ligne par facture)
+      rapprochementsViaLiaison?.forEach((rap: any) => {
+        if (rap.factures && rap.rapprochements_bancaires) {
+          const rb = rap.rapprochements_bancaires;
+          const transactionKey = `${rb.transaction_date}_${rb.transaction_libelle}_${Math.abs(rb.transaction_montant)}`;
+          
+          // Marquer la transaction comme traitée (pour éviter duplication avec fichiers)
+          processedTransactions.add(transactionKey);
+          
+          allLignes.push({
+            id: `liaison_${rap.id}`,
+            transaction_date: rb.transaction_date,
+            transaction_libelle: rb.transaction_libelle,
+            transaction_montant: rb.transaction_montant,
+            transaction_credit: rb.transaction_credit || 0,
+            transaction_debit: rb.transaction_debit || 0,
             statut: "RAPPROCHE",
             facture: {
               numero_facture: rap.factures.numero_facture,
