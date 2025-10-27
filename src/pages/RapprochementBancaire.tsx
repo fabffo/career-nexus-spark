@@ -98,12 +98,41 @@ export default function RapprochementBancaire() {
   const [selectedHistoriqueFichierId, setSelectedHistoriqueFichierId] = useState<string>("");
   const { toast } = useToast();
 
-  // Charger les fichiers de rapprochement validés
+  // Charger les fichiers de rapprochement validés et les factures
   useEffect(() => {
     if (activeTab === "historique") {
       loadFichiersRapprochement();
+      loadFactures();
     }
   }, [activeTab]);
+
+  const loadFactures = async () => {
+    try {
+      const { data: facturesData, error } = await supabase
+        .from("factures")
+        .select("*")
+        .in("statut", ["VALIDEE", "PAYEE"]);
+
+      if (error) throw error;
+
+      const facturesFormatted: FactureMatch[] = (facturesData || []).map((f) => ({
+        id: f.id,
+        numero_facture: f.numero_facture,
+        type_facture: f.type_facture as "VENTES" | "ACHATS",
+        date_emission: f.date_emission,
+        partenaire_nom: f.type_facture === "VENTES" ? f.destinataire_nom : f.emetteur_nom,
+        total_ttc: f.total_ttc || 0,
+        statut: f.statut,
+        numero_rapprochement: f.numero_rapprochement,
+        date_rapprochement: f.date_rapprochement,
+      }));
+
+      console.log("✅ Factures chargées pour l'historique:", facturesFormatted.length);
+      setFactures(facturesFormatted);
+    } catch (error) {
+      console.error("Erreur chargement factures:", error);
+    }
+  };
 
   // Réinitialiser la page quand le filtre change
   useEffect(() => {
