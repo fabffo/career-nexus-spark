@@ -51,7 +51,7 @@ export default function RapprochementManuelDialog({
   factures,
   onSuccess,
 }: RapprochementManuelDialogProps) {
-  const [selectedFactureId, setSelectedFactureId] = useState<string>("");
+  const [selectedFactureIds, setSelectedFactureIds] = useState<string[]>([]);
   const [selectedAbonnementId, setSelectedAbonnementId] = useState<string>("");
   const [selectedDeclarationId, setSelectedDeclarationId] = useState<string>("");
   const [abonnements, setAbonnements] = useState<any[]>([]);
@@ -101,6 +101,17 @@ export default function RapprochementManuelDialog({
     );
   });
 
+  const selectedFactures = factures.filter((f) => selectedFactureIds.includes(f.id));
+  const totalFacturesSelectionnees = selectedFactures.reduce((sum, f) => sum + f.total_ttc, 0);
+
+  const toggleFactureSelection = (factureId: string) => {
+    setSelectedFactureIds((prev) =>
+      prev.includes(factureId)
+        ? prev.filter((id) => id !== factureId)
+        : [...prev, factureId]
+    );
+  };
+
   const handleSave = async () => {
     if (!transaction) {
       toast({
@@ -112,7 +123,7 @@ export default function RapprochementManuelDialog({
     }
 
     // Validation: au moins une facture, un abonnement ou une déclaration doit être sélectionné
-    if (!selectedFactureId && !selectedAbonnementId && !selectedDeclarationId) {
+    if (selectedFactureIds.length === 0 && !selectedAbonnementId && !selectedDeclarationId) {
       toast({
         title: "Erreur",
         description: "Veuillez sélectionner au moins une facture, un abonnement ou une déclaration",
@@ -142,7 +153,6 @@ export default function RapprochementManuelDialog({
         const { error } = await supabase
           .from("rapprochements_bancaires")
           .update({
-            facture_id: selectedFactureId === "aucune" ? null : selectedFactureId,
             abonnement_id: selectedAbonnementId || null,
             declaration_charge_id: selectedDeclarationId || null,
             notes,
@@ -151,6 +161,7 @@ export default function RapprochementManuelDialog({
           .eq("id", existing.id);
 
         if (error) throw error;
+        rapprochementId = existing.id;
       } else {
         // Créer un nouveau
         const { data: newRapprochement, error } = await supabase
@@ -161,7 +172,6 @@ export default function RapprochementManuelDialog({
             transaction_debit: transaction.debit,
             transaction_credit: transaction.credit,
             transaction_montant: transaction.montant,
-            facture_id: selectedFactureId === "aucune" ? null : selectedFactureId,
             abonnement_id: selectedAbonnementId || null,
             declaration_charge_id: selectedDeclarationId || null,
             notes,
@@ -172,6 +182,28 @@ export default function RapprochementManuelDialog({
 
         if (error) throw error;
         rapprochementId = newRapprochement.id;
+      }
+
+      // Gérer les factures associées
+      if (rapprochementId && selectedFactureIds.length > 0) {
+        // Supprimer les anciennes associations
+        await supabase
+          .from("rapprochements_factures")
+          .delete()
+          .eq("rapprochement_id", rapprochementId);
+
+        // Créer les nouvelles associations
+        const facturesAssociations = selectedFactureIds.map((factureId) => ({
+          rapprochement_id: rapprochementId,
+          facture_id: factureId,
+          created_by: authData.user?.id,
+        }));
+
+        const { error: facturesError } = await supabase
+          .from("rapprochements_factures")
+          .insert(facturesAssociations);
+
+        if (facturesError) throw facturesError;
       }
 
       // Si un abonnement est sélectionné, créer automatiquement un paiement d'abonnement
@@ -253,12 +285,12 @@ export default function RapprochementManuelDialog({
           ? `Rapprochement enregistré, paiement d'abonnement créé${consommations.length > 0 ? ` et ${consommations.length} consommation(s) ajoutée(s)` : ""}`
           : selectedDeclarationId
           ? "Rapprochement enregistré, paiement de déclaration créé"
-          : "Rapprochement manuel enregistré",
+          : `Rapprochement manuel enregistré${selectedFactureIds.length > 0 ? ` avec ${selectedFactureIds.length} facture(s)` : ""}`,
       });
 
       onSuccess();
       onOpenChange(false);
-      setSelectedFactureId("");
+      setSelectedFactureIds([]);
       setSelectedAbonnementId("");
       setSelectedDeclarationId("");
       setConsommations([]);
@@ -325,19 +357,45 @@ export default function RapprochementManuelDialog({
           </div>
 
           {/* Facture selection */}
-          <div className="space-y-2">
-            <Label>Facture à rapprocher</Label>
-            <Select value={selectedFactureId} onValueChange={setSelectedFactureId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner une facture (optionnel)" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                <SelectItem value="aucune">
-                  <span className="text-muted-foreground">Aucune facture</span>
-                </SelectItem>
-                {filteredFactures.map((facture) => (
-                  <SelectItem key={facture.id} value={facture.id}>
-                    <div className="flex items-center justify-between gap-4 w-full">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>Factures à rapprocher (sélection multiple)</Label>
+              {selectedFactureIds.length > 0 && (
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Total: </span>
+                  <span className={`font-semibold ${Math.abs(transaction.montant - totalFacturesSelectionnees) < 0.01 ? 'text-green-600' : 'text-orange-600'}`}>
+                    {new Intl.NumberFormat("fr-FR", {
+                      style: "currency",
+                      currency: "EUR",
+                    }).format(totalFacturesSelectionnees)}
+                  </span>
+                  <span className="text-muted-foreground ml-2">
+                    ({selectedFactureIds.length} facture{selectedFactureIds.length > 1 ? 's' : ''})
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="border rounded-lg max-h-[300px] overflow-y-auto">
+              {filteredFactures.length === 0 ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  Aucune facture trouvée
+                </div>
+              ) : (
+                filteredFactures.map((facture) => (
+                  <div
+                    key={facture.id}
+                    className={`flex items-center gap-3 p-3 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer ${
+                      selectedFactureIds.includes(facture.id) ? 'bg-muted' : ''
+                    }`}
+                    onClick={() => toggleFactureSelection(facture.id)}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedFactureIds.includes(facture.id)}
+                      onChange={() => toggleFactureSelection(facture.id)}
+                      className="h-4 w-4"
+                    />
+                    <div className="flex-1 grid grid-cols-5 gap-2 items-center">
                       <span className="font-medium">{facture.numero_facture}</span>
                       <Badge
                         variant="outline"
@@ -349,21 +407,23 @@ export default function RapprochementManuelDialog({
                       >
                         {facture.type_facture}
                       </Badge>
-                      <span className="text-sm text-muted-foreground">{facture.partenaire_nom}</span>
-                      <span className="font-medium">
+                      <span className="text-sm text-muted-foreground truncate">
+                        {facture.partenaire_nom}
+                      </span>
+                      <span className="font-medium text-right">
                         {new Intl.NumberFormat("fr-FR", {
                           style: "currency",
                           currency: "EUR",
                         }).format(facture.total_ttc)}
                       </span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground text-right">
                         {format(new Date(facture.date_emission), "dd/MM/yyyy")}
                       </span>
                     </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           {/* Abonnement selection */}
@@ -538,7 +598,7 @@ export default function RapprochementManuelDialog({
           </Button>
           <Button 
             onClick={handleSave} 
-            disabled={loading || (!selectedFactureId && !selectedAbonnementId)}
+            disabled={loading || (selectedFactureIds.length === 0 && !selectedAbonnementId && !selectedDeclarationId)}
           >
             {loading ? "Enregistrement..." : "Enregistrer"}
           </Button>

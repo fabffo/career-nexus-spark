@@ -1604,6 +1604,45 @@ export type Database = {
           },
         ]
       }
+      rapprochements_factures: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          facture_id: string
+          id: string
+          rapprochement_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          facture_id: string
+          id?: string
+          rapprochement_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          facture_id?: string
+          id?: string
+          rapprochement_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rapprochements_factures_facture_id_fkey"
+            columns: ["facture_id"]
+            isOneToOne: false
+            referencedRelation: "factures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rapprochements_factures_rapprochement_id_fkey"
+            columns: ["rapprochement_id"]
+            isOneToOne: false
+            referencedRelation: "rapprochements_bancaires"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rdv_referents: {
         Row: {
           created_at: string
