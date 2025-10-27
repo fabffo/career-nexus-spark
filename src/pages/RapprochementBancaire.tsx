@@ -161,7 +161,160 @@ export default function RapprochementBancaire() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setFichiersRapprochement((data || []) as unknown as FichierRapprochement[]);
+      
+      // Enrichir chaque fichier avec les rapprochements manuels de la période
+      const enrichedFiles = await Promise.all((data || []).map(async (fichier: any) => {
+        // Charger les rapprochements manuels directs
+        const { data: rapprochementsManuelsDirects, error: directsError } = await supabase
+          .from("rapprochements_bancaires")
+          .select(`
+            id,
+            transaction_date,
+            transaction_libelle,
+            transaction_montant,
+            transaction_credit,
+            transaction_debit,
+            notes,
+            factures (
+              id,
+              numero_facture,
+              type_facture,
+              total_ttc,
+              destinataire_nom,
+              emetteur_nom
+            )
+          `)
+          .gte("transaction_date", fichier.date_debut)
+          .lte("transaction_date", fichier.date_fin)
+          .not("facture_id", "is", null);
+
+        // Charger les rapprochements via la table de liaison
+        const { data: rapprochementsViaLiaison, error: liaisonError } = await supabase
+          .from("rapprochements_factures")
+          .select(`
+            id,
+            rapprochement_id,
+            rapprochements_bancaires!inner (
+              id,
+              transaction_date,
+              transaction_libelle,
+              transaction_montant,
+              transaction_credit,
+              transaction_debit,
+              notes
+            ),
+            factures (
+              id,
+              numero_facture,
+              type_facture,
+              total_ttc,
+              destinataire_nom,
+              emetteur_nom
+            )
+          `)
+          .gte("rapprochements_bancaires.transaction_date", fichier.date_debut)
+          .lte("rapprochements_bancaires.transaction_date", fichier.date_fin);
+
+        // Créer les objets Rapprochement pour les rapprochements manuels directs
+        const rapprochementsManuelsFormatted: Rapprochement[] = [];
+        
+        if (!directsError && rapprochementsManuelsDirects) {
+          rapprochementsManuelsDirects.forEach((rap: any) => {
+            if (rap.factures) {
+              rapprochementsManuelsFormatted.push({
+                transaction: {
+                  date: rap.transaction_date,
+                  libelle: rap.transaction_libelle,
+                  montant: rap.transaction_montant,
+                  debit: rap.transaction_debit || 0,
+                  credit: rap.transaction_credit || 0,
+                },
+                facture: {
+                  id: rap.factures.id,
+                  numero_facture: rap.factures.numero_facture,
+                  type_facture: rap.factures.type_facture,
+                  total_ttc: rap.factures.total_ttc,
+                  partenaire_nom: rap.factures.type_facture === "VENTES" 
+                    ? rap.factures.destinataire_nom 
+                    : rap.factures.emetteur_nom,
+                  date_emission: "",
+                  statut: "PAYEE",
+                },
+                score: 100,
+                status: "matched",
+                isManual: true,
+                manualId: rap.id,
+                notes: rap.notes,
+              });
+            }
+          });
+        }
+
+        // Ajouter les rapprochements via liaison
+        if (!liaisonError && rapprochementsViaLiaison) {
+          rapprochementsViaLiaison.forEach((rap: any) => {
+            if (rap.factures && rap.rapprochements_bancaires) {
+              const rb = rap.rapprochements_bancaires;
+              rapprochementsManuelsFormatted.push({
+                transaction: {
+                  date: rb.transaction_date,
+                  libelle: rb.transaction_libelle,
+                  montant: rb.transaction_montant,
+                  debit: rb.transaction_debit || 0,
+                  credit: rb.transaction_credit || 0,
+                },
+                facture: {
+                  id: rap.factures.id,
+                  numero_facture: rap.factures.numero_facture,
+                  type_facture: rap.factures.type_facture,
+                  total_ttc: rap.factures.total_ttc,
+                  partenaire_nom: rap.factures.type_facture === "VENTES" 
+                    ? rap.factures.destinataire_nom 
+                    : rap.factures.emetteur_nom,
+                  date_emission: "",
+                  statut: "PAYEE",
+                },
+                score: 100,
+                status: "matched",
+                isManual: true,
+                manualId: `liaison_${rap.id}`,
+                notes: rb.notes,
+              });
+            }
+          });
+        }
+
+        // Fusionner avec les rapprochements existants du fichier
+        const existingRapprochements = fichier.fichier_data?.rapprochements || [];
+        
+        // Créer un Set des transactions déjà présentes pour éviter les doublons
+        const existingTransactionKeys = new Set(
+          existingRapprochements.map((r: Rapprochement) => 
+            `${r.transaction.date}_${r.transaction.libelle}_${r.transaction.montant}`
+          )
+        );
+
+        // Ajouter uniquement les rapprochements manuels qui ne sont pas déjà présents
+        const newRapprochements = rapprochementsManuelsFormatted.filter(r => 
+          !existingTransactionKeys.has(`${r.transaction.date}_${r.transaction.libelle}_${r.transaction.montant}`)
+        );
+
+        console.log(`Fichier ${fichier.numero_rapprochement}: ${existingRapprochements.length} auto + ${newRapprochements.length} manuels`);
+
+        return {
+          ...fichier,
+          fichier_data: {
+            ...fichier.fichier_data,
+            transactions: fichier.fichier_data?.transactions || [],
+            rapprochements: [...existingRapprochements, ...newRapprochements],
+            rapprochementsManuels: fichier.fichier_data?.rapprochementsManuels || [],
+          },
+          lignes_rapprochees: existingRapprochements.filter((r: Rapprochement) => r.status === "matched").length + 
+                              newRapprochements.filter(r => r.status === "matched").length,
+        };
+      }));
+
+      setFichiersRapprochement(enrichedFiles as unknown as FichierRapprochement[]);
     } catch (error) {
       console.error("Erreur chargement fichiers rapprochement:", error);
       toast({
