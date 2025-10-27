@@ -298,22 +298,24 @@ export default function RapprochementBancaire() {
         // Fusionner avec les rapprochements existants du fichier
         const existingRapprochements = fichier.fichier_data?.rapprochements || [];
         
-        // Créer un Set des transactions déjà présentes pour éviter les doublons
-        const existingTransactionKeys = new Set(
-          existingRapprochements.map((r: Rapprochement) => 
+        // Identifier les transactions qui ont des rapprochements via liaison
+        const transactionsAvecLiaison = new Set(
+          rapprochementsManuelsFormatted.map(r => 
             `${r.transaction.date}_${r.transaction.libelle}_${r.transaction.montant}`
           )
         );
 
-        // Ajouter uniquement les rapprochements manuels qui ne sont pas déjà présents
-        const newRapprochements = rapprochementsManuelsFormatted.filter(r => 
-          !existingTransactionKeys.has(`${r.transaction.date}_${r.transaction.libelle}_${r.transaction.montant}`)
-        );
+        // Filtrer les rapprochements existants: garder ceux sans liaison
+        const rapprochementsAutoSansLiaison = existingRapprochements.filter((r: Rapprochement) => {
+          const key = `${r.transaction.date}_${r.transaction.libelle}_${r.transaction.montant}`;
+          return !transactionsAvecLiaison.has(key);
+        });
 
-        const combinedRapprochements = [...existingRapprochements, ...newRapprochements];
+        // Combiner: rapprochements auto (sans ceux qui ont des liaisons) + rapprochements manuels (une ligne par facture)
+        const combinedRapprochements = [...rapprochementsAutoSansLiaison, ...rapprochementsManuelsFormatted];
         const matchedCount = combinedRapprochements.filter((r: Rapprochement) => r.status === "matched").length;
         
-        console.log(`📦 Fichier ${fichier.numero_rapprochement}: ${existingRapprochements.length} auto + ${newRapprochements.length} nouveaux manuels = ${combinedRapprochements.length} total (${matchedCount} matched)`);
+        console.log(`📦 Fichier ${fichier.numero_rapprochement}: ${rapprochementsAutoSansLiaison.length} auto sans liaison + ${rapprochementsManuelsFormatted.length} manuels (factures) = ${combinedRapprochements.length} total (${matchedCount} matched)`);
 
         return {
           ...fichier,
