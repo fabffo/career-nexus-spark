@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { FileUploadField } from "@/components/FileUploadField";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, FileText } from "lucide-react";
 
 interface EditAbonnementDialogProps {
   open: boolean;
@@ -46,8 +46,8 @@ export function EditAbonnementDialog({
 }: EditAbonnementDialogProps) {
   const queryClient = useQueryClient();
   const { uploadFile, deleteFile } = useFileUpload();
-  const [documentFile, setDocumentFile] = useState<File | null>(null);
-  const [existingDocumentUrl, setExistingDocumentUrl] = useState<string | null>(null);
+  const [newDocumentFiles, setNewDocumentFiles] = useState<File[]>([]);
+  const [existingDocuments, setExistingDocuments] = useState<any[]>([]);
   
   const { register, handleSubmit, reset, setValue, watch } = useForm();
 
@@ -64,29 +64,26 @@ export function EditAbonnementDialog({
         actif: abonnement.actif,
         notes: abonnement.notes || "",
       });
-      setExistingDocumentUrl(abonnement.document_url || null);
-      setDocumentFile(null);
+      
+      // Charger les documents existants
+      const loadDocuments = async () => {
+        const { data } = await supabase
+          .from("abonnements_documents")
+          .select("*")
+          .eq("abonnement_id", abonnement.id)
+          .order("created_at");
+        
+        setExistingDocuments(data || []);
+      };
+      
+      loadDocuments();
+      setNewDocumentFiles([]);
     }
   }, [abonnement, reset]);
 
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
-      let documentUrl = existingDocumentUrl;
-      
-      if (documentFile) {
-        try {
-          // Delete old document if exists
-          if (existingDocumentUrl) {
-            await deleteFile(existingDocumentUrl);
-          }
-          // Upload new document
-          documentUrl = await uploadFile(documentFile, "candidats-files");
-        } catch (error) {
-          console.error("Error uploading document:", error);
-          throw new Error("Erreur lors du téléchargement du document");
-        }
-      }
-      
+      // Mettre à jour l'abonnement
       const { error } = await supabase
         .from("abonnements_partenaires")
         .update({
@@ -96,11 +93,29 @@ export function EditAbonnementDialog({
           jour_prelevement: data.jour_prelevement ? parseInt(data.jour_prelevement) : null,
           actif: data.actif,
           notes: data.notes || null,
-          document_url: documentUrl,
         })
         .eq("id", abonnement.id);
 
       if (error) throw error;
+      
+      // Uploader les nouveaux documents
+      if (newDocumentFiles.length > 0) {
+        for (const file of newDocumentFiles) {
+          try {
+            const documentUrl = await uploadFile(file, "candidats-files");
+            
+            await supabase
+              .from("abonnements_documents")
+              .insert({
+                abonnement_id: abonnement.id,
+                document_url: documentUrl,
+                nom_fichier: file.name,
+              });
+          } catch (error) {
+            console.error("Error uploading document:", error);
+          }
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["abonnements-partenaires"] });
@@ -178,16 +193,78 @@ export function EditAbonnementDialog({
             <Textarea id="notes" {...register("notes")} rows={3} />
           </div>
 
-          <FileUploadField
-            label="Document"
-            accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-            currentFileUrl={existingDocumentUrl || undefined}
-            onFileSelect={setDocumentFile}
-            onFileRemove={() => {
-              setExistingDocumentUrl(null);
-              setDocumentFile(null);
-            }}
-          />
+          <div className="space-y-2">
+            <Label>Documents existants</Label>
+            {existingDocuments.length > 0 ? (
+              <div className="space-y-1">
+                {existingDocuments.map((doc) => (
+                  <div key={doc.id} className="flex items-center justify-between text-sm border rounded p-2">
+                    <span className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      {doc.nom_fichier}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          await deleteFile(doc.document_url);
+                          await supabase
+                            .from("abonnements_documents")
+                            .delete()
+                            .eq("id", doc.id);
+                          setExistingDocuments(prev => prev.filter(d => d.id !== doc.id));
+                          toast.success("Document supprimé");
+                        } catch (error) {
+                          toast.error("Erreur lors de la suppression");
+                        }
+                      }}
+                    >
+                      Supprimer
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Aucun document</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Ajouter de nouveaux documents</Label>
+            <Input
+              type="file"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+              multiple
+              onChange={(e) => {
+                const files = Array.from(e.target.files || []);
+                setNewDocumentFiles(prev => [...prev, ...files]);
+              }}
+            />
+            {newDocumentFiles.length > 0 && (
+              <div className="space-y-1">
+                {newDocumentFiles.map((file, index) => (
+                  <div key={index} className="flex items-center justify-between text-sm border rounded p-2">
+                    <span className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      {file.name}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setNewDocumentFiles(prev => prev.filter((_, i) => i !== index));
+                      }}
+                    >
+                      Supprimer
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

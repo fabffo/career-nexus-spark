@@ -53,7 +53,10 @@ export default function AbonnementsPartenaires() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("abonnements_partenaires")
-        .select("*")
+        .select(`
+          *,
+          documents:abonnements_documents(id, document_url, nom_fichier, created_at)
+        `)
         .order("nom");
 
       if (error) throw error;
@@ -151,32 +154,38 @@ export default function AbonnementsPartenaires() {
                     {abonnement.notes || "-"}
                   </TableCell>
                   <TableCell>
-                    {abonnement.document_url ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={async () => {
-                          try {
-                            const response = await fetch(abonnement.document_url);
-                            const blob = await response.blob();
-                            const url = window.URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = abonnement.document_url.split('/').pop() || 'document';
-                            document.body.appendChild(a);
-                            a.click();
-                            window.URL.revokeObjectURL(url);
-                            document.body.removeChild(a);
-                            toast.success("Document téléchargé");
-                          } catch (error) {
-                            console.error('Erreur téléchargement:', error);
-                            toast.error("Erreur lors du téléchargement");
-                          }
-                        }}
-                      >
-                        <FileText className="h-4 w-4 mr-2" />
-                        Télécharger
-                      </Button>
+                    {abonnement.documents && abonnement.documents.length > 0 ? (
+                      <div className="flex flex-col gap-1">
+                        {abonnement.documents.map((doc: any) => (
+                          <Button
+                            key={doc.id}
+                            variant="ghost"
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                const response = await fetch(doc.document_url);
+                                const blob = await response.blob();
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = doc.nom_fichier;
+                                document.body.appendChild(a);
+                                a.click();
+                                window.URL.revokeObjectURL(url);
+                                document.body.removeChild(a);
+                                toast.success("Document téléchargé");
+                              } catch (error) {
+                                console.error('Erreur téléchargement:', error);
+                                toast.error("Erreur lors du téléchargement");
+                              }
+                            }}
+                            className="justify-start"
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            {doc.nom_fichier}
+                          </Button>
+                        ))}
+                      </div>
                     ) : (
                       "-"
                     )}

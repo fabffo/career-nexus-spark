@@ -68,6 +68,41 @@ export type Database = {
           },
         ]
       }
+      abonnements_documents: {
+        Row: {
+          abonnement_id: string
+          created_at: string | null
+          created_by: string | null
+          document_url: string
+          id: string
+          nom_fichier: string
+        }
+        Insert: {
+          abonnement_id: string
+          created_at?: string | null
+          created_by?: string | null
+          document_url: string
+          id?: string
+          nom_fichier: string
+        }
+        Update: {
+          abonnement_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          document_url?: string
+          id?: string
+          nom_fichier?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "abonnements_documents_abonnement_id_fkey"
+            columns: ["abonnement_id"]
+            isOneToOne: false
+            referencedRelation: "abonnements_partenaires"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       abonnements_partenaires: {
         Row: {
           actif: boolean | null

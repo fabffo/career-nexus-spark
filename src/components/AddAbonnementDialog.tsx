@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { FileUploadField } from "@/components/FileUploadField";
+import { FileText } from "lucide-react";
 
 interface AddAbonnementDialogProps {
   open: boolean;
@@ -40,7 +41,7 @@ const NATURES = [
 export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogProps) {
   const queryClient = useQueryClient();
   const { uploadFile } = useFileUpload();
-  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [documentFiles, setDocumentFiles] = useState<File[]>([]);
   
   const { register, handleSubmit, reset, setValue, watch } = useForm({
     defaultValues: {
@@ -58,34 +59,47 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      let documentUrl = null;
+      // Créer d'abord l'abonnement
+      const { data: abonnement, error: abonnementError } = await supabase
+        .from("abonnements_partenaires")
+        .insert({
+          nom: data.nom,
+          nature: data.nature,
+          montant_mensuel: data.montant_mensuel ? parseFloat(data.montant_mensuel) : null,
+          jour_prelevement: data.jour_prelevement ? parseInt(data.jour_prelevement) : null,
+          actif: data.actif,
+          notes: data.notes || null,
+        })
+        .select()
+        .single();
+
+      if (abonnementError) throw abonnementError;
       
-      if (documentFile) {
-        try {
-          documentUrl = await uploadFile(documentFile, "candidats-files");
-        } catch (error) {
-          console.error("Error uploading document:", error);
-          throw new Error("Erreur lors du téléchargement du document");
+      // Uploader les documents et les lier à l'abonnement
+      if (documentFiles.length > 0) {
+        for (const file of documentFiles) {
+          try {
+            const documentUrl = await uploadFile(file, "candidats-files");
+            
+            await supabase
+              .from("abonnements_documents")
+              .insert({
+                abonnement_id: abonnement.id,
+                document_url: documentUrl,
+                nom_fichier: file.name,
+              });
+          } catch (error) {
+            console.error("Error uploading document:", error);
+            // On continue même si un document échoue
+          }
         }
       }
-      
-      const { error } = await supabase.from("abonnements_partenaires").insert({
-        nom: data.nom,
-        nature: data.nature,
-        montant_mensuel: data.montant_mensuel ? parseFloat(data.montant_mensuel) : null,
-        jour_prelevement: data.jour_prelevement ? parseInt(data.jour_prelevement) : null,
-        actif: data.actif,
-        notes: data.notes || null,
-        document_url: documentUrl,
-      });
-
-      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["abonnements-partenaires"] });
       toast.success("Abonnement créé");
       reset();
-      setDocumentFile(null);
+      setDocumentFiles([]);
       onOpenChange(false);
     },
     onError: (error) => {
@@ -159,12 +173,40 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
             <Textarea id="notes" {...register("notes")} rows={3} />
           </div>
 
-          <FileUploadField
-            label="Document"
-            accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-            onFileSelect={setDocumentFile}
-            onFileRemove={() => setDocumentFile(null)}
-          />
+          <div className="space-y-2">
+            <Label>Documents (plusieurs fichiers possibles)</Label>
+            <Input
+              type="file"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+              multiple
+              onChange={(e) => {
+                const files = Array.from(e.target.files || []);
+                setDocumentFiles(prev => [...prev, ...files]);
+              }}
+            />
+            {documentFiles.length > 0 && (
+              <div className="space-y-1">
+                {documentFiles.map((file, index) => (
+                  <div key={index} className="flex items-center justify-between text-sm border rounded p-2">
+                    <span className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      {file.name}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setDocumentFiles(prev => prev.filter((_, i) => i !== index));
+                      }}
+                    >
+                      Supprimer
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
