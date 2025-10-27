@@ -103,8 +103,62 @@ export default function TvaMensuel() {
 
       if (fichierError) throw fichierError;
 
-      // Extraire toutes les lignes de rapprochement du JSON
+      // D'abord, récupérer les rapprochements manuels de la période
+      const { data: rapprochementsManuels, error: manuelsError } = await supabase
+        .from("rapprochements_bancaires")
+        .select(`
+          id,
+          transaction_date,
+          transaction_libelle,
+          transaction_montant,
+          transaction_credit,
+          transaction_debit,
+          facture_id,
+          factures (
+            id,
+            numero_facture,
+            type_facture,
+            total_tva
+          )
+        `)
+        .gte("transaction_date", startDate.toISOString().split('T')[0])
+        .lte("transaction_date", endDate.toISOString().split('T')[0])
+        .not("facture_id", "is", null);
+
+      if (manuelsError) throw manuelsError;
+
+      console.log("Rapprochements manuels récupérés:", rapprochementsManuels?.length);
+
+      // Créer un Set pour tracker les transactions déjà traitées
+      const processedTransactions = new Set<string>();
+      
+      // Extraire toutes les lignes de rapprochement
       const allLignes: RapprochementLigne[] = [];
+
+      // Ajouter d'abord les rapprochements manuels (prioritaires)
+      rapprochementsManuels?.forEach((rap: any) => {
+        if (rap.factures) {
+          const transactionKey = `${rap.transaction_date}_${rap.transaction_libelle}_${Math.abs(rap.transaction_montant)}`;
+          processedTransactions.add(transactionKey);
+          
+          allLignes.push({
+            id: `manual_${rap.id}`,
+            transaction_date: rap.transaction_date,
+            transaction_libelle: rap.transaction_libelle,
+            transaction_montant: rap.transaction_montant,
+            transaction_credit: rap.transaction_credit || 0,
+            transaction_debit: rap.transaction_debit || 0,
+            statut: "RAPPROCHE",
+            facture: {
+              numero_facture: rap.factures.numero_facture,
+              total_tva: rap.factures.total_tva || 0,
+              type_facture: rap.factures.type_facture,
+            },
+          });
+        }
+      });
+
+      // Ensuite, traiter les fichiers de rapprochement
       const factureIds = new Set<string>();
 
       console.log("Fichiers récupérés:", fichiers?.length);
@@ -119,6 +173,14 @@ export default function TvaMensuel() {
             const transaction = rap.transaction;
             const facture = rap.facture;
             const status = rap.status; // matched, uncertain, unmatched
+            
+            // Vérifier si cette transaction n'a pas déjà été traitée via rapprochement manuel
+            const transactionKey = `${transaction.date}_${transaction.libelle}_${Math.abs(transaction.montant)}`;
+            
+            if (processedTransactions.has(transactionKey)) {
+              console.log("Transaction déjà traitée, ignorée:", transactionKey);
+              return; // Skip cette transaction
+            }
             
             console.log("Rapprochement:", { status, facture });
             
@@ -146,55 +208,9 @@ export default function TvaMensuel() {
         }
       });
 
-      // Récupérer aussi les rapprochements manuels de la période
-      const { data: rapprochementsManuels, error: manuelsError } = await supabase
-        .from("rapprochements_bancaires")
-        .select(`
-          id,
-          transaction_date,
-          transaction_libelle,
-          transaction_montant,
-          transaction_credit,
-          transaction_debit,
-          facture_id,
-          factures (
-            id,
-            numero_facture,
-            type_facture,
-            total_tva
-          )
-        `)
-        .gte("transaction_date", startDate.toISOString().split('T')[0])
-        .lte("transaction_date", endDate.toISOString().split('T')[0])
-        .not("facture_id", "is", null);
-
-      if (manuelsError) throw manuelsError;
-
-      console.log("Rapprochements manuels récupérés:", rapprochementsManuels?.length);
-
-      // Ajouter les rapprochements manuels aux lignes
-      rapprochementsManuels?.forEach((rap: any) => {
-        if (rap.factures) {
-          allLignes.push({
-            id: `manual_${rap.id}`,
-            transaction_date: rap.transaction_date,
-            transaction_libelle: rap.transaction_libelle,
-            transaction_montant: rap.transaction_montant,
-            transaction_credit: rap.transaction_credit || 0,
-            transaction_debit: rap.transaction_debit || 0,
-            statut: "RAPPROCHE",
-            facture: {
-              numero_facture: rap.factures.numero_facture,
-              total_tva: rap.factures.total_tva || 0,
-              type_facture: rap.factures.type_facture,
-            },
-          });
-        }
-      });
-
       console.log("IDs de factures collectés:", Array.from(factureIds));
 
-      // Récupérer les infos complètes des factures pour avoir le total_tva
+      // Récupérer les infos complètes des factures du fichier_data pour avoir le total_tva
       if (factureIds.size > 0) {
         console.log("Récupération des factures pour les IDs:", Array.from(factureIds));
         const { data: factures, error: facturesError } = await supabase
