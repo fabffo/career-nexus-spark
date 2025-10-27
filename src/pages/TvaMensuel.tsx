@@ -319,8 +319,27 @@ export default function TvaMensuel() {
         if (ligne.facture?.numero_facture) {
           factureCorrespondante = factureMapByNumero.get(ligne.facture.numero_facture);
         }
+        
+        // 2. Recherche dans le libellé de la transaction
+        if (!factureCorrespondante) {
+          // Extraire les numéros de facture du libellé (format FAC-XXX, F XXX, etc.)
+          const facRegex = /(?:FAC|F)[\s-]*([A-Z0-9-]+)/gi;
+          const matches = ligne.transaction_libelle.matchAll(facRegex);
+          
+          for (const match of matches) {
+            const numeroFacture = match[0].replace(/\s+/g, '-').toUpperCase();
+            const facture = Array.from(factureMapByNumero.values()).find(f => 
+              f.numero_facture.includes(match[1]) || 
+              numeroFacture.includes(f.numero_facture)
+            );
+            if (facture) {
+              factureCorrespondante = facture;
+              break;
+            }
+          }
+        }
 
-        // 2. Recherche par montant si pas trouvé
+        // 3. Recherche par montant si pas trouvé
         if (!factureCorrespondante) {
           const montantTransaction = Math.abs(ligne.transaction_montant);
           const montantKey = Math.round(montantTransaction * 100) / 100;
@@ -349,6 +368,7 @@ export default function TvaMensuel() {
 
         // Si une facture a été trouvée, mettre à jour la ligne
         if (factureCorrespondante) {
+          console.log(`Facture trouvée pour ${ligne.transaction_libelle}:`, factureCorrespondante);
           return {
             ...ligne,
             facture: {
