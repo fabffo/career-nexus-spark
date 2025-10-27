@@ -106,6 +106,38 @@ export default function EditRapprochementHistoriqueDialog({
     }
   }, [open]);
 
+  // Filtrer les factures pour n'afficher que celles non encore rapprochées
+  const [facturesNonRapprochees, setFacturesNonRapprochees] = useState<FactureMatch[]>([]);
+
+  useEffect(() => {
+    const loadFacturesNonRapprochees = async () => {
+      // Récupérer toutes les factures déjà rapprochées
+      const { data: facturesRapprochees } = await supabase
+        .from("rapprochements_factures")
+        .select("facture_id");
+
+      const idsRapproches = new Set(facturesRapprochees?.map(r => r.facture_id) || []);
+      
+      // Si on est en mode édition, inclure les factures actuellement sélectionnées
+      if (rapprochement?.manualId) {
+        const { data: currentFactures } = await supabase
+          .from("rapprochements_factures")
+          .select("facture_id")
+          .eq("rapprochement_id", rapprochement.manualId);
+        
+        currentFactures?.forEach(f => idsRapproches.delete(f.facture_id));
+      }
+      
+      // Filtrer les factures passées en prop pour exclure celles déjà rapprochées
+      const nonRapprochees = factures.filter(f => !idsRapproches.has(f.id));
+      setFacturesNonRapprochees(nonRapprochees);
+    };
+
+    if (open && factures.length > 0) {
+      loadFacturesNonRapprochees();
+    }
+  }, [open, factures, rapprochement]);
+
   // Initialiser les valeurs au chargement
   useEffect(() => {
     if (rapprochement && open) {
@@ -161,7 +193,7 @@ export default function EditRapprochementHistoriqueDialog({
   }, [rapprochement, open]);
 
   // Filtrer les factures de ventes et d'achats
-  const facturesVentes = factures.filter((f) => {
+  const facturesVentes = facturesNonRapprochees.filter((f) => {
     const search = searchTerm.toLowerCase();
     const matchesSearch = f.numero_facture.toLowerCase().includes(search) ||
       f.partenaire_nom.toLowerCase().includes(search) ||
@@ -169,7 +201,7 @@ export default function EditRapprochementHistoriqueDialog({
     return f.type_facture === "VENTES" && matchesSearch;
   });
 
-  const facturesAchats = factures.filter((f) => {
+  const facturesAchats = facturesNonRapprochees.filter((f) => {
     const search = searchTerm.toLowerCase();
     const matchesSearch = f.numero_facture.toLowerCase().includes(search) ||
       f.partenaire_nom.toLowerCase().includes(search) ||
@@ -177,7 +209,7 @@ export default function EditRapprochementHistoriqueDialog({
     return f.type_facture === "ACHATS" && matchesSearch;
   });
 
-  const selectedFactures = factures.filter((f) => selectedFactureIds.includes(f.id));
+  const selectedFactures = facturesNonRapprochees.filter((f) => selectedFactureIds.includes(f.id));
   const totalFacturesSelectionnees = selectedFactures.reduce((sum, f) => sum + f.total_ttc, 0);
 
   const toggleFactureSelection = (factureId: string) => {
