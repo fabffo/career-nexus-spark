@@ -458,6 +458,51 @@ export type Database = {
           },
         ]
       }
+      declarations_charges_sociales: {
+        Row: {
+          actif: boolean | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          jour_echeance: number | null
+          montant_estime: number | null
+          nom: string
+          notes: string | null
+          organisme: string
+          periodicite: string
+          type_charge: string
+          updated_at: string | null
+        }
+        Insert: {
+          actif?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          jour_echeance?: number | null
+          montant_estime?: number | null
+          nom: string
+          notes?: string | null
+          organisme: string
+          periodicite?: string
+          type_charge: string
+          updated_at?: string | null
+        }
+        Update: {
+          actif?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          jour_echeance?: number | null
+          montant_estime?: number | null
+          nom?: string
+          notes?: string | null
+          organisme?: string
+          periodicite?: string
+          type_charge?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       echeances_fiscales: {
         Row: {
           created_at: string | null
