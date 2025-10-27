@@ -28,6 +28,8 @@ interface FactureMatch {
   partenaire_nom: string;
   total_ttc: number;
   statut: string;
+  numero_rapprochement?: string;
+  date_rapprochement?: string;
 }
 
 interface Consommation {
@@ -97,15 +99,31 @@ export default function RapprochementManuelDialog({
 
   useEffect(() => {
     const loadFacturesNonRapprochees = async () => {
-      // Récupérer toutes les factures déjà rapprochées
-      const { data: facturesRapprochees } = await supabase
+      console.log("Total factures reçues:", factures.length);
+      
+      // Filtrer d'abord par numero_rapprochement dans la table factures
+      let nonRapprochees = factures.filter(f => !f.numero_rapprochement);
+      console.log("Factures sans numero_rapprochement:", nonRapprochees.length);
+      
+      // Ensuite, récupérer les factures dans la table de jonction rapprochements_factures
+      const { data: facturesRapprochees, error } = await supabase
         .from("rapprochements_factures")
         .select("facture_id");
 
+      if (error) {
+        console.error("Erreur chargement rapprochements_factures:", error);
+      } else {
+        console.log("Factures dans rapprochements_factures:", facturesRapprochees?.length || 0);
+      }
+
       const idsRapproches = new Set(facturesRapprochees?.map(r => r.facture_id) || []);
       
-      // Filtrer les factures passées en prop pour exclure celles déjà rapprochées
-      const nonRapprochees = factures.filter(f => !idsRapproches.has(f.id));
+      // Filtrer aussi celles qui sont dans la table de jonction
+      nonRapprochees = nonRapprochees.filter(f => !idsRapproches.has(f.id));
+      
+      console.log("Factures finales non rapprochées:", nonRapprochees.length);
+      console.log("Détail factures:", nonRapprochees.map(f => ({ numero: f.numero_facture, type: f.type_facture })));
+      
       setFacturesNonRapprochees(nonRapprochees);
     };
 
