@@ -98,11 +98,24 @@ export default function RapprochementBancaire() {
   const [selectedHistoriqueFichierId, setSelectedHistoriqueFichierId] = useState<string>("");
   const { toast } = useToast();
 
-  // Charger les fichiers de rapprochement validés et les factures
+  // Réinitialiser les états et charger les données selon l'onglet actif
   useEffect(() => {
     if (activeTab === "historique") {
+      // Réinitialiser les états de l'onglet "en_cours"
+      setTransactions([]);
+      setRapprochements([]);
+      setManualStatusChanges({});
+      setStatusFilter("all");
+      setCurrentPage(1);
+      
+      // Charger les données de l'historique
       loadFichiersRapprochement();
       loadFactures();
+    } else {
+      // Réinitialiser les états de l'onglet "historique"
+      setSelectedFichier(null);
+      setHistoriqueStatusChanges({});
+      setFactures([]);
     }
   }, [activeTab]);
 
