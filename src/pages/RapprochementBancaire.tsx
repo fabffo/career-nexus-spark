@@ -957,13 +957,18 @@ export default function RapprochementBancaire() {
       const libelleNormalized = normalizeString(transaction.libelle);
 
       // Appliquer les règles personnalisées pour abonnements et déclarations
+      let abonnementMatch = false;
+      let declarationMatch = false;
+      let ruleScore = 0;
+
       if (regles && (abonnements || declarations)) {
         for (const regle of regles) {
           const condition = regle.condition_json as any;
 
           // Règle ABONNEMENT
-          if (regle.type_regle === "ABONNEMENT" && abonnements) {
-            for (const abonnement of abonnements) {
+          if (regle.type_regle === "ABONNEMENT" && abonnements && condition.abonnement_id) {
+            const abonnement = abonnements.find(a => a.id === condition.abonnement_id);
+            if (abonnement) {
               let match = false;
               
               // Vérifier le libellé
@@ -981,17 +986,18 @@ export default function RapprochementBancaire() {
                 match = Math.abs(Math.abs(transaction.montant) - abonnement.montant_mensuel) <= tolerance;
               }
 
-              if (match) {
+              if (match && regle.score_attribue > ruleScore) {
                 console.log(`✅ Match abonnement: ${abonnement.nom} (score: ${regle.score_attribue})`);
-                // Pour l'instant on garde le meilleur score mais on ne crée pas encore la liaison
-                // L'utilisateur devra valider manuellement ou via le dialog d'édition
+                abonnementMatch = true;
+                ruleScore = regle.score_attribue;
               }
             }
           }
 
           // Règle DECLARATION_CHARGE
-          if (regle.type_regle === "DECLARATION_CHARGE" && declarations) {
-            for (const declaration of declarations) {
+          if (regle.type_regle === "DECLARATION_CHARGE" && declarations && condition.declaration_id) {
+            const declaration = declarations.find(d => d.id === condition.declaration_id);
+            if (declaration) {
               let match = false;
               
               // Vérifier le libellé
@@ -1011,13 +1017,26 @@ export default function RapprochementBancaire() {
                 match = Math.abs(Math.abs(transaction.montant) - declaration.montant_estime) <= tolerance;
               }
 
-              if (match) {
+              if (match && regle.score_attribue > ruleScore) {
                 console.log(`✅ Match déclaration: ${declaration.nom} (score: ${regle.score_attribue})`);
-                // Pour l'instant on garde le meilleur score mais on ne crée pas encore la liaison
+                declarationMatch = true;
+                ruleScore = regle.score_attribue;
               }
             }
           }
         }
+      }
+
+      // Si un abonnement ou une déclaration matche, retourner directement ce résultat
+      if (abonnementMatch || declarationMatch) {
+        const status: "matched" | "uncertain" = ruleScore >= 70 ? "matched" : "uncertain";
+        return {
+          transaction,
+          facture: null,
+          score: ruleScore,
+          status,
+          isManual: false,
+        };
       }
 
       // Rapprochement avec les factures (logique existante)
