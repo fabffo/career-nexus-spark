@@ -468,6 +468,7 @@ export default function RapprochementBancaire() {
 
     try {
       console.log("🗑️ Début suppression rapprochement:", rapprochement);
+      console.log("🗑️ Type:", rapprochement.isManual ? "Manuel" : "Automatique");
       
       // Trouver le rapprochement_id dans la base de données
       const { data: rapprochementData, error: fetchError } = await supabase
@@ -480,9 +481,10 @@ export default function RapprochementBancaire() {
 
       if (fetchError) throw fetchError;
 
-      console.log("🔍 Rapprochement trouvé:", rapprochementData);
+      console.log("🔍 Rapprochement trouvé dans la BD:", rapprochementData);
 
       if (rapprochementData) {
+        // C'est un rapprochement manuel ou sauvegardé
         // Supprimer les liaisons dans rapprochements_factures
         const { error: deleteRapprochementsFacturesError } = await supabase
           .from("rapprochements_factures")
@@ -518,6 +520,51 @@ export default function RapprochementBancaire() {
 
         if (deleteRapprochementError) throw deleteRapprochementError;
         console.log("✅ Rapprochement bancaire supprimé");
+      }
+      
+      // Remettre la facture à l'état non rapprochée si elle existe
+      if (rapprochement.facture?.id) {
+        const { error: updateFactureError } = await supabase
+          .from("factures")
+          .update({
+            numero_rapprochement: null,
+            date_rapprochement: null,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", rapprochement.facture.id);
+
+        if (updateFactureError) {
+          console.error("❌ Erreur mise à jour facture:", updateFactureError);
+        } else {
+          console.log("✅ Facture dé-rapprochée:", rapprochement.facture.numero_facture);
+        }
+      }
+
+      // Mettre à jour le fichier de rapprochement dans la BD
+      const fichier = fichiersRapprochement.find(f => f.id === fichierId);
+      if (fichier && fichier.fichier_data) {
+        const updatedRapprochements = fichier.fichier_data.rapprochements.filter(r =>
+          !(r.transaction.date === rapprochement.transaction.date &&
+            r.transaction.libelle === rapprochement.transaction.libelle &&
+            r.transaction.montant === rapprochement.transaction.montant)
+        );
+
+        const newLignesRapprochees = updatedRapprochements.filter(r => r.status === "matched").length;
+
+        const { error: updateFichierError } = await supabase
+          .from("fichiers_rapprochement")
+          .update({
+            fichier_data: JSON.parse(JSON.stringify({
+              ...fichier.fichier_data,
+              rapprochements: updatedRapprochements
+            })),
+            lignes_rapprochees: newLignesRapprochees,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", fichierId);
+
+        if (updateFichierError) throw updateFichierError;
+        console.log("✅ Fichier de rapprochement mis à jour");
       }
 
       toast({
