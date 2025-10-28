@@ -932,6 +932,17 @@ export default function RapprochementBancaire() {
       console.log("📋 Liste des abonnements:", abonnements.map(a => ({ id: a.id, nom: a.nom, montant: a.montant_mensuel })));
     }
     console.log("📋 Déclarations actives:", declarations?.length || 0);
+    
+    // Debug: Afficher toutes les règles ABONNEMENT
+    if (regles) {
+      const reglesAbonnement = regles.filter(r => r.type_regle === "ABONNEMENT");
+      console.log("📋 Règles ABONNEMENT:", reglesAbonnement.map(r => ({
+        nom: r.nom,
+        condition: r.condition_json,
+        actif: r.actif,
+        score: r.score_attribue
+      })));
+    }
 
     // Étape 1: Collecter toutes les correspondances possibles transaction-facture avec scores
     const factureMatches: Array<{
