@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import RapprochementManuelDialog from "@/components/RapprochementManuelDialog";
 import EditRapprochementHistoriqueDialog from "@/components/EditRapprochementHistoriqueDialog";
+import EditRapprochementEnCoursDialog from "@/components/EditRapprochementEnCoursDialog";
 import AddRegleRapprochementDialog from "@/components/AddRegleRapprochementDialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -113,6 +114,8 @@ export default function RapprochementBancaire() {
   const [selectedHistoriqueFichierId, setSelectedHistoriqueFichierId] = useState<string>("");
   const [reglesRapprochement, setReglesRapprochement] = useState<RegleRapprochement[]>([]);
   const [addRegleDialogOpen, setAddRegleDialogOpen] = useState(false);
+  const [editEnCoursDialogOpen, setEditEnCoursDialogOpen] = useState(false);
+  const [selectedEnCoursRapprochement, setSelectedEnCoursRapprochement] = useState<Rapprochement | null>(null);
   const { toast } = useToast();
 
   // Réinitialiser les états et charger les données selon l'onglet actif
@@ -718,26 +721,7 @@ export default function RapprochementBancaire() {
       await loadRapprochementsManuels();
 
       // Charger toutes les factures
-      const { data: facturesData, error: facturesError } = await supabase
-        .from("factures")
-        .select("*")
-        .in("statut", ["VALIDEE", "PAYEE"]);
-
-      if (facturesError) throw facturesError;
-
-      const facturesFormatted: FactureMatch[] = (facturesData || []).map((f) => ({
-        id: f.id,
-        numero_facture: f.numero_facture,
-        type_facture: f.type_facture as "VENTES" | "ACHATS",
-        date_emission: f.date_emission,
-        partenaire_nom: f.type_facture === "VENTES" ? f.destinataire_nom : f.emetteur_nom,
-        total_ttc: f.total_ttc || 0,
-        statut: f.statut,
-        numero_rapprochement: f.numero_rapprochement,
-        date_rapprochement: f.date_rapprochement,
-      }));
-
-      setFactures(facturesFormatted);
+      await loadFactures();
 
       const fileName = file.name.toLowerCase();
       const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
@@ -826,7 +810,7 @@ export default function RapprochementBancaire() {
             setTransactions(transactionsParsed);
 
             // Effectuer le rapprochement automatique
-            const rapprochementsResult = performMatching(transactionsParsed, facturesFormatted);
+            const rapprochementsResult = performMatching(transactionsParsed, factures);
             setRapprochements(rapprochementsResult);
 
             toast({
@@ -875,7 +859,7 @@ export default function RapprochementBancaire() {
             setTransactions(transactionsParsed);
 
             // Effectuer le rapprochement automatique
-            const rapprochementsResult = performMatching(transactionsParsed, facturesFormatted);
+            const rapprochementsResult = performMatching(transactionsParsed, factures);
             setRapprochements(rapprochementsResult);
 
             toast({
@@ -1734,7 +1718,14 @@ export default function RapprochementBancaire() {
                     </thead>
                     <tbody>
                    {currentRapprochements.map((rapprochement, index) => (
-                       <tr key={index} className="border-b transition-colors hover:bg-muted/50">
+                       <tr 
+                         key={index} 
+                         className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
+                         onClick={() => {
+                           setSelectedEnCoursRapprochement(rapprochement);
+                           setEditEnCoursDialogOpen(true);
+                         }}
+                       >
                         <td className="p-4 align-middle">
                           <div className="flex items-center gap-2">
                             <div
@@ -2244,11 +2235,52 @@ export default function RapprochementBancaire() {
         factures={factures}
         fichierId={selectedHistoriqueFichierId}
         onSuccess={async () => {
+          await loadFactures();
           await loadFichiersRapprochement();
-          toast({
-            title: "Succès",
-            description: "Rapprochement modifié avec succès",
-          });
+          setEditHistoriqueDialogOpen(false);
+        }}
+      />
+
+      <EditRapprochementEnCoursDialog
+        open={editEnCoursDialogOpen}
+        onOpenChange={setEditEnCoursDialogOpen}
+        rapprochement={selectedEnCoursRapprochement}
+        factures={factures}
+        onStatusChange={(newStatus) => {
+          if (selectedEnCoursRapprochement) {
+            const key = getTransactionKey(selectedEnCoursRapprochement.transaction);
+            handleStatusChange(key, newStatus);
+          }
+        }}
+        onFactureSelect={(factureIds) => {
+          if (selectedEnCoursRapprochement && factureIds.length > 0) {
+            // Mettre à jour le rapprochement avec la nouvelle facture
+            const facture = factures.find(f => f.id === factureIds[0]);
+            setRapprochements(prev => prev.map(r => {
+              const key = getTransactionKey(r.transaction);
+              const selectedKey = getTransactionKey(selectedEnCoursRapprochement.transaction);
+              if (key === selectedKey) {
+                return {
+                  ...r,
+                  facture: facture || null,
+                  status: facture ? "matched" : r.status,
+                };
+              }
+              return r;
+            }));
+          }
+        }}
+        onNotesChange={(newNotes) => {
+          if (selectedEnCoursRapprochement) {
+            setRapprochements(prev => prev.map(r => {
+              const key = getTransactionKey(r.transaction);
+              const selectedKey = getTransactionKey(selectedEnCoursRapprochement.transaction);
+              if (key === selectedKey) {
+                return { ...r, notes: newNotes };
+              }
+              return r;
+            }));
+          }
         }}
       />
     </div>
