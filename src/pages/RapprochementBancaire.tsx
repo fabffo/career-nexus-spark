@@ -1167,11 +1167,14 @@ export default function RapprochementBancaire() {
                 );
               }
 
-              // Vérifier le montant si spécifié
-              if (match && condition.montant_exact) {
-                const tolerance = condition.tolerance || 0.01;
-                match = Math.abs(Math.abs(transaction.montant) - abonnement.montant_mensuel) <= tolerance;
+              // Vérifier le montant si l'abonnement a un montant défini
+              if (match && abonnement.montant_mensuel && abonnement.montant_mensuel > 0) {
+                if (condition.montant_exact) {
+                  const tolerance = condition.tolerance || 0.01;
+                  match = Math.abs(Math.abs(transaction.montant) - abonnement.montant_mensuel) <= tolerance;
+                }
               }
+              // Si l'abonnement n'a pas de montant, le match sur le nom suffit
 
               if (match && regle.score_attribue > ruleScore) {
                 console.log(`✅ Match abonnement: ${abonnement.nom} (score: ${regle.score_attribue})`);
