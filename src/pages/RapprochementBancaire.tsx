@@ -58,6 +58,8 @@ interface Rapprochement {
   isManual?: boolean;
   manualId?: string;
   notes?: string | null;
+  abonnement_info?: { id: string; nom: string };
+  declaration_info?: { id: string; nom: string; organisme: string };
 }
 
 interface FichierRapprochement {
@@ -960,8 +962,8 @@ export default function RapprochementBancaire() {
       const libelleNormalized = normalizeString(transaction.libelle);
 
       // Appliquer les règles personnalisées pour abonnements et déclarations
-      let abonnementMatch = false;
-      let declarationMatch = false;
+      let abonnementMatch: any = false;
+      let declarationMatch: any = false;
       let ruleScore = 0;
 
       if (regles && (abonnements || declarations)) {
@@ -991,7 +993,7 @@ export default function RapprochementBancaire() {
 
               if (match && regle.score_attribue > ruleScore) {
                 console.log(`✅ Match abonnement: ${abonnement.nom} (score: ${regle.score_attribue})`);
-                abonnementMatch = true;
+                abonnementMatch = abonnement;
                 ruleScore = regle.score_attribue;
               }
             }
@@ -1022,7 +1024,7 @@ export default function RapprochementBancaire() {
 
               if (match && regle.score_attribue > ruleScore) {
                 console.log(`✅ Match déclaration: ${declaration.nom} (score: ${regle.score_attribue})`);
-                declarationMatch = true;
+                declarationMatch = declaration;
                 ruleScore = regle.score_attribue;
               }
             }
@@ -1039,6 +1041,8 @@ export default function RapprochementBancaire() {
           score: ruleScore,
           status,
           isManual: false,
+          abonnement_info: abonnementMatch ? { id: abonnementMatch.id, nom: abonnementMatch.nom } : undefined,
+          declaration_info: declarationMatch ? { id: declarationMatch.id, nom: declarationMatch.nom, organisme: declarationMatch.organisme } : undefined,
         };
       }
 
@@ -1517,8 +1521,8 @@ export default function RapprochementBancaire() {
         Crédit: r.transaction.credit || "",
         Statut: r.status === "matched" ? "Rapproché" : r.status === "uncertain" ? "Incertain" : "Non rapproché",
         "N° Facture": r.facture?.numero_facture || "",
-        "Type Facture": r.facture?.type_facture || "",
-        Partenaire: r.facture?.partenaire_nom || "",
+        "Type Facture": r.facture?.type_facture || r.abonnement_info ? "ABONNEMENT" : r.declaration_info ? "DECLARATION" : "",
+        Partenaire: r.facture?.partenaire_nom || r.abonnement_info?.nom || (r.declaration_info ? `${r.declaration_info.nom} (${r.declaration_info.organisme})` : "") || "",
         "Montant Facture": r.facture?.total_ttc || "",
         "Score %": r.score,
       }))
@@ -1956,9 +1960,12 @@ export default function RapprochementBancaire() {
                            <span className="text-muted-foreground">-</span>
                          )}
                        </td>
-                       <td className="p-4 align-middle">
-                         {rapprochement.facture?.partenaire_nom || "-"}
-                       </td>
+                        <td className="p-4 align-middle">
+                          {rapprochement.facture?.partenaire_nom || 
+                           rapprochement.abonnement_info?.nom || 
+                           (rapprochement.declaration_info ? `${rapprochement.declaration_info.nom} (${rapprochement.declaration_info.organisme})` : "") ||
+                           "-"}
+                        </td>
                        <td className="p-4 align-middle text-right">
                          {rapprochement.facture
                            ? new Intl.NumberFormat("fr-FR", {
@@ -2185,7 +2192,10 @@ export default function RapprochementBancaire() {
                                           )}
                                         </TableCell>
                                         <TableCell>
-                                          {rapprochement.facture?.partenaire_nom || "-"}
+                                          {rapprochement.facture?.partenaire_nom || 
+                                           rapprochement.abonnement_info?.nom || 
+                                           (rapprochement.declaration_info ? `${rapprochement.declaration_info.nom} (${rapprochement.declaration_info.organisme})` : "") ||
+                                           "-"}
                                         </TableCell>
                                         <TableCell className="text-right">
                                           {rapprochement.isManual ? (
