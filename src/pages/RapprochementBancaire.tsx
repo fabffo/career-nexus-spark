@@ -543,12 +543,21 @@ export default function RapprochementBancaire() {
       // Mettre à jour le fichier de rapprochement dans la BD
       const fichier = fichiersRapprochement.find(f => f.id === fichierId);
       if (fichier && fichier.fichier_data) {
-        // Supprimer complètement la ligne du rapprochement
-        const updatedRapprochements = fichier.fichier_data.rapprochements.filter(r =>
-          !(r.transaction.date === rapprochement.transaction.date &&
-            r.transaction.libelle === rapprochement.transaction.libelle &&
-            r.transaction.montant === rapprochement.transaction.montant)
-        );
+        // Garder la ligne mais changer son statut à "partial"
+        const updatedRapprochements = fichier.fichier_data.rapprochements.map(r => {
+          if (r.transaction.date === rapprochement.transaction.date &&
+              r.transaction.libelle === rapprochement.transaction.libelle &&
+              r.transaction.montant === rapprochement.transaction.montant) {
+            return {
+              ...r,
+              facture: undefined,
+              status: "partial" as const,
+              score: 0,
+              isManual: false
+            };
+          }
+          return r;
+        });
 
         const newLignesRapprochees = updatedRapprochements.filter(r => r.status === "matched").length;
 
@@ -565,7 +574,7 @@ export default function RapprochementBancaire() {
           .eq("id", fichierId);
 
         if (updateFichierError) throw updateFichierError;
-        console.log("✅ Fichier de rapprochement mis à jour - ligne supprimée");
+        console.log("✅ Fichier de rapprochement mis à jour - ligne dé-rapprochée");
       }
 
       toast({
@@ -989,6 +998,138 @@ export default function RapprochementBancaire() {
     // Recalculer les rapprochements avec les nouvelles données
     const rapprochementsResult = performMatching(transactions, factures);
     setRapprochements(rapprochementsResult);
+  };
+
+  const handleAnnulerFichierComplet = async (fichierId: string) => {
+    if (!confirm("Voulez-vous vraiment annuler complètement ce rapprochement ? Toutes les transactions et associations seront supprimées.")) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      console.log("🗑️ Annulation complète du fichier:", fichierId);
+
+      // 1. Récupérer le fichier
+      const fichier = fichiersRapprochement.find(f => f.id === fichierId);
+      if (!fichier) {
+        throw new Error("Fichier introuvable");
+      }
+
+      // 2. Collecter tous les IDs de rapprochements manuels et factures
+      const rapprochementsManuelsIds: string[] = [];
+      const factureIds: string[] = [];
+      
+      if (fichier.fichier_data?.rapprochements) {
+        fichier.fichier_data.rapprochements.forEach((r: any) => {
+          if (r.isManual && r.manualId) {
+            rapprochementsManuelsIds.push(r.manualId);
+          }
+          if (r.facture?.id) {
+            factureIds.push(r.facture.id);
+          }
+        });
+      }
+
+      console.log("📋 Rapprochements manuels à supprimer:", rapprochementsManuelsIds.length);
+      console.log("📋 Factures à réinitialiser:", factureIds.length);
+
+      // 3. Supprimer les rapprochements manuels et leurs associations
+      if (rapprochementsManuelsIds.length > 0) {
+        // Récupérer les IDs des paiements abonnements pour supprimer leurs consommations
+        const { data: paiementsAbonnements } = await supabase
+          .from("paiements_abonnements")
+          .select("id")
+          .in("rapprochement_id", rapprochementsManuelsIds);
+
+        const paiementAbonnementIds = paiementsAbonnements?.map(p => p.id) || [];
+
+        // Supprimer les consommations liées aux paiements abonnements (si la table existe)
+        if (paiementAbonnementIds.length > 0) {
+          try {
+            await (supabase as any)
+              .from("abonnements_consommations")
+              .delete()
+              .in("paiement_id", paiementAbonnementIds);
+          } catch (e) {
+            console.warn("Erreur suppression consommations:", e);
+          }
+        }
+
+        // Supprimer les associations de factures
+        const { error: rfError } = await supabase
+          .from("rapprochements_factures")
+          .delete()
+          .in("rapprochement_id", rapprochementsManuelsIds);
+
+        if (rfError) throw rfError;
+
+        // Supprimer les paiements d'abonnements
+        const { error: paError } = await supabase
+          .from("paiements_abonnements")
+          .delete()
+          .in("rapprochement_id", rapprochementsManuelsIds);
+
+        if (paError) throw paError;
+
+        // Supprimer les paiements de déclarations
+        const { error: pdError } = await supabase
+          .from("paiements_declarations_charges")
+          .delete()
+          .in("rapprochement_id", rapprochementsManuelsIds);
+
+        if (pdError) throw pdError;
+
+        // Supprimer les rapprochements bancaires manuels
+        const { error: deleteRbError } = await supabase
+          .from("rapprochements_bancaires")
+          .delete()
+          .in("id", rapprochementsManuelsIds);
+
+        if (deleteRbError) throw deleteRbError;
+      }
+
+      // 4. Réinitialiser le statut des factures
+      if (factureIds.length > 0) {
+        const { error: updateFacturesError } = await supabase
+          .from("factures")
+          .update({
+            numero_rapprochement: null,
+            date_rapprochement: null
+          } as any)
+          .eq("numero_rapprochement", fichier.numero_rapprochement);
+
+        if (updateFacturesError) throw updateFacturesError;
+      }
+
+      // 5. Supprimer le fichier de rapprochement
+      const { error: deleteFichierError } = await supabase
+        .from("fichiers_rapprochement")
+        .delete()
+        .eq("id", fichierId);
+
+      if (deleteFichierError) throw deleteFichierError;
+
+      toast({
+        title: "Succès",
+        description: "Le rapprochement a été complètement annulé",
+      });
+
+      // Recharger les données
+      await loadFactures();
+      await loadFichiersRapprochement();
+      setSelectedFichier(null);
+
+    } catch (error) {
+      console.error("Erreur lors de l'annulation:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'annuler le rapprochement",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleValidateRapprochement = async () => {
@@ -1721,6 +1862,18 @@ export default function RapprochementBancaire() {
                                     {savingHistorique ? "Enregistrement..." : "Enregistrer"}
                                   </Button>
                                 )}
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAnnulerFichierComplet(fichier.id);
+                                  }}
+                                  disabled={loading}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Annuler le rapprochement
+                                </Button>
                               </div>
                             </div>
                             <div className="rounded-md border overflow-auto max-h-[500px]">
