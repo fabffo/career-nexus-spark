@@ -467,6 +467,8 @@ export default function RapprochementBancaire() {
     }
 
     try {
+      console.log("🗑️ Début suppression rapprochement:", rapprochement);
+      
       // Trouver le rapprochement_id dans la base de données
       const { data: rapprochementData, error: fetchError } = await supabase
         .from("rapprochements_bancaires")
@@ -478,6 +480,8 @@ export default function RapprochementBancaire() {
 
       if (fetchError) throw fetchError;
 
+      console.log("🔍 Rapprochement trouvé:", rapprochementData);
+
       if (rapprochementData) {
         // Supprimer les liaisons dans rapprochements_factures
         const { error: deleteRapprochementsFacturesError } = await supabase
@@ -486,6 +490,7 @@ export default function RapprochementBancaire() {
           .eq("rapprochement_id", rapprochementData.id);
 
         if (deleteRapprochementsFacturesError) throw deleteRapprochementsFacturesError;
+        console.log("✅ Liaisons factures supprimées");
 
         // Supprimer les paiements abonnements liés
         const { error: deletePaiementsAbonnementsError } = await supabase
@@ -494,6 +499,7 @@ export default function RapprochementBancaire() {
           .eq("rapprochement_id", rapprochementData.id);
 
         if (deletePaiementsAbonnementsError) throw deletePaiementsAbonnementsError;
+        console.log("✅ Paiements abonnements supprimés");
 
         // Supprimer les paiements déclarations charges liés
         const { error: deletePaiementsDeclarationsError } = await supabase
@@ -502,6 +508,7 @@ export default function RapprochementBancaire() {
           .eq("rapprochement_id", rapprochementData.id);
 
         if (deletePaiementsDeclarationsError) throw deletePaiementsDeclarationsError;
+        console.log("✅ Paiements déclarations supprimés");
 
         // Supprimer le rapprochement bancaire
         const { error: deleteRapprochementError } = await supabase
@@ -510,48 +517,7 @@ export default function RapprochementBancaire() {
           .eq("id", rapprochementData.id);
 
         if (deleteRapprochementError) throw deleteRapprochementError;
-      }
-
-      // Mettre à jour le fichier localement pour retirer le rapprochement
-      setFichiersRapprochement(prev => prev.map(fichier => {
-        if (fichier.id === fichierId && fichier.fichier_data) {
-          const updatedRapprochements = fichier.fichier_data.rapprochements.filter(r =>
-            !(r.transaction.date === rapprochement.transaction.date &&
-              r.transaction.libelle === rapprochement.transaction.libelle &&
-              r.transaction.montant === rapprochement.transaction.montant)
-          );
-
-          return {
-            ...fichier,
-            fichier_data: {
-              ...fichier.fichier_data,
-              rapprochements: updatedRapprochements
-            },
-            lignes_rapprochees: updatedRapprochements.filter(r => r.status === "matched").length
-          };
-        }
-        return fichier;
-      }));
-
-      // Mettre à jour selectedFichier si c'est celui modifié
-      if (selectedFichier?.id === fichierId) {
-        setSelectedFichier(prev => {
-          if (!prev || !prev.fichier_data) return prev;
-          const updatedRapprochements = prev.fichier_data.rapprochements.filter(r =>
-            !(r.transaction.date === rapprochement.transaction.date &&
-              r.transaction.libelle === rapprochement.transaction.libelle &&
-              r.transaction.montant === rapprochement.transaction.montant)
-          );
-
-          return {
-            ...prev,
-            fichier_data: {
-              ...prev.fichier_data,
-              rapprochements: updatedRapprochements
-            },
-            lignes_rapprochees: updatedRapprochements.filter(r => r.status === "matched").length
-          };
-        });
+        console.log("✅ Rapprochement bancaire supprimé");
       }
 
       toast({
@@ -559,9 +525,25 @@ export default function RapprochementBancaire() {
         description: "Le rapprochement a été supprimé avec succès",
       });
 
-      // Recharger les fichiers pour s'assurer que tout est à jour
-      await loadFichiersRapprochement();
+      // Recharger les fichiers et factures pour s'assurer que tout est à jour
+      console.log("🔄 Rechargement des données...");
       await loadFactures();
+      await loadFichiersRapprochement();
+      
+      // Re-sélectionner le fichier courant pour forcer la mise à jour de l'interface
+      // On attend un peu que l'état soit mis à jour
+      setTimeout(() => {
+        setFichiersRapprochement(prev => {
+          const fichierActualise = prev.find(f => f.id === fichierId);
+          if (fichierActualise && selectedFichier?.id === fichierId) {
+            setSelectedFichier(fichierActualise);
+            console.log("✅ Fichier courant re-sélectionné");
+          }
+          return prev;
+        });
+      }, 100);
+      
+      console.log("✅ Dé-rapprochement terminé avec succès");
 
     } catch (error) {
       console.error("Erreur lors de la suppression:", error);
