@@ -1167,9 +1167,14 @@ export default function RapprochementBancaire() {
           const condition = regle.condition_json as any;
 
           // Règle ABONNEMENT
-          if (regle.type_regle === "ABONNEMENT" && abonnements && condition.abonnement_id) {
-            const abonnement = abonnements.find(a => a.id === condition.abonnement_id);
-            if (abonnement) {
+          if (regle.type_regle === "ABONNEMENT" && abonnements) {
+            // Si la règle a un abonnement_id spécifique, on le cherche
+            // Sinon, on cherche parmi tous les abonnements celui qui correspond aux keywords
+            const abonnementsToTest = condition.abonnement_id 
+              ? abonnements.filter(a => a.id === condition.abonnement_id)
+              : abonnements;
+
+            for (const abonnement of abonnementsToTest) {
               console.log(`🔍 Test règle abonnement: ${regle.nom} (${abonnement.nom})`);
               console.log(`   Transaction libellé: "${transaction.libelle}"`);
               console.log(`   Transaction montant: ${transaction.montant}`);
@@ -1210,11 +1215,10 @@ export default function RapprochementBancaire() {
                 console.log(`✅ Match abonnement TROUVÉ: ${abonnement.nom} (score: ${regle.score_attribue})`);
                 abonnementMatch = abonnement;
                 ruleScore = regle.score_attribue;
+                break; // On arrête dès qu'on trouve un match pour cette règle
               } else if (match) {
                 console.log(`   Match trouvé mais score inférieur: ${regle.score_attribue} <= ${ruleScore}`);
               }
-            } else {
-              console.log(`❌ Abonnement introuvable pour condition.abonnement_id: ${condition.abonnement_id}`);
             }
           }
 
