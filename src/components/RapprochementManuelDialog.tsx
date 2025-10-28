@@ -59,6 +59,7 @@ export default function RapprochementManuelDialog({
   const [abonnements, setAbonnements] = useState<any[]>([]);
   const [declarations, setDeclarations] = useState<any[]>([]);
   const [consommations, setConsommations] = useState<Consommation[]>([]);
+  const [montantAbonnement, setMontantAbonnement] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -71,11 +72,19 @@ export default function RapprochementManuelDialog({
       setSelectedAbonnementId("");
       setSelectedDeclarationId("");
       setConsommations([]);
+      setMontantAbonnement("");
       setNotes("");
       setSearchTerm("");
       setFacturesNonRapprochees([]);
     }
   }, [open]);
+
+  // Mettre à jour le montant quand la transaction change
+  useEffect(() => {
+    if (transaction && open) {
+      setMontantAbonnement(Math.abs(transaction.montant).toString());
+    }
+  }, [transaction, open]);
 
   // Charger les abonnements et déclarations actifs
   useEffect(() => {
@@ -282,13 +291,15 @@ export default function RapprochementManuelDialog({
 
       // Si un abonnement est sélectionné, créer automatiquement un paiement d'abonnement
       if (selectedAbonnementId && rapprochementId) {
+        const montant = parseFloat(montantAbonnement) || Math.abs(transaction.montant);
+        
         const { error: paiementError } = await supabase
           .from("paiements_abonnements")
           .insert({
             abonnement_id: selectedAbonnementId,
             rapprochement_id: rapprochementId,
             date_paiement: transaction.date,
-            montant: Math.abs(transaction.montant),
+            montant: montant,
             notes: `Créé automatiquement depuis le rapprochement bancaire`,
             created_by: authData.user?.id,
           });
@@ -368,6 +379,7 @@ export default function RapprochementManuelDialog({
       setSelectedAbonnementId("");
       setSelectedDeclarationId("");
       setConsommations([]);
+      setMontantAbonnement("");
       setNotes("");
       setSearchTerm("");
     } catch (error) {
@@ -565,9 +577,27 @@ export default function RapprochementManuelDialog({
               </SelectContent>
             </Select>
             {selectedAbonnementId && (
-              <p className="text-xs text-muted-foreground">
-                Un paiement d'abonnement sera automatiquement créé
-              </p>
+              <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Partenaire:</span>
+                  <span className="text-sm">{abonnements.find(a => a.id === selectedAbonnementId)?.nom}</span>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="montant-abonnement" className="text-sm">Montant du paiement</Label>
+                  <Input
+                    id="montant-abonnement"
+                    type="number"
+                    step="0.01"
+                    placeholder="Montant"
+                    value={montantAbonnement}
+                    onChange={(e) => setMontantAbonnement(e.target.value)}
+                    className="font-medium"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Un paiement d'abonnement sera automatiquement créé avec ce montant
+                  </p>
+                </div>
+              </div>
             )}
           </div>
 
