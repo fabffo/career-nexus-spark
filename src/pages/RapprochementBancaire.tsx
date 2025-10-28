@@ -15,6 +15,7 @@ import RapprochementManuelDialog from "@/components/RapprochementManuelDialog";
 import EditRapprochementHistoriqueDialog from "@/components/EditRapprochementHistoriqueDialog";
 import EditRapprochementEnCoursDialog from "@/components/EditRapprochementEnCoursDialog";
 import AddRegleRapprochementDialog from "@/components/AddRegleRapprochementDialog";
+import EditRegleRapprochementDialog from "@/components/EditRegleRapprochementDialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 
@@ -114,6 +115,8 @@ export default function RapprochementBancaire() {
   const [selectedHistoriqueFichierId, setSelectedHistoriqueFichierId] = useState<string>("");
   const [reglesRapprochement, setReglesRapprochement] = useState<RegleRapprochement[]>([]);
   const [addRegleDialogOpen, setAddRegleDialogOpen] = useState(false);
+  const [editRegleDialogOpen, setEditRegleDialogOpen] = useState(false);
+  const [selectedRegle, setSelectedRegle] = useState<RegleRapprochement | null>(null);
   const [editEnCoursDialogOpen, setEditEnCoursDialogOpen] = useState(false);
   const [selectedEnCoursRapprochement, setSelectedEnCoursRapprochement] = useState<Rapprochement | null>(null);
   const { toast } = useToast();
@@ -2340,6 +2343,16 @@ export default function RapprochementBancaire() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              onClick={() => {
+                                setSelectedRegle(regle);
+                                setEditRegleDialogOpen(true);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={async () => {
                                 if (!confirm("Voulez-vous vraiment supprimer cette règle ?")) {
                                   return;
@@ -2387,6 +2400,13 @@ export default function RapprochementBancaire() {
         open={addRegleDialogOpen}
         onOpenChange={setAddRegleDialogOpen}
         onSuccess={loadReglesRapprochement}
+      />
+
+      <EditRegleRapprochementDialog
+        open={editRegleDialogOpen}
+        onOpenChange={setEditRegleDialogOpen}
+        onSuccess={loadReglesRapprochement}
+        regle={selectedRegle}
       />
 
       <RapprochementManuelDialog
