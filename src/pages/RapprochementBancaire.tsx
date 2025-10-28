@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter, History, Clock, Pencil } from "lucide-react";
+import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter, History, Clock, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -458,6 +458,118 @@ export default function RapprochementBancaire() {
       });
     } finally {
       setSavingHistorique(false);
+    }
+  };
+
+  const handleDeleteRapprochement = async (fichierId: string, rapprochement: Rapprochement) => {
+    if (!confirm("Êtes-vous sûr de vouloir dé-rapprocher cette transaction ? Les factures associées redeviendront disponibles.")) {
+      return;
+    }
+
+    try {
+      // Trouver le rapprochement_id dans la base de données
+      const { data: rapprochementData, error: fetchError } = await supabase
+        .from("rapprochements_bancaires")
+        .select("id")
+        .eq("transaction_date", rapprochement.transaction.date)
+        .eq("transaction_libelle", rapprochement.transaction.libelle)
+        .eq("transaction_montant", rapprochement.transaction.montant)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+
+      if (rapprochementData) {
+        // Supprimer les liaisons dans rapprochements_factures
+        const { error: deleteRapprochementsFacturesError } = await supabase
+          .from("rapprochements_factures")
+          .delete()
+          .eq("rapprochement_id", rapprochementData.id);
+
+        if (deleteRapprochementsFacturesError) throw deleteRapprochementsFacturesError;
+
+        // Supprimer les paiements abonnements liés
+        const { error: deletePaiementsAbonnementsError } = await supabase
+          .from("paiements_abonnements")
+          .delete()
+          .eq("rapprochement_id", rapprochementData.id);
+
+        if (deletePaiementsAbonnementsError) throw deletePaiementsAbonnementsError;
+
+        // Supprimer les paiements déclarations charges liés
+        const { error: deletePaiementsDeclarationsError } = await supabase
+          .from("paiements_declarations_charges")
+          .delete()
+          .eq("rapprochement_id", rapprochementData.id);
+
+        if (deletePaiementsDeclarationsError) throw deletePaiementsDeclarationsError;
+
+        // Supprimer le rapprochement bancaire
+        const { error: deleteRapprochementError } = await supabase
+          .from("rapprochements_bancaires")
+          .delete()
+          .eq("id", rapprochementData.id);
+
+        if (deleteRapprochementError) throw deleteRapprochementError;
+      }
+
+      // Mettre à jour le fichier localement pour retirer le rapprochement
+      setFichiersRapprochement(prev => prev.map(fichier => {
+        if (fichier.id === fichierId && fichier.fichier_data) {
+          const updatedRapprochements = fichier.fichier_data.rapprochements.filter(r =>
+            !(r.transaction.date === rapprochement.transaction.date &&
+              r.transaction.libelle === rapprochement.transaction.libelle &&
+              r.transaction.montant === rapprochement.transaction.montant)
+          );
+
+          return {
+            ...fichier,
+            fichier_data: {
+              ...fichier.fichier_data,
+              rapprochements: updatedRapprochements
+            },
+            lignes_rapprochees: updatedRapprochements.filter(r => r.status === "matched").length
+          };
+        }
+        return fichier;
+      }));
+
+      // Mettre à jour selectedFichier si c'est celui modifié
+      if (selectedFichier?.id === fichierId) {
+        setSelectedFichier(prev => {
+          if (!prev || !prev.fichier_data) return prev;
+          const updatedRapprochements = prev.fichier_data.rapprochements.filter(r =>
+            !(r.transaction.date === rapprochement.transaction.date &&
+              r.transaction.libelle === rapprochement.transaction.libelle &&
+              r.transaction.montant === rapprochement.transaction.montant)
+          );
+
+          return {
+            ...prev,
+            fichier_data: {
+              ...prev.fichier_data,
+              rapprochements: updatedRapprochements
+            },
+            lignes_rapprochees: updatedRapprochements.filter(r => r.status === "matched").length
+          };
+        });
+      }
+
+      toast({
+        title: "Succès",
+        description: "Le rapprochement a été supprimé avec succès",
+      });
+
+      // Recharger les fichiers pour s'assurer que tout est à jour
+      await loadFichiersRapprochement();
+      await loadFactures();
+
+    } catch (error) {
+      console.error("Erreur lors de la suppression:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer le rapprochement",
+        variant: "destructive",
+      });
     }
   };
 
@@ -1688,18 +1800,33 @@ export default function RapprochementBancaire() {
                                           )}
                                         </TableCell>
                                         <TableCell className="text-center">
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setSelectedHistoriqueRapprochement(rapprochement);
-                                              setSelectedHistoriqueFichierId(fichier.id);
-                                              setEditHistoriqueDialogOpen(true);
-                                            }}
-                                          >
-                                            <Pencil className="h-4 w-4" />
-                                          </Button>
+                                          <div className="flex items-center justify-center gap-1">
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedHistoriqueRapprochement(rapprochement);
+                                                setSelectedHistoriqueFichierId(fichier.id);
+                                                setEditHistoriqueDialogOpen(true);
+                                              }}
+                                              title="Modifier"
+                                            >
+                                              <Pencil className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteRapprochement(fichier.id, rapprochement);
+                                              }}
+                                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                              title="Dé-rapprocher"
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </div>
                                         </TableCell>
                                       </TableRow>
                                     ))}
