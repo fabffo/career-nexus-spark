@@ -162,7 +162,7 @@ export default function RapprochementBancaire() {
     }
   };
 
-  const loadFactures = async () => {
+  const loadFactures = async (): Promise<FactureMatch[]> => {
     try {
       const { data: facturesData, error } = await supabase
         .from("factures")
@@ -183,10 +183,12 @@ export default function RapprochementBancaire() {
         date_rapprochement: f.date_rapprochement,
       }));
 
-      console.log("✅ Factures chargées pour l'historique:", facturesFormatted.length);
+      console.log("✅ Factures chargées:", facturesFormatted.length);
       setFactures(facturesFormatted);
+      return facturesFormatted;
     } catch (error) {
       console.error("Erreur chargement factures:", error);
+      return [];
     }
   };
 
@@ -720,8 +722,9 @@ export default function RapprochementBancaire() {
       // Charger les rapprochements manuels
       await loadRapprochementsManuels();
 
-      // Charger toutes les factures
-      await loadFactures();
+      // Charger toutes les factures et les récupérer directement
+      const facturesChargees = await loadFactures();
+      console.log("📋 Factures chargées pour rapprochement:", facturesChargees.length);
 
       const fileName = file.name.toLowerCase();
       const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
@@ -809,8 +812,10 @@ export default function RapprochementBancaire() {
 
             setTransactions(transactionsParsed);
 
-            // Effectuer le rapprochement automatique
-            const rapprochementsResult = performMatching(transactionsParsed, factures);
+            // Effectuer le rapprochement automatique avec les factures chargées
+            console.log("🔍 Lancement du rapprochement automatique...");
+            const rapprochementsResult = performMatching(transactionsParsed, facturesChargees);
+            console.log("✅ Rapprochement terminé:", rapprochementsResult.filter(r => r.status === "matched").length, "matchés sur", rapprochementsResult.length);
             setRapprochements(rapprochementsResult);
 
             toast({
@@ -858,8 +863,10 @@ export default function RapprochementBancaire() {
 
             setTransactions(transactionsParsed);
 
-            // Effectuer le rapprochement automatique
-            const rapprochementsResult = performMatching(transactionsParsed, factures);
+            // Effectuer le rapprochement automatique avec les factures chargées
+            console.log("🔍 Lancement du rapprochement automatique...");
+            const rapprochementsResult = performMatching(transactionsParsed, facturesChargees);
+            console.log("✅ Rapprochement terminé:", rapprochementsResult.filter(r => r.status === "matched").length, "matchés sur", rapprochementsResult.length);
             setRapprochements(rapprochementsResult);
 
             toast({
