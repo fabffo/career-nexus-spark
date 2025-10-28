@@ -1819,6 +1819,48 @@ export type Database = {
           },
         ]
       }
+      regles_rapprochement: {
+        Row: {
+          actif: boolean
+          condition_json: Json
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          nom: string
+          priorite: number
+          score_attribue: number
+          type_regle: string
+          updated_at: string
+        }
+        Insert: {
+          actif?: boolean
+          condition_json: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          nom: string
+          priorite?: number
+          score_attribue?: number
+          type_regle: string
+          updated_at?: string
+        }
+        Update: {
+          actif?: boolean
+          condition_json?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          nom?: string
+          priorite?: number
+          score_attribue?: number
+          type_regle?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       salaries: {
         Row: {
           created_at: string | null

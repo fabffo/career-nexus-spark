@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter, History, Clock, Pencil, Trash2 } from "lucide-react";
+import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter, History, Clock, Pencil, Trash2, Settings, Plus, Edit, Trash, Power, PowerOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -13,7 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import RapprochementManuelDialog from "@/components/RapprochementManuelDialog";
 import EditRapprochementHistoriqueDialog from "@/components/EditRapprochementHistoriqueDialog";
+import AddRegleRapprochementDialog from "@/components/AddRegleRapprochementDialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 
 interface TransactionBancaire {
   date: string;
@@ -73,8 +75,21 @@ interface FichierRapprochement {
   created_by: string;
 }
 
+interface RegleRapprochement {
+  id: string;
+  nom: string;
+  type_regle: string;
+  description: string | null;
+  condition_json: any;
+  score_attribue: number;
+  priorite: number;
+  actif: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export default function RapprochementBancaire() {
-  const [activeTab, setActiveTab] = useState<"en_cours" | "historique">("en_cours");
+  const [activeTab, setActiveTab] = useState<"en_cours" | "historique" | "parametres">("en_cours");
   const [transactions, setTransactions] = useState<TransactionBancaire[]>([]);
   const [rapprochements, setRapprochements] = useState<Rapprochement[]>([]);
   const [loading, setLoading] = useState(false);
@@ -96,6 +111,8 @@ export default function RapprochementBancaire() {
   const [editHistoriqueDialogOpen, setEditHistoriqueDialogOpen] = useState(false);
   const [selectedHistoriqueRapprochement, setSelectedHistoriqueRapprochement] = useState<Rapprochement | null>(null);
   const [selectedHistoriqueFichierId, setSelectedHistoriqueFichierId] = useState<string>("");
+  const [reglesRapprochement, setReglesRapprochement] = useState<RegleRapprochement[]>([]);
+  const [addRegleDialogOpen, setAddRegleDialogOpen] = useState(false);
   const { toast } = useToast();
 
   // Réinitialiser les états et charger les données selon l'onglet actif
@@ -111,6 +128,9 @@ export default function RapprochementBancaire() {
       // Charger les données de l'historique
       loadFichiersRapprochement();
       loadFactures();
+    } else if (activeTab === "parametres") {
+      // Charger les règles de rapprochement
+      loadReglesRapprochement();
     } else {
       // Réinitialiser les états de l'onglet "historique"
       setSelectedFichier(null);
@@ -118,6 +138,26 @@ export default function RapprochementBancaire() {
       setFactures([]);
     }
   }, [activeTab]);
+
+  const loadReglesRapprochement = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("regles_rapprochement")
+        .select("*")
+        .order("priorite", { ascending: true });
+
+      if (error) throw error;
+
+      setReglesRapprochement(data || []);
+    } catch (error) {
+      console.error("Erreur lors du chargement des règles:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les règles de rapprochement",
+        variant: "destructive",
+      });
+    }
+  };
 
   const loadFactures = async () => {
     try {
@@ -1465,8 +1505,8 @@ export default function RapprochementBancaire() {
       </div>
 
       {/* Onglets principaux */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "en_cours" | "historique")}>
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "en_cours" | "historique" | "parametres")}>
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="en_cours" className="gap-2">
             <Clock className="h-4 w-4" />
             En cours
@@ -1474,6 +1514,10 @@ export default function RapprochementBancaire() {
           <TabsTrigger value="historique" className="gap-2">
             <History className="h-4 w-4" />
             Historique
+          </TabsTrigger>
+          <TabsTrigger value="parametres" className="gap-2">
+            <Settings className="h-4 w-4" />
+            Paramètres
           </TabsTrigger>
         </TabsList>
 
@@ -2044,7 +2088,146 @@ export default function RapprochementBancaire() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Contenu: Paramètres */}
+        <TabsContent value="parametres" className="space-y-6 mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    Règles de Rapprochement
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Gérez les règles utilisées pour le matching automatique des transactions
+                  </p>
+                </div>
+                <Button onClick={() => setAddRegleDialogOpen(true)} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Ajouter une règle
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {reglesRapprochement.length === 0 ? (
+                <div className="text-center py-12">
+                  <Settings className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Aucune règle configurée</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {reglesRapprochement.map((regle) => (
+                    <Card key={regle.id} className={!regle.actif ? "opacity-60" : ""}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <Badge variant={regle.actif ? "default" : "secondary"}>
+                                {regle.type_regle}
+                              </Badge>
+                              <h4 className="font-semibold">{regle.nom}</h4>
+                              <Badge variant="outline" className="ml-auto">
+                                {regle.score_attribue} points
+                              </Badge>
+                              <Badge variant="outline">
+                                Priorité {regle.priorite}
+                              </Badge>
+                            </div>
+                            {regle.description && (
+                              <p className="text-sm text-muted-foreground mb-2">
+                                {regle.description}
+                              </p>
+                            )}
+                            <div className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded">
+                              {JSON.stringify(regle.condition_json, null, 2)}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 ml-4">
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={regle.actif}
+                                onCheckedChange={async (checked) => {
+                                  try {
+                                    const { error } = await supabase
+                                      .from("regles_rapprochement")
+                                      .update({ actif: checked })
+                                      .eq("id", regle.id);
+
+                                    if (error) throw error;
+
+                                    toast({
+                                      title: "Succès",
+                                      description: `Règle ${checked ? "activée" : "désactivée"}`,
+                                    });
+
+                                    loadReglesRapprochement();
+                                  } catch (error) {
+                                    toast({
+                                      title: "Erreur",
+                                      description: "Impossible de modifier la règle",
+                                      variant: "destructive",
+                                    });
+                                  }
+                                }}
+                              />
+                              {regle.actif ? (
+                                <Power className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <PowerOff className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={async () => {
+                                if (!confirm("Voulez-vous vraiment supprimer cette règle ?")) {
+                                  return;
+                                }
+
+                                try {
+                                  const { error } = await supabase
+                                    .from("regles_rapprochement")
+                                    .delete()
+                                    .eq("id", regle.id);
+
+                                  if (error) throw error;
+
+                                  toast({
+                                    title: "Succès",
+                                    description: "Règle supprimée",
+                                  });
+
+                                  loadReglesRapprochement();
+                                } catch (error) {
+                                  toast({
+                                    title: "Erreur",
+                                    description: "Impossible de supprimer la règle",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      <AddRegleRapprochementDialog
+        open={addRegleDialogOpen}
+        onOpenChange={setAddRegleDialogOpen}
+        onSuccess={loadReglesRapprochement}
+      />
 
       <RapprochementManuelDialog
         open={manuelDialogOpen}
