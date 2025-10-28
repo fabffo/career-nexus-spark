@@ -543,11 +543,22 @@ export default function RapprochementBancaire() {
       // Mettre à jour le fichier de rapprochement dans la BD
       const fichier = fichiersRapprochement.find(f => f.id === fichierId);
       if (fichier && fichier.fichier_data) {
-        const updatedRapprochements = fichier.fichier_data.rapprochements.filter(r =>
-          !(r.transaction.date === rapprochement.transaction.date &&
-            r.transaction.libelle === rapprochement.transaction.libelle &&
-            r.transaction.montant === rapprochement.transaction.montant)
-        );
+        // Au lieu de supprimer la ligne, on change son statut
+        const updatedRapprochements = fichier.fichier_data.rapprochements.map(r => {
+          if (r.transaction.date === rapprochement.transaction.date &&
+              r.transaction.libelle === rapprochement.transaction.libelle &&
+              r.transaction.montant === rapprochement.transaction.montant) {
+            // Retirer la facture et changer le statut
+            return {
+              ...r,
+              facture: undefined,
+              status: "partial" as const,
+              score: 0,
+              isManual: false
+            };
+          }
+          return r;
+        });
 
         const newLignesRapprochees = updatedRapprochements.filter(r => r.status === "matched").length;
 
@@ -564,7 +575,7 @@ export default function RapprochementBancaire() {
           .eq("id", fichierId);
 
         if (updateFichierError) throw updateFichierError;
-        console.log("✅ Fichier de rapprochement mis à jour");
+        console.log("✅ Fichier de rapprochement mis à jour - ligne gardée avec statut 'partial'");
       }
 
       toast({
