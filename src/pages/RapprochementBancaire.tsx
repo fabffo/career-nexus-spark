@@ -930,8 +930,17 @@ export default function RapprochementBancaire() {
     console.log("📋 Abonnements actifs:", abonnements?.length || 0);
     console.log("📋 Déclarations actives:", declarations?.length || 0);
 
-    return transactions.map((transaction) => {
-      // Vérifier si un rapprochement manuel existe pour cette transaction
+    // Étape 1: Collecter toutes les correspondances possibles transaction-facture avec scores
+    const factureMatches: Array<{
+      transactionIndex: number;
+      transaction: TransactionBancaire;
+      facture: FactureMatch;
+      score: number;
+    }> = [];
+
+    // Calculer les scores pour chaque paire transaction-facture
+    transactions.forEach((transaction, transactionIndex) => {
+      // Vérifier si un rapprochement manuel existe
       const manuelMatch = rapprochementsManuels.find(
         (rm) =>
           rm.transaction_date === transaction.date &&
@@ -939,117 +948,16 @@ export default function RapprochementBancaire() {
           rm.transaction_montant === transaction.montant
       );
 
+      // Ignorer les transactions avec rapprochement manuel
       if (manuelMatch) {
-        // Rapprochement manuel trouvé
-        const facture = manuelMatch.facture_id
-          ? factures.find((f) => f.id === manuelMatch.facture_id) || null
-          : null;
-
-        return {
-          transaction,
-          facture,
-          score: facture ? 100 : 0,
-          status: facture ? "matched" : "unmatched",
-          isManual: true,
-          manualId: manuelMatch.id,
-          notes: manuelMatch.notes,
-        } as Rapprochement;
+        return;
       }
 
-      // Sinon, effectuer le rapprochement automatique
-      let bestMatch: FactureMatch | null = null;
-      let bestScore = 0;
       const libelleNormalized = normalizeString(transaction.libelle);
+      const montantTransaction = Math.abs(transaction.montant);
 
-      // Appliquer les règles personnalisées pour abonnements et déclarations
-      let abonnementMatch: any = false;
-      let declarationMatch: any = false;
-      let ruleScore = 0;
-
-      if (regles && (abonnements || declarations)) {
-        for (const regle of regles) {
-          const condition = regle.condition_json as any;
-
-          // Règle ABONNEMENT
-          if (regle.type_regle === "ABONNEMENT" && abonnements && condition.abonnement_id) {
-            const abonnement = abonnements.find(a => a.id === condition.abonnement_id);
-            if (abonnement) {
-              let match = false;
-              
-              // Vérifier le libellé
-              if (condition.keywords && Array.isArray(condition.keywords)) {
-                const abonnementNormalized = normalizeString(abonnement.nom);
-                match = condition.keywords.some((kw: string) => 
-                  libelleNormalized.includes(normalizeString(kw)) ||
-                  libelleNormalized.includes(abonnementNormalized)
-                );
-              }
-
-              // Vérifier le montant si spécifié
-              if (match && condition.montant_exact) {
-                const tolerance = condition.tolerance || 0.01;
-                match = Math.abs(Math.abs(transaction.montant) - abonnement.montant_mensuel) <= tolerance;
-              }
-
-              if (match && regle.score_attribue > ruleScore) {
-                console.log(`✅ Match abonnement: ${abonnement.nom} (score: ${regle.score_attribue})`);
-                abonnementMatch = abonnement;
-                ruleScore = regle.score_attribue;
-              }
-            }
-          }
-
-          // Règle DECLARATION_CHARGE
-          if (regle.type_regle === "DECLARATION_CHARGE" && declarations && condition.declaration_id) {
-            const declaration = declarations.find(d => d.id === condition.declaration_id);
-            if (declaration) {
-              let match = false;
-              
-              // Vérifier le libellé
-              if (condition.keywords && Array.isArray(condition.keywords)) {
-                const declarationNormalized = normalizeString(declaration.nom);
-                const organismeNormalized = normalizeString(declaration.organisme);
-                match = condition.keywords.some((kw: string) => 
-                  libelleNormalized.includes(normalizeString(kw)) ||
-                  libelleNormalized.includes(declarationNormalized) ||
-                  libelleNormalized.includes(organismeNormalized)
-                );
-              }
-
-              // Vérifier le montant estimé si spécifié
-              if (match && condition.montant_estime && declaration.montant_estime) {
-                const tolerance = condition.tolerance || 0.01;
-                match = Math.abs(Math.abs(transaction.montant) - declaration.montant_estime) <= tolerance;
-              }
-
-              if (match && regle.score_attribue > ruleScore) {
-                console.log(`✅ Match déclaration: ${declaration.nom} (score: ${regle.score_attribue})`);
-                declarationMatch = declaration;
-                ruleScore = regle.score_attribue;
-              }
-            }
-          }
-        }
-      }
-
-      // Si un abonnement ou une déclaration matche, retourner directement ce résultat
-      if (abonnementMatch || declarationMatch) {
-        const status: "matched" | "uncertain" = ruleScore >= 70 ? "matched" : "uncertain";
-        return {
-          transaction,
-          facture: null,
-          score: ruleScore,
-          status,
-          isManual: false,
-          abonnement_info: abonnementMatch ? { id: abonnementMatch.id, nom: abonnementMatch.nom } : undefined,
-          declaration_info: declarationMatch ? { id: declarationMatch.id, nom: declarationMatch.nom, organisme: declarationMatch.organisme } : undefined,
-        };
-      }
-
-      // Rapprochement avec les factures (logique existante)
+      // Pour chaque facture, calculer le score
       for (const facture of factures) {
-        // Règle stricte : le montant doit correspondre exactement
-        const montantTransaction = Math.abs(transaction.montant);
         const montantFacture = Math.abs(facture.total_ttc);
         const diffMontant = Math.abs(montantTransaction - montantFacture);
         
@@ -1160,30 +1068,177 @@ export default function RapprochementBancaire() {
           }
         }
 
-        if (score > bestScore) {
-          bestScore = score;
-          bestMatch = facture;
+        // Ajouter cette correspondance à la liste
+        factureMatches.push({
+          transactionIndex,
+          transaction,
+          facture,
+          score,
+        });
+      }
+    });
+
+    // Étape 2: Trier les correspondances par score décroissant
+    factureMatches.sort((a, b) => b.score - a.score);
+
+    // Étape 3: Attribuer les factures en s'assurant qu'une facture n'est utilisée qu'une fois
+    const usedFactures = new Set<string>();
+    const transactionsWithFacture = new Set<number>();
+    const results: Rapprochement[] = [];
+
+    factureMatches.forEach((match) => {
+      // Si la facture n'a pas déjà été utilisée et la transaction n'a pas déjà de facture
+      if (!usedFactures.has(match.facture.id) && !transactionsWithFacture.has(match.transactionIndex)) {
+        usedFactures.add(match.facture.id);
+        transactionsWithFacture.add(match.transactionIndex);
+
+        let status: "matched" | "uncertain";
+        if (match.score >= 70) {
+          status = "matched";
+        } else {
+          status = "uncertain";
+        }
+
+        results.push({
+          transaction: match.transaction,
+          facture: match.facture,
+          score: match.score,
+          status,
+          isManual: false,
+        });
+      }
+    });
+
+    // Étape 4: Traiter les transactions restantes (rapprochements manuels, abonnements, déclarations, non rapprochées)
+    transactions.forEach((transaction, transactionIndex) => {
+      // Si la transaction a déjà été rapprochée avec une facture, passer
+      if (transactionsWithFacture.has(transactionIndex)) {
+        return;
+      }
+
+      // Vérifier si un rapprochement manuel existe
+      const manuelMatch = rapprochementsManuels.find(
+        (rm) =>
+          rm.transaction_date === transaction.date &&
+          rm.transaction_libelle === transaction.libelle &&
+          rm.transaction_montant === transaction.montant
+      );
+
+      if (manuelMatch) {
+        const facture = manuelMatch.facture_id
+          ? factures.find((f) => f.id === manuelMatch.facture_id) || null
+          : null;
+
+        results.push({
+          transaction,
+          facture,
+          score: facture ? 100 : 0,
+          status: facture ? "matched" : "unmatched",
+          isManual: true,
+          manualId: manuelMatch.id,
+          notes: manuelMatch.notes,
+        } as Rapprochement);
+        return;
+      }
+
+      const libelleNormalized = normalizeString(transaction.libelle);
+
+      // Appliquer les règles personnalisées pour abonnements et déclarations
+      let abonnementMatch: any = false;
+      let declarationMatch: any = false;
+      let ruleScore = 0;
+
+      if (regles && (abonnements || declarations)) {
+        for (const regle of regles) {
+          const condition = regle.condition_json as any;
+
+          // Règle ABONNEMENT
+          if (regle.type_regle === "ABONNEMENT" && abonnements && condition.abonnement_id) {
+            const abonnement = abonnements.find(a => a.id === condition.abonnement_id);
+            if (abonnement) {
+              let match = false;
+              
+              // Vérifier le libellé
+              if (condition.keywords && Array.isArray(condition.keywords)) {
+                const abonnementNormalized = normalizeString(abonnement.nom);
+                match = condition.keywords.some((kw: string) => 
+                  libelleNormalized.includes(normalizeString(kw)) ||
+                  libelleNormalized.includes(abonnementNormalized)
+                );
+              }
+
+              // Vérifier le montant si spécifié
+              if (match && condition.montant_exact) {
+                const tolerance = condition.tolerance || 0.01;
+                match = Math.abs(Math.abs(transaction.montant) - abonnement.montant_mensuel) <= tolerance;
+              }
+
+              if (match && regle.score_attribue > ruleScore) {
+                console.log(`✅ Match abonnement: ${abonnement.nom} (score: ${regle.score_attribue})`);
+                abonnementMatch = abonnement;
+                ruleScore = regle.score_attribue;
+              }
+            }
+          }
+
+          // Règle DECLARATION_CHARGE
+          if (regle.type_regle === "DECLARATION_CHARGE" && declarations && condition.declaration_id) {
+            const declaration = declarations.find(d => d.id === condition.declaration_id);
+            if (declaration) {
+              let match = false;
+              
+              // Vérifier le libellé
+              if (condition.keywords && Array.isArray(condition.keywords)) {
+                const declarationNormalized = normalizeString(declaration.nom);
+                const organismeNormalized = normalizeString(declaration.organisme);
+                match = condition.keywords.some((kw: string) => 
+                  libelleNormalized.includes(normalizeString(kw)) ||
+                  libelleNormalized.includes(declarationNormalized) ||
+                  libelleNormalized.includes(organismeNormalized)
+                );
+              }
+
+              // Vérifier le montant estimé si spécifié
+              if (match && condition.montant_estime && declaration.montant_estime) {
+                const tolerance = condition.tolerance || 0.01;
+                match = Math.abs(Math.abs(transaction.montant) - declaration.montant_estime) <= tolerance;
+              }
+
+              if (match && regle.score_attribue > ruleScore) {
+                console.log(`✅ Match déclaration: ${declaration.nom} (score: ${regle.score_attribue})`);
+                declarationMatch = declaration;
+                ruleScore = regle.score_attribue;
+              }
+            }
+          }
         }
       }
 
-      // Déterminer le statut
-      let status: "matched" | "unmatched" | "uncertain";
-      if (bestScore >= 70) {
-        status = "matched";
-      } else if (bestScore >= 40) {
-        status = "uncertain";
+      // Si un abonnement ou une déclaration matche
+      if (abonnementMatch || declarationMatch) {
+        const status: "matched" | "uncertain" = ruleScore >= 70 ? "matched" : "uncertain";
+        results.push({
+          transaction,
+          facture: null,
+          score: ruleScore,
+          status,
+          isManual: false,
+          abonnement_info: abonnementMatch ? { id: abonnementMatch.id, nom: abonnementMatch.nom } : undefined,
+          declaration_info: declarationMatch ? { id: declarationMatch.id, nom: declarationMatch.nom, organisme: declarationMatch.organisme } : undefined,
+        });
       } else {
-        status = "unmatched";
+        // Aucune correspondance trouvée
+        results.push({
+          transaction,
+          facture: null,
+          score: 0,
+          status: "unmatched",
+          isManual: false,
+        });
       }
-
-      return {
-        transaction,
-        facture: bestMatch,
-        score: bestScore,
-        status,
-        isManual: false,
-      };
     });
+
+    return results;
   };
 
   const handleManualRapprochement = (transaction: TransactionBancaire) => {
