@@ -2050,16 +2050,56 @@ export default function RapprochementBancaire() {
                          )}
                        </td>
                        <td className="p-4 align-middle text-center">
-                         <Button
-                           variant="outline"
-                           size="sm"
-                           onClick={() => handleManualRapprochement(rapprochement.transaction)}
-                           className="gap-2"
-                         >
-                           <LinkIcon className="h-4 w-4" />
-                           {rapprochement.isManual ? "Modifier" : "Rapprocher"}
-                         </Button>
-                       </td>
+                          <div className="flex items-center gap-2 justify-center" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleManualRapprochement(rapprochement.transaction);
+                              }}
+                              className="gap-2"
+                            >
+                              <LinkIcon className="h-4 w-4" />
+                              {rapprochement.isManual ? "Modifier" : "Rapprocher"}
+                            </Button>
+                            {(rapprochement.facture || rapprochement.abonnement_info || rapprochement.declaration_info) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Réinitialiser le rapprochement localement
+                                  setRapprochements(prev => prev.map(r => {
+                                    if (r.transaction.date === rapprochement.transaction.date &&
+                                        r.transaction.libelle === rapprochement.transaction.libelle &&
+                                        r.transaction.montant === rapprochement.transaction.montant) {
+                                      return {
+                                        ...r,
+                                        facture: null,
+                                        abonnement_info: undefined,
+                                        declaration_info: undefined,
+                                        status: "unmatched" as const,
+                                        score: 0,
+                                        isManual: false,
+                                        notes: null
+                                      };
+                                    }
+                                    return r;
+                                  }));
+                                  toast({
+                                    title: "Ligne dé-rapprochée",
+                                    description: "La transaction a été dé-rapprochée localement",
+                                  });
+                                }}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                title="Dé-rapprocher"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
                      </tr>
                      ))}
                    </tbody>
