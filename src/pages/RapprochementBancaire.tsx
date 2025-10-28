@@ -732,7 +732,7 @@ export default function RapprochementBancaire() {
       if (isExcel) {
         // Parser Excel
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
           try {
             const data = new Uint8Array(e.target?.result as ArrayBuffer);
             const workbook = XLSX.read(data, { type: 'array' });
@@ -814,7 +814,7 @@ export default function RapprochementBancaire() {
 
             // Effectuer le rapprochement automatique avec les factures chargées
             console.log("🔍 Lancement du rapprochement automatique...");
-            const rapprochementsResult = performMatching(transactionsParsed, facturesChargees);
+            const rapprochementsResult = await performMatching(transactionsParsed, facturesChargees);
             console.log("✅ Rapprochement terminé:", rapprochementsResult.filter(r => r.status === "matched").length, "matchés sur", rapprochementsResult.length);
             setRapprochements(rapprochementsResult);
 
@@ -840,7 +840,7 @@ export default function RapprochementBancaire() {
         Papa.parse(file, {
           header: true,
           skipEmptyLines: true,
-          complete: (results) => {
+          complete: async (results) => {
             const transactionsParsed: TransactionBancaire[] = results.data
               .map((row: any) => {
                 const dateStr = row.DATE || row.date || row.Date;
@@ -865,7 +865,7 @@ export default function RapprochementBancaire() {
 
             // Effectuer le rapprochement automatique avec les factures chargées
             console.log("🔍 Lancement du rapprochement automatique...");
-            const rapprochementsResult = performMatching(transactionsParsed, facturesChargees);
+            const rapprochementsResult = await performMatching(transactionsParsed, facturesChargees);
             console.log("✅ Rapprochement terminé:", rapprochementsResult.filter(r => r.status === "matched").length, "matchés sur", rapprochementsResult.length);
             setRapprochements(rapprochementsResult);
 
@@ -898,10 +898,33 @@ export default function RapprochementBancaire() {
     }
   };
 
-  const performMatching = (
+  const performMatching = async (
     transactions: TransactionBancaire[],
     factures: FactureMatch[]
-  ): Rapprochement[] => {
+  ): Promise<Rapprochement[]> => {
+    // Charger les règles actives
+    const { data: regles } = await supabase
+      .from("regles_rapprochement")
+      .select("*")
+      .eq("actif", true)
+      .order("priorite", { ascending: true });
+
+    console.log("📋 Règles de rapprochement actives:", regles?.length || 0);
+
+    // Charger les abonnements et déclarations pour le matching
+    const { data: abonnements } = await supabase
+      .from("abonnements_partenaires")
+      .select("*")
+      .eq("actif", true);
+
+    const { data: declarations } = await supabase
+      .from("declarations_charges_sociales")
+      .select("*")
+      .eq("actif", true);
+
+    console.log("📋 Abonnements actifs:", abonnements?.length || 0);
+    console.log("📋 Déclarations actives:", declarations?.length || 0);
+
     return transactions.map((transaction) => {
       // Vérifier si un rapprochement manuel existe pour cette transaction
       const manuelMatch = rapprochementsManuels.find(
@@ -931,7 +954,73 @@ export default function RapprochementBancaire() {
       // Sinon, effectuer le rapprochement automatique
       let bestMatch: FactureMatch | null = null;
       let bestScore = 0;
+      const libelleNormalized = normalizeString(transaction.libelle);
 
+      // Appliquer les règles personnalisées pour abonnements et déclarations
+      if (regles && (abonnements || declarations)) {
+        for (const regle of regles) {
+          const condition = regle.condition_json as any;
+
+          // Règle ABONNEMENT
+          if (regle.type_regle === "ABONNEMENT" && abonnements) {
+            for (const abonnement of abonnements) {
+              let match = false;
+              
+              // Vérifier le libellé
+              if (condition.keywords && Array.isArray(condition.keywords)) {
+                const abonnementNormalized = normalizeString(abonnement.nom);
+                match = condition.keywords.some((kw: string) => 
+                  libelleNormalized.includes(normalizeString(kw)) ||
+                  libelleNormalized.includes(abonnementNormalized)
+                );
+              }
+
+              // Vérifier le montant si spécifié
+              if (match && condition.montant_exact) {
+                const tolerance = condition.tolerance || 0.01;
+                match = Math.abs(Math.abs(transaction.montant) - abonnement.montant_mensuel) <= tolerance;
+              }
+
+              if (match) {
+                console.log(`✅ Match abonnement: ${abonnement.nom} (score: ${regle.score_attribue})`);
+                // Pour l'instant on garde le meilleur score mais on ne crée pas encore la liaison
+                // L'utilisateur devra valider manuellement ou via le dialog d'édition
+              }
+            }
+          }
+
+          // Règle DECLARATION_CHARGE
+          if (regle.type_regle === "DECLARATION_CHARGE" && declarations) {
+            for (const declaration of declarations) {
+              let match = false;
+              
+              // Vérifier le libellé
+              if (condition.keywords && Array.isArray(condition.keywords)) {
+                const declarationNormalized = normalizeString(declaration.nom);
+                const organismeNormalized = normalizeString(declaration.organisme);
+                match = condition.keywords.some((kw: string) => 
+                  libelleNormalized.includes(normalizeString(kw)) ||
+                  libelleNormalized.includes(declarationNormalized) ||
+                  libelleNormalized.includes(organismeNormalized)
+                );
+              }
+
+              // Vérifier le montant estimé si spécifié
+              if (match && condition.montant_estime && declaration.montant_estime) {
+                const tolerance = condition.tolerance || 0.01;
+                match = Math.abs(Math.abs(transaction.montant) - declaration.montant_estime) <= tolerance;
+              }
+
+              if (match) {
+                console.log(`✅ Match déclaration: ${declaration.nom} (score: ${regle.score_attribue})`);
+                // Pour l'instant on garde le meilleur score mais on ne crée pas encore la liaison
+              }
+            }
+          }
+        }
+      }
+
+      // Rapprochement avec les factures (logique existante)
       for (const facture of factures) {
         // Règle stricte : le montant doit correspondre exactement
         const montantTransaction = Math.abs(transaction.montant);
@@ -945,50 +1034,104 @@ export default function RapprochementBancaire() {
 
         let score = 40; // Score de base pour correspondance du montant
 
-        // 2. Vérifier le type de transaction (10 points)
-        if (transaction.credit > 0 && facture.type_facture === "VENTES") {
-          score += 10;
-        } else if (transaction.debit > 0 && facture.type_facture === "ACHATS") {
-          score += 10;
-        }
+        // Appliquer les règles personnalisées
+        if (regles) {
+          for (const regle of regles) {
+            const condition = regle.condition_json as any;
+            
+            switch (regle.type_regle) {
+              case "MONTANT":
+                if (condition.tolerance) {
+                  if (diffMontant <= condition.tolerance) {
+                    score += regle.score_attribue;
+                  }
+                }
+                break;
+              
+              case "DATE":
+                const dateTransaction = new Date(transaction.date);
+                const dateFacture = new Date(facture.date_emission);
+                const diffJours = Math.abs(
+                  (dateTransaction.getTime() - dateFacture.getTime()) / (1000 * 60 * 60 * 24)
+                );
+                if (condition.max_jours && diffJours <= condition.max_jours) {
+                  score += regle.score_attribue;
+                }
+                break;
+              
+              case "LIBELLE":
+                if (condition.keywords && Array.isArray(condition.keywords)) {
+                  const hasKeyword = condition.keywords.some((kw: string) => 
+                    libelleNormalized.includes(normalizeString(kw))
+                  );
+                  if (hasKeyword) {
+                    score += regle.score_attribue;
+                  }
+                }
+                break;
+              
+              case "PARTENAIRE":
+                const partenaireNormalized = normalizeString(facture.partenaire_nom);
+                if (libelleNormalized.includes(partenaireNormalized) ||
+                    partenaireNormalized.split(/\s+/).some(word => word.length > 3 && libelleNormalized.includes(word))) {
+                  score += regle.score_attribue;
+                }
+                break;
+              
+              case "TYPE_TRANSACTION":
+                if (transaction.credit > 0 && facture.type_facture === "VENTES") {
+                  score += regle.score_attribue;
+                } else if (transaction.debit > 0 && facture.type_facture === "ACHATS") {
+                  score += regle.score_attribue;
+                }
+                break;
+            }
+          }
+        } else {
+          // Règles par défaut si aucune règle n'est configurée
+          // 2. Vérifier le type de transaction (10 points)
+          if (transaction.credit > 0 && facture.type_facture === "VENTES") {
+            score += 10;
+          } else if (transaction.debit > 0 && facture.type_facture === "ACHATS") {
+            score += 10;
+          }
 
-        // 3. Vérifier la date (30 points)
-        const dateTransaction = new Date(transaction.date);
-        const dateFacture = new Date(facture.date_emission);
-        const diffJours = Math.abs(
-          (dateTransaction.getTime() - dateFacture.getTime()) / (1000 * 60 * 60 * 24)
-        );
+          // 3. Vérifier la date (30 points)
+          const dateTransaction = new Date(transaction.date);
+          const dateFacture = new Date(facture.date_emission);
+          const diffJours = Math.abs(
+            (dateTransaction.getTime() - dateFacture.getTime()) / (1000 * 60 * 60 * 24)
+          );
 
-        if (diffJours === 0) {
-          score += 30; // Même jour
-        } else if (diffJours <= 3) {
-          score += 25; // Moins de 3 jours
-        } else if (diffJours <= 7) {
-          score += 20; // Moins d'une semaine
-        } else if (diffJours <= 30) {
-          score += 10; // Moins d'un mois
-        } else if (diffJours <= 60) {
-          score += 5; // Moins de 2 mois
-        }
+          if (diffJours === 0) {
+            score += 30;
+          } else if (diffJours <= 3) {
+            score += 25;
+          } else if (diffJours <= 7) {
+            score += 20;
+          } else if (diffJours <= 30) {
+            score += 10;
+          } else if (diffJours <= 60) {
+            score += 5;
+          }
 
-        // 4. Vérifier le libellé (20 points)
-        const libelleNormalized = normalizeString(transaction.libelle);
-        const partenaireNormalized = normalizeString(facture.partenaire_nom);
-        const numeroFactureNormalized = normalizeString(facture.numero_facture);
+          // 4. Vérifier le libellé (20 points)
+          const partenaireNormalized = normalizeString(facture.partenaire_nom);
+          const numeroFactureNormalized = normalizeString(facture.numero_facture);
 
-        if (libelleNormalized.includes(partenaireNormalized) || 
-            partenaireNormalized.split(/\s+/).some(word => word.length > 3 && libelleNormalized.includes(word))) {
-          score += 15; // Nom du partenaire dans le libellé
-        }
+          if (libelleNormalized.includes(partenaireNormalized) || 
+              partenaireNormalized.split(/\s+/).some(word => word.length > 3 && libelleNormalized.includes(word))) {
+            score += 15;
+          }
 
-        if (libelleNormalized.includes(numeroFactureNormalized.replace(/[^a-z0-9]/g, ""))) {
-          score += 10; // Numéro de facture dans le libellé
-        }
+          if (libelleNormalized.includes(numeroFactureNormalized.replace(/[^a-z0-9]/g, ""))) {
+            score += 10;
+          }
 
-        // Chercher des mots-clés
-        const keywords = ["facture", "fac", "fact", "invoice", "paiement", "virement", "payment"];
-        if (keywords.some(kw => libelleNormalized.includes(kw))) {
-          score += 5;
+          const keywords = ["facture", "fac", "fact", "invoice", "paiement", "virement", "payment"];
+          if (keywords.some(kw => libelleNormalized.includes(kw))) {
+            score += 5;
+          }
         }
 
         if (score > bestScore) {
@@ -1027,7 +1170,7 @@ export default function RapprochementBancaire() {
     await loadRapprochementsManuels();
     
     // Recalculer les rapprochements avec les nouvelles données
-    const rapprochementsResult = performMatching(transactions, factures);
+    const rapprochementsResult = await performMatching(transactions, factures);
     setRapprochements(rapprochementsResult);
   };
 
@@ -1327,7 +1470,7 @@ export default function RapprochementBancaire() {
         setFactures(facturesFormatted);
         
         // Recalculer les rapprochements avec les factures mises à jour
-        const rapprochementsResult = performMatching(transactions, facturesFormatted);
+        const rapprochementsResult = await performMatching(transactions, facturesFormatted);
         setRapprochements(rapprochementsResult);
       }
 

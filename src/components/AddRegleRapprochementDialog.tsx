@@ -21,6 +21,8 @@ const typeRegles = [
   { value: "LIBELLE", label: "Libellé" },
   { value: "TYPE_TRANSACTION", label: "Type de transaction" },
   { value: "PARTENAIRE", label: "Partenaire" },
+  { value: "ABONNEMENT", label: "Abonnement partenaire" },
+  { value: "DECLARATION_CHARGE", label: "Déclaration de charges" },
   { value: "PERSONNALISEE", label: "Personnalisée" },
 ];
 
