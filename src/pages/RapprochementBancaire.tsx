@@ -928,6 +928,9 @@ export default function RapprochementBancaire() {
       .eq("actif", true);
 
     console.log("📋 Abonnements actifs:", abonnements?.length || 0);
+    if (abonnements && abonnements.length > 0) {
+      console.log("📋 Liste des abonnements:", abonnements.map(a => ({ id: a.id, nom: a.nom, montant: a.montant_mensuel })));
+    }
     console.log("📋 Déclarations actives:", declarations?.length || 0);
 
     // Étape 1: Collecter toutes les correspondances possibles transaction-facture avec scores
@@ -1156,31 +1159,51 @@ export default function RapprochementBancaire() {
           if (regle.type_regle === "ABONNEMENT" && abonnements && condition.abonnement_id) {
             const abonnement = abonnements.find(a => a.id === condition.abonnement_id);
             if (abonnement) {
+              console.log(`🔍 Test règle abonnement: ${regle.nom} (${abonnement.nom})`);
+              console.log(`   Transaction libellé: "${transaction.libelle}"`);
+              console.log(`   Transaction montant: ${transaction.montant}`);
+              console.log(`   Abonnement montant: ${abonnement.montant_mensuel}`);
+              console.log(`   Condition keywords:`, condition.keywords);
+              
               let match = false;
               
               // Vérifier le libellé
               if (condition.keywords && Array.isArray(condition.keywords)) {
                 const abonnementNormalized = normalizeString(abonnement.nom);
-                match = condition.keywords.some((kw: string) => 
-                  libelleNormalized.includes(normalizeString(kw)) ||
-                  libelleNormalized.includes(abonnementNormalized)
-                );
+                const hasKeywordMatch = condition.keywords.some((kw: string) => {
+                  const kwNormalized = normalizeString(kw);
+                  const matchesKeyword = libelleNormalized.includes(kwNormalized);
+                  const matchesName = libelleNormalized.includes(abonnementNormalized);
+                  console.log(`     Test keyword "${kw}" (normalized: "${kwNormalized}"): ${matchesKeyword ? '✅' : '❌'}`);
+                  console.log(`     Test nom abonnement "${abonnement.nom}" (normalized: "${abonnementNormalized}"): ${matchesName ? '✅' : '❌'}`);
+                  return matchesKeyword || matchesName;
+                });
+                match = hasKeywordMatch;
+                console.log(`   Résultat match libellé: ${match ? '✅' : '❌'}`);
               }
 
               // Vérifier le montant si l'abonnement a un montant défini
               if (match && abonnement.montant_mensuel && abonnement.montant_mensuel > 0) {
                 if (condition.montant_exact) {
                   const tolerance = condition.tolerance || 0.01;
-                  match = Math.abs(Math.abs(transaction.montant) - abonnement.montant_mensuel) <= tolerance;
+                  const montantMatch = Math.abs(Math.abs(transaction.montant) - abonnement.montant_mensuel) <= tolerance;
+                  console.log(`   Vérification montant (tolerance: ${tolerance}): ${montantMatch ? '✅' : '❌'}`);
+                  match = montantMatch;
                 }
+              } else {
+                console.log(`   Pas de vérification montant (montant_mensuel: ${abonnement.montant_mensuel}, montant_exact: ${condition.montant_exact})`);
               }
               // Si l'abonnement n'a pas de montant, le match sur le nom suffit
 
               if (match && regle.score_attribue > ruleScore) {
-                console.log(`✅ Match abonnement: ${abonnement.nom} (score: ${regle.score_attribue})`);
+                console.log(`✅ Match abonnement TROUVÉ: ${abonnement.nom} (score: ${regle.score_attribue})`);
                 abonnementMatch = abonnement;
                 ruleScore = regle.score_attribue;
+              } else if (match) {
+                console.log(`   Match trouvé mais score inférieur: ${regle.score_attribue} <= ${ruleScore}`);
               }
+            } else {
+              console.log(`❌ Abonnement introuvable pour condition.abonnement_id: ${condition.abonnement_id}`);
             }
           }
 
