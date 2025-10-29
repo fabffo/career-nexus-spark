@@ -219,12 +219,11 @@ export default function EditRegleRapprochementDialog({
             <>
               <div>
                 <Label htmlFor="abonnement">Abonnement (optionnel)</Label>
-                <Select value={selectedAbonnementId} onValueChange={setSelectedAbonnementId}>
+                <Select value={selectedAbonnementId || undefined} onValueChange={setSelectedAbonnementId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Tous les abonnements" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Tous les abonnements</SelectItem>
                     {abonnements?.map((abo) => (
                       <SelectItem key={abo.id} value={abo.id}>
                         {abo.nom}
