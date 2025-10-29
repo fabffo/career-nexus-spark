@@ -2582,6 +2582,78 @@ export default function RapprochementBancaire() {
               )}
             </CardContent>
           </Card>
+
+          {/* Section Administration */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <AlertCircle className="h-5 w-5" />
+                Actions d'Administration
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Actions sensibles - Utilisez avec précaution
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <h4 className="font-semibold">Réinitialiser toutes les factures</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Supprime tous les rapprochements de factures. Cette action ne peut pas être annulée.
+                    </p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    onClick={async () => {
+                      if (!confirm("⚠️ ATTENTION: Cette action va réinitialiser TOUTES les factures rapprochées.\n\nÊtes-vous absolument sûr de vouloir continuer ?")) {
+                        return;
+                      }
+
+                      try {
+                        setLoading(true);
+
+                        // Réinitialiser toutes les factures
+                        const { data: facturesReset, error: facturesError } = await supabase
+                          .from("factures")
+                          .update({
+                            numero_rapprochement: null,
+                            date_rapprochement: null,
+                            updated_at: new Date().toISOString()
+                          } as any)
+                          .not("numero_rapprochement", "is", null)
+                          .select();
+
+                        if (facturesError) throw facturesError;
+
+                        const nbFacturesReset = facturesReset?.length || 0;
+
+                        toast({
+                          title: "✅ Réinitialisation terminée",
+                          description: `${nbFacturesReset} facture(s) ont été réinitialisées`,
+                        });
+
+                        // Recharger les données
+                        await loadFactures();
+                      } catch (error: any) {
+                        console.error("Erreur lors de la réinitialisation:", error);
+                        toast({
+                          title: "Erreur",
+                          description: error.message || "Impossible de réinitialiser les factures",
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    disabled={loading}
+                  >
+                    {loading ? "Réinitialisation..." : "Réinitialiser"}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
