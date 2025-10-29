@@ -1338,7 +1338,18 @@ export default function RapprochementBancaire() {
       console.log("📋 Liaisons factures à supprimer:", liaisonFactureIds.length);
       console.log("📋 Factures à réinitialiser:", factureIds.length);
 
-      // 3. Supprimer les liaisons de factures directement
+      // 3. Récupérer TOUS les rapprochements bancaires créés entre les dates du fichier
+      // (pour inclure les rapprochements automatiques créés lors de la validation)
+      const { data: allRapprochements } = await supabase
+        .from("rapprochements_bancaires")
+        .select("id")
+        .gte("transaction_date", fichier.date_debut)
+        .lte("transaction_date", fichier.date_fin);
+
+      const allRapprochementIds = allRapprochements?.map(r => r.id) || [];
+      console.log("📋 Total rapprochements bancaires (manuels + automatiques) à supprimer:", allRapprochementIds.length);
+
+      // 4. Supprimer les liaisons de factures directement
       if (liaisonFactureIds.length > 0) {
         const { error: liaisonError } = await supabase
           .from("rapprochements_factures")
@@ -1348,15 +1359,16 @@ export default function RapprochementBancaire() {
         if (liaisonError) throw liaisonError;
       }
 
-      // 4. Supprimer les rapprochements bancaires manuels et leurs associations
-      if (rapprochementsManuelsIds.length > 0) {
+      // 5. Supprimer tous les rapprochements bancaires et leurs associations
+      if (allRapprochementIds.length > 0) {
         // Récupérer les IDs des paiements abonnements pour supprimer leurs consommations
         const { data: paiementsAbonnements } = await supabase
           .from("paiements_abonnements")
           .select("id")
-          .in("rapprochement_id", rapprochementsManuelsIds);
+          .in("rapprochement_id", allRapprochementIds);
 
         const paiementAbonnementIds = paiementsAbonnements?.map(p => p.id) || [];
+        console.log("📋 Paiements abonnements à supprimer:", paiementAbonnementIds.length);
 
         // Supprimer les consommations liées aux paiements abonnements (si la table existe)
         if (paiementAbonnementIds.length > 0) {
@@ -1374,7 +1386,7 @@ export default function RapprochementBancaire() {
         const { error: rfError } = await supabase
           .from("rapprochements_factures")
           .delete()
-          .in("rapprochement_id", rapprochementsManuelsIds);
+          .in("rapprochement_id", allRapprochementIds);
 
         if (rfError) throw rfError;
 
@@ -1382,28 +1394,34 @@ export default function RapprochementBancaire() {
         const { error: paError } = await supabase
           .from("paiements_abonnements")
           .delete()
-          .in("rapprochement_id", rapprochementsManuelsIds);
+          .in("rapprochement_id", allRapprochementIds);
 
-        if (paError) throw paError;
+        if (paError) {
+          console.error("Erreur suppression paiements abonnements:", paError);
+          throw paError;
+        }
 
-        // Supprimer les paiements de déclarations
+        // Supprimer les paiements de déclarations de charges
         const { error: pdError } = await supabase
           .from("paiements_declarations_charges")
           .delete()
-          .in("rapprochement_id", rapprochementsManuelsIds);
+          .in("rapprochement_id", allRapprochementIds);
 
-        if (pdError) throw pdError;
+        if (pdError) {
+          console.error("Erreur suppression paiements déclarations:", pdError);
+          throw pdError;
+        }
 
-        // Supprimer les rapprochements bancaires manuels
+        // Supprimer les rapprochements bancaires
         const { error: deleteRbError } = await supabase
           .from("rapprochements_bancaires")
           .delete()
-          .in("id", rapprochementsManuelsIds);
+          .in("id", allRapprochementIds);
 
         if (deleteRbError) throw deleteRbError;
       }
 
-      // 5. Réinitialiser le statut des factures
+      // 6. Réinitialiser le statut des factures
       if (factureIds.length > 0) {
         const { error: updateFacturesError } = await supabase
           .from("factures")
@@ -1417,7 +1435,7 @@ export default function RapprochementBancaire() {
         console.log(`✅ ${factureIds.length} factures réinitialisées`);
       }
 
-      // 6. Supprimer le fichier de rapprochement
+      // 7. Supprimer le fichier de rapprochement
       const { error: deleteFichierError } = await supabase
         .from("fichiers_rapprochement")
         .delete()
