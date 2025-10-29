@@ -1571,41 +1571,87 @@ export default function RapprochementBancaire() {
       const rapprochementsAbonnements = rapprochements.filter(r => r.status === 'matched' && r.abonnement_info);
       const rapprochementsDeclarations = rapprochements.filter(r => r.status === 'matched' && r.declaration_info);
 
-      // Créer les paiements d'abonnements
+      // Créer les rapprochements bancaires et paiements d'abonnements
       if (rapprochementsAbonnements.length > 0) {
-        const paiementsAbonnements = rapprochementsAbonnements.map(r => ({
-          abonnement_id: r.abonnement_info!.id,
-          date_paiement: r.transaction.date,
-          montant: Math.abs(r.transaction.montant),
-          notes: `Paiement automatique lors du rapprochement ${numeroRapprochement}`,
-          created_by: user?.id
-        }));
+        for (const r of rapprochementsAbonnements) {
+          // Créer le rapprochement bancaire
+          const { data: rapprochementBancaire, error: rbError } = await supabase
+            .from('rapprochements_bancaires')
+            .insert({
+              transaction_date: r.transaction.date,
+              transaction_libelle: r.transaction.libelle,
+              transaction_debit: r.transaction.debit,
+              transaction_credit: r.transaction.credit,
+              transaction_montant: r.transaction.montant,
+              abonnement_id: r.abonnement_info!.id,
+              notes: `Rapprochement automatique ${numeroRapprochement}`,
+              created_by: user?.id
+            })
+            .select()
+            .single();
 
-        const { error: paiementsAbonnementsError } = await supabase
-          .from('paiements_abonnements')
-          .insert(paiementsAbonnements);
+          if (rbError) {
+            console.error("Erreur lors de la création du rapprochement bancaire (abonnement):", rbError);
+            continue;
+          }
 
-        if (paiementsAbonnementsError) {
-          console.error("Erreur lors de la création des paiements abonnements:", paiementsAbonnementsError);
+          // Créer le paiement d'abonnement avec le rapprochement_id
+          const { error: paiementError } = await supabase
+            .from('paiements_abonnements')
+            .insert({
+              abonnement_id: r.abonnement_info!.id,
+              rapprochement_id: rapprochementBancaire.id,
+              date_paiement: r.transaction.date,
+              montant: Math.abs(r.transaction.montant),
+              notes: `Paiement automatique lors du rapprochement ${numeroRapprochement}`,
+              created_by: user?.id
+            });
+
+          if (paiementError) {
+            console.error("Erreur lors de la création du paiement abonnement:", paiementError);
+          }
         }
       }
 
-      // Créer les paiements de déclarations
+      // Créer les rapprochements bancaires et paiements de déclarations
       if (rapprochementsDeclarations.length > 0) {
-        const paiementsDeclarations = rapprochementsDeclarations.map(r => ({
-          declaration_charge_id: r.declaration_info!.id,
-          date_paiement: r.transaction.date,
-          montant: Math.abs(r.transaction.montant),
-          notes: `Paiement automatique lors du rapprochement ${numeroRapprochement}`,
-          created_by: user?.id
-        }));
+        for (const r of rapprochementsDeclarations) {
+          // Créer le rapprochement bancaire
+          const { data: rapprochementBancaire, error: rbError } = await supabase
+            .from('rapprochements_bancaires')
+            .insert({
+              transaction_date: r.transaction.date,
+              transaction_libelle: r.transaction.libelle,
+              transaction_debit: r.transaction.debit,
+              transaction_credit: r.transaction.credit,
+              transaction_montant: r.transaction.montant,
+              declaration_charge_id: r.declaration_info!.id,
+              notes: `Rapprochement automatique ${numeroRapprochement}`,
+              created_by: user?.id
+            })
+            .select()
+            .single();
 
-        const { error: paiementsDeclarationsError } = await supabase
-          .from('paiements_declarations_charges')
-          .insert(paiementsDeclarations);
+          if (rbError) {
+            console.error("Erreur lors de la création du rapprochement bancaire (déclaration):", rbError);
+            continue;
+          }
 
-        if (paiementsDeclarationsError) {
-          console.error("Erreur lors de la création des paiements déclarations:", paiementsDeclarationsError);
+          // Créer le paiement de déclaration avec le rapprochement_id
+          const { error: paiementError } = await supabase
+            .from('paiements_declarations_charges')
+            .insert({
+              declaration_charge_id: r.declaration_info!.id,
+              rapprochement_id: rapprochementBancaire.id,
+              date_paiement: r.transaction.date,
+              montant: Math.abs(r.transaction.montant),
+              notes: `Paiement automatique lors du rapprochement ${numeroRapprochement}`,
+              created_by: user?.id
+            });
+
+          if (paiementError) {
+            console.error("Erreur lors de la création du paiement déclaration:", paiementError);
+          }
         }
       }
 
