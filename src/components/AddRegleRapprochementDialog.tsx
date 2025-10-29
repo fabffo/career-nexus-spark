@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 interface AddRegleRapprochementDialogProps {
   open: boolean;
@@ -39,24 +40,28 @@ export default function AddRegleRapprochementDialog({
   const [scoreAttribue, setScoreAttribue] = useState("10");
   const [priorite, setPriorite] = useState("10");
   const [conditionJson, setConditionJson] = useState("{}");
+  const [selectedAbonnementId, setSelectedAbonnementId] = useState<string>("");
+  const [keywords, setKeywords] = useState<string>("");
+
+  // Charger les abonnements
+  const { data: abonnements } = useQuery({
+    queryKey: ["abonnements-actifs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("abonnements_partenaires")
+        .select("*")
+        .eq("actif", true)
+        .order("nom");
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const handleSubmit = async () => {
     if (!nom || !typeRegle) {
       toast({
         title: "Erreur",
         description: "Veuillez remplir tous les champs obligatoires",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Valider le JSON
-    try {
-      JSON.parse(conditionJson);
-    } catch (e) {
-      toast({
-        title: "Erreur",
-        description: "Le JSON des conditions est invalide",
         variant: "destructive",
       });
       return;
@@ -72,6 +77,30 @@ export default function AddRegleRapprochementDialog({
       return;
     }
 
+    // Construire le condition_json selon le type de règle
+    let finalConditionJson: any = {};
+    
+    if (typeRegle === "ABONNEMENT") {
+      finalConditionJson = {
+        keywords: keywords.split(",").map(k => k.trim()).filter(k => k),
+      };
+      if (selectedAbonnementId) {
+        finalConditionJson.abonnement_id = selectedAbonnementId;
+      }
+    } else {
+      // Pour les autres types, utiliser le JSON brut
+      try {
+        finalConditionJson = JSON.parse(conditionJson);
+      } catch (e) {
+        toast({
+          title: "Erreur",
+          description: "Le JSON des conditions est invalide",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -83,7 +112,7 @@ export default function AddRegleRapprochementDialog({
           nom,
           type_regle: typeRegle,
           description,
-          condition_json: JSON.parse(conditionJson),
+          condition_json: finalConditionJson,
           score_attribue: score,
           priorite: parseInt(priorite),
           actif: true,
@@ -104,6 +133,8 @@ export default function AddRegleRapprochementDialog({
       setScoreAttribue("10");
       setPriorite("10");
       setConditionJson("{}");
+      setSelectedAbonnementId("");
+      setKeywords("");
 
       onSuccess();
       onOpenChange(false);
@@ -164,6 +195,42 @@ export default function AddRegleRapprochementDialog({
             />
           </div>
 
+          {typeRegle === "ABONNEMENT" && (
+            <>
+              <div>
+                <Label htmlFor="abonnement">Abonnement (optionnel)</Label>
+                <Select value={selectedAbonnementId || undefined} onValueChange={setSelectedAbonnementId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Tous les abonnements" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {abonnements?.map((abo) => (
+                      <SelectItem key={abo.id} value={abo.id}>
+                        {abo.nom}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Laisser vide pour tester tous les abonnements
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="keywords">Mots-clés (séparés par des virgules)</Label>
+                <Input
+                  id="keywords"
+                  value={keywords}
+                  onChange={(e) => setKeywords(e.target.value)}
+                  placeholder="Ex: MMA IARD, 2456510036320241226526059501"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Recherchés dans le libellé de la transaction
+                </p>
+              </div>
+            </>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="score">Score attribué (0-100) *</Label>
@@ -191,20 +258,22 @@ export default function AddRegleRapprochementDialog({
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="condition">Conditions (JSON)</Label>
-            <Textarea
-              id="condition"
-              value={conditionJson}
-              onChange={(e) => setConditionJson(e.target.value)}
-              placeholder='{"tolerance": 0.01, "keywords": ["facture", "paiement"]}'
-              rows={4}
-              className="font-mono text-sm"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Configuration JSON pour les paramètres de la règle
-            </p>
-          </div>
+          {typeRegle !== "ABONNEMENT" && (
+            <div>
+              <Label htmlFor="condition">Conditions (JSON)</Label>
+              <Textarea
+                id="condition"
+                value={conditionJson}
+                onChange={(e) => setConditionJson(e.target.value)}
+                placeholder='{"tolerance": 0.01, "keywords": ["facture", "paiement"]}'
+                rows={4}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Configuration JSON pour les paramètres de la règle
+              </p>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
