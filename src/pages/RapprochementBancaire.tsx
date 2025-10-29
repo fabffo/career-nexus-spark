@@ -1411,9 +1411,10 @@ export default function RapprochementBancaire() {
             numero_rapprochement: null,
             date_rapprochement: null
           } as any)
-          .eq("numero_rapprochement", fichier.numero_rapprochement);
+          .in("id", factureIds);
 
         if (updateFacturesError) throw updateFacturesError;
+        console.log(`✅ ${factureIds.length} factures réinitialisées`);
       }
 
       // 6. Supprimer le fichier de rapprochement
