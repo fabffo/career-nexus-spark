@@ -68,6 +68,20 @@ export default function EditRegleRapprochementDialog({
     },
   });
 
+  // Charger les déclarations de charges
+  const { data: declarations } = useQuery({
+    queryKey: ["declarations-charges-actives"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("declarations_charges_sociales")
+        .select("*")
+        .eq("actif", true)
+        .order("nom");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Charger les données de la règle
   useEffect(() => {
     if (regle) {
@@ -77,9 +91,9 @@ export default function EditRegleRapprochementDialog({
       setScoreAttribue(regle.score_attribue.toString());
       setPriorite(regle.priorite.toString());
       
-      // Extraire l'abonnement_id et keywords si présents
+      // Extraire l'abonnement_id ou declaration_charge_id et keywords si présents
       if (regle.condition_json) {
-        setSelectedAbonnementId(regle.condition_json.abonnement_id || "");
+        setSelectedAbonnementId(regle.condition_json.abonnement_id || regle.condition_json.declaration_charge_id || "");
         setKeywords(regle.condition_json.keywords ? regle.condition_json.keywords.join(", ") : "");
         setConditionJson(JSON.stringify(regle.condition_json, null, 2));
       } else {
@@ -119,6 +133,13 @@ export default function EditRegleRapprochementDialog({
       };
       if (selectedAbonnementId) {
         finalConditionJson.abonnement_id = selectedAbonnementId;
+      }
+    } else if (typeRegle === "DECLARATION_CHARGE") {
+      finalConditionJson = {
+        keywords: keywords.split(",").map(k => k.trim()).filter(k => k),
+      };
+      if (selectedAbonnementId) {
+        finalConditionJson.declaration_charge_id = selectedAbonnementId;
       }
     } else {
       // Pour les autres types, utiliser le JSON brut
@@ -251,6 +272,42 @@ export default function EditRegleRapprochementDialog({
             </>
           )}
 
+          {typeRegle === "DECLARATION_CHARGE" && (
+            <>
+              <div>
+                <Label htmlFor="declaration">Déclaration (optionnel)</Label>
+                <Select value={selectedAbonnementId || undefined} onValueChange={setSelectedAbonnementId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Toutes les déclarations" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {declarations?.map((decl) => (
+                      <SelectItem key={decl.id} value={decl.id}>
+                        {decl.nom} - {decl.organisme}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Laisser vide pour tester toutes les déclarations
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="keywords">Mots-clés (séparés par des virgules)</Label>
+                <Input
+                  id="keywords"
+                  value={keywords}
+                  onChange={(e) => setKeywords(e.target.value)}
+                  placeholder="Ex: URSSAF, Retraite"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Recherchés dans le libellé de la transaction
+                </p>
+              </div>
+            </>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="score">Score attribué (0-100) *</Label>
@@ -278,7 +335,7 @@ export default function EditRegleRapprochementDialog({
             </div>
           </div>
 
-          {typeRegle !== "ABONNEMENT" && (
+          {typeRegle !== "ABONNEMENT" && typeRegle !== "DECLARATION_CHARGE" && (
             <div>
               <Label htmlFor="condition">Conditions (JSON)</Label>
               <Textarea

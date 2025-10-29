@@ -57,6 +57,20 @@ export default function AddRegleRapprochementDialog({
     },
   });
 
+  // Charger les déclarations de charges
+  const { data: declarations } = useQuery({
+    queryKey: ["declarations-charges-actives"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("declarations_charges_sociales")
+        .select("*")
+        .eq("actif", true)
+        .order("nom");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const handleSubmit = async () => {
     if (!nom || !typeRegle) {
       toast({
@@ -86,6 +100,13 @@ export default function AddRegleRapprochementDialog({
       };
       if (selectedAbonnementId) {
         finalConditionJson.abonnement_id = selectedAbonnementId;
+      }
+    } else if (typeRegle === "DECLARATION_CHARGE") {
+      finalConditionJson = {
+        keywords: keywords.split(",").map(k => k.trim()).filter(k => k),
+      };
+      if (selectedAbonnementId) {
+        finalConditionJson.declaration_charge_id = selectedAbonnementId;
       }
     } else {
       // Pour les autres types, utiliser le JSON brut
@@ -231,6 +252,42 @@ export default function AddRegleRapprochementDialog({
             </>
           )}
 
+          {typeRegle === "DECLARATION_CHARGE" && (
+            <>
+              <div>
+                <Label htmlFor="declaration">Déclaration (optionnel)</Label>
+                <Select value={selectedAbonnementId || undefined} onValueChange={setSelectedAbonnementId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Toutes les déclarations" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {declarations?.map((decl) => (
+                      <SelectItem key={decl.id} value={decl.id}>
+                        {decl.nom} - {decl.organisme}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Laisser vide pour tester toutes les déclarations
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="keywords">Mots-clés (séparés par des virgules)</Label>
+                <Input
+                  id="keywords"
+                  value={keywords}
+                  onChange={(e) => setKeywords(e.target.value)}
+                  placeholder="Ex: URSSAF, Retraite"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Recherchés dans le libellé de la transaction
+                </p>
+              </div>
+            </>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="score">Score attribué (0-100) *</Label>
@@ -258,7 +315,7 @@ export default function AddRegleRapprochementDialog({
             </div>
           </div>
 
-          {typeRegle !== "ABONNEMENT" && (
+          {typeRegle !== "ABONNEMENT" && typeRegle !== "DECLARATION_CHARGE" && (
             <div>
               <Label htmlFor="condition">Conditions (JSON)</Label>
               <Textarea
