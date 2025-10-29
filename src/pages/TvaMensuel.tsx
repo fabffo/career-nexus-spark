@@ -23,6 +23,12 @@ interface RapprochementLigne {
     total_tva: number;
     type_facture: string;
   };
+  factures?: {
+    numero_facture: string;
+    total_tva: number;
+    type_facture: string;
+  }[];
+  total_tva?: number;
 }
 
 interface PeriodeStat {
@@ -188,30 +194,47 @@ export default function TvaMensuel() {
         }
       });
 
-      // Ajouter les rapprochements via table de liaison (une ligne par facture)
+      // Grouper les rapprochements via table de liaison par transaction
+      const liaisonGroupedByTransaction = new Map<string, any[]>();
       rapprochementsViaLiaison?.forEach((rap: any) => {
         if (rap.factures && rap.rapprochements_bancaires) {
           const rb = rap.rapprochements_bancaires;
-          const transactionKey = `${rb.transaction_date}_${rb.transaction_libelle}_${Math.abs(rb.transaction_montant)}`;
+          const transactionKey = `${rb.id}`;
           
-          // Marquer la transaction comme traitée (pour éviter duplication avec fichiers)
-          processedTransactions.add(transactionKey);
-          
-          allLignes.push({
-            id: `liaison_${rap.id}`,
-            transaction_date: rb.transaction_date,
-            transaction_libelle: rb.transaction_libelle,
-            transaction_montant: rb.transaction_montant,
-            transaction_credit: rb.transaction_credit || 0,
-            transaction_debit: rb.transaction_debit || 0,
-            statut: "RAPPROCHE",
-            facture: {
-              numero_facture: rap.factures.numero_facture,
-              total_tva: rap.factures.total_tva || 0,
-              type_facture: rap.factures.type_facture,
-            },
-          });
+          if (!liaisonGroupedByTransaction.has(transactionKey)) {
+            liaisonGroupedByTransaction.set(transactionKey, []);
+          }
+          liaisonGroupedByTransaction.get(transactionKey)?.push(rap);
         }
+      });
+
+      // Créer une ligne par transaction avec toutes ses factures
+      liaisonGroupedByTransaction.forEach((raps, transactionKey) => {
+        const rb = raps[0].rapprochements_bancaires;
+        const transactionKeyForDupe = `${rb.transaction_date}_${rb.transaction_libelle}_${Math.abs(rb.transaction_montant)}`;
+        
+        // Marquer la transaction comme traitée
+        processedTransactions.add(transactionKeyForDupe);
+        
+        const factures = raps.map((rap: any) => ({
+          numero_facture: rap.factures.numero_facture,
+          total_tva: rap.factures.total_tva || 0,
+          type_facture: rap.factures.type_facture,
+        }));
+        
+        const total_tva = factures.reduce((sum, f) => sum + f.total_tva, 0);
+        
+        allLignes.push({
+          id: `liaison_${transactionKey}`,
+          transaction_date: rb.transaction_date,
+          transaction_libelle: rb.transaction_libelle,
+          transaction_montant: rb.transaction_montant,
+          transaction_credit: rb.transaction_credit || 0,
+          transaction_debit: rb.transaction_debit || 0,
+          statut: "RAPPROCHE",
+          factures: factures,
+          total_tva: total_tva,
+        });
       });
 
       // Ensuite, traiter les fichiers de rapprochement
@@ -303,12 +326,24 @@ export default function TvaMensuel() {
       let tva_deductible = 0;
 
       allLignes.forEach(ligne => {
-        if (ligne.statut === "RAPPROCHE" && ligne.facture) {
-          const tva = ligne.facture.total_tva || 0;
-          if (ligne.facture.type_facture === "VENTES") {
-            tva_collectee += tva;
-          } else if (ligne.facture.type_facture === "ACHATS") {
-            tva_deductible += tva;
+        if (ligne.statut === "RAPPROCHE") {
+          // Si plusieurs factures, utiliser total_tva
+          if (ligne.factures && ligne.factures.length > 0) {
+            const tva = ligne.total_tva || 0;
+            // Déterminer le type selon la première facture
+            const type = ligne.factures[0].type_facture;
+            if (type === "VENTES") {
+              tva_collectee += tva;
+            } else if (type === "ACHATS") {
+              tva_deductible += tva;
+            }
+          } else if (ligne.facture) {
+            const tva = ligne.facture.total_tva || 0;
+            if (ligne.facture.type_facture === "VENTES") {
+              tva_collectee += tva;
+            } else if (ligne.facture.type_facture === "ACHATS") {
+              tva_deductible += tva;
+            }
           }
         }
       });
@@ -443,12 +478,23 @@ export default function TvaMensuel() {
       let tva_deductible = 0;
 
       updatedLignes.forEach(ligne => {
-        if (ligne.statut === "RAPPROCHE" && ligne.facture) {
-          const tva = ligne.facture.total_tva || 0;
-          if (ligne.facture.type_facture === "VENTES") {
-            tva_collectee += tva;
-          } else if (ligne.facture.type_facture === "ACHATS") {
-            tva_deductible += tva;
+        if (ligne.statut === "RAPPROCHE") {
+          // Si plusieurs factures, utiliser total_tva
+          if (ligne.factures && ligne.factures.length > 0) {
+            const tva = ligne.total_tva || 0;
+            const type = ligne.factures[0].type_facture;
+            if (type === "VENTES") {
+              tva_collectee += tva;
+            } else if (type === "ACHATS") {
+              tva_deductible += tva;
+            }
+          } else if (ligne.facture) {
+            const tva = ligne.facture.total_tva || 0;
+            if (ligne.facture.type_facture === "VENTES") {
+              tva_collectee += tva;
+            } else if (ligne.facture.type_facture === "ACHATS") {
+              tva_deductible += tva;
+            }
           }
         }
       });
@@ -614,20 +660,44 @@ export default function TvaMensuel() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {ligne.facture?.numero_facture || "-"}
+                        {ligne.factures && ligne.factures.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {ligne.factures.map((f, idx) => (
+                              <Badge key={idx} variant="outline" className="text-xs">
+                                {f.numero_facture}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : ligne.facture?.numero_facture ? (
+                          ligne.facture.numero_facture
+                        ) : (
+                          "-"
+                        )}
                       </TableCell>
                       <TableCell>
-                        {ligne.facture && (
+                        {ligne.factures && ligne.factures.length > 0 ? (
+                          <Badge variant={ligne.factures[0].type_facture === "VENTES" ? "default" : "secondary"}>
+                            {ligne.factures[0].type_facture === "VENTES" ? "Vente" : "Achat"}
+                          </Badge>
+                        ) : ligne.facture ? (
                           <Badge variant={ligne.facture.type_facture === "VENTES" ? "default" : "secondary"}>
                             {ligne.facture.type_facture === "VENTES" ? "Vente" : "Achat"}
                           </Badge>
-                        )}
+                        ) : null}
                       </TableCell>
                       <TableCell className="text-right">
-                        {ligne.statut === "RAPPROCHE" && ligne.facture ? (
-                          <span className={ligne.facture.type_facture === "VENTES" ? "text-green-600" : "text-blue-600"}>
-                            {ligne.facture.total_tva?.toFixed(2)} €
-                          </span>
+                        {ligne.statut === "RAPPROCHE" ? (
+                          ligne.factures && ligne.factures.length > 0 ? (
+                            <span className={ligne.factures[0].type_facture === "VENTES" ? "text-green-600 font-semibold" : "text-blue-600 font-semibold"}>
+                              {ligne.total_tva?.toFixed(2)} €
+                            </span>
+                          ) : ligne.facture ? (
+                            <span className={ligne.facture.type_facture === "VENTES" ? "text-green-600" : "text-blue-600"}>
+                              {ligne.facture.total_tva?.toFixed(2)} €
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
