@@ -1223,8 +1223,8 @@ export default function RapprochementBancaire() {
           }
 
           // Règle DECLARATION_CHARGE
-          if (regle.type_regle === "DECLARATION_CHARGE" && declarations && condition.declaration_id) {
-            const declaration = declarations.find(d => d.id === condition.declaration_id);
+          if (regle.type_regle === "DECLARATION_CHARGE" && declarations && condition.declaration_charge_id) {
+            const declaration = declarations.find(d => d.id === condition.declaration_charge_id);
             if (declaration) {
               let match = false;
               
