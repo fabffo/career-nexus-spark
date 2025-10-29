@@ -2715,6 +2715,76 @@ export default function RapprochementBancaire() {
                     {loading ? "Réinitialisation..." : "Réinitialiser"}
                   </Button>
                 </div>
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <h4 className="font-semibold">Supprimer tous les paiements</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Supprime tous les paiements d'abonnements et de charges sociales. Cette action ne peut pas être annulée.
+                    </p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    onClick={async () => {
+                      if (!confirm("⚠️ ATTENTION: Cette action va supprimer TOUS les paiements d'abonnements et de charges sociales.\n\nÊtes-vous absolument sûr de vouloir continuer ?")) {
+                        return;
+                      }
+
+                      try {
+                        setLoading(true);
+
+                        // Supprimer les consommations d'abonnements
+                        try {
+                          await (supabase as any)
+                            .from("abonnements_consommations")
+                            .delete()
+                            .neq("id", "00000000-0000-0000-0000-000000000000");
+                        } catch (e) {
+                          console.warn("Erreur suppression consommations:", e);
+                        }
+
+                        // Supprimer tous les paiements d'abonnements
+                        const { data: paiementsAbonnements, error: paError } = await supabase
+                          .from("paiements_abonnements")
+                          .delete()
+                          .neq("id", "00000000-0000-0000-0000-000000000000")
+                          .select();
+
+                        if (paError) throw paError;
+
+                        // Supprimer tous les paiements de déclarations de charges
+                        const { data: paiementsDeclarations, error: pdError } = await supabase
+                          .from("paiements_declarations_charges")
+                          .delete()
+                          .neq("id", "00000000-0000-0000-0000-000000000000")
+                          .select();
+
+                        if (pdError) throw pdError;
+
+                        const nbAbonnements = paiementsAbonnements?.length || 0;
+                        const nbDeclarations = paiementsDeclarations?.length || 0;
+
+                        toast({
+                          title: "✅ Suppression terminée",
+                          description: `${nbAbonnements} paiement(s) d'abonnements et ${nbDeclarations} paiement(s) de charges sociales supprimés`,
+                        });
+
+                      } catch (error: any) {
+                        console.error("Erreur lors de la suppression:", error);
+                        toast({
+                          title: "Erreur",
+                          description: error.message || "Impossible de supprimer les paiements",
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    disabled={loading}
+                  >
+                    {loading ? "Suppression..." : "Supprimer tous les paiements"}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
