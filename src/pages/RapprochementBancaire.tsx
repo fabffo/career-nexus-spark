@@ -1566,9 +1566,51 @@ export default function RapprochementBancaire() {
         }
       }
 
+      // Créer les paiements pour les abonnements et déclarations de charges
+      const rapprochementsAbonnements = rapprochements.filter(r => r.status === 'matched' && r.abonnement_info);
+      const rapprochementsDeclarations = rapprochements.filter(r => r.status === 'matched' && r.declaration_info);
+
+      // Créer les paiements d'abonnements
+      if (rapprochementsAbonnements.length > 0) {
+        const paiementsAbonnements = rapprochementsAbonnements.map(r => ({
+          abonnement_id: r.abonnement_info!.id,
+          date_paiement: r.transaction.date,
+          montant: Math.abs(r.transaction.montant),
+          notes: `Paiement automatique lors du rapprochement ${numeroRapprochement}`,
+          created_by: user?.id
+        }));
+
+        const { error: paiementsAbonnementsError } = await supabase
+          .from('paiements_abonnements')
+          .insert(paiementsAbonnements);
+
+        if (paiementsAbonnementsError) {
+          console.error("Erreur lors de la création des paiements abonnements:", paiementsAbonnementsError);
+        }
+      }
+
+      // Créer les paiements de déclarations
+      if (rapprochementsDeclarations.length > 0) {
+        const paiementsDeclarations = rapprochementsDeclarations.map(r => ({
+          declaration_charge_id: r.declaration_info!.id,
+          date_paiement: r.transaction.date,
+          montant: Math.abs(r.transaction.montant),
+          notes: `Paiement automatique lors du rapprochement ${numeroRapprochement}`,
+          created_by: user?.id
+        }));
+
+        const { error: paiementsDeclarationsError } = await supabase
+          .from('paiements_declarations_charges')
+          .insert(paiementsDeclarations);
+
+        if (paiementsDeclarationsError) {
+          console.error("Erreur lors de la création des paiements déclarations:", paiementsDeclarationsError);
+        }
+      }
+
       toast({
         title: "Rapprochement validé",
-        description: `Rapprochement ${numeroRapprochement} validé avec succès ! ${lignesRapprochees}/${transactions.length} lignes rapprochées. Vous pouvez continuer à travailler sur les lignes non rapprochées.`,
+        description: `Rapprochement ${numeroRapprochement} validé avec succès ! ${lignesRapprochees}/${transactions.length} lignes rapprochées. ${rapprochementsAbonnements.length} paiements d'abonnements et ${rapprochementsDeclarations.length} paiements de charges créés.`,
       });
 
       // Recharger les factures pour mettre à jour le statut
