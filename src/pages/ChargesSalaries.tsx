@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -23,14 +22,14 @@ const TYPE_CHARGE_LABELS: Record<string, string> = {
 
 export default function ChargesSalaries() {
   const { data: charges = [], isLoading } = useQuery({
-    queryKey: ["charges-salaries"],
+    queryKey: ["paiements-declarations-charges"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("charges_salaries")
+        .from("paiements_declarations_charges")
         .select(`
           *,
-          salarie:salaries(id, nom, prenom),
-          rapprochement:fichiers_rapprochement(id, numero_rapprochement)
+          declaration:declarations_charges_sociales(id, nom, organisme, type_charge),
+          rapprochement:rapprochements_bancaires(id, transaction_libelle)
         `)
         .order("date_paiement", { ascending: false });
 
@@ -44,7 +43,7 @@ export default function ChargesSalaries() {
     total: charges.reduce((sum, c) => sum + Number(c.montant), 0),
     count: charges.length,
     parType: charges.reduce((acc, c) => {
-      const type = c.type_charge || "AUTRES";
+      const type = c.declaration?.type_charge || "AUTRES";
       acc[type] = (acc[type] || 0) + Number(c.montant);
       return acc;
     }, {} as Record<string, number>),
@@ -55,7 +54,7 @@ export default function ChargesSalaries() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Charges Salariales</h1>
         <p className="text-muted-foreground mt-1">
-          Historique des charges salariales issues des rapprochements bancaires
+          Historique des paiements de déclarations de charges sociales
         </p>
       </div>
 
@@ -96,7 +95,8 @@ export default function ChargesSalaries() {
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
-              <TableHead>Salarié</TableHead>
+              <TableHead>Déclaration</TableHead>
+              <TableHead>Organisme</TableHead>
               <TableHead>Type de charge</TableHead>
               <TableHead>Montant</TableHead>
               <TableHead>Rapprochement</TableHead>
@@ -106,13 +106,13 @@ export default function ChargesSalaries() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center">
+                <TableCell colSpan={7} className="text-center">
                   Chargement...
                 </TableCell>
               </TableRow>
             ) : charges.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center">
+                <TableCell colSpan={7} className="text-center">
                   Aucune charge enregistrée
                 </TableCell>
               </TableRow>
@@ -125,14 +125,15 @@ export default function ChargesSalaries() {
                     })}
                   </TableCell>
                   <TableCell className="font-medium">
-                    {charge.salarie
-                      ? `${charge.salarie.prenom} ${charge.salarie.nom}`
-                      : "-"}
+                    {charge.declaration?.nom || "-"}
                   </TableCell>
                   <TableCell>
-                    {charge.type_charge && (
+                    {charge.declaration?.organisme || "-"}
+                  </TableCell>
+                  <TableCell>
+                    {charge.declaration?.type_charge && (
                       <Badge variant="outline">
-                        {TYPE_CHARGE_LABELS[charge.type_charge]}
+                        {TYPE_CHARGE_LABELS[charge.declaration.type_charge] || charge.declaration.type_charge}
                       </Badge>
                     )}
                   </TableCell>
@@ -140,7 +141,7 @@ export default function ChargesSalaries() {
                     {Number(charge.montant).toFixed(2)} €
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {charge.rapprochement?.numero_rapprochement || "-"}
+                    {charge.rapprochement?.transaction_libelle || "-"}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
                     {charge.notes || "-"}
