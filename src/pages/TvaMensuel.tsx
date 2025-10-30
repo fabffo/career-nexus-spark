@@ -629,21 +629,21 @@ export default function TvaMensuel() {
             <CardContent>
               <ScrollArea className="h-[600px] w-full">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 bg-background z-10">
                     <TableRow>
-                      <TableHead className="w-[50px]">
+                      <TableHead className="w-[50px] bg-background">
                         <Checkbox
                           checked={selectedLines.size === lignes.length && lignes.length > 0}
                           onCheckedChange={toggleAllLines}
                         />
                       </TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Libellé</TableHead>
-                      <TableHead>Montant</TableHead>
-                      <TableHead>Statut</TableHead>
-                      <TableHead>Facture</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead className="text-right">TVA</TableHead>
+                      <TableHead className="bg-background">Date</TableHead>
+                      <TableHead className="bg-background">Libellé</TableHead>
+                      <TableHead className="bg-background">Montant</TableHead>
+                      <TableHead className="bg-background">Statut</TableHead>
+                      <TableHead className="bg-background">Facture</TableHead>
+                      <TableHead className="bg-background">Type</TableHead>
+                      <TableHead className="text-right bg-background">TVA</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
