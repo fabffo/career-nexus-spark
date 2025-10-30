@@ -145,21 +145,48 @@ export default function TvaMensuel() {
         .map((r: any) => r.facture.id);
 
       const uniqueFactureIds = [...new Set(factureIds)];
-      console.log("Total IDs factures à charger:", uniqueFactureIds.length);
+      console.log("Total IDs factures uniques à charger:", uniqueFactureIds.length);
 
-      // 4. Charger toutes les factures
+      // 4. Charger les IDs des rapprochements manuels pour récupérer les liaisons multiples
+      const manualRapIds = rapprochements
+        .filter((r: any) => r.manualId && !r.manualId.startsWith('rapp_'))
+        .map((r: any) => r.manualId);
+      
+      console.log("IDs rapprochements manuels:", manualRapIds.length);
+
+      // 5. Charger les liaisons rapprochements-factures pour les rapprochements avec plusieurs factures
+      let multipleFacturesMap = new Map<string, string[]>();
+      if (manualRapIds.length > 0) {
+        const { data: liaisons } = await supabase
+          .from("rapprochements_factures")
+          .select("rapprochement_id, facture_id")
+          .in("rapprochement_id", manualRapIds);
+
+        console.log("Liaisons rapprochements-factures trouvées:", liaisons?.length || 0);
+
+        liaisons?.forEach(l => {
+          if (!multipleFacturesMap.has(l.rapprochement_id)) {
+            multipleFacturesMap.set(l.rapprochement_id, []);
+          }
+          multipleFacturesMap.get(l.rapprochement_id)?.push(l.facture_id);
+          uniqueFactureIds.push(l.facture_id);
+        });
+      }
+
+      // 6. Charger toutes les factures (uniques + celles des liaisons)
+      const allUniqueFactureIds = [...new Set(uniqueFactureIds)];
       let facturesMap = new Map<string, any>();
-      if (uniqueFactureIds.length > 0) {
+      if (allUniqueFactureIds.length > 0) {
         const { data: factures } = await supabase
           .from("factures")
           .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission")
-          .in("id", uniqueFactureIds as string[]);
+          .in("id", allUniqueFactureIds as string[]);
 
         factures?.forEach(f => facturesMap.set(f.id, f));
         console.log("✅ Factures chargées:", factures?.length || 0);
       }
 
-      // 5. Créer les lignes TVA à partir des rapprochements
+      // 7. Créer les lignes TVA à partir des rapprochements
       const allLignes: RapprochementLigne[] = rapprochements.map((rapp: any, index: number) => {
         const trans = rapp.transaction;
         const transDate = trans.date;
@@ -178,8 +205,30 @@ export default function TvaMensuel() {
           statut,
         };
 
-        // Ajouter la facture si elle existe et qu'on l'a chargée
-        if (rapp.facture?.id && facturesMap.has(rapp.facture.id)) {
+        // Vérifier s'il y a plusieurs factures via liaisons
+        const manualId = rapp.manualId;
+        const multipleFactureIds = manualId ? multipleFacturesMap.get(manualId) : null;
+
+        if (multipleFactureIds && multipleFactureIds.length > 0) {
+          // Cas avec plusieurs factures
+          const facturesArray = multipleFactureIds
+            .filter(fId => facturesMap.has(fId))
+            .map(fId => {
+              const f = facturesMap.get(fId);
+              return {
+                numero_facture: f.numero_facture,
+                total_tva: f.total_tva || 0,
+                type_facture: f.type_facture,
+              };
+            });
+
+          if (facturesArray.length > 0) {
+            ligne.factures = facturesArray;
+            ligne.total_tva = facturesArray.reduce((sum, f) => sum + f.total_tva, 0);
+            console.log(`💰 Ligne avec ${facturesArray.length} factures - TVA totale: ${ligne.total_tva}€`);
+          }
+        } else if (rapp.facture?.id && facturesMap.has(rapp.facture.id)) {
+          // Cas avec une seule facture
           const facture = facturesMap.get(rapp.facture.id);
           ligne.facture = {
             numero_facture: facture.numero_facture,
