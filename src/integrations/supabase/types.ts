@@ -241,6 +241,42 @@ export type Database = {
         }
         Relationships: []
       }
+      candidats_postes: {
+        Row: {
+          candidat_id: string
+          created_at: string | null
+          date_candidature: string
+          etape_recrutement: string
+          id: string
+          notes: string | null
+          poste_id: string
+          salaire_propose: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          candidat_id: string
+          created_at?: string | null
+          date_candidature?: string
+          etape_recrutement?: string
+          id?: string
+          notes?: string | null
+          poste_id: string
+          salaire_propose?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          candidat_id?: string
+          created_at?: string | null
+          date_candidature?: string
+          etape_recrutement?: string
+          id?: string
+          notes?: string | null
+          poste_id?: string
+          salaire_propose?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       charges_salaries: {
         Row: {
           created_at: string | null
@@ -1227,6 +1263,39 @@ export type Database = {
           },
         ]
       }
+      param_etapes_recrutement: {
+        Row: {
+          code: string
+          couleur: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          libelle: string
+          ordre: number
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          couleur?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          libelle: string
+          ordre?: number
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          couleur?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          libelle?: string
+          ordre?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       param_type_intervenant: {
         Row: {
           code: string
@@ -1536,6 +1605,7 @@ export type Database = {
           facture_id: string | null
           id: string
           notes: string | null
+          numero_ligne: string | null
           transaction_credit: number | null
           transaction_date: string
           transaction_debit: number | null
@@ -1551,6 +1621,7 @@ export type Database = {
           facture_id?: string | null
           id?: string
           notes?: string | null
+          numero_ligne?: string | null
           transaction_credit?: number | null
           transaction_date: string
           transaction_debit?: number | null
@@ -1566,6 +1637,7 @@ export type Database = {
           facture_id?: string | null
           id?: string
           notes?: string | null
+          numero_ligne?: string | null
           transaction_credit?: number | null
           transaction_date?: string
           transaction_debit?: number | null
@@ -2053,6 +2125,7 @@ export type Database = {
       }
       generate_invitation_token: { Args: never; Returns: string }
       generate_numero_facture: { Args: { p_type: string }; Returns: string }
+      generate_numero_ligne: { Args: never; Returns: string }
       get_next_avenant_number: {
         Args: { p_parent_numero: string }
         Returns: string

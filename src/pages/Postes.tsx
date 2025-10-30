@@ -3,9 +3,10 @@ import { posteService, clientService, candidatService } from '@/services';
 import { PosteClient, Client, Candidat } from '@/types/models';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Calendar, Building2, Eye, Copy, History, MoreHorizontal } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, Building2, Eye, Copy, History, MoreHorizontal, Users } from 'lucide-react';
 import { ViewPosteDialog } from '@/components/ViewPosteDialog';
 import { PosteHistoryDialog } from '@/components/PosteHistoryDialog';
+import { AssociateCandidatsDialog } from '@/components/AssociateCandidatsDialog';
 import {
   Dialog,
   DialogContent,
@@ -48,6 +49,8 @@ export default function Postes() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [historyPosteId, setHistoryPosteId] = useState<string>('');
+  const [associateDialogOpen, setAssociateDialogOpen] = useState(false);
+  const [selectedPosteForAssociation, setSelectedPosteForAssociation] = useState<PosteClient | null>(null);
   const [formData, setFormData] = useState({
     clientId: '',
     nomPoste: '',
@@ -56,6 +59,8 @@ export default function Postes() {
     typePrestation: 'RECRUTEMENT' as PosteClient['typePrestation'],
     detail: '',
     pourvuPar: '',
+    salaireMin: '',
+    salaireMax: '',
   });
 
   useEffect(() => {
@@ -100,6 +105,8 @@ export default function Postes() {
         typePrestation: poste.typePrestation || 'RECRUTEMENT',
         detail: poste.detail,
         pourvuPar: (poste as any).pourvuPar || '',
+        salaireMin: (poste as any).salaire_min?.toString() || '',
+        salaireMax: (poste as any).salaire_max?.toString() || '',
       });
     } else {
       setSelectedPoste(null);
@@ -111,6 +118,8 @@ export default function Postes() {
         typePrestation: 'RECRUTEMENT',
         detail: '',
         pourvuPar: '',
+        salaireMin: '',
+        salaireMax: '',
       });
     }
     setIsFormOpen(true);
@@ -124,25 +133,39 @@ export default function Postes() {
         return;
       }
 
-      const data = {
-        ...formData,
-        dateCreation: selectedPoste?.dateCreation || new Date(),
-        dateEcheance: formData.dateEcheance ? new Date(formData.dateEcheance) : undefined,
+      const { supabase } = await import('@/integrations/supabase/client');
+
+      const dataToSave: any = {
+        client_id: formData.clientId,
+        titre: formData.nomPoste,
+        description: formData.detail,
+        statut: formData.statut,
+        type_prestation: formData.typePrestation || 'RECRUTEMENT',
+        pourvu_par: formData.pourvuPar || null,
+        salaire_min: formData.salaireMin ? parseFloat(formData.salaireMin) : null,
+        salaire_max: formData.salaireMax ? parseFloat(formData.salaireMax) : null,
       };
 
       if (selectedPoste) {
-        await posteService.update(selectedPoste.id, data);
+        const { error } = await supabase
+          .from('postes')
+          .update(dataToSave)
+          .eq('id', selectedPoste.id);
+
+        if (error) throw error;
         toast.success('Poste modifié avec succès');
       } else {
-        await posteService.create({
-          ...data,
-          typePrestation: formData.typePrestation || 'RECRUTEMENT'
-        });
+        const { error } = await supabase
+          .from('postes')
+          .insert(dataToSave);
+
+        if (error) throw error;
         toast.success('Poste créé avec succès');
       }
       setIsFormOpen(false);
       loadData();
     } catch (error) {
+      console.error('Erreur:', error);
       toast.error('Une erreur est survenue');
     }
   };
@@ -299,6 +322,15 @@ export default function Postes() {
               <DropdownMenuItem onClick={() => handleView(poste)}>
                 <Eye className="mr-2 h-4 w-4" />
                 Voir les détails
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => {
+                  setSelectedPosteForAssociation(poste);
+                  setAssociateDialogOpen(true);
+                }}
+              >
+                <Users className="mr-2 h-4 w-4" />
+                Gérer les candidats
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleOpenForm(poste)}>
                 <Edit className="mr-2 h-4 w-4" />
@@ -459,6 +491,28 @@ export default function Postes() {
                 </p>
               )}
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="salaireMin">Salaire min (€)</Label>
+                <Input
+                  id="salaireMin"
+                  type="number"
+                  value={formData.salaireMin}
+                  onChange={(e) => setFormData({ ...formData, salaireMin: e.target.value })}
+                  placeholder="30000"
+                />
+              </div>
+              <div>
+                <Label htmlFor="salaireMax">Salaire max (€)</Label>
+                <Input
+                  id="salaireMax"
+                  type="number"
+                  value={formData.salaireMax}
+                  onChange={(e) => setFormData({ ...formData, salaireMax: e.target.value })}
+                  placeholder="45000"
+                />
+              </div>
+            </div>
             <div>
               <Label htmlFor="detail">Détails du poste</Label>
               <Textarea
@@ -495,6 +549,16 @@ export default function Postes() {
         onClose={() => setHistoryDialogOpen(false)}
         posteId={historyPosteId}
       />
+
+      {/* Associate Candidats Dialog */}
+      {selectedPosteForAssociation && (
+        <AssociateCandidatsDialog
+          open={associateDialogOpen}
+          onOpenChange={setAssociateDialogOpen}
+          posteId={selectedPosteForAssociation.id}
+          posteTitle={selectedPosteForAssociation.nomPoste}
+        />
+      )}
     </div>
   );
 }
