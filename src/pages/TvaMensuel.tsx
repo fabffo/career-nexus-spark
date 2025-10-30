@@ -7,10 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { Receipt, RefreshCcw } from "lucide-react";
+import { Receipt, RefreshCcw, ArrowUpDown, Search } from "lucide-react";
 
 interface RapprochementLigne {
   id: string;
@@ -51,6 +52,9 @@ export default function TvaMensuel() {
   const [stats, setStats] = useState<PeriodeStat>({ tva_collectee: 0, tva_deductible: 0, tva_a_payer: 0 });
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortColumn, setSortColumn] = useState<keyof RapprochementLigne | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -83,8 +87,52 @@ export default function TvaMensuel() {
     }
   };
 
-  const lignesRapprochees = lignes.filter(l => l.statut === "RAPPROCHE");
-  const lignesNonRapprochees = lignes.filter(l => l.statut === "NON_RAPPROCHE");
+  const handleSort = (column: keyof RapprochementLigne) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  // Filtrer et trier les lignes
+  const filteredAndSortedLignes = lignes
+    .filter(ligne => {
+      if (!searchTerm) return true;
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        ligne.transaction_libelle?.toLowerCase().includes(searchLower) ||
+        ligne.transaction_date?.includes(searchTerm) ||
+        (ligne.facture?.numero_facture && ligne.facture.numero_facture.toLowerCase().includes(searchLower)) ||
+        (ligne.factures && ligne.factures.some(f => f.numero_facture.toLowerCase().includes(searchLower)))
+      );
+    })
+    .sort((a, b) => {
+      if (!sortColumn) return 0;
+      
+      let aValue: any = a[sortColumn];
+      let bValue: any = b[sortColumn];
+
+      // Gestion spéciale pour les dates
+      if (sortColumn === "transaction_date") {
+        aValue = new Date(aValue || 0).getTime();
+        bValue = new Date(bValue || 0).getTime();
+      }
+
+      // Gestion spéciale pour les montants
+      if (sortColumn === "transaction_montant" || sortColumn === "total_tva") {
+        aValue = aValue || 0;
+        bValue = bValue || 0;
+      }
+
+      if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+
+  const lignesRapprochees = filteredAndSortedLignes.filter(l => l.statut === "RAPPROCHE");
+  const lignesNonRapprochees = filteredAndSortedLignes.filter(l => l.statut === "NON_RAPPROCHE");
 
   const loadAvailablePeriods = async () => {
     try {
@@ -624,7 +672,18 @@ export default function TvaMensuel() {
           {/* Détail des lignes */}
           <Card>
             <CardHeader>
-              <CardTitle>Détail des transactions</CardTitle>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <CardTitle>Détail des transactions</CardTitle>
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Rechercher..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="relative overflow-auto max-h-[600px] border rounded-md">
@@ -633,21 +692,71 @@ export default function TvaMensuel() {
                     <TableRow>
                       <TableHead className="w-[50px] bg-background">
                         <Checkbox
-                          checked={selectedLines.size === lignes.length && lignes.length > 0}
+                          checked={selectedLines.size === filteredAndSortedLignes.length && filteredAndSortedLignes.length > 0}
                           onCheckedChange={toggleAllLines}
                         />
                       </TableHead>
-                      <TableHead className="bg-background min-w-[100px]">Date</TableHead>
-                      <TableHead className="bg-background min-w-[200px]">Libellé</TableHead>
-                      <TableHead className="bg-background min-w-[120px]">Montant</TableHead>
-                      <TableHead className="bg-background min-w-[100px]">Statut</TableHead>
+                      <TableHead className="bg-background min-w-[100px]">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-full justify-start px-2 hover:bg-accent"
+                          onClick={() => handleSort("transaction_date")}
+                        >
+                          Date
+                          <ArrowUpDown className="ml-2 h-3 w-3" />
+                        </Button>
+                      </TableHead>
+                      <TableHead className="bg-background min-w-[200px]">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-full justify-start px-2 hover:bg-accent"
+                          onClick={() => handleSort("transaction_libelle")}
+                        >
+                          Libellé
+                          <ArrowUpDown className="ml-2 h-3 w-3" />
+                        </Button>
+                      </TableHead>
+                      <TableHead className="bg-background min-w-[120px]">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-full justify-start px-2 hover:bg-accent"
+                          onClick={() => handleSort("transaction_montant")}
+                        >
+                          Montant
+                          <ArrowUpDown className="ml-2 h-3 w-3" />
+                        </Button>
+                      </TableHead>
+                      <TableHead className="bg-background min-w-[100px]">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-full justify-start px-2 hover:bg-accent"
+                          onClick={() => handleSort("statut")}
+                        >
+                          Statut
+                          <ArrowUpDown className="ml-2 h-3 w-3" />
+                        </Button>
+                      </TableHead>
                       <TableHead className="bg-background min-w-[150px]">Facture</TableHead>
                       <TableHead className="bg-background min-w-[100px]">Type</TableHead>
-                      <TableHead className="text-right bg-background min-w-[100px]">TVA</TableHead>
+                      <TableHead className="text-right bg-background min-w-[100px]">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-full justify-end px-2 hover:bg-accent"
+                          onClick={() => handleSort("total_tva")}
+                        >
+                          TVA
+                          <ArrowUpDown className="ml-2 h-3 w-3" />
+                        </Button>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {lignes.map((ligne) => (
+                    {filteredAndSortedLignes.map((ligne) => (
                       <TableRow key={ligne.id}>
                         <TableCell>
                           <Checkbox
