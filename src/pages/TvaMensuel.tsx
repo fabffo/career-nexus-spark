@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableRow, TableHeader } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -48,6 +49,7 @@ export default function TvaMensuel() {
   const [lignes, setLignes] = useState<RapprochementLigne[]>([]);
   const [stats, setStats] = useState<PeriodeStat>({ tva_collectee: 0, tva_deductible: 0, tva_a_payer: 0 });
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -59,6 +61,29 @@ export default function TvaMensuel() {
       loadTvaData();
     }
   }, [selectedMonth, selectedYear]);
+
+  const toggleLineSelection = (lineId: string) => {
+    setSelectedLines(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(lineId)) {
+        newSet.delete(lineId);
+      } else {
+        newSet.add(lineId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleAllLines = () => {
+    if (selectedLines.size === lignes.length) {
+      setSelectedLines(new Set());
+    } else {
+      setSelectedLines(new Set(lignes.map(l => l.id)));
+    }
+  };
+
+  const lignesRapprochees = lignes.filter(l => l.statut === "RAPPROCHE");
+  const lignesNonRapprochees = lignes.filter(l => l.statut === "NON_RAPPROCHE");
 
   const loadAvailablePeriods = async () => {
     try {
@@ -526,6 +551,35 @@ export default function TvaMensuel() {
         </CardContent>
       </Card>
 
+      {/* Statistiques des lignes */}
+      {selectedMonth && selectedYear && lignes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Statistiques des lignes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-sm text-muted-foreground">Total lignes</div>
+                <div className="text-2xl font-bold">{lignes.length}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-muted-foreground">Rapprochées</div>
+                <div className="text-2xl font-bold text-green-600">{lignesRapprochees.length}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-muted-foreground">Non rapprochées</div>
+                <div className="text-2xl font-bold text-orange-600">{lignesNonRapprochees.length}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-muted-foreground">Sélectionnées</div>
+                <div className="text-2xl font-bold text-primary">{selectedLines.size}</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Résumé TVA */}
       {selectedMonth && selectedYear && (
         <>
@@ -588,6 +642,12 @@ export default function TvaMensuel() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[50px]">
+                      <Checkbox
+                        checked={selectedLines.size === lignes.length && lignes.length > 0}
+                        onCheckedChange={toggleAllLines}
+                      />
+                    </TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Libellé</TableHead>
                     <TableHead>Montant</TableHead>
@@ -600,6 +660,12 @@ export default function TvaMensuel() {
                 <TableBody>
                   {lignes.map((ligne) => (
                     <TableRow key={ligne.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedLines.has(ligne.id)}
+                          onCheckedChange={() => toggleLineSelection(ligne.id)}
+                        />
+                      </TableCell>
                       <TableCell>
                         {format(new Date(ligne.transaction_date), "dd/MM/yyyy", { locale: fr })}
                       </TableCell>
