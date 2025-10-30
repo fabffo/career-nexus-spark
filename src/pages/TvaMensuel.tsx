@@ -627,29 +627,26 @@ export default function TvaMensuel() {
               <CardTitle>Détail des transactions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="relative">
+              <div className="relative overflow-auto max-h-[600px] border rounded-md">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
                     <TableRow>
-                      <TableHead className="w-[50px]">
+                      <TableHead className="w-[50px] bg-background">
                         <Checkbox
                           checked={selectedLines.size === lignes.length && lignes.length > 0}
                           onCheckedChange={toggleAllLines}
                         />
                       </TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Libellé</TableHead>
-                      <TableHead>Montant</TableHead>
-                      <TableHead>Statut</TableHead>
-                      <TableHead>Facture</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead className="text-right">TVA</TableHead>
+                      <TableHead className="bg-background min-w-[100px]">Date</TableHead>
+                      <TableHead className="bg-background min-w-[200px]">Libellé</TableHead>
+                      <TableHead className="bg-background min-w-[120px]">Montant</TableHead>
+                      <TableHead className="bg-background min-w-[100px]">Statut</TableHead>
+                      <TableHead className="bg-background min-w-[150px]">Facture</TableHead>
+                      <TableHead className="bg-background min-w-[100px]">Type</TableHead>
+                      <TableHead className="text-right bg-background min-w-[100px]">TVA</TableHead>
                     </TableRow>
                   </TableHeader>
-                </Table>
-                <ScrollArea className="h-[600px]">
-                  <Table>
-                    <TableBody>
+                  <TableBody>
                     {lignes.map((ligne) => (
                       <TableRow key={ligne.id}>
                         <TableCell>
@@ -658,71 +655,52 @@ export default function TvaMensuel() {
                             onCheckedChange={() => toggleLineSelection(ligne.id)}
                           />
                         </TableCell>
-                        <TableCell>
-                          {format(new Date(ligne.transaction_date), "dd/MM/yyyy", { locale: fr })}
-                        </TableCell>
+                        <TableCell>{ligne.transaction_date ? format(new Date(ligne.transaction_date), "dd/MM/yyyy", { locale: fr }) : ""}</TableCell>
                         <TableCell>{ligne.transaction_libelle}</TableCell>
                         <TableCell>
-                          {ligne.transaction_credit > 0 && (
-                            <span className="text-green-600">+{ligne.transaction_credit.toFixed(2)} €</span>
-                          )}
-                          {ligne.transaction_debit > 0 && (
-                            <span className="text-red-600">-{ligne.transaction_debit.toFixed(2)} €</span>
-                          )}
+                          {new Intl.NumberFormat("fr-FR", {
+                            style: "currency",
+                            currency: "EUR",
+                          }).format(ligne.transaction_montant)}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={ligne.statut === "RAPPROCHE" ? "default" : ligne.statut === "INCERTAIN" ? "secondary" : "outline"}>
-                            {ligne.statut === "RAPPROCHE" ? "Rapproché" : ligne.statut === "INCERTAIN" ? "Incertain" : "Non rapproché"}
+                          <Badge
+                            variant={
+                              ligne.statut === "RAPPROCHE"
+                                ? "default"
+                                : "outline"
+                            }
+                          >
+                            {ligne.statut === "RAPPROCHE" ? "Rapprochée" : "Non rapprochée"}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {ligne.factures && ligne.factures.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {ligne.factures.map((f, idx) => (
-                                <Badge key={idx} variant="outline" className="text-xs">
-                                  {f.numero_facture}
-                                </Badge>
-                              ))}
-                            </div>
-                          ) : ligne.facture?.numero_facture ? (
-                            ligne.facture.numero_facture
-                          ) : (
-                            "-"
-                          )}
+                          {ligne.factures && ligne.factures.length > 0
+                            ? ligne.factures.map(f => f.numero_facture).join(", ")
+                            : ligne.facture?.numero_facture || "—"}
                         </TableCell>
                         <TableCell>
-                          {ligne.factures && ligne.factures.length > 0 ? (
-                            <Badge variant={ligne.factures[0].type_facture === "VENTES" ? "default" : "secondary"}>
-                              {ligne.factures[0].type_facture === "VENTES" ? "Vente" : "Achat"}
-                            </Badge>
-                          ) : ligne.facture ? (
-                            <Badge variant={ligne.facture.type_facture === "VENTES" ? "default" : "secondary"}>
-                              {ligne.facture.type_facture === "VENTES" ? "Vente" : "Achat"}
-                            </Badge>
-                          ) : null}
+                          {ligne.factures && ligne.factures.length > 0
+                            ? ligne.factures[0].type_facture === "VENTES" ? "Vente" : "Achat"
+                            : ligne.facture?.type_facture === "VENTES" ? "Vente" : ligne.facture?.type_facture === "ACHATS" ? "Achat" : "—"}
                         </TableCell>
                         <TableCell className="text-right">
-                          {ligne.statut === "RAPPROCHE" ? (
-                            ligne.factures && ligne.factures.length > 0 ? (
-                              <span className={ligne.factures[0].type_facture === "VENTES" ? "text-green-600 font-semibold" : "text-blue-600 font-semibold"}>
-                                {ligne.total_tva?.toFixed(2)} €
-                              </span>
-                            ) : ligne.facture ? (
-                              <span className={ligne.facture.type_facture === "VENTES" ? "text-green-600" : "text-blue-600"}>
-                                {ligne.facture.total_tva?.toFixed(2)} €
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
+                          {ligne.total_tva !== undefined && ligne.total_tva !== null
+                            ? new Intl.NumberFormat("fr-FR", {
+                                style: "currency",
+                                currency: "EUR",
+                              }).format(ligne.total_tva)
+                            : ligne.facture?.total_tva !== undefined
+                            ? new Intl.NumberFormat("fr-FR", {
+                                style: "currency",
+                                currency: "EUR",
+                              }).format(ligne.facture.total_tva)
+                            : "—"}
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-              </ScrollArea>
               </div>
             </CardContent>
           </Card>
