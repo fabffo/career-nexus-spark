@@ -110,14 +110,18 @@ export default function TvaMensuel() {
       // Récupérer TOUTES les factures validées/payées de la période
       const { data: factures, error: facturesError } = await supabase
         .from("factures")
-        .select("id, numero_facture, type_facture, total_tva, created_at, total_ttc")
+        .select("id, numero_facture, type_facture, total_tva, created_at, total_ttc, statut")
         .in("statut", ["VALIDEE", "PAYEE"])
         .gte("created_at", startDate)
         .lte("created_at", endDate);
 
-      if (facturesError) throw facturesError;
+      if (facturesError) {
+        console.error("Erreur chargement factures:", facturesError);
+        throw facturesError;
+      }
 
       console.log("Total factures trouvées:", factures?.length);
+      console.log("Factures:", factures);
 
       // Récupérer les rapprochements pour ces factures
       const factureIds = factures?.map(f => f.id) || [];
