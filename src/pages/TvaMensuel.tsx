@@ -173,42 +173,76 @@ export default function TvaMensuel() {
         });
       }
 
-      // 6. Charger toutes les factures (uniques + celles des liaisons + toutes les factures de la période)
+      // 6. Charger toutes les factures à partir des liaisons rapprochements_factures via numero_ligne
       const allUniqueFactureIds = [...new Set(uniqueFactureIds)];
-      
-      // Charger également toutes les factures de la période pour le matching par numéro
-      const { data: toutesFactures } = await supabase
-        .from("factures")
-        .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission")
-        .gte("date_emission", `${year - 1}-${(month - 1).toString().padStart(2, '0')}-01`)
-        .lte("date_emission", endDate);
-
       let facturesMap = new Map<string, any>();
-      let facturesMapByNumero = new Map<string, any>();
       
-      // Ajouter les factures déjà identifiées
+      // Charger les factures déjà identifiées
       if (allUniqueFactureIds.length > 0) {
         const { data: factures } = await supabase
           .from("factures")
           .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission")
           .in("id", allUniqueFactureIds as string[]);
 
-        factures?.forEach(f => {
-          facturesMap.set(f.id, f);
-          facturesMapByNumero.set(f.numero_facture, f);
-        });
+        factures?.forEach(f => facturesMap.set(f.id, f));
       }
       
-      // Ajouter toutes les factures de la période pour matching par numéro
-      toutesFactures?.forEach(f => {
-        if (!facturesMap.has(f.id)) {
-          facturesMap.set(f.id, f);
+      // Récupérer tous les numéros de ligne du fichier
+      const numerosLignes = rapprochements
+        .filter((r: any) => r.manualId)
+        .map((r: any) => r.manualId);
+      
+      // Charger les factures liées via numero_ligne depuis rapprochements_bancaires et rapprochements_factures
+      const facturesParNumeroLigne = new Map<string, any[]>();
+      
+      if (numerosLignes.length > 0) {
+        // Récupérer les IDs de rapprochements bancaires
+        const { data: rapprochementsBancaires } = await supabase
+          .from("rapprochements_bancaires")
+          .select("id, numero_ligne")
+          .in("numero_ligne", numerosLignes);
+        
+        if (rapprochementsBancaires && rapprochementsBancaires.length > 0) {
+          const rapprochementIds = rapprochementsBancaires.map(r => r.id);
+          
+          // Récupérer les liaisons factures
+          const { data: liaisons } = await supabase
+            .from("rapprochements_factures")
+            .select("rapprochement_id, facture_id")
+            .in("rapprochement_id", rapprochementIds);
+          
+          if (liaisons && liaisons.length > 0) {
+            const factureIds = liaisons.map(l => l.facture_id);
+            
+            // Charger les factures liées
+            const { data: facturesLiees } = await supabase
+              .from("factures")
+              .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission")
+              .in("id", factureIds);
+            
+            if (facturesLiees) {
+              facturesLiees.forEach(f => facturesMap.set(f.id, f));
+              
+              // Créer un map numero_ligne -> factures
+              liaisons.forEach(liaison => {
+                const rapprochementBancaire = rapprochementsBancaires.find(r => r.id === liaison.rapprochement_id);
+                if (rapprochementBancaire?.numero_ligne) {
+                  const facture = facturesLiees.find(f => f.id === liaison.facture_id);
+                  if (facture) {
+                    if (!facturesParNumeroLigne.has(rapprochementBancaire.numero_ligne)) {
+                      facturesParNumeroLigne.set(rapprochementBancaire.numero_ligne, []);
+                    }
+                    facturesParNumeroLigne.get(rapprochementBancaire.numero_ligne)!.push(facture);
+                  }
+                }
+              });
+            }
+          }
         }
-        facturesMapByNumero.set(f.numero_facture, f);
-      });
+      }
       
       console.log("✅ Factures chargées:", facturesMap.size);
-      console.log("✅ Factures par numéro:", facturesMapByNumero.size);
+      console.log("✅ Lignes avec factures liées:", facturesParNumeroLigne.size);
 
       // 7. Créer les lignes TVA à partir des rapprochements
       const allLignes: RapprochementLigne[] = rapprochements.map((rapp: any, index: number) => {
@@ -229,52 +263,23 @@ export default function TvaMensuel() {
           statut,
         };
 
-        // Vérifier s'il y a plusieurs factures via liaisons
+        // Récupérer les factures liées via le numero_ligne
         const manualId = rapp.manualId;
-        const multipleFactureIds = manualId ? multipleFacturesMap.get(manualId) : null;
-
-        // Si pas de liaisons, essayer d'extraire les numéros de facture du libellé
-        if (!multipleFactureIds || multipleFactureIds.length === 0) {
-          // Chercher les patterns FAC-XXX, FAC-V-XXX, AVO-A-XXX dans le libellé
-          const facturePattern = /(FAC-[VA]-\d+|AVO-A-\d+|FAC-\d+)/g;
-          const matches = trans.libelle.match(facturePattern);
-          
-          if (matches && matches.length > 1) {
-            // Plusieurs factures trouvées dans le libellé
-            const facturesFromLibelle: any[] = [];
-            matches.forEach(numFacture => {
-              // Essayer différents formats
-              let facture = facturesMapByNumero.get(numFacture);
-              
-              // Si pas trouvé et que c'est au format FAC-XXX, essayer FAC-V-00XXX
-              if (!facture && numFacture.match(/^FAC-\d+$/)) {
-                const num = numFacture.replace('FAC-', '');
-                facture = facturesMapByNumero.get(`FAC-V-00${num}`);
-              }
-              
-              // Si pas trouvé et que c'est au format AVO-A-XXX, essayer AVO-A-00XXX  
-              if (!facture && numFacture.match(/^AVO-A-\d+$/)) {
-                const num = numFacture.replace('AVO-A-', '');
-                facture = facturesMapByNumero.get(`AVO-A-00${num}`);
-              }
-              
-              if (facture) {
-                facturesFromLibelle.push(facture);
-              }
-            });
-            
-            if (facturesFromLibelle.length > 0) {
-              ligne.factures = facturesFromLibelle.map(f => ({
-                numero_facture: f.numero_facture,
-                total_tva: f.total_tva || 0,
-                type_facture: f.type_facture,
-              }));
-              ligne.total_tva = facturesFromLibelle.reduce((sum, f) => sum + (f.total_tva || 0), 0);
-              console.log(`💰 Ligne "${trans.libelle.substring(0, 50)}..." avec ${facturesFromLibelle.length} factures du libellé - TVA totale: ${ligne.total_tva}€`);
-              return ligne;
-            }
-          }
+        const facturesLiees = manualId ? facturesParNumeroLigne.get(manualId) : null;
+        
+        if (facturesLiees && facturesLiees.length > 0) {
+          ligne.factures = facturesLiees.map(f => ({
+            numero_facture: f.numero_facture,
+            total_tva: f.total_tva || 0,
+            type_facture: f.type_facture,
+          }));
+          ligne.total_tva = facturesLiees.reduce((sum, f) => sum + (f.total_tva || 0), 0);
+          console.log(`💰 Ligne avec numero_ligne "${manualId}" - ${facturesLiees.length} factures liées - TVA totale: ${ligne.total_tva}€`);
+          return ligne;
         }
+        
+        // Si pas de liaisons via numero_ligne, vérifier s'il y a plusieurs factures via l'ancien système
+        const multipleFactureIds = manualId ? multipleFacturesMap.get(manualId) : null;
 
         if (multipleFactureIds && multipleFactureIds.length > 0) {
           // Cas avec plusieurs factures
