@@ -103,24 +103,10 @@ export default function TvaMensuel() {
 
       console.log("Chargement TVA pour période:", startDate, "->", endDate);
 
-      // Récupérer TOUS les rapprochements bancaires de la période (peu importe la méthode)
+      // Récupérer TOUS les rapprochements bancaires de la période
       const { data: tousRapprochements, error: rapError } = await supabase
         .from("rapprochements_bancaires")
-        .select(`
-          id,
-          transaction_date,
-          transaction_libelle,
-          transaction_montant,
-          transaction_credit,
-          transaction_debit,
-          facture_id,
-          factures (
-            id,
-            numero_facture,
-            type_facture,
-            total_tva
-          )
-        `)
+        .select("*")
         .gte("transaction_date", startDate.toISOString().split('T')[0])
         .lte("transaction_date", endDate.toISOString().split('T')[0]);
 
@@ -128,37 +114,52 @@ export default function TvaMensuel() {
 
       console.log("Total rapprochements trouvés:", tousRapprochements?.length);
 
-      // Récupérer TOUTES les liaisons factures pour ces rapprochements
+      // Récupérer tous les IDs de factures uniques (directs et via liaisons)
       const rapprochementIds = tousRapprochements?.map(r => r.id) || [];
+      const factureIdsDirects = tousRapprochements?.map(r => r.facture_id).filter(Boolean) || [];
       
       let liaisonsFactures: any[] = [];
+      let factureIdsFromLiaisons: string[] = [];
+      
       if (rapprochementIds.length > 0) {
         const { data: liaisons, error: liaisonError } = await supabase
           .from("rapprochements_factures")
-          .select(`
-            rapprochement_id,
-            facture_id,
-            factures (
-              id,
-              numero_facture,
-              type_facture,
-              total_tva
-            )
-          `)
+          .select("rapprochement_id, facture_id")
           .in("rapprochement_id", rapprochementIds);
 
         if (liaisonError) throw liaisonError;
         liaisonsFactures = liaisons || [];
+        factureIdsFromLiaisons = liaisons?.map(l => l.facture_id).filter(Boolean) || [];
         console.log("Liaisons factures trouvées:", liaisonsFactures.length);
       }
 
+      // Combiner tous les IDs de factures
+      const allFactureIds = [...new Set([...factureIdsDirects, ...factureIdsFromLiaisons])];
+      console.log("IDs de factures à récupérer:", allFactureIds.length);
+
+      // Récupérer toutes les factures en une seule requête
+      let facturesMap = new Map<string, any>();
+      if (allFactureIds.length > 0) {
+        const { data: factures, error: facturesError } = await supabase
+          .from("factures")
+          .select("id, numero_facture, type_facture, total_tva")
+          .in("id", allFactureIds);
+
+        if (facturesError) throw facturesError;
+        
+        factures?.forEach(f => {
+          facturesMap.set(f.id, f);
+        });
+        console.log("Factures récupérées:", facturesMap.size);
+      }
+
       // Créer une map des liaisons par rapprochement_id
-      const liaisonsMap = new Map<string, any[]>();
+      const liaisonsMap = new Map<string, string[]>();
       liaisonsFactures.forEach(liaison => {
         if (!liaisonsMap.has(liaison.rapprochement_id)) {
           liaisonsMap.set(liaison.rapprochement_id, []);
         }
-        liaisonsMap.get(liaison.rapprochement_id)?.push(liaison);
+        liaisonsMap.get(liaison.rapprochement_id)?.push(liaison.facture_id);
       });
 
       // Créer les lignes de TVA
@@ -174,16 +175,17 @@ export default function TvaMensuel() {
         processedTransactions.add(transactionKey);
 
         // Vérifier si ce rapprochement a des factures via la table de liaison
-        const liaisons = liaisonsMap.get(rap.id) || [];
+        const factureIdsLiaison = liaisonsMap.get(rap.id) || [];
         
-        if (liaisons.length > 0) {
+        if (factureIdsLiaison.length > 0) {
           // Cas 1: Factures multiples via table de liaison
-          const factures = liaisons
-            .filter(l => l.factures)
-            .map(l => ({
-              numero_facture: l.factures.numero_facture,
-              total_tva: l.factures.total_tva || 0,
-              type_facture: l.factures.type_facture,
+          const factures = factureIdsLiaison
+            .map(fid => facturesMap.get(fid))
+            .filter(Boolean)
+            .map(f => ({
+              numero_facture: f.numero_facture,
+              total_tva: f.total_tva || 0,
+              type_facture: f.type_facture,
             }));
           
           if (factures.length > 0) {
@@ -201,8 +203,9 @@ export default function TvaMensuel() {
               total_tva: total_tva,
             });
           }
-        } else if (rap.factures) {
+        } else if (rap.facture_id && facturesMap.has(rap.facture_id)) {
           // Cas 2: Facture unique via facture_id
+          const facture = facturesMap.get(rap.facture_id);
           allLignes.push({
             id: `direct_${rap.id}`,
             transaction_date: rap.transaction_date,
@@ -212,9 +215,9 @@ export default function TvaMensuel() {
             transaction_debit: rap.transaction_debit || 0,
             statut: "RAPPROCHE",
             facture: {
-              numero_facture: rap.factures.numero_facture,
-              total_tva: rap.factures.total_tva || 0,
-              type_facture: rap.factures.type_facture,
+              numero_facture: facture.numero_facture,
+              total_tva: facture.total_tva || 0,
+              type_facture: facture.type_facture,
             },
           });
         }
