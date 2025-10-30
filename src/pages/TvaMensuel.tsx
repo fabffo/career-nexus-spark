@@ -217,38 +217,56 @@ export default function TvaMensuel() {
         }
       }
 
-      // 5. Créer les lignes TVA à partir des transactions
+      // 5. Créer les lignes TVA à partir des transactions rapprochées uniquement
       const nouvLignes: RapprochementLigne[] = [];
       let totalTvaCollectee = 0;
       let totalTvaDeductible = 0;
+      let countRapprochees = 0;
 
       transactions.forEach((transaction: any, index: number) => {
         const key = `${transaction.date}_${transaction.libelle}_${transaction.montant}`;
         const rapp = transactionToRapprochement.get(key);
 
+        // Ne traiter que les lignes qui ont un rapprochement en base
+        if (!rapp) {
+          // Ajouter quand même la ligne mais sans TVA
+          nouvLignes.push({
+            id: `${transaction.date}_${transaction.libelle}`,
+            transaction_date: transaction.date,
+            transaction_libelle: transaction.libelle,
+            transaction_debit: transaction.debit || 0,
+            transaction_credit: transaction.credit || 0,
+            transaction_montant: transaction.montant,
+            statut: 'NON_RAPPROCHE',
+          });
+          return;
+        }
+
+        countRapprochees++;
+
         if (index === 0) {
-          console.log("🔍 Première transaction - clé:", key);
-          console.log("🔍 Rapprochement trouvé:", rapp ? "OUI" : "NON");
+          console.log("🔍 Première transaction rapprochée - clé:", key);
+          console.log("🔍 Rapprochement ID:", rapp.id);
         }
 
         // Déterminer les factures liées
         let facturesData: any[] = [];
         
-        if (rapp && facturesParRapprochementId.has(rapp.id)) {
+        if (facturesParRapprochementId.has(rapp.id)) {
           facturesData = facturesParRapprochementId.get(rapp.id) || [];
-          if (index === 0 && facturesData.length > 0) {
+          if (countRapprochees === 1 && facturesData.length > 0) {
             console.log("✅ Factures liées trouvées:", facturesData.length);
           }
         }
 
-        // Calculer TVA pour cette ligne
+        // Calculer TVA pour cette ligne rapprochée
         let tvaLigne = 0;
 
         if (facturesData.length > 0) {
           tvaLigne = facturesData.reduce((sum, f) => sum + (f.total_tva || 0), 0);
 
           const typeFacture = facturesData[0].type_facture;
-          // Accumuler dans les totaux
+          // Accumuler dans les totaux pour les lignes rapprochées
           if (typeFacture === "VENTES") {
             totalTvaCollectee += tvaLigne;
           } else if (typeFacture === "ACHATS") {
@@ -257,17 +275,17 @@ export default function TvaMensuel() {
         }
 
         const ligne: RapprochementLigne = {
-          id: `${transaction.date}_${transaction.libelle}`,
+          id: rapp.id,
           transaction_date: transaction.date,
           transaction_libelle: transaction.libelle,
           transaction_debit: transaction.debit || 0,
           transaction_credit: transaction.credit || 0,
           transaction_montant: transaction.montant,
-          statut: rapp ? 'RAPPROCHE' : 'NON_RAPPROCHE',
-          manualId: rapp?.id,
-          abonnementId: rapp?.abonnement_id,
-          declarationId: rapp?.declaration_charge_id,
-          notes: rapp?.notes,
+          statut: 'RAPPROCHE',
+          manualId: rapp.id,
+          abonnementId: rapp.abonnement_id,
+          declarationId: rapp.declaration_charge_id,
+          notes: rapp.notes,
         };
 
         if (facturesData.length > 0) {
@@ -282,7 +300,8 @@ export default function TvaMensuel() {
         nouvLignes.push(ligne);
       });
 
-      console.log("📊 Lignes TVA créées:", nouvLignes.length);
+      console.log("📊 Total lignes:", nouvLignes.length);
+      console.log("✅ Lignes rapprochées:", countRapprochees);
       console.log("💰 TVA collectée:", totalTvaCollectee);
       console.log("💸 TVA déductible:", totalTvaDeductible);
 
