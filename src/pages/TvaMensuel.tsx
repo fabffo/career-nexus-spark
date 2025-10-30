@@ -98,7 +98,6 @@ export default function TvaMensuel() {
 
   const loadTvaData = async () => {
     try {
-      // Utiliser des dates au format YYYY-MM-DD pour éviter les problèmes de timezone
       const year = parseInt(selectedYear);
       const month = parseInt(selectedMonth);
       const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
@@ -107,153 +106,159 @@ export default function TvaMensuel() {
 
       console.log("Chargement TVA pour période:", startDate, "->", endDate);
 
-      // NOUVELLE APPROCHE: partir des rapprochements bancaires filtrés par transaction_date
-      const { data: rapprochements, error: rapError } = await supabase
+      // 1. Charger le fichier de rapprochement validé pour cette période
+      const { data: fichiers, error: fichierError } = await supabase
+        .from("fichiers_rapprochement")
+        .select("*")
+        .eq("statut", "VALIDE")
+        .gte("date_debut", startDate)
+        .lte("date_fin", endDate)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (fichierError) {
+        console.error("Erreur chargement fichier:", fichierError);
+        throw fichierError;
+      }
+
+      if (!fichiers) {
+        console.log("Aucun fichier de rapprochement validé trouvé pour cette période");
+        setLignes([]);
+        setStats({ tva_collectee: 0, tva_deductible: 0, tva_a_payer: 0 });
+        return;
+      }
+
+      // 2. Extraire les transactions du JSON
+      const transactions = (fichiers.fichier_data as any)?.transactions || [];
+      console.log("Total transactions dans le fichier:", transactions.length);
+
+      if (transactions.length === 0) {
+        setLignes([]);
+        setStats({ tva_collectee: 0, tva_deductible: 0, tva_a_payer: 0 });
+        return;
+      }
+
+      // 3. Charger tous les rapprochements bancaires de la période
+      const { data: rapprochements } = await supabase
         .from("rapprochements_bancaires")
         .select("*")
         .gte("transaction_date", startDate)
         .lte("transaction_date", endDate);
 
-      if (rapError) {
-        console.error("Erreur chargement rapprochements:", rapError);
-        throw rapError;
+      console.log("Rapprochements bancaires trouvés:", rapprochements?.length || 0);
+
+      // 4. Créer une map des rapprochements par libellé/montant pour matching
+      const rapMap = new Map<string, any>();
+      rapprochements?.forEach(rap => {
+        const key = `${rap.transaction_date}_${rap.transaction_montant}`;
+        rapMap.set(key, rap);
+      });
+
+      // 5. Récupérer toutes les liaisons rapprochements-factures
+      const rapIds = rapprochements?.map(r => r.id) || [];
+      let liaisons: any[] = [];
+      if (rapIds.length > 0) {
+        const { data: liaisonsData } = await supabase
+          .from("rapprochements_factures")
+          .select("rapprochement_id, facture_id")
+          .in("rapprochement_id", rapIds);
+        liaisons = liaisonsData || [];
       }
 
-      console.log("Total rapprochements trouvés:", rapprochements?.length);
+      console.log("Liaisons trouvées:", liaisons.length);
 
-      // Récupérer les IDs de factures directement liées
+      // 6. Récupérer tous les IDs de factures
       const factureIdsFromRap = rapprochements
         ?.filter(r => r.facture_id)
         .map(r => r.facture_id) || [];
-
-      // Récupérer les IDs de factures via la table de liaison
-      const rapIds = rapprochements?.map(r => r.id) || [];
-      let factureIdsFromLiaison: string[] = [];
       
-      if (rapIds.length > 0) {
-        const { data: liaisons, error: liaisonError } = await supabase
-          .from("rapprochements_factures")
-          .select("facture_id")
-          .in("rapprochement_id", rapIds);
-
-        if (!liaisonError && liaisons) {
-          factureIdsFromLiaison = liaisons.map(l => l.facture_id);
-        }
-      }
-
-      // Fusionner tous les IDs de factures
+      const factureIdsFromLiaison = liaisons.map(l => l.facture_id);
       const allFactureIds = [...new Set([...factureIdsFromRap, ...factureIdsFromLiaison])];
 
-      console.log("Total facture IDs trouvés:", allFactureIds.length);
+      console.log("Total IDs factures à charger:", allFactureIds.length);
 
-      // Récupérer les factures correspondantes (tous statuts)
-      let factures: any[] = [];
+      // 7. Charger toutes les factures
+      let facturesMap = new Map<string, any>();
       if (allFactureIds.length > 0) {
-        const { data: facturesData, error: facturesError } = await supabase
+        const { data: factures } = await supabase
           .from("factures")
           .select("id, numero_facture, type_facture, total_tva, total_ttc, statut")
           .in("id", allFactureIds);
 
-        if (facturesError) {
-          console.error("Erreur chargement factures:", facturesError);
-          throw facturesError;
+        factures?.forEach(f => facturesMap.set(f.id, f));
+        console.log("Factures chargées:", factures?.length || 0);
+      }
+
+      // 8. Créer une map liaison rapprochement -> factures
+      const rapToFactures = new Map<string, string[]>();
+      liaisons.forEach(l => {
+        if (!rapToFactures.has(l.rapprochement_id)) {
+          rapToFactures.set(l.rapprochement_id, []);
         }
-
-        factures = facturesData || [];
-      }
-
-      console.log("Total factures chargées:", factures.length);
-
-      // Récupérer les liaisons complètes pour associer rapprochements et factures
-      let liaisonsComplete: any[] = [];
-      if (rapIds.length > 0) {
-        const { data: liaisons } = await supabase
-          .from("rapprochements_factures")
-          .select("rapprochement_id, facture_id")
-          .in("rapprochement_id", rapIds);
-
-        liaisonsComplete = liaisons || [];
-      }
-
-      // Créer une map des factures par ID
-      const facturesMap = new Map<string, any>();
-      factures.forEach(f => {
-        facturesMap.set(f.id, f);
+        rapToFactures.get(l.rapprochement_id)?.push(l.facture_id);
       });
 
-      // Créer les lignes de TVA
-      const allLignes: RapprochementLigne[] = [];
-      const processedRapIds = new Set<string>();
-
-      rapprochements?.forEach((rap: any) => {
-        // Éviter les doublons
-        if (processedRapIds.has(rap.id)) return;
-        processedRapIds.add(rap.id);
-
-        // Trouver les factures associées
-        const facturesForRap: any[] = [];
+      // 9. Créer les lignes TVA (une par transaction du JSON)
+      const allLignes: RapprochementLigne[] = transactions.map((trans: any) => {
+        const transDate = trans.date;
+        const transMontant = trans.montant;
+        const key = `${transDate}_${transMontant}`;
         
-        // Facture directe
-        if (rap.facture_id && facturesMap.has(rap.facture_id)) {
-          facturesForRap.push(facturesMap.get(rap.facture_id));
-        }
+        // Trouver le rapprochement bancaire correspondant
+        const rap = rapMap.get(key);
+
+        const facturesForTrans: any[] = [];
         
-        // Factures via liaison
-        liaisonsComplete
-          .filter(l => l.rapprochement_id === rap.id)
-          .forEach(l => {
-            if (facturesMap.has(l.facture_id)) {
-              facturesForRap.push(facturesMap.get(l.facture_id));
+        if (rap) {
+          // Facture directe
+          if (rap.facture_id && facturesMap.has(rap.facture_id)) {
+            facturesForTrans.push(facturesMap.get(rap.facture_id));
+          }
+          
+          // Factures via liaison
+          const liaisonFactureIds = rapToFactures.get(rap.id) || [];
+          liaisonFactureIds.forEach(fId => {
+            if (facturesMap.has(fId)) {
+              facturesForTrans.push(facturesMap.get(fId));
             }
           });
-
-        if (facturesForRap.length === 0) {
-          // Rapprochement sans facture (ex: abonnement, charges)
-          allLignes.push({
-            id: rap.id,
-            transaction_date: rap.transaction_date,
-            transaction_libelle: rap.transaction_libelle,
-            transaction_montant: rap.transaction_montant,
-            transaction_credit: rap.transaction_credit || 0,
-            transaction_debit: rap.transaction_debit || 0,
-            statut: "RAPPROCHE",
-          });
-        } else if (facturesForRap.length === 1) {
-          // Rapprochement avec une facture
-          const facture = facturesForRap[0];
-          allLignes.push({
-            id: rap.id,
-            transaction_date: rap.transaction_date,
-            transaction_libelle: rap.transaction_libelle,
-            transaction_montant: rap.transaction_montant,
-            transaction_credit: rap.transaction_credit || 0,
-            transaction_debit: rap.transaction_debit || 0,
-            statut: "RAPPROCHE",
-            facture: {
-              numero_facture: facture.numero_facture,
-              total_tva: facture.total_tva || 0,
-              type_facture: facture.type_facture,
-            },
-          });
-        } else {
-          // Rapprochement avec plusieurs factures
-          const totalTva = facturesForRap.reduce((sum, f) => sum + (f.total_tva || 0), 0);
-          allLignes.push({
-            id: rap.id,
-            transaction_date: rap.transaction_date,
-            transaction_libelle: rap.transaction_libelle,
-            transaction_montant: rap.transaction_montant,
-            transaction_credit: rap.transaction_credit || 0,
-            transaction_debit: rap.transaction_debit || 0,
-            statut: "RAPPROCHE",
-            factures: facturesForRap.map(f => ({
-              numero_facture: f.numero_facture,
-              total_tva: f.total_tva || 0,
-              type_facture: f.type_facture,
-            })),
-            total_tva: totalTva,
-          });
         }
+
+        // Déterminer le statut
+        let statut = rap ? "RAPPROCHE" : "NON_RAPPROCHE";
+        if (rap && (rap.abonnement_id || rap.declaration_charge_id)) {
+          statut = "RAPPROCHE";
+        }
+
+        const ligne: RapprochementLigne = {
+          id: rap?.id || `trans_${transDate}_${Math.abs(transMontant)}`,
+          transaction_date: transDate,
+          transaction_libelle: trans.libelle,
+          transaction_montant: transMontant,
+          transaction_credit: trans.credit || 0,
+          transaction_debit: trans.debit || 0,
+          statut,
+        };
+
+        if (facturesForTrans.length === 1) {
+          const facture = facturesForTrans[0];
+          ligne.facture = {
+            numero_facture: facture.numero_facture,
+            total_tva: facture.total_tva || 0,
+            type_facture: facture.type_facture,
+          };
+        } else if (facturesForTrans.length > 1) {
+          const totalTva = facturesForTrans.reduce((sum, f) => sum + (f.total_tva || 0), 0);
+          ligne.factures = facturesForTrans.map(f => ({
+            numero_facture: f.numero_facture,
+            total_tva: f.total_tva || 0,
+            type_facture: f.type_facture,
+          }));
+          ligne.total_tva = totalTva;
+        }
+
+        return ligne;
       });
 
       console.log("Lignes TVA créées:", allLignes.length);
