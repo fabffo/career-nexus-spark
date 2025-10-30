@@ -207,11 +207,17 @@ export default function TvaMensuel() {
           if (rapprochementsBancairesQuery.error) {
             console.error("Erreur chargement rapprochements bancaires:", rapprochementsBancairesQuery.error);
           } else {
+            console.log(`📊 Total rapprochements bancaires dans DB: ${rapprochementsBancairesQuery.data?.length || 0}`);
+            console.log(`📊 Numéros lignes recherchés: ${numerosLignes.length}`, numerosLignes.slice(0, 3));
+            
             const rapprochementsBancaires = (rapprochementsBancairesQuery.data || [])
               .filter((r: any) => numerosLignes.includes(r.numero_ligne));
             
+            console.log(`📊 Rapprochements bancaires filtrés: ${rapprochementsBancaires.length}`);
+            
             if (rapprochementsBancaires.length > 0) {
               const rapprochementIds = rapprochementsBancaires.map((r: any) => r.id);
+              console.log(`📊 IDs à chercher dans rapprochements_factures:`, rapprochementIds.slice(0, 3));
               
               // Récupérer les liaisons factures
               const { data: liaisons, error: liaisonsError } = await supabase
@@ -221,7 +227,9 @@ export default function TvaMensuel() {
               
               if (liaisonsError) {
                 console.error("Erreur chargement liaisons factures:", liaisonsError);
-              } else if (liaisons && liaisons.length > 0) {
+              } else {
+                console.log(`📊 Liaisons trouvées: ${liaisons?.length || 0}`);
+                if (liaisons && liaisons.length > 0) {
                 const factureIds = liaisons.map((l: any) => l.facture_id);
                 
                 // Charger les factures liées
@@ -252,6 +260,7 @@ export default function TvaMensuel() {
                       }
                     }
                   });
+                }
                 }
               }
             }
