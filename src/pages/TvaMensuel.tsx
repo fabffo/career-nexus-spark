@@ -29,6 +29,10 @@ interface RapprochementLigne {
     type_facture: string;
   }[];
   total_tva?: number;
+  manualId?: string;
+  abonnementId?: string;
+  declarationId?: string;
+  notes?: string;
 }
 
 interface PeriodeStat {
@@ -129,226 +133,150 @@ export default function TvaMensuel() {
         return;
       }
 
-      // 2. Extraire les rapprochements du JSON (qui contiennent déjà les matchs)
-      const rapprochements = (fichiers.fichier_data as any)?.rapprochements || [];
-      console.log("Total rapprochements dans le fichier:", rapprochements.length);
+      // 2. Extraire les transactions du JSON
+      const transactions = (fichiers.fichier_data as any)?.transactions || [];
+      console.log("Total transactions dans le fichier:", transactions.length);
 
-      if (rapprochements.length === 0) {
+      if (transactions.length === 0) {
         setLignes([]);
         setStats({ tva_collectee: 0, tva_deductible: 0, tva_a_payer: 0 });
         return;
       }
 
-      // 3. Récupérer tous les IDs de factures depuis les rapprochements
-      const factureIds = rapprochements
-        .filter((r: any) => r.facture?.id)
-        .map((r: any) => r.facture.id);
+      // 3. Pour chaque transaction, chercher le rapprochement en base
+      const { data: rapprochementsBD, error: rappError } = await supabase
+        .from("rapprochements_bancaires")
+        .select("id, transaction_date, transaction_libelle, transaction_montant, abonnement_id, declaration_charge_id, notes")
+        .gte("transaction_date", startDate)
+        .lte("transaction_date", endDate);
 
-      const uniqueFactureIds = [...new Set(factureIds)];
-      console.log("Total IDs factures uniques à charger:", uniqueFactureIds.length);
+      if (rappError) {
+        console.error("Erreur chargement rapprochements:", rappError);
+        throw rappError;
+      }
 
-      // 4. Charger les IDs des rapprochements manuels pour récupérer les liaisons multiples
-      const manualRapIds = rapprochements
-        .filter((r: any) => r.manualId && !r.manualId.startsWith('rapp_'))
-        .map((r: any) => r.manualId);
-      
-      console.log("IDs rapprochements manuels:", manualRapIds.length);
+      console.log("Total rapprochements en base:", rapprochementsBD?.length || 0);
 
-      // 5. Charger les liaisons rapprochements-factures pour les rapprochements avec plusieurs factures
-      let multipleFacturesMap = new Map<string, string[]>();
-      if (manualRapIds.length > 0) {
-        const { data: liaisons } = await supabase
+      // Créer une map transaction -> rapprochement
+      const transactionToRapprochement = new Map<string, any>();
+      rapprochementsBD?.forEach(rapp => {
+        const key = `${rapp.transaction_date}_${rapp.transaction_libelle}_${rapp.transaction_montant}`;
+        transactionToRapprochement.set(key, rapp);
+      });
+
+      // 4. Récupérer toutes les factures liées via rapprochements_factures
+      const rapprochementIds = rapprochementsBD?.map(r => r.id) || [];
+      const facturesParRapprochementId = new Map<string, any[]>();
+      let facturesMap = new Map<string, any>();
+
+      if (rapprochementIds.length > 0) {
+        console.log("Chargement des liaisons pour", rapprochementIds.length, "rapprochements");
+        
+        const { data: liaisons, error: liaisonsError } = await supabase
           .from("rapprochements_factures")
           .select("rapprochement_id, facture_id")
-          .in("rapprochement_id", manualRapIds);
+          .in("rapprochement_id", rapprochementIds);
 
-        console.log("Liaisons rapprochements-factures trouvées:", liaisons?.length || 0);
-
-        liaisons?.forEach(l => {
-          if (!multipleFacturesMap.has(l.rapprochement_id)) {
-            multipleFacturesMap.set(l.rapprochement_id, []);
-          }
-          multipleFacturesMap.get(l.rapprochement_id)?.push(l.facture_id);
-          uniqueFactureIds.push(l.facture_id);
-        });
-      }
-
-      // 6. Charger toutes les factures à partir des liaisons rapprochements_factures via numero_ligne
-      const allUniqueFactureIds = [...new Set(uniqueFactureIds)];
-      let facturesMap = new Map<string, any>();
-      
-      // Charger les factures déjà identifiées
-      if (allUniqueFactureIds.length > 0) {
-        const { data: factures } = await supabase
-          .from("factures")
-          .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission")
-          .in("id", allUniqueFactureIds as string[]);
-
-        factures?.forEach(f => facturesMap.set(f.id, f));
-      }
-      
-      // Récupérer tous les IDs de rapprochements (UUID) du fichier
-      const rapprochementIds = rapprochements
-        .filter((r: any) => r.manualId && !r.manualId.startsWith('rapp_'))
-        .map((r: any) => r.manualId);
-      
-      console.log(`📊 IDs rapprochements trouvés dans le fichier: ${rapprochementIds.length}`, rapprochementIds.slice(0, 3));
-      
-      // Charger les factures liées via rapprochements_bancaires -> rapprochements_factures
-      const facturesParRapprochementId = new Map<string, any[]>();
-      
-      if (rapprochementIds.length > 0) {
-        try {
-          // Récupérer directement les liaisons factures pour ces rapprochements
-          const { data: liaisons, error: liaisonsError } = await supabase
-            .from("rapprochements_factures")
-            .select("rapprochement_id, facture_id")
-            .in("rapprochement_id", rapprochementIds);
+        if (liaisonsError) {
+          console.error("❌ Erreur chargement liaisons:", liaisonsError);
+        } else if (liaisons && liaisons.length > 0) {
+          console.log("✅ Liaisons trouvées:", liaisons.length);
           
-          if (liaisonsError) {
-            console.error("❌ Erreur chargement liaisons factures:", liaisonsError);
-          } else {
-            console.log(`📊 Liaisons trouvées: ${liaisons?.length || 0}`);
-            if (liaisons && liaisons.length > 0) {
-              const factureIds = liaisons.map((l: any) => l.facture_id);
-              
-              // Charger les factures liées
-              const { data: facturesLiees, error: facturesError } = await supabase
-                .from("factures")
-                .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission")
-                .in("id", factureIds);
-              
-              if (facturesError) {
-                console.error("❌ Erreur chargement factures liées:", facturesError);
-              } else if (facturesLiees) {
-                console.log(`📊 Factures liées chargées: ${facturesLiees.length}`);
-                facturesLiees.forEach((f: any) => facturesMap.set(f.id, f));
-                
-                // Créer un map rapprochement_id -> factures
-                liaisons.forEach((liaison: any) => {
-                  const facture = facturesLiees.find((f: any) => f.id === liaison.facture_id);
-                  if (facture) {
-                    if (!facturesParRapprochementId.has(liaison.rapprochement_id)) {
-                      facturesParRapprochementId.set(liaison.rapprochement_id, []);
-                    }
-                    facturesParRapprochementId.get(liaison.rapprochement_id)!.push(facture);
-                  }
-                });
-                
-                console.log(`✅ Rapprochements avec factures liées: ${facturesParRapprochementId.size}`);
+          // Charger toutes les factures
+          const factureIds = [...new Set(liaisons.map(l => l.facture_id))];
+          const { data: factures, error: facturesError } = await supabase
+            .from("factures")
+            .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission")
+            .in("id", factureIds);
+
+          if (facturesError) {
+            console.error("❌ Erreur chargement factures:", facturesError);
+          } else if (factures) {
+            console.log("✅ Factures chargées:", factures.length);
+            
+            // Créer la map des factures
+            factures.forEach(f => facturesMap.set(f.id, f));
+            
+            // Grouper par rapprochement
+            liaisons.forEach(liaison => {
+              const facture = factures.find(f => f.id === liaison.facture_id);
+              if (facture) {
+                if (!facturesParRapprochementId.has(liaison.rapprochement_id)) {
+                  facturesParRapprochementId.set(liaison.rapprochement_id, []);
+                }
+                facturesParRapprochementId.get(liaison.rapprochement_id)!.push(facture);
               }
-            }
+            });
+            
+            console.log("✅ Rapprochements avec factures:", facturesParRapprochementId.size);
           }
-        } catch (error) {
-          console.error("Erreur lors du chargement des factures par numero_ligne:", error);
         }
       }
-      
-      console.log("✅ Factures chargées:", facturesMap.size);
-      console.log("✅ Rapprochements avec factures liées:", facturesParRapprochementId.size);
 
-      // 7. Créer les lignes TVA à partir des rapprochements
-      const allLignes: RapprochementLigne[] = rapprochements.map((rapp: any, index: number) => {
-        const trans = rapp.transaction;
-        const transDate = trans.date;
-        const transMontant = trans.montant;
+      // 5. Créer les lignes TVA à partir des transactions
+      const nouvLignes: RapprochementLigne[] = [];
+      let totalTvaCollectee = 0;
+      let totalTvaDeductible = 0;
 
-        // Déterminer le statut
-        const statut = rapp.status === "matched" ? "RAPPROCHE" : "NON_RAPPROCHE";
+      transactions.forEach((transaction: any) => {
+        const key = `${transaction.date}_${transaction.libelle}_${transaction.montant}`;
+        const rapp = transactionToRapprochement.get(key);
+
+        // Déterminer les factures liées
+        let facturesData: any[] = [];
+        
+        if (rapp && facturesParRapprochementId.has(rapp.id)) {
+          facturesData = facturesParRapprochementId.get(rapp.id) || [];
+        }
+
+        // Calculer TVA pour cette ligne
+        let tvaLigne = 0;
+
+        if (facturesData.length > 0) {
+          tvaLigne = facturesData.reduce((sum, f) => sum + (f.total_tva || 0), 0);
+
+          const typeFacture = facturesData[0].type_facture;
+          // Accumuler dans les totaux
+          if (typeFacture === "VENTES") {
+            totalTvaCollectee += tvaLigne;
+          } else if (typeFacture === "ACHATS") {
+            totalTvaDeductible += tvaLigne;
+          }
+        }
 
         const ligne: RapprochementLigne = {
-          id: rapp.manualId || `rapp_${index}_${transDate}_${Math.abs(transMontant)}`,
-          transaction_date: transDate,
-          transaction_libelle: trans.libelle,
-          transaction_montant: transMontant,
-          transaction_credit: trans.credit || 0,
-          transaction_debit: trans.debit || 0,
-          statut,
+          id: `${transaction.date}_${transaction.libelle}`,
+          transaction_date: transaction.date,
+          transaction_libelle: transaction.libelle,
+          transaction_debit: transaction.debit || 0,
+          transaction_credit: transaction.credit || 0,
+          transaction_montant: transaction.montant,
+          statut: rapp ? 'RAPPROCHE' : 'NON_RAPPROCHE',
+          manualId: rapp?.id,
+          abonnementId: rapp?.abonnement_id,
+          declarationId: rapp?.declaration_charge_id,
+          notes: rapp?.notes,
         };
 
-        // Récupérer les factures liées via le rapprochement_id
-        const manualId = rapp.manualId;
-        const facturesLiees = manualId && !manualId.startsWith('rapp_') ? facturesParRapprochementId.get(manualId) : null;
-        
-        if (facturesLiees && facturesLiees.length > 0) {
-          ligne.factures = facturesLiees.map(f => ({
+        if (facturesData.length > 0) {
+          ligne.factures = facturesData.map(f => ({
             numero_facture: f.numero_facture,
             total_tva: f.total_tva || 0,
             type_facture: f.type_facture,
           }));
-          ligne.total_tva = facturesLiees.reduce((sum, f) => sum + (f.total_tva || 0), 0);
-          console.log(`💰 Ligne avec rapprochement_id "${manualId}" - ${facturesLiees.length} factures liées - TVA totale: ${ligne.total_tva}€`);
-          return ligne;
-        }
-        
-        // Si pas de liaisons via numero_ligne, vérifier s'il y a plusieurs factures via l'ancien système
-        const multipleFactureIds = manualId ? multipleFacturesMap.get(manualId) : null;
-
-        if (multipleFactureIds && multipleFactureIds.length > 0) {
-          // Cas avec plusieurs factures
-          const facturesArray = multipleFactureIds
-            .filter(fId => facturesMap.has(fId))
-            .map(fId => {
-              const f = facturesMap.get(fId);
-              return {
-                numero_facture: f.numero_facture,
-                total_tva: f.total_tva || 0,
-                type_facture: f.type_facture,
-              };
-            });
-
-          if (facturesArray.length > 0) {
-            ligne.factures = facturesArray;
-            ligne.total_tva = facturesArray.reduce((sum, f) => sum + f.total_tva, 0);
-            console.log(`💰 Ligne avec ${facturesArray.length} factures - TVA totale: ${ligne.total_tva}€`);
-          }
-        } else if (rapp.facture?.id && facturesMap.has(rapp.facture.id)) {
-          // Cas avec une seule facture
-          const facture = facturesMap.get(rapp.facture.id);
-          ligne.facture = {
-            numero_facture: facture.numero_facture,
-            total_tva: facture.total_tva || 0,
-            type_facture: facture.type_facture,
-          };
+          ligne.total_tva = tvaLigne;
         }
 
-        return ligne;
+        nouvLignes.push(ligne);
       });
 
-      console.log("Lignes TVA créées:", allLignes.length);
+      console.log("Lignes TVA créées:", nouvLignes.length);
 
-      setLignes(allLignes);
-
-      // Calculer les stats
-      let tva_collectee = 0;
-      let tva_deductible = 0;
-
-      allLignes.forEach(ligne => {
-        // Si plusieurs factures, utiliser total_tva
-        if (ligne.factures && ligne.factures.length > 0) {
-          const tva = ligne.total_tva || 0;
-          const type = ligne.factures[0].type_facture;
-          if (type === "VENTES") {
-            tva_collectee += tva;
-          } else if (type === "ACHATS") {
-            tva_deductible += tva;
-          }
-        } else if (ligne.facture) {
-          const tva = ligne.facture.total_tva || 0;
-          if (ligne.facture.type_facture === "VENTES") {
-            tva_collectee += tva;
-          } else if (ligne.facture.type_facture === "ACHATS") {
-            tva_deductible += tva;
-          }
-        }
-      });
-
-      console.log("Stats TVA:", { tva_collectee, tva_deductible });
-
+      setLignes(nouvLignes);
       setStats({
-        tva_collectee,
-        tva_deductible,
-        tva_a_payer: tva_collectee - tva_deductible,
+        tva_collectee: totalTvaCollectee,
+        tva_deductible: totalTvaDeductible,
+        tva_a_payer: totalTvaCollectee - totalTvaDeductible,
       });
     } catch (error: any) {
       console.error("Erreur chargement TVA:", error);
