@@ -7,6 +7,7 @@ import { Plus, Edit, Trash2, Calendar, Building2, Eye, Copy, History, MoreHorizo
 import { ViewPosteDialog } from '@/components/ViewPosteDialog';
 import { PosteHistoryDialog } from '@/components/PosteHistoryDialog';
 import { AssociateCandidatsDialog } from '@/components/AssociateCandidatsDialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Dialog,
   DialogContent,
@@ -387,143 +388,146 @@ export default function Postes() {
 
       {/* Form Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>
               {selectedPoste ? 'Modifier le poste' : 'Nouveau poste'}
             </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div>
-              <Label htmlFor="clientId">Client</Label>
-              <Select
-                value={formData.clientId}
-                onValueChange={(value) => setFormData({ ...formData, clientId: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.raisonSociale}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="nomPoste">Nom du poste</Label>
-              <Input
-                id="nomPoste"
-                value={formData.nomPoste}
-                onChange={(e) => setFormData({ ...formData, nomPoste: e.target.value })}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+          <ScrollArea className="max-h-[calc(90vh-180px)] pr-4">
+            <div className="grid gap-4 py-4">
               <div>
-                <Label htmlFor="dateEcheance">Date d'échéance</Label>
-                <Input
-                  id="dateEcheance"
-                  type="date"
-                  value={formData.dateEcheance}
-                  onChange={(e) => setFormData({ ...formData, dateEcheance: e.target.value })}
-                />
+                <Label htmlFor="clientId">Client</Label>
+                <Select
+                  value={formData.clientId}
+                  onValueChange={(value) => setFormData({ ...formData, clientId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un client" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.raisonSociale}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
-                <Label htmlFor="statut">Statut</Label>
+                <Label htmlFor="nomPoste">Nom du poste</Label>
+                <Input
+                  id="nomPoste"
+                  value={formData.nomPoste}
+                  onChange={(e) => setFormData({ ...formData, nomPoste: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="dateEcheance">Date d'échéance</Label>
+                  <Input
+                    id="dateEcheance"
+                    type="date"
+                    value={formData.dateEcheance}
+                    onChange={(e) => setFormData({ ...formData, dateEcheance: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="statut">Statut</Label>
+                  <Select
+                    value={formData.statut}
+                    onValueChange={(value) => setFormData({ ...formData, statut: value as PosteClient['statut'] })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ENCOURS">En cours</SelectItem>
+                      <SelectItem value="REALISE">Réalisé</SelectItem>
+                      <SelectItem value="ANNULE">Annulé</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="typePrestation">Type de prestation</Label>
                 <Select
-                  value={formData.statut}
-                  onValueChange={(value) => setFormData({ ...formData, statut: value as PosteClient['statut'] })}
+                  value={formData.typePrestation}
+                  onValueChange={(value) => setFormData({ ...formData, typePrestation: value as PosteClient['typePrestation'] })}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ENCOURS">En cours</SelectItem>
-                    <SelectItem value="REALISE">Réalisé</SelectItem>
-                    <SelectItem value="ANNULE">Annulé</SelectItem>
+                    {typesPrestationList.map((type) => (
+                      <SelectItem key={type.code} value={type.code}>
+                        {type.libelle}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div>
-              <Label htmlFor="typePrestation">Type de prestation</Label>
-              <Select
-                value={formData.typePrestation}
-                onValueChange={(value) => setFormData({ ...formData, typePrestation: value as PosteClient['typePrestation'] })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {typesPrestationList.map((type) => (
-                    <SelectItem key={type.code} value={type.code}>
-                      {type.libelle}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="pourvuPar">
-                Pourvu par {formData.statut === 'REALISE' && <span className="text-destructive">*</span>}
-              </Label>
-              <Select
-                value={formData.pourvuPar}
-                onValueChange={(value) => setFormData({ ...formData, pourvuPar: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un candidat ou candidat externe" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Candidat externe">Candidat externe</SelectItem>
-                  {candidats.map((candidat) => (
-                    <SelectItem key={candidat.id} value={`${candidat.nom} ${candidat.prenom}`}>
-                      {candidat.nom} {candidat.prenom}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {formData.statut === 'REALISE' && !formData.pourvuPar && (
-                <p className="text-sm text-destructive mt-1">
-                  Ce champ est obligatoire quand le statut est "Réalisé"
-                </p>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="salaireMin">Salaire min (€)</Label>
-                <Input
-                  id="salaireMin"
-                  type="number"
-                  value={formData.salaireMin}
-                  onChange={(e) => setFormData({ ...formData, salaireMin: e.target.value })}
-                  placeholder="30000"
-                />
+                <Label htmlFor="pourvuPar">
+                  Pourvu par {formData.statut === 'REALISE' && <span className="text-destructive">*</span>}
+                </Label>
+                <Select
+                  value={formData.pourvuPar}
+                  onValueChange={(value) => setFormData({ ...formData, pourvuPar: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un candidat ou candidat externe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Candidat externe">Candidat externe</SelectItem>
+                    {candidats.map((candidat) => (
+                      <SelectItem key={candidat.id} value={`${candidat.nom} ${candidat.prenom}`}>
+                        {candidat.nom} {candidat.prenom}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formData.statut === 'REALISE' && !formData.pourvuPar && (
+                  <p className="text-sm text-destructive mt-1">
+                    Ce champ est obligatoire quand le statut est "Réalisé"
+                  </p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="salaireMin">Salaire min (€)</Label>
+                  <Input
+                    id="salaireMin"
+                    type="number"
+                    value={formData.salaireMin}
+                    onChange={(e) => setFormData({ ...formData, salaireMin: e.target.value })}
+                    placeholder="30000"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="salaireMax">Salaire max (€)</Label>
+                  <Input
+                    id="salaireMax"
+                    type="number"
+                    value={formData.salaireMax}
+                    onChange={(e) => setFormData({ ...formData, salaireMax: e.target.value })}
+                    placeholder="45000"
+                  />
+                </div>
               </div>
               <div>
-                <Label htmlFor="salaireMax">Salaire max (€)</Label>
-                <Input
-                  id="salaireMax"
-                  type="number"
-                  value={formData.salaireMax}
-                  onChange={(e) => setFormData({ ...formData, salaireMax: e.target.value })}
-                  placeholder="45000"
+                <Label htmlFor="detail">Détails du poste</Label>
+                <Textarea
+                  id="detail"
+                  value={formData.detail}
+                  onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
+                  rows={8}
+                  className="resize-none"
+                  placeholder="Description détaillée du poste..."
                 />
               </div>
             </div>
-            <div>
-              <Label htmlFor="detail">Détails du poste</Label>
-              <Textarea
-                id="detail"
-                value={formData.detail}
-                onChange={(e) => setFormData({ ...formData, detail: e.target.value })}
-                rows={6}
-                placeholder="Description détaillée du poste..."
-              />
-            </div>
-          </div>
+          </ScrollArea>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsFormOpen(false)}>
               Annuler
