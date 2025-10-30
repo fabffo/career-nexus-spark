@@ -1590,6 +1590,54 @@ export default function RapprochementBancaire() {
       const rapprochementsAbonnements = rapprochements.filter(r => r.status === 'matched' && r.abonnement_info);
       const rapprochementsDeclarations = rapprochements.filter(r => r.status === 'matched' && r.declaration_info);
 
+      // Créer les rapprochements bancaires et liaisons pour les factures simples (une seule facture)
+      const rapprochementsSimpleFacture = rapprochements.filter(r => 
+        r.status === 'matched' && r.facture?.id && !r.factureIds
+      );
+
+      if (rapprochementsSimpleFacture.length > 0) {
+        console.log("💾 Création des rapprochements avec facture simple:", rapprochementsSimpleFacture.length);
+        
+        for (const r of rapprochementsSimpleFacture) {
+          // Créer le rapprochement bancaire
+          const { data: rapprochementBancaire, error: rbError } = await supabase
+            .from('rapprochements_bancaires')
+            .insert({
+              transaction_date: r.transaction.date,
+              transaction_libelle: r.transaction.libelle,
+              transaction_debit: r.transaction.debit || 0,
+              transaction_credit: r.transaction.credit || 0,
+              transaction_montant: r.transaction.montant,
+              notes: r.notes || `Rapprochement ${numeroRapprochement}`,
+              created_by: user?.id
+            })
+            .select()
+            .single();
+
+          if (rbError) {
+            console.error("❌ Erreur création rapprochement bancaire (simple):", rbError);
+            continue;
+          }
+
+          console.log("✅ Rapprochement bancaire créé (simple):", rapprochementBancaire.id);
+
+          // Créer la liaison rapprochements_factures
+          const { error: liaisonError } = await supabase
+            .from('rapprochements_factures')
+            .insert({
+              rapprochement_id: rapprochementBancaire.id,
+              facture_id: r.facture!.id,
+              created_by: user?.id
+            });
+
+          if (liaisonError) {
+            console.error("❌ Erreur création liaison facture:", liaisonError);
+          } else {
+            console.log(`✅ Liaison créée pour le rapprochement ${rapprochementBancaire.id}`);
+          }
+        }
+      }
+
       // Créer les rapprochements bancaires et paiements d'abonnements
       if (rapprochementsAbonnements.length > 0) {
         for (const r of rapprochementsAbonnements) {
@@ -1726,7 +1774,7 @@ export default function RapprochementBancaire() {
 
       toast({
         title: "Rapprochement validé",
-        description: `Rapprochement ${numeroRapprochement} validé avec succès ! ${lignesRapprochees}/${transactions.length} lignes rapprochées. ${rapprochementsAbonnements.length} paiements d'abonnements et ${rapprochementsDeclarations.length} paiements de charges créés.`,
+        description: `Rapprochement ${numeroRapprochement} validé avec succès ! ${lignesRapprochees}/${transactions.length} lignes rapprochées. ${rapprochementsSimpleFacture.length} factures simples, ${rapprochementsMultiFactures.length} factures multiples, ${rapprochementsAbonnements.length} abonnements et ${rapprochementsDeclarations.length} charges.`,
       });
 
       // Recharger les factures pour mettre à jour le statut

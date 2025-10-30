@@ -158,10 +158,13 @@ export default function TvaMensuel() {
         return;
       }
 
-      // 2. Extraire les transactions du JSON
+      // 2. Extraire les transactions et rapprochements du JSON
       const transactions = (fichiers.fichier_data as any)?.transactions || [];
+      const rapprochementsJSON = (fichiers.fichier_data as any)?.rapprochements || [];
+      
       console.log("📦 Total transactions dans le fichier:", transactions.length);
-      console.log("📦 Exemple de transaction:", transactions[0]);
+      console.log("📦 Total rapprochements dans le JSON:", rapprochementsJSON.length);
+      console.log("📦 Exemple de rapprochement:", rapprochementsJSON[0]);
 
       if (transactions.length === 0) {
         console.log("⚠️ Aucune transaction trouvée dans le fichier");
@@ -170,79 +173,50 @@ export default function TvaMensuel() {
         return;
       }
 
-      // 3. Pour chaque transaction, chercher le rapprochement en base
-      const { data: rapprochementsBD, error: rappError } = await supabase
-        .from("rapprochements_bancaires")
-        .select("id, transaction_date, transaction_libelle, transaction_montant, abonnement_id, declaration_charge_id, notes")
-        .gte("transaction_date", startDate)
-        .lte("transaction_date", endDate);
-
-      if (rappError) {
-        console.error("Erreur chargement rapprochements:", rappError);
-        throw rappError;
-      }
-
-      console.log("💾 Total rapprochements en base:", rapprochementsBD?.length || 0);
-
-      // Créer une map transaction -> rapprochement
+      // 3. Créer une map transaction -> rapprochement depuis le JSON
       const transactionToRapprochement = new Map<string, any>();
-      rapprochementsBD?.forEach(rapp => {
-        const key = `${rapp.transaction_date}_${rapp.transaction_libelle}_${rapp.transaction_montant}`;
-        transactionToRapprochement.set(key, rapp);
+      rapprochementsJSON.forEach((rapp: any) => {
+        if (rapp.status === 'matched') {
+          const key = `${rapp.transaction.date}_${rapp.transaction.libelle}_${rapp.transaction.montant}`;
+          transactionToRapprochement.set(key, rapp);
+        }
       });
       
-      console.log("🔗 Map transaction -> rapprochement créée avec", transactionToRapprochement.size, "entrées");
+      console.log("🔗 Map transaction -> rapprochement créée avec", transactionToRapprochement.size, "entrées matched");
 
-      // 4. Récupérer toutes les factures liées via rapprochements_factures
-      const rapprochementIds = rapprochementsBD?.map(r => r.id) || [];
-      const facturesParRapprochementId = new Map<string, any[]>();
-      let facturesMap = new Map<string, any>();
-
-      if (rapprochementIds.length > 0) {
-        console.log("Chargement des liaisons pour", rapprochementIds.length, "rapprochements");
-        
-        const { data: liaisons, error: liaisonsError } = await supabase
-          .from("rapprochements_factures")
-          .select("rapprochement_id, facture_id")
-          .in("rapprochement_id", rapprochementIds);
-
-        if (liaisonsError) {
-          console.error("❌ Erreur chargement liaisons:", liaisonsError);
-        } else if (liaisons && liaisons.length > 0) {
-          console.log("✅ Liaisons trouvées:", liaisons.length);
-          
-          // Charger toutes les factures
-          const factureIds = [...new Set(liaisons.map(l => l.facture_id))];
-          const { data: factures, error: facturesError } = await supabase
-            .from("factures")
-            .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission")
-            .in("id", factureIds);
-
-          if (facturesError) {
-            console.error("❌ Erreur chargement factures:", facturesError);
-          } else if (factures) {
-            console.log("✅ Factures chargées:", factures.length);
-            
-            // Créer la map des factures
-            factures.forEach(f => facturesMap.set(f.id, f));
-            
-            // Grouper par rapprochement
-            liaisons.forEach(liaison => {
-              const facture = factures.find(f => f.id === liaison.facture_id);
-              if (facture) {
-                if (!facturesParRapprochementId.has(liaison.rapprochement_id)) {
-                  facturesParRapprochementId.set(liaison.rapprochement_id, []);
-                }
-                facturesParRapprochementId.get(liaison.rapprochement_id)!.push(facture);
-              }
-            });
-            
-            console.log("✅ Rapprochements avec factures:", facturesParRapprochementId.size);
+      // 4. Récupérer tous les IDs de factures depuis les rapprochements JSON
+      const factureIds = new Set<string>();
+      rapprochementsJSON.forEach((rapp: any) => {
+        if (rapp.status === 'matched') {
+          if (rapp.facture?.id) {
+            factureIds.add(rapp.facture.id);
           }
+          if (rapp.factureIds && Array.isArray(rapp.factureIds)) {
+            rapp.factureIds.forEach((id: string) => factureIds.add(id));
+          }
+        }
+      });
+
+      console.log("📋 Total factures uniques trouvées:", factureIds.size);
+
+      // 5. Charger toutes les factures nécessaires
+      let facturesMap = new Map<string, any>();
+      
+      if (factureIds.size > 0) {
+        const { data: factures, error: facturesError } = await supabase
+          .from("factures")
+          .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission")
+          .in("id", Array.from(factureIds));
+
+        if (facturesError) {
+          console.error("❌ Erreur chargement factures:", facturesError);
+        } else if (factures) {
+          console.log("✅ Factures chargées:", factures.length);
+          factures.forEach(f => facturesMap.set(f.id, f));
         }
       }
 
-      // 5. Créer les lignes TVA à partir des transactions rapprochées uniquement
+      // 6. Créer les lignes TVA à partir des transactions rapprochées uniquement
       const nouvLignes: RapprochementLigne[] = [];
       let totalTvaCollectee = 0;
       let totalTvaDeductible = 0;
@@ -252,7 +226,7 @@ export default function TvaMensuel() {
         const key = `${transaction.date}_${transaction.libelle}_${transaction.montant}`;
         const rapp = transactionToRapprochement.get(key);
 
-        // Ne traiter que les lignes qui ont un rapprochement en base
+        // Ne traiter que les lignes qui ont un rapprochement dans le JSON
         if (!rapp) {
           // Ajouter quand même la ligne mais sans TVA
           nouvLignes.push({
@@ -269,19 +243,33 @@ export default function TvaMensuel() {
 
         countRapprochees++;
 
-        if (index === 0) {
-          console.log("🔍 Première transaction rapprochée - clé:", key);
-          console.log("🔍 Rapprochement ID:", rapp.id);
+        if (countRapprochees === 1) {
+          console.log("🔍 Premier rapprochement trouvé:", rapp);
         }
 
-        // Déterminer les factures liées
+        // Récupérer les factures depuis le JSON
         let facturesData: any[] = [];
         
-        if (facturesParRapprochementId.has(rapp.id)) {
-          facturesData = facturesParRapprochementId.get(rapp.id) || [];
-          if (countRapprochees === 1 && facturesData.length > 0) {
-            console.log("✅ Factures liées trouvées:", facturesData.length);
+        // Cas 1: Facture unique
+        if (rapp.facture?.id) {
+          const facture = facturesMap.get(rapp.facture.id);
+          if (facture) {
+            facturesData.push(facture);
           }
+        }
+        
+        // Cas 2: Factures multiples
+        if (rapp.factureIds && Array.isArray(rapp.factureIds)) {
+          rapp.factureIds.forEach((factureId: string) => {
+            const facture = facturesMap.get(factureId);
+            if (facture) {
+              facturesData.push(facture);
+            }
+          });
+        }
+
+        if (countRapprochees === 1 && facturesData.length > 0) {
+          console.log("✅ Factures liées trouvées:", facturesData.length);
         }
 
         // Calculer TVA pour cette ligne rapprochée
@@ -300,16 +288,15 @@ export default function TvaMensuel() {
         }
 
         const ligne: RapprochementLigne = {
-          id: rapp.id,
+          id: `${transaction.date}_${transaction.libelle}_${index}`,
           transaction_date: transaction.date,
           transaction_libelle: transaction.libelle,
           transaction_debit: transaction.debit || 0,
           transaction_credit: transaction.credit || 0,
           transaction_montant: transaction.montant,
           statut: 'RAPPROCHE',
-          manualId: rapp.id,
-          abonnementId: rapp.abonnement_id,
-          declarationId: rapp.declaration_charge_id,
+          abonnementId: rapp.abonnement_info?.id,
+          declarationId: rapp.declaration_info?.id,
           notes: rapp.notes,
         };
 
