@@ -627,26 +627,29 @@ export default function TvaMensuel() {
               <CardTitle>Détail des transactions</CardTitle>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[600px] w-full">
+              <div className="relative">
                 <Table>
-                  <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[50px] bg-background">
+                      <TableHead className="w-[50px]">
                         <Checkbox
                           checked={selectedLines.size === lignes.length && lignes.length > 0}
                           onCheckedChange={toggleAllLines}
                         />
                       </TableHead>
-                      <TableHead className="bg-background">Date</TableHead>
-                      <TableHead className="bg-background">Libellé</TableHead>
-                      <TableHead className="bg-background">Montant</TableHead>
-                      <TableHead className="bg-background">Statut</TableHead>
-                      <TableHead className="bg-background">Facture</TableHead>
-                      <TableHead className="bg-background">Type</TableHead>
-                      <TableHead className="text-right bg-background">TVA</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Libellé</TableHead>
+                      <TableHead>Montant</TableHead>
+                      <TableHead>Statut</TableHead>
+                      <TableHead>Facture</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead className="text-right">TVA</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
+                </Table>
+                <ScrollArea className="h-[600px]">
+                  <Table>
+                    <TableBody>
                     {lignes.map((ligne) => (
                       <TableRow key={ligne.id}>
                         <TableCell>
@@ -720,6 +723,7 @@ export default function TvaMensuel() {
                   </TableBody>
                 </Table>
               </ScrollArea>
+              </div>
             </CardContent>
           </Card>
         </>
