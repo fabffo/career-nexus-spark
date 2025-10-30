@@ -60,6 +60,7 @@ interface Rapprochement {
   notes?: string | null;
   abonnement_info?: { id: string; nom: string };
   declaration_info?: { id: string; nom: string; organisme: string };
+  factureIds?: string[]; // Pour les rapprochements avec plusieurs factures
 }
 
 interface FichierRapprochement {
@@ -1673,6 +1674,56 @@ export default function RapprochementBancaire() {
         }
       }
 
+      // Créer les rapprochements bancaires et liaisons pour les factures multiples
+      const rapprochementsMultiFactures = rapprochements.filter(r => 
+        r.status === 'matched' && r.factureIds && r.factureIds.length > 1
+      );
+      
+      if (rapprochementsMultiFactures.length > 0) {
+        console.log("💾 Création des rapprochements avec factures multiples:", rapprochementsMultiFactures.length);
+        
+        for (const r of rapprochementsMultiFactures) {
+          // Créer le rapprochement bancaire
+          const { data: rapprochementBancaire, error: rbError } = await supabase
+            .from('rapprochements_bancaires')
+            .insert({
+              transaction_date: r.transaction.date,
+              transaction_libelle: r.transaction.libelle,
+              transaction_debit: r.transaction.debit || 0,
+              transaction_credit: r.transaction.credit || 0,
+              transaction_montant: r.transaction.montant,
+              notes: r.notes || `Rapprochement ${numeroRapprochement} - ${r.factureIds!.length} factures`,
+              created_by: user?.id
+            })
+            .select()
+            .single();
+
+          if (rbError) {
+            console.error("❌ Erreur création rapprochement bancaire:", rbError);
+            continue;
+          }
+
+          console.log("✅ Rapprochement bancaire créé:", rapprochementBancaire.id);
+
+          // Créer les liaisons rapprochements_factures
+          const liaisons = r.factureIds!.map((factureId: string) => ({
+            rapprochement_id: rapprochementBancaire.id,
+            facture_id: factureId,
+            created_by: user?.id
+          }));
+
+          const { error: liaisonsError } = await supabase
+            .from('rapprochements_factures')
+            .insert(liaisons);
+
+          if (liaisonsError) {
+            console.error("❌ Erreur création liaisons factures:", liaisonsError);
+          } else {
+            console.log(`✅ ${liaisons.length} liaisons créées pour le rapprochement ${rapprochementBancaire.id}`);
+          }
+        }
+      }
+
       toast({
         title: "Rapprochement validé",
         description: `Rapprochement ${numeroRapprochement} validé avec succès ! ${lignesRapprochees}/${transactions.length} lignes rapprochées. ${rapprochementsAbonnements.length} paiements d'abonnements et ${rapprochementsDeclarations.length} paiements de charges créés.`,
@@ -2838,20 +2889,42 @@ export default function RapprochementBancaire() {
         }}
         onFactureSelect={(factureIds) => {
           if (selectedEnCoursRapprochement && factureIds.length > 0) {
-            // Mettre à jour le rapprochement avec la nouvelle facture
-            const facture = factures.find(f => f.id === factureIds[0]);
-            setRapprochements(prev => prev.map(r => {
-              const key = getTransactionKey(r.transaction);
-              const selectedKey = getTransactionKey(selectedEnCoursRapprochement.transaction);
-              if (key === selectedKey) {
-                return {
-                  ...r,
-                  facture: facture || null,
-                  status: facture ? "matched" : r.status,
-                };
-              }
-              return r;
-            }));
+            console.log("📋 Sélection de", factureIds.length, "facture(s)");
+            
+            // Si une seule facture, utiliser l'ancien système
+            if (factureIds.length === 1) {
+              const facture = factures.find(f => f.id === factureIds[0]);
+              setRapprochements(prev => prev.map(r => {
+                const key = getTransactionKey(r.transaction);
+                const selectedKey = getTransactionKey(selectedEnCoursRapprochement.transaction);
+                if (key === selectedKey) {
+                  return {
+                    ...r,
+                    facture: facture || null,
+                    status: facture ? "matched" : r.status,
+                    factureIds: undefined,
+                  };
+                }
+                return r;
+              }));
+            } else {
+              // Si plusieurs factures, utiliser le nouveau système avec factureIds
+              setRapprochements(prev => prev.map(r => {
+                const key = getTransactionKey(r.transaction);
+                const selectedKey = getTransactionKey(selectedEnCoursRapprochement.transaction);
+                if (key === selectedKey) {
+                  console.log("✅ Mise à jour rapprochement avec", factureIds.length, "factures");
+                  return {
+                    ...r,
+                    facture: null, // Pas de facture unique
+                    factureIds: factureIds, // Stocker tous les IDs
+                    status: "matched",
+                    isManual: true,
+                  };
+                }
+                return r;
+              }));
+            }
           }
         }}
         onNotesChange={(newNotes) => {
