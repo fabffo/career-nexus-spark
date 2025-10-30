@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableRow, TableHeader } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -626,97 +627,99 @@ export default function TvaMensuel() {
               <CardTitle>Détail des transactions</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[50px]">
-                      <Checkbox
-                        checked={selectedLines.size === lignes.length && lignes.length > 0}
-                        onCheckedChange={toggleAllLines}
-                      />
-                    </TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Libellé</TableHead>
-                    <TableHead>Montant</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead>Facture</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-right">TVA</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lignes.map((ligne) => (
-                    <TableRow key={ligne.id}>
-                      <TableCell>
+              <ScrollArea className="h-[600px] w-full">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[50px]">
                         <Checkbox
-                          checked={selectedLines.has(ligne.id)}
-                          onCheckedChange={() => toggleLineSelection(ligne.id)}
+                          checked={selectedLines.size === lignes.length && lignes.length > 0}
+                          onCheckedChange={toggleAllLines}
                         />
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(ligne.transaction_date), "dd/MM/yyyy", { locale: fr })}
-                      </TableCell>
-                      <TableCell>{ligne.transaction_libelle}</TableCell>
-                      <TableCell>
-                        {ligne.transaction_credit > 0 && (
-                          <span className="text-green-600">+{ligne.transaction_credit.toFixed(2)} €</span>
-                        )}
-                        {ligne.transaction_debit > 0 && (
-                          <span className="text-red-600">-{ligne.transaction_debit.toFixed(2)} €</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={ligne.statut === "RAPPROCHE" ? "default" : ligne.statut === "INCERTAIN" ? "secondary" : "outline"}>
-                          {ligne.statut === "RAPPROCHE" ? "Rapproché" : ligne.statut === "INCERTAIN" ? "Incertain" : "Non rapproché"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {ligne.factures && ligne.factures.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {ligne.factures.map((f, idx) => (
-                              <Badge key={idx} variant="outline" className="text-xs">
-                                {f.numero_facture}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : ligne.facture?.numero_facture ? (
-                          ligne.facture.numero_facture
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {ligne.factures && ligne.factures.length > 0 ? (
-                          <Badge variant={ligne.factures[0].type_facture === "VENTES" ? "default" : "secondary"}>
-                            {ligne.factures[0].type_facture === "VENTES" ? "Vente" : "Achat"}
+                      </TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Libellé</TableHead>
+                      <TableHead>Montant</TableHead>
+                      <TableHead>Statut</TableHead>
+                      <TableHead>Facture</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead className="text-right">TVA</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {lignes.map((ligne) => (
+                      <TableRow key={ligne.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedLines.has(ligne.id)}
+                            onCheckedChange={() => toggleLineSelection(ligne.id)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(ligne.transaction_date), "dd/MM/yyyy", { locale: fr })}
+                        </TableCell>
+                        <TableCell>{ligne.transaction_libelle}</TableCell>
+                        <TableCell>
+                          {ligne.transaction_credit > 0 && (
+                            <span className="text-green-600">+{ligne.transaction_credit.toFixed(2)} €</span>
+                          )}
+                          {ligne.transaction_debit > 0 && (
+                            <span className="text-red-600">-{ligne.transaction_debit.toFixed(2)} €</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={ligne.statut === "RAPPROCHE" ? "default" : ligne.statut === "INCERTAIN" ? "secondary" : "outline"}>
+                            {ligne.statut === "RAPPROCHE" ? "Rapproché" : ligne.statut === "INCERTAIN" ? "Incertain" : "Non rapproché"}
                           </Badge>
-                        ) : ligne.facture ? (
-                          <Badge variant={ligne.facture.type_facture === "VENTES" ? "default" : "secondary"}>
-                            {ligne.facture.type_facture === "VENTES" ? "Vente" : "Achat"}
-                          </Badge>
-                        ) : null}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {ligne.statut === "RAPPROCHE" ? (
-                          ligne.factures && ligne.factures.length > 0 ? (
-                            <span className={ligne.factures[0].type_facture === "VENTES" ? "text-green-600 font-semibold" : "text-blue-600 font-semibold"}>
-                              {ligne.total_tva?.toFixed(2)} €
-                            </span>
+                        </TableCell>
+                        <TableCell>
+                          {ligne.factures && ligne.factures.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {ligne.factures.map((f, idx) => (
+                                <Badge key={idx} variant="outline" className="text-xs">
+                                  {f.numero_facture}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : ligne.facture?.numero_facture ? (
+                            ligne.facture.numero_facture
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {ligne.factures && ligne.factures.length > 0 ? (
+                            <Badge variant={ligne.factures[0].type_facture === "VENTES" ? "default" : "secondary"}>
+                              {ligne.factures[0].type_facture === "VENTES" ? "Vente" : "Achat"}
+                            </Badge>
                           ) : ligne.facture ? (
-                            <span className={ligne.facture.type_facture === "VENTES" ? "text-green-600" : "text-blue-600"}>
-                              {ligne.facture.total_tva?.toFixed(2)} €
-                            </span>
+                            <Badge variant={ligne.facture.type_facture === "VENTES" ? "default" : "secondary"}>
+                              {ligne.facture.type_facture === "VENTES" ? "Vente" : "Achat"}
+                            </Badge>
+                          ) : null}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {ligne.statut === "RAPPROCHE" ? (
+                            ligne.factures && ligne.factures.length > 0 ? (
+                              <span className={ligne.factures[0].type_facture === "VENTES" ? "text-green-600 font-semibold" : "text-blue-600 font-semibold"}>
+                                {ligne.total_tva?.toFixed(2)} €
+                              </span>
+                            ) : ligne.facture ? (
+                              <span className={ligne.facture.type_facture === "VENTES" ? "text-green-600" : "text-blue-600"}>
+                                {ligne.facture.total_tva?.toFixed(2)} €
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )
                           ) : (
                             <span className="text-muted-foreground">-</span>
-                          )
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
             </CardContent>
           </Card>
         </>
