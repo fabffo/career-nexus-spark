@@ -98,8 +98,12 @@ export default function TvaMensuel() {
 
   const loadTvaData = async () => {
     try {
-      const startDate = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1);
-      const endDate = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0);
+      // Utiliser des dates au format YYYY-MM-DD pour éviter les problèmes de timezone
+      const year = parseInt(selectedYear);
+      const month = parseInt(selectedMonth);
+      const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
+      const lastDay = new Date(year, month, 0).getDate();
+      const endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
 
       console.log("Chargement TVA pour période:", startDate, "->", endDate);
 
@@ -107,8 +111,8 @@ export default function TvaMensuel() {
       const { data: tousRapprochements, error: rapError } = await supabase
         .from("rapprochements_bancaires")
         .select("*")
-        .gte("transaction_date", startDate.toISOString().split('T')[0])
-        .lte("transaction_date", endDate.toISOString().split('T')[0]);
+        .gte("transaction_date", startDate)
+        .lte("transaction_date", endDate);
 
       if (rapError) throw rapError;
 
