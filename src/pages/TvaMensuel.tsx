@@ -146,14 +146,13 @@ export default function TvaMensuel() {
 
       console.log("Total facture IDs trouvés:", allFactureIds.length);
 
-      // Récupérer les factures correspondantes
+      // Récupérer les factures correspondantes (tous statuts)
       let factures: any[] = [];
       if (allFactureIds.length > 0) {
         const { data: facturesData, error: facturesError } = await supabase
           .from("factures")
           .select("id, numero_facture, type_facture, total_tva, total_ttc, statut")
-          .in("id", allFactureIds)
-          .in("statut", ["VALIDEE", "PAYEE"]);
+          .in("id", allFactureIds);
 
         if (facturesError) {
           console.error("Erreur chargement factures:", facturesError);
