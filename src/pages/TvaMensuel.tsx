@@ -196,48 +196,68 @@ export default function TvaMensuel() {
       const facturesParNumeroLigne = new Map<string, any[]>();
       
       if (numerosLignes.length > 0) {
-        // Récupérer les IDs de rapprochements bancaires
-        const { data: rapprochementsBancaires } = await supabase
-          .from("rapprochements_bancaires")
-          .select("id, numero_ligne")
-          .in("numero_ligne", numerosLignes);
-        
-        if (rapprochementsBancaires && rapprochementsBancaires.length > 0) {
-          const rapprochementIds = rapprochementsBancaires.map(r => r.id);
+        try {
+          // Récupérer les IDs de rapprochements bancaires 
+          const rapprochementsBancairesResult = await supabase
+            .from("rapprochements_bancaires")
+            .select("id, numero_ligne");
           
-          // Récupérer les liaisons factures
-          const { data: liaisons } = await supabase
-            .from("rapprochements_factures")
-            .select("rapprochement_id, facture_id")
-            .in("rapprochement_id", rapprochementIds);
+          const rapprochementsBancairesQuery = rapprochementsBancairesResult as { data: Array<{ id: string; numero_ligne: string | null }> | null; error: any };
           
-          if (liaisons && liaisons.length > 0) {
-            const factureIds = liaisons.map(l => l.facture_id);
+          if (rapprochementsBancairesQuery.error) {
+            console.error("Erreur chargement rapprochements bancaires:", rapprochementsBancairesQuery.error);
+          } else {
+            const rapprochementsBancaires = (rapprochementsBancairesQuery.data || [])
+              .filter((r: any) => numerosLignes.includes(r.numero_ligne));
             
-            // Charger les factures liées
-            const { data: facturesLiees } = await supabase
-              .from("factures")
-              .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission")
-              .in("id", factureIds);
-            
-            if (facturesLiees) {
-              facturesLiees.forEach(f => facturesMap.set(f.id, f));
+            if (rapprochementsBancaires.length > 0) {
+              const rapprochementIds = rapprochementsBancaires.map((r: any) => r.id);
               
-              // Créer un map numero_ligne -> factures
-              liaisons.forEach(liaison => {
-                const rapprochementBancaire = rapprochementsBancaires.find(r => r.id === liaison.rapprochement_id);
-                if (rapprochementBancaire?.numero_ligne) {
-                  const facture = facturesLiees.find(f => f.id === liaison.facture_id);
-                  if (facture) {
-                    if (!facturesParNumeroLigne.has(rapprochementBancaire.numero_ligne)) {
-                      facturesParNumeroLigne.set(rapprochementBancaire.numero_ligne, []);
+              // Récupérer les liaisons factures
+              const { data: liaisons, error: liaisonsError } = await supabase
+                .from("rapprochements_factures")
+                .select("rapprochement_id, facture_id")
+                .in("rapprochement_id", rapprochementIds);
+              
+              if (liaisonsError) {
+                console.error("Erreur chargement liaisons factures:", liaisonsError);
+              } else if (liaisons && liaisons.length > 0) {
+                const factureIds = liaisons.map((l: any) => l.facture_id);
+                
+                // Charger les factures liées
+                const { data: facturesLiees, error: facturesError } = await supabase
+                  .from("factures")
+                  .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission")
+                  .in("id", factureIds);
+                
+                if (facturesError) {
+                  console.error("Erreur chargement factures liées:", facturesError);
+                } else if (facturesLiees) {
+                  facturesLiees.forEach((f: any) => facturesMap.set(f.id, f));
+                  
+                  // Créer un map numero_ligne -> factures
+                  liaisons.forEach((liaison: any) => {
+                    const rapprochementBancaire = rapprochementsBancaires.find((r: any) => r.id === liaison.rapprochement_id);
+                    const numLigne = rapprochementBancaire?.numero_ligne;
+                    if (numLigne) {
+                      const facture = facturesLiees.find((f: any) => f.id === liaison.facture_id);
+                      if (facture) {
+                        if (!facturesParNumeroLigne.has(numLigne)) {
+                          facturesParNumeroLigne.set(numLigne, []);
+                        }
+                        const ligneFactures = facturesParNumeroLigne.get(numLigne);
+                        if (ligneFactures) {
+                          ligneFactures.push(facture);
+                        }
+                      }
                     }
-                    facturesParNumeroLigne.get(rapprochementBancaire.numero_ligne)!.push(facture);
-                  }
+                  });
                 }
-              });
+              }
             }
           }
+        } catch (error) {
+          console.error("Erreur lors du chargement des factures par numero_ligne:", error);
         }
       }
       

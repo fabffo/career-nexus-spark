@@ -536,6 +536,12 @@ export default function EditRapprochementHistoriqueDialog({
           {/* Transaction info */}
           <div className="p-4 bg-muted rounded-lg space-y-2">
             <h3 className="font-semibold">Transaction bancaire</h3>
+            {rapprochement.manualId && (
+              <div className="mb-2">
+                <span className="text-muted-foreground text-sm">Numéro de ligne:</span>{" "}
+                <span className="font-mono text-sm font-medium text-primary">{rapprochement.manualId}</span>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div>
                 <span className="text-muted-foreground">Date:</span>{" "}
