@@ -178,19 +178,38 @@ export default function TvaMensuel() {
 
       console.log("Total IDs factures à charger:", allFactureIds.length);
 
-      // 7. Charger toutes les factures
+      // 7. Créer la map des factures
       let facturesMap = new Map<string, any>();
+      
+      // Charger les factures liées aux rapprochements
       if (allFactureIds.length > 0) {
         const { data: factures } = await supabase
           .from("factures")
-          .select("id, numero_facture, type_facture, total_tva, total_ttc, statut")
+          .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission")
           .in("id", allFactureIds);
 
         factures?.forEach(f => facturesMap.set(f.id, f));
-        console.log("Factures chargées:", factures?.length || 0);
+        console.log("Factures liées chargées:", factures?.length || 0);
       }
 
-      // 8. Créer une map liaison rapprochement -> factures
+      // Charger toutes les factures validées de janvier pour matching automatique
+      const { data: facturesJanvier } = await supabase
+        .from("factures")
+        .select("id, numero_facture, type_facture, total_tva, total_ttc, date_emission")
+        .in("statut", ["VALIDEE", "PAYEE"])
+        .gte("date_emission", startDate)
+        .lte("date_emission", endDate);
+
+      console.log("Factures janvier trouvées:", facturesJanvier?.length || 0);
+
+      // Ajouter ces factures à la map
+      facturesJanvier?.forEach(f => {
+        if (!facturesMap.has(f.id)) {
+          facturesMap.set(f.id, f);
+        }
+      });
+
+      // 9. Créer une map liaison rapprochement -> factures
       const rapToFactures = new Map<string, string[]>();
       liaisons.forEach(l => {
         if (!rapToFactures.has(l.rapprochement_id)) {
@@ -199,8 +218,20 @@ export default function TvaMensuel() {
         rapToFactures.get(l.rapprochement_id)?.push(l.facture_id);
       });
 
-      // 9. Créer les lignes TVA (une par transaction du JSON)
-      const allLignes: RapprochementLigne[] = transactions.map((trans: any) => {
+      // 10. Créer une map des factures par montant pour matching automatique
+      const facturesByMontant = new Map<number, any[]>();
+      facturesMap.forEach(facture => {
+        const montant = Math.round(Math.abs(facture.total_ttc) * 100) / 100;
+        if (!facturesByMontant.has(montant)) {
+          facturesByMontant.set(montant, []);
+        }
+        facturesByMontant.get(montant)?.push(facture);
+      });
+
+      console.log("Factures groupées par montant:", facturesByMontant.size);
+
+      // 11. Créer les lignes TVA (une par transaction du JSON)
+      const allLignes: RapprochementLigne[] = transactions.map((trans: any, index: number) => {
         const transDate = trans.date;
         const transMontant = trans.montant;
         const key = `${transDate}_${transMontant}`;
@@ -225,6 +256,24 @@ export default function TvaMensuel() {
           });
         }
 
+        // Si pas de facture trouvée, essayer le matching automatique par montant
+        if (facturesForTrans.length === 0 && transMontant !== 0) {
+          const montantAbs = Math.round(Math.abs(transMontant) * 100) / 100;
+          const facturesCorrespondantes = facturesByMontant.get(montantAbs) || [];
+          
+          // Chercher une facture avec le bon type (VENTES pour crédit, ACHATS pour débit)
+          const factureMatch = facturesCorrespondantes.find(f => {
+            if (transMontant > 0 && f.type_facture === "VENTES") return true;
+            if (transMontant < 0 && f.type_facture === "ACHATS") return true;
+            return false;
+          });
+
+          if (factureMatch) {
+            facturesForTrans.push(factureMatch);
+            console.log(`Match automatique trouvé: ${trans.libelle.substring(0, 50)} -> ${factureMatch.numero_facture}`);
+          }
+        }
+
         // Déterminer le statut
         let statut = rap ? "RAPPROCHE" : "NON_RAPPROCHE";
         if (rap && (rap.abonnement_id || rap.declaration_charge_id)) {
@@ -232,7 +281,7 @@ export default function TvaMensuel() {
         }
 
         const ligne: RapprochementLigne = {
-          id: rap?.id || `trans_${transDate}_${Math.abs(transMontant)}`,
+          id: rap?.id || `trans_${index}_${transDate}_${Math.abs(transMontant)}`,
           transaction_date: transDate,
           transaction_libelle: trans.libelle,
           transaction_montant: transMontant,
