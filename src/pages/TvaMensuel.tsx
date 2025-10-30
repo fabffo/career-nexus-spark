@@ -135,9 +135,11 @@ export default function TvaMensuel() {
 
       // 2. Extraire les transactions du JSON
       const transactions = (fichiers.fichier_data as any)?.transactions || [];
-      console.log("Total transactions dans le fichier:", transactions.length);
+      console.log("📦 Total transactions dans le fichier:", transactions.length);
+      console.log("📦 Exemple de transaction:", transactions[0]);
 
       if (transactions.length === 0) {
+        console.log("⚠️ Aucune transaction trouvée dans le fichier");
         setLignes([]);
         setStats({ tva_collectee: 0, tva_deductible: 0, tva_a_payer: 0 });
         return;
@@ -155,7 +157,7 @@ export default function TvaMensuel() {
         throw rappError;
       }
 
-      console.log("Total rapprochements en base:", rapprochementsBD?.length || 0);
+      console.log("💾 Total rapprochements en base:", rapprochementsBD?.length || 0);
 
       // Créer une map transaction -> rapprochement
       const transactionToRapprochement = new Map<string, any>();
@@ -163,6 +165,8 @@ export default function TvaMensuel() {
         const key = `${rapp.transaction_date}_${rapp.transaction_libelle}_${rapp.transaction_montant}`;
         transactionToRapprochement.set(key, rapp);
       });
+      
+      console.log("🔗 Map transaction -> rapprochement créée avec", transactionToRapprochement.size, "entrées");
 
       // 4. Récupérer toutes les factures liées via rapprochements_factures
       const rapprochementIds = rapprochementsBD?.map(r => r.id) || [];
@@ -218,15 +222,23 @@ export default function TvaMensuel() {
       let totalTvaCollectee = 0;
       let totalTvaDeductible = 0;
 
-      transactions.forEach((transaction: any) => {
+      transactions.forEach((transaction: any, index: number) => {
         const key = `${transaction.date}_${transaction.libelle}_${transaction.montant}`;
         const rapp = transactionToRapprochement.get(key);
+
+        if (index === 0) {
+          console.log("🔍 Première transaction - clé:", key);
+          console.log("🔍 Rapprochement trouvé:", rapp ? "OUI" : "NON");
+        }
 
         // Déterminer les factures liées
         let facturesData: any[] = [];
         
         if (rapp && facturesParRapprochementId.has(rapp.id)) {
           facturesData = facturesParRapprochementId.get(rapp.id) || [];
+          if (index === 0 && facturesData.length > 0) {
+            console.log("✅ Factures liées trouvées:", facturesData.length);
+          }
         }
 
         // Calculer TVA pour cette ligne
@@ -270,7 +282,9 @@ export default function TvaMensuel() {
         nouvLignes.push(ligne);
       });
 
-      console.log("Lignes TVA créées:", nouvLignes.length);
+      console.log("📊 Lignes TVA créées:", nouvLignes.length);
+      console.log("💰 TVA collectée:", totalTvaCollectee);
+      console.log("💸 TVA déductible:", totalTvaDeductible);
 
       setLignes(nouvLignes);
       setStats({
