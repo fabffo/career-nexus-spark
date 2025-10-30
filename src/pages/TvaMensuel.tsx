@@ -173,18 +173,42 @@ export default function TvaMensuel() {
         });
       }
 
-      // 6. Charger toutes les factures (uniques + celles des liaisons)
+      // 6. Charger toutes les factures (uniques + celles des liaisons + toutes les factures de la période)
       const allUniqueFactureIds = [...new Set(uniqueFactureIds)];
+      
+      // Charger également toutes les factures de la période pour le matching par numéro
+      const { data: toutesFactures } = await supabase
+        .from("factures")
+        .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission")
+        .gte("date_emission", `${year - 1}-${(month - 1).toString().padStart(2, '0')}-01`)
+        .lte("date_emission", endDate);
+
       let facturesMap = new Map<string, any>();
+      let facturesMapByNumero = new Map<string, any>();
+      
+      // Ajouter les factures déjà identifiées
       if (allUniqueFactureIds.length > 0) {
         const { data: factures } = await supabase
           .from("factures")
           .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission")
           .in("id", allUniqueFactureIds as string[]);
 
-        factures?.forEach(f => facturesMap.set(f.id, f));
-        console.log("✅ Factures chargées:", factures?.length || 0);
+        factures?.forEach(f => {
+          facturesMap.set(f.id, f);
+          facturesMapByNumero.set(f.numero_facture, f);
+        });
       }
+      
+      // Ajouter toutes les factures de la période pour matching par numéro
+      toutesFactures?.forEach(f => {
+        if (!facturesMap.has(f.id)) {
+          facturesMap.set(f.id, f);
+        }
+        facturesMapByNumero.set(f.numero_facture, f);
+      });
+      
+      console.log("✅ Factures chargées:", facturesMap.size);
+      console.log("✅ Factures par numéro:", facturesMapByNumero.size);
 
       // 7. Créer les lignes TVA à partir des rapprochements
       const allLignes: RapprochementLigne[] = rapprochements.map((rapp: any, index: number) => {
@@ -208,6 +232,49 @@ export default function TvaMensuel() {
         // Vérifier s'il y a plusieurs factures via liaisons
         const manualId = rapp.manualId;
         const multipleFactureIds = manualId ? multipleFacturesMap.get(manualId) : null;
+
+        // Si pas de liaisons, essayer d'extraire les numéros de facture du libellé
+        if (!multipleFactureIds || multipleFactureIds.length === 0) {
+          // Chercher les patterns FAC-XXX, FAC-V-XXX, AVO-A-XXX dans le libellé
+          const facturePattern = /(FAC-[VA]-\d+|AVO-A-\d+|FAC-\d+)/g;
+          const matches = trans.libelle.match(facturePattern);
+          
+          if (matches && matches.length > 1) {
+            // Plusieurs factures trouvées dans le libellé
+            const facturesFromLibelle: any[] = [];
+            matches.forEach(numFacture => {
+              // Essayer différents formats
+              let facture = facturesMapByNumero.get(numFacture);
+              
+              // Si pas trouvé et que c'est au format FAC-XXX, essayer FAC-V-00XXX
+              if (!facture && numFacture.match(/^FAC-\d+$/)) {
+                const num = numFacture.replace('FAC-', '');
+                facture = facturesMapByNumero.get(`FAC-V-00${num}`);
+              }
+              
+              // Si pas trouvé et que c'est au format AVO-A-XXX, essayer AVO-A-00XXX  
+              if (!facture && numFacture.match(/^AVO-A-\d+$/)) {
+                const num = numFacture.replace('AVO-A-', '');
+                facture = facturesMapByNumero.get(`AVO-A-00${num}`);
+              }
+              
+              if (facture) {
+                facturesFromLibelle.push(facture);
+              }
+            });
+            
+            if (facturesFromLibelle.length > 0) {
+              ligne.factures = facturesFromLibelle.map(f => ({
+                numero_facture: f.numero_facture,
+                total_tva: f.total_tva || 0,
+                type_facture: f.type_facture,
+              }));
+              ligne.total_tva = facturesFromLibelle.reduce((sum, f) => sum + (f.total_tva || 0), 0);
+              console.log(`💰 Ligne "${trans.libelle.substring(0, 50)}..." avec ${facturesFromLibelle.length} factures du libellé - TVA totale: ${ligne.total_tva}€`);
+              return ligne;
+            }
+          }
+        }
 
         if (multipleFactureIds && multipleFactureIds.length > 0) {
           // Cas avec plusieurs factures
