@@ -1,0 +1,418 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Search, Calendar, Users, DollarSign, Clock, FileText, TrendingUp } from "lucide-react";
+import { toast } from "sonner";
+import { format, getDaysInMonth, startOfMonth } from "date-fns";
+import { fr } from "date-fns/locale";
+
+interface PrestataireMission {
+  id: string;
+  nom: string;
+  prenom: string;
+  mission?: {
+    id: string;
+    titre: string;
+    tjm?: number;
+    date_debut?: string;
+    date_fin?: string;
+    statut?: string;
+    contrat?: {
+      client?: {
+        raison_sociale: string;
+      };
+    };
+  };
+  cra_actuel?: {
+    statut: string;
+    jours_travailles: number;
+    ca_mensuel: number;
+  };
+}
+
+export default function PrestatairesMissions() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [prestataires, setPrestataires] = useState<PrestataireMission[]>([]);
+  const [filteredPrestataires, setFilteredPrestataires] = useState<PrestataireMission[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [statusFilter, setStatusFilter] = useState<string>("tous");
+  
+  const [stats, setStats] = useState({
+    prestatairesMission: 0,
+    prestatairesTotal: 0,
+    caMonth: 0,
+    caYear: 0,
+    joursConsommesMois: 0,
+    joursRestantsMois: 0,
+    craEnAttente: 0
+  });
+
+  useEffect(() => {
+    loadData();
+  }, [selectedYear, selectedMonth]);
+
+  useEffect(() => {
+    filterPrestataires();
+  }, [prestataires, searchTerm, statusFilter]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+
+      // Charger les prestataires avec leurs missions actives
+      const { data: prestatairesData, error: prestataireError } = await supabase
+        .from('prestataires')
+        .select(`
+          id,
+          nom,
+          prenom,
+          email
+        `);
+
+      if (prestataireError) throw prestataireError;
+
+      // Charger les missions actives
+      const { data: missionsData, error: missionError } = await supabase
+        .from('missions')
+        .select(`
+          id,
+          titre,
+          tjm,
+          date_debut,
+          date_fin,
+          statut,
+          prestataire_id,
+          contrat:contrats(
+            client:clients(raison_sociale)
+          )
+        `)
+        .eq('statut', 'EN_COURS');
+
+      if (missionError) throw missionError;
+
+      // Charger les CRA du mois sélectionné
+      const { data: crasData, error: craError } = await supabase
+        .from('cra')
+        .select('*')
+        .eq('annee', selectedYear)
+        .eq('mois', selectedMonth);
+
+      if (craError) throw craError;
+
+      // Combiner les données
+      const prestatairesMissions: PrestataireMission[] = prestatairesData.map(p => {
+        const mission = missionsData?.find(m => m.prestataire_id === p.id);
+        const cra = crasData?.find(c => c.prestataire_id === p.id);
+        
+        return {
+          ...p,
+          mission: mission || undefined,
+          cra_actuel: cra ? {
+            statut: cra.statut,
+            jours_travailles: cra.jours_travailles || 0,
+            ca_mensuel: cra.ca_mensuel || 0
+          } : undefined
+        };
+      });
+
+      setPrestataires(prestatairesMissions);
+
+      // Calculer les stats
+      const prestatairesMission = prestatairesMissions.filter(p => p.mission).length;
+      const caMonth = crasData?.reduce((sum, cra) => sum + (cra.ca_mensuel || 0), 0) || 0;
+      
+      // CA annuel (tous les mois de l'année)
+      const { data: crasAnnee } = await supabase
+        .from('cra')
+        .select('ca_mensuel')
+        .eq('annee', selectedYear);
+      const caYear = crasAnnee?.reduce((sum, cra) => sum + (cra.ca_mensuel || 0), 0) || 0;
+
+      const joursConsommesMois = crasData?.reduce((sum, cra) => sum + (cra.jours_travailles || 0), 0) || 0;
+      const daysInMonth = getDaysInMonth(new Date(selectedYear, selectedMonth - 1));
+      const joursRestantsMois = Math.max(0, daysInMonth - new Date().getDate());
+      const craEnAttente = crasData?.filter(cra => cra.statut === 'SOUMIS').length || 0;
+
+      setStats({
+        prestatairesMission,
+        prestatairesTotal: prestatairesData.length,
+        caMonth,
+        caYear,
+        joursConsommesMois,
+        joursRestantsMois,
+        craEnAttente
+      });
+
+    } catch (error: any) {
+      console.error("Erreur lors du chargement des données:", error);
+      toast.error("Erreur lors du chargement des données");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterPrestataires = () => {
+    let filtered = [...prestataires];
+
+    // Filtre par recherche
+    if (searchTerm) {
+      filtered = filtered.filter(p => 
+        `${p.nom} ${p.prenom}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.mission?.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.mission?.contrat?.client?.raison_sociale.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filtre par statut
+    if (statusFilter === "en_mission") {
+      filtered = filtered.filter(p => p.mission);
+    } else if (statusFilter === "termine") {
+      filtered = filtered.filter(p => !p.mission);
+    }
+
+    setFilteredPrestataires(filtered);
+  };
+
+  const getStatutCRABadge = (statut?: string) => {
+    if (!statut) return <Badge variant="secondary">Non rempli</Badge>;
+    
+    switch(statut) {
+      case 'VALIDE': return <Badge className="bg-green-500">Validé</Badge>;
+      case 'SOUMIS': return <Badge className="bg-orange-500">En attente</Badge>;
+      case 'REJETE': return <Badge variant="destructive">Rejeté</Badge>;
+      default: return <Badge variant="outline">Brouillon</Badge>;
+    }
+  };
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+  const months = [
+    { value: 1, label: "Janvier" },
+    { value: 2, label: "Février" },
+    { value: 3, label: "Mars" },
+    { value: 4, label: "Avril" },
+    { value: 5, label: "Mai" },
+    { value: 6, label: "Juin" },
+    { value: 7, label: "Juillet" },
+    { value: 8, label: "Août" },
+    { value: 9, label: "Septembre" },
+    { value: 10, label: "Octobre" },
+    { value: 11, label: "Novembre" },
+    { value: 12, label: "Décembre" }
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Suivi des Prestataires en Mission</h1>
+          <p className="text-muted-foreground">Gestion des missions et CRA</p>
+        </div>
+        <Button onClick={() => navigate('/cra-gestion')}>
+          <FileText className="h-4 w-4 mr-2" />
+          Gestion des CRA
+        </Button>
+      </div>
+
+      {/* Filtres */}
+      <div className="flex gap-4 items-center">
+        <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
+          <SelectTrigger className="w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {years.map(year => (
+              <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {months.map(month => (
+              <SelectItem key={month.value} value={month.value.toString()}>{month.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Prestataires en mission</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.prestatairesMission}</div>
+            <p className="text-xs text-muted-foreground">Sur {stats.prestatairesTotal} total</p>
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">CA Mois</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.caMonth.toLocaleString('fr-FR')} €</div>
+            <p className="text-xs text-muted-foreground">
+              {months.find(m => m.value === selectedMonth)?.label} {selectedYear}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">CA Année</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.caYear.toLocaleString('fr-FR')} €</div>
+            <p className="text-xs text-muted-foreground">Année {selectedYear}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">CRA en attente</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-500">{stats.craEnAttente}</div>
+            <p className="text-xs text-muted-foreground">À valider</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Barre de recherche et filtres */}
+      <div className="flex gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher un prestataire, client ou poste..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="tous">Tous</SelectItem>
+            <SelectItem value="en_mission">En mission</SelectItem>
+            <SelectItem value="termine">Terminés</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Tableau des prestataires */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Liste des Prestataires</CardTitle>
+          <CardDescription>{filteredPrestataires.length} prestataire(s)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-4 font-medium">Prestataire</th>
+                  <th className="text-left p-4 font-medium">Client</th>
+                  <th className="text-left p-4 font-medium">Poste</th>
+                  <th className="text-left p-4 font-medium">Dates</th>
+                  <th className="text-right p-4 font-medium">TJM</th>
+                  <th className="text-right p-4 font-medium">Jours (mois)</th>
+                  <th className="text-right p-4 font-medium">CA (mois)</th>
+                  <th className="text-left p-4 font-medium">Statut CRA</th>
+                  <th className="text-left p-4 font-medium">Mission</th>
+                  <th className="text-right p-4 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPrestataires.map((prestataire) => (
+                  <tr 
+                    key={prestataire.id} 
+                    className="border-b hover:bg-accent cursor-pointer transition-colors"
+                    onClick={() => navigate(`/prestataire-mission/${prestataire.id}`)}
+                  >
+                    <td className="p-4 font-medium">{prestataire.prenom} {prestataire.nom}</td>
+                    <td className="p-4">
+                      {prestataire.mission?.contrat?.client?.raison_sociale || '-'}
+                    </td>
+                    <td className="p-4">{prestataire.mission?.titre || '-'}</td>
+                    <td className="p-4 text-sm">
+                      {prestataire.mission ? (
+                        <>
+                          {prestataire.mission.date_debut && format(new Date(prestataire.mission.date_debut), 'dd/MM/yyyy', { locale: fr })}
+                          {' - '}
+                          {prestataire.mission.date_fin ? format(new Date(prestataire.mission.date_fin), 'dd/MM/yyyy', { locale: fr }) : 'En cours'}
+                        </>
+                      ) : '-'}
+                    </td>
+                    <td className="p-4 text-right">
+                      {prestataire.mission?.tjm ? `${prestataire.mission.tjm} €` : '-'}
+                    </td>
+                    <td className="p-4 text-right">
+                      {prestataire.cra_actuel?.jours_travailles || 0}
+                    </td>
+                    <td className="p-4 text-right font-medium">
+                      {prestataire.cra_actuel?.ca_mensuel 
+                        ? `${prestataire.cra_actuel.ca_mensuel.toLocaleString('fr-FR')} €`
+                        : '-'
+                      }
+                    </td>
+                    <td className="p-4">
+                      {getStatutCRABadge(prestataire.cra_actuel?.statut)}
+                    </td>
+                    <td className="p-4">
+                      {prestataire.mission ? (
+                        <Badge className="bg-green-500">Actif</Badge>
+                      ) : (
+                        <Badge variant="secondary">Inactif</Badge>
+                      )}
+                    </td>
+                    <td className="p-4 text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/prestataire-mission/${prestataire.id}`);
+                        }}
+                      >
+                        Voir détail
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

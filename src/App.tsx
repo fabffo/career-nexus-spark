@@ -54,6 +54,9 @@ import AbonnementsPartenaires from "./pages/AbonnementsPartenaires";
 import PaiementsAbonnements from "./pages/PaiementsAbonnements";
 import ChargesSalaries from "./pages/ChargesSalaries";
 import DeclarationsChargesSociales from "./pages/DeclarationsChargesSociales";
+import PrestatairesMissions from "./pages/PrestatairesMissions";
+import PrestataireMissionDetail from "./pages/PrestataireMissionDetail";
+import CRAGestion from "./pages/CRAGestion";
 
 const queryClient = new QueryClient();
 
@@ -138,6 +141,9 @@ const App = () => (
               <Route path="commentaires" element={<Dashboard />} />
               <Route path="admin" element={<Admin />} />
               <Route path="parametres" element={<Parametres />} />
+              <Route path="prestataires-missions" element={<PrestatairesMissions />} />
+              <Route path="prestataire-mission/:id" element={<PrestataireMissionDetail />} />
+              <Route path="cra-gestion" element={<CRAGestion />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />

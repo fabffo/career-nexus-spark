@@ -500,6 +500,128 @@ export type Database = {
           },
         ]
       }
+      cra: {
+        Row: {
+          annee: number
+          ca_mensuel: number | null
+          commentaires: string | null
+          commentaires_validation: string | null
+          created_at: string | null
+          created_by: string | null
+          date_soumission: string | null
+          date_validation: string | null
+          id: string
+          jours_absence: number | null
+          jours_conges: number | null
+          jours_travailles: number | null
+          mission_id: string
+          mois: number
+          prestataire_id: string
+          statut: string
+          total_heures: number | null
+          updated_at: string | null
+          valide_par: string | null
+        }
+        Insert: {
+          annee: number
+          ca_mensuel?: number | null
+          commentaires?: string | null
+          commentaires_validation?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date_soumission?: string | null
+          date_validation?: string | null
+          id?: string
+          jours_absence?: number | null
+          jours_conges?: number | null
+          jours_travailles?: number | null
+          mission_id: string
+          mois: number
+          prestataire_id: string
+          statut?: string
+          total_heures?: number | null
+          updated_at?: string | null
+          valide_par?: string | null
+        }
+        Update: {
+          annee?: number
+          ca_mensuel?: number | null
+          commentaires?: string | null
+          commentaires_validation?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date_soumission?: string | null
+          date_validation?: string | null
+          id?: string
+          jours_absence?: number | null
+          jours_conges?: number | null
+          jours_travailles?: number | null
+          mission_id?: string
+          mois?: number
+          prestataire_id?: string
+          statut?: string
+          total_heures?: number | null
+          updated_at?: string | null
+          valide_par?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cra_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cra_prestataire_id_fkey"
+            columns: ["prestataire_id"]
+            isOneToOne: false
+            referencedRelation: "prestataires"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cra_jours: {
+        Row: {
+          commentaire: string | null
+          cra_id: string
+          created_at: string | null
+          date: string
+          heures: number | null
+          id: string
+          type_jour: string
+          updated_at: string | null
+        }
+        Insert: {
+          commentaire?: string | null
+          cra_id: string
+          created_at?: string | null
+          date: string
+          heures?: number | null
+          id?: string
+          type_jour?: string
+          updated_at?: string | null
+        }
+        Update: {
+          commentaire?: string | null
+          cra_id?: string
+          created_at?: string | null
+          date?: string
+          heures?: number | null
+          id?: string
+          type_jour?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cra_jours_cra_id_fkey"
+            columns: ["cra_id"]
+            isOneToOne: false
+            referencedRelation: "cra"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       declarations_charges_sociales: {
         Row: {
           actif: boolean | null
@@ -969,6 +1091,71 @@ export type Database = {
           site_web?: string | null
           telephone?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      historique_tjm: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          date_changement: string
+          id: string
+          mission_id: string
+          motif: string | null
+          tjm_ancien: number | null
+          tjm_nouveau: number
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          date_changement?: string
+          id?: string
+          mission_id: string
+          motif?: string | null
+          tjm_ancien?: number | null
+          tjm_nouveau: number
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          date_changement?: string
+          id?: string
+          mission_id?: string
+          motif?: string | null
+          tjm_ancien?: number | null
+          tjm_nouveau?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historique_tjm_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jours_feries: {
+        Row: {
+          annee: number
+          created_at: string | null
+          date: string
+          id: string
+          libelle: string
+        }
+        Insert: {
+          annee: number
+          created_at?: string | null
+          date: string
+          id?: string
+          libelle: string
+        }
+        Update: {
+          annee?: number
+          created_at?: string | null
+          date?: string
+          id?: string
+          libelle?: string
         }
         Relationships: []
       }
