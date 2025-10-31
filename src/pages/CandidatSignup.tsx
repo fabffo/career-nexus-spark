@@ -99,6 +99,18 @@ export default function CandidatSignup() {
         return;
       }
 
+      // Check if token has expired
+      if (data.invitation_expires_at && new Date(data.invitation_expires_at) < new Date()) {
+        console.error("Token expired:", data.invitation_expires_at);
+        toast({
+          title: "Invitation expirée",
+          description: "Ce lien d'invitation a expiré. Veuillez demander un nouveau lien à votre recruteur.",
+          variant: "destructive",
+        });
+        setTimeout(() => navigate("/auth"), 2000);
+        return;
+      }
+
       console.log("✓ Candidat loaded successfully:", data.nom, data.prenom, data.email);
       setCandidat(data);
     } catch (error: any) {

@@ -1,15 +1,19 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface RevokeDeviceRequest {
-  deviceId?: string;
-  revokeAll?: boolean;
-}
+// Input validation schema
+const revokeDeviceSchema = z.object({
+  deviceId: z.string().uuid().optional(),
+  revokeAll: z.boolean().optional(),
+}).refine(data => data.deviceId || data.revokeAll, {
+  message: "Must provide either deviceId or revokeAll",
+});
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
@@ -33,7 +37,18 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('Unauthorized');
     }
 
-    const { deviceId, revokeAll }: RevokeDeviceRequest = await req.json();
+    const requestBody = await req.json();
+    
+    // Validate input
+    const validation = revokeDeviceSchema.safeParse(requestBody);
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid input', details: validation.error.errors }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { deviceId, revokeAll } = validation.data;
 
     console.log('Revoking device(s) for user:', user.id);
 

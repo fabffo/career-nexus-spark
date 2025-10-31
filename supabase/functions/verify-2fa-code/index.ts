@@ -1,14 +1,29 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface VerifyCodeRequest {
-  userId: string;
-  code: string;
+// Input validation schema
+const verify2FASchema = z.object({
+  userId: z.string().uuid({ message: "Invalid user ID format" }),
+  code: z.string().regex(/^\d{6}$/, { message: "Code must be exactly 6 digits" }),
+});
+
+// Constant-time string comparison to prevent timing attacks
+function constantTimeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -21,7 +36,35 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { userId, code }: VerifyCodeRequest = await req.json();
+    const requestBody = await req.json();
+    
+    // Validate input
+    const validation = verify2FASchema.safeParse(requestBody);
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid input', details: validation.error.errors }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { userId, code } = validation.data;
+
+    // Rate limiting - prevent brute force attacks
+    const clientIp = req.headers.get('x-forwarded-for') || 'unknown';
+    const { data: rateLimitResult } = await supabase.rpc('check_rate_limit', {
+      _identifier: `${clientIp}:${userId}`,
+      _attempt_type: 'verify_code',
+      _max_attempts: 5,
+      _window_minutes: 15
+    });
+
+    if (rateLimitResult && !rateLimitResult.allowed) {
+      console.warn(`Rate limit exceeded for IP ${clientIp} verifying code for user ${userId}`);
+      return new Response(
+        JSON.stringify({ error: rateLimitResult.message }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     console.log('Verifying 2FA code for user:', userId);
 
@@ -64,8 +107,10 @@ const handler = async (req: Request): Promise<Response> => {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const codeHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-    // Verify code
-    if (codeHash !== storedCode.code_hash) {
+    // Verify code using constant-time comparison to prevent timing attacks
+    if (!constantTimeCompare(codeHash, storedCode.code_hash)) {
+      // Add random delay to prevent timing analysis
+      await new Promise(resolve => setTimeout(resolve, Math.random() * 100 + 50));
       // Increment attempts
       await supabase
         .from('two_factor_codes')

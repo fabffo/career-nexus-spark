@@ -197,8 +197,10 @@ export type Database = {
           detail_cv: string | null
           email: string | null
           id: string
+          invitation_expires_at: string | null
           invitation_sent_at: string | null
           invitation_token: string | null
+          invitation_used_at: string | null
           metier: string | null
           nom: string
           prenom: string
@@ -213,8 +215,10 @@ export type Database = {
           detail_cv?: string | null
           email?: string | null
           id?: string
+          invitation_expires_at?: string | null
           invitation_sent_at?: string | null
           invitation_token?: string | null
+          invitation_used_at?: string | null
           metier?: string | null
           nom: string
           prenom: string
@@ -229,8 +233,10 @@ export type Database = {
           detail_cv?: string | null
           email?: string | null
           id?: string
+          invitation_expires_at?: string | null
           invitation_sent_at?: string | null
           invitation_token?: string | null
+          invitation_used_at?: string | null
           metier?: string | null
           nom?: string
           prenom?: string
@@ -1489,8 +1495,10 @@ export type Database = {
           email: string | null
           fournisseur_services_id: string | null
           id: string
+          invitation_expires_at: string | null
           invitation_sent_at: string | null
           invitation_token: string | null
+          invitation_used_at: string | null
           nom: string
           prenom: string
           recommandation_url: string | null
@@ -1506,8 +1514,10 @@ export type Database = {
           email?: string | null
           fournisseur_services_id?: string | null
           id?: string
+          invitation_expires_at?: string | null
           invitation_sent_at?: string | null
           invitation_token?: string | null
+          invitation_used_at?: string | null
           nom: string
           prenom: string
           recommandation_url?: string | null
@@ -1523,8 +1533,10 @@ export type Database = {
           email?: string | null
           fournisseur_services_id?: string | null
           id?: string
+          invitation_expires_at?: string | null
           invitation_sent_at?: string | null
           invitation_token?: string | null
+          invitation_used_at?: string | null
           nom?: string
           prenom?: string
           recommandation_url?: string | null
@@ -1750,6 +1762,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      rate_limit_2fa: {
+        Row: {
+          attempt_type: string
+          attempts: number | null
+          blocked_until: string | null
+          created_at: string | null
+          id: string
+          identifier: string
+          window_start: string | null
+        }
+        Insert: {
+          attempt_type: string
+          attempts?: number | null
+          blocked_until?: string | null
+          created_at?: string | null
+          id?: string
+          identifier: string
+          window_start?: string | null
+        }
+        Update: {
+          attempt_type?: string
+          attempts?: number | null
+          blocked_until?: string | null
+          created_at?: string | null
+          id?: string
+          identifier?: string
+          window_start?: string | null
+        }
+        Relationships: []
       }
       rdv_referents: {
         Row: {
@@ -1977,8 +2019,10 @@ export type Database = {
           email: string | null
           fonction: string | null
           id: string
+          invitation_expires_at: string | null
           invitation_sent_at: string | null
           invitation_token: string | null
+          invitation_used_at: string | null
           metier: string | null
           nom: string
           prenom: string
@@ -1995,8 +2039,10 @@ export type Database = {
           email?: string | null
           fonction?: string | null
           id?: string
+          invitation_expires_at?: string | null
           invitation_sent_at?: string | null
           invitation_token?: string | null
+          invitation_used_at?: string | null
           metier?: string | null
           nom: string
           prenom: string
@@ -2013,8 +2059,10 @@ export type Database = {
           email?: string | null
           fonction?: string | null
           id?: string
+          invitation_expires_at?: string | null
           invitation_sent_at?: string | null
           invitation_token?: string | null
+          invitation_used_at?: string | null
           metier?: string | null
           nom?: string
           prenom?: string
@@ -2215,6 +2263,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -2227,6 +2299,15 @@ export type Database = {
           is_reconciled: boolean
           numero_rapprochement: string
         }[]
+      }
+      check_rate_limit: {
+        Args: {
+          _attempt_type: string
+          _identifier: string
+          _max_attempts?: number
+          _window_minutes?: number
+        }
+        Returns: Json
       }
       cleanup_expired_2fa_codes: { Args: never; Returns: undefined }
       cleanup_expired_devices: { Args: never; Returns: undefined }
@@ -2243,6 +2324,13 @@ export type Database = {
         Returns: string
       }
       get_next_rapprochement_numero: { Args: never; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       user_has_role: {
         Args: {
           allowed_roles: Database["public"]["Enums"]["user_role"][]
@@ -2259,6 +2347,7 @@ export type Database = {
       }
     }
     Enums: {
+      app_role: "ADMIN" | "RECRUTEUR" | "CONTRAT" | "CANDIDAT" | "PRESTATAIRE"
       contrat_statut: "BROUILLON" | "ACTIF" | "TERMINE" | "ANNULE" | "ARCHIVE"
       contrat_type:
         | "CLIENT"
@@ -2396,6 +2485,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["ADMIN", "RECRUTEUR", "CONTRAT", "CANDIDAT", "PRESTATAIRE"],
       contrat_statut: ["BROUILLON", "ACTIF", "TERMINE", "ANNULE", "ARCHIVE"],
       contrat_type: [
         "CLIENT",

@@ -1,18 +1,20 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { Resend } from "npm:resend@2.0.0";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface AddDeviceRequest {
-  userId: string;
-  deviceFingerprint: string;
-  deviceName: string;
-  email: string;
-}
+// Input validation schema
+const addDeviceSchema = z.object({
+  userId: z.string().uuid({ message: "Invalid user ID format" }),
+  deviceFingerprint: z.string().min(10).max(500),
+  deviceName: z.string().min(1).max(200),
+  email: z.string().email().max(255),
+});
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
@@ -27,7 +29,54 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const resend = new Resend(resendApiKey);
 
-    const { userId, deviceFingerprint, deviceName, email }: AddDeviceRequest = await req.json();
+    // Authenticate the request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const requestBody = await req.json();
+    
+    // Validate input
+    const validation = addDeviceSchema.safeParse(requestBody);
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid input', details: validation.error.errors }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { userId, deviceFingerprint, deviceName, email } = validation.data;
+
+    // CRITICAL: Verify the caller owns this userId
+    if (user.id !== userId) {
+      console.warn(`Authorization violation: User ${user.id} attempted to add device for user ${userId}`);
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: You can only add devices for your own account' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify email matches user's email
+    if (user.email !== email) {
+      return new Response(
+        JSON.stringify({ error: 'Email mismatch' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     console.log('Adding trusted device for user:', userId);
 

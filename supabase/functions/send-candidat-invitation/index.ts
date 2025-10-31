@@ -41,12 +41,16 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log("Generated token:", token);
 
-    // Mettre à jour le candidat avec le token
+    // Mettre à jour le candidat avec le token et expiration
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiration
+    
     const { data: candidat, error: updateError } = await supabase
       .from('candidats')
       .update({ 
         invitation_token: token,
-        invitation_sent_at: new Date().toISOString()
+        invitation_sent_at: new Date().toISOString(),
+        invitation_expires_at: expiresAt.toISOString()
       })
       .eq('id', candidatId)
       .select()

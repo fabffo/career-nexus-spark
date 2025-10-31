@@ -41,12 +41,16 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log("Generated token:", token);
 
-    // Mettre à jour le salarié avec le token
+    // Mettre à jour le salarié avec le token et expiration
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiration
+    
     const { data: salarie, error: updateError } = await supabase
       .from('salaries')
       .update({ 
         invitation_token: token,
-        invitation_sent_at: new Date().toISOString()
+        invitation_sent_at: new Date().toISOString(),
+        invitation_expires_at: expiresAt.toISOString()
       })
       .eq('id', salarieId)
       .select()

@@ -1,16 +1,18 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { Resend } from "npm:resend@2.0.0";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface SendCodeRequest {
-  email: string;
-  userId: string;
-}
+// Input validation schema
+const send2FASchema = z.object({
+  email: z.string().email({ message: "Invalid email format" }).max(255),
+  userId: z.string().uuid({ message: "Invalid user ID format" }),
+});
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
@@ -25,7 +27,45 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const resend = new Resend(resendApiKey);
 
-    const { email, userId }: SendCodeRequest = await req.json();
+    const requestBody = await req.json();
+    
+    // Validate input
+    const validation = send2FASchema.safeParse(requestBody);
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid input', details: validation.error.errors }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { email, userId } = validation.data;
+
+    // Rate limiting - prevent email spam
+    const clientIp = req.headers.get('x-forwarded-for') || 'unknown';
+    const { data: rateLimitResult } = await supabase.rpc('check_rate_limit', {
+      _identifier: `${clientIp}:${userId}`,
+      _attempt_type: 'send_code',
+      _max_attempts: 3,
+      _window_minutes: 15
+    });
+
+    if (rateLimitResult && !rateLimitResult.allowed) {
+      console.warn(`Rate limit exceeded for IP ${clientIp} sending code to user ${userId}`);
+      return new Response(
+        JSON.stringify({ error: rateLimitResult.message }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify the userId exists and email matches
+    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
+    if (userError || !userData.user || userData.user.email !== email) {
+      console.error(`Invalid user/email combination: ${userId} / ${email}`);
+      return new Response(
+        JSON.stringify({ error: 'Invalid user or email' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     console.log('Generating 2FA code for user:', userId);
 
