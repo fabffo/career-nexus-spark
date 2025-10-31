@@ -75,6 +75,8 @@ export function Sidebar() {
         { path: '/missions', label: 'Toutes les missions', icon: Briefcase },
         { path: '/missions-clients', label: 'Missions Clients', icon: Briefcase },
         { path: '/missions-fournisseurs', label: 'Missions Fournisseurs', icon: Briefcase },
+        { path: '/prestataires-missions', label: 'Prestataires & CRA', icon: Activity },
+        { path: '/cra-gestion', label: 'Gestion des CRA', icon: FileText },
       ]
     },
     {
