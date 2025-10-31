@@ -18,6 +18,7 @@ import { Users, Building2, Calendar, Briefcase, TrendingUp, Clock, UserCheck, Fi
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import CalendrierRecrutement from '@/components/calendrier/CalendrierRecrutement';
 
 interface PosteWithDetails extends PosteClient {
   localisation?: string;
@@ -292,15 +293,22 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Tableau de bord</h1>
-        <p className="text-muted-foreground mt-2">
-          Vue d'ensemble de votre activité de recrutement
-        </p>
-      </div>
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
+          <TabsTrigger value="calendar">Calendrier</TabsTrigger>
+        </TabsList>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <TabsContent value="overview" className="space-y-8 mt-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Tableau de bord</h1>
+            <p className="text-muted-foreground mt-2">
+              Vue d'ensemble de votre activité de recrutement
+            </p>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {statCards.map((stat) => {
           const Icon = stat.icon;
           return (
@@ -634,6 +642,12 @@ export default function Dashboard() {
           </Tabs>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="calendar" className="mt-6">
+          <CalendrierRecrutement />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
