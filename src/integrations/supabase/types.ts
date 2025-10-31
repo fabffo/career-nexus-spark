@@ -966,6 +966,42 @@ export type Database = {
         }
         Relationships: []
       }
+      login_attempts: {
+        Row: {
+          created_at: string | null
+          device_fingerprint: string | null
+          email: string
+          failure_reason: string | null
+          id: string
+          ip_address: string | null
+          success: boolean
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          device_fingerprint?: string | null
+          email: string
+          failure_reason?: string | null
+          id?: string
+          ip_address?: string | null
+          success: boolean
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          device_fingerprint?: string | null
+          email?: string
+          failure_reason?: string | null
+          id?: string
+          ip_address?: string | null
+          success?: boolean
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       matchings: {
         Row: {
           analysis: string
@@ -2041,6 +2077,42 @@ export type Database = {
         }
         Relationships: []
       }
+      trusted_devices: {
+        Row: {
+          created_at: string | null
+          device_fingerprint: string
+          device_name: string | null
+          expires_at: string
+          id: string
+          ip_address: string | null
+          last_used_at: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_fingerprint: string
+          device_name?: string | null
+          expires_at: string
+          id?: string
+          ip_address?: string | null
+          last_used_at?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          device_fingerprint?: string
+          device_name?: string | null
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          last_used_at?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       tva: {
         Row: {
           created_at: string
@@ -2065,6 +2137,39 @@ export type Database = {
           libelle?: string
           taux?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      two_factor_codes: {
+        Row: {
+          attempts: number | null
+          code_hash: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          method: string
+          user_id: string
+          verified: boolean | null
+        }
+        Insert: {
+          attempts?: number | null
+          code_hash: string
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          method: string
+          user_id: string
+          verified?: boolean | null
+        }
+        Update: {
+          attempts?: number | null
+          code_hash?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          method?: string
+          user_id?: string
+          verified?: boolean | null
         }
         Relationships: []
       }
@@ -2123,6 +2228,8 @@ export type Database = {
           numero_rapprochement: string
         }[]
       }
+      cleanup_expired_2fa_codes: { Args: never; Returns: undefined }
+      cleanup_expired_devices: { Args: never; Returns: undefined }
       generate_invitation_token: { Args: never; Returns: string }
       generate_numero_facture: { Args: { p_type: string }; Returns: string }
       generate_numero_ligne: { Args: never; Returns: string }
