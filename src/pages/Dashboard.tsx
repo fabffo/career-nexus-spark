@@ -19,6 +19,8 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import CalendrierRecrutement from '@/components/calendrier/CalendrierRecrutement';
+import { RecrutementGlobalView } from '@/components/recrutement/RecrutementGlobalView';
+import { RecrutementPosteDetail } from '@/components/recrutement/RecrutementPosteDetail';
 
 interface PosteWithDetails extends PosteClient {
   localisation?: string;
@@ -291,11 +293,15 @@ export default function Dashboard() {
     );
   };
 
+  const [selectedPosteForDetail, setSelectedPosteForDetail] = useState<string | null>(null);
+  const [showRecrutementDetail, setShowRecrutementDetail] = useState(false);
+
   return (
     <div className="space-y-8">
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
+          <TabsTrigger value="recrutement">Suivi Recrutements</TabsTrigger>
           <TabsTrigger value="calendar">Calendrier</TabsTrigger>
         </TabsList>
 
@@ -642,6 +648,22 @@ export default function Dashboard() {
           </Tabs>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="recrutement" className="mt-6">
+          {showRecrutementDetail && selectedPosteForDetail ? (
+            <RecrutementPosteDetail
+              posteId={selectedPosteForDetail}
+              onBack={() => setShowRecrutementDetail(false)}
+            />
+          ) : (
+            <RecrutementGlobalView
+              onPosteClick={(posteId) => {
+                setSelectedPosteForDetail(posteId);
+                setShowRecrutementDetail(true);
+              }}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="calendar" className="mt-6">
