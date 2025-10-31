@@ -45,56 +45,92 @@ export default function Auth() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
-    
-    // Validate input
+    setLoading(true);
+
     try {
-      loginSchema.parse({ email, password });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
+      const validation = loginSchema.safeParse({ email, password });
+      if (!validation.success) {
         const newErrors: Record<string, string> = {};
-        error.errors.forEach(err => {
+        validation.error.errors.forEach(err => {
           if (err.path[0]) {
             newErrors[err.path[0].toString()] = err.message;
           }
         });
         setErrors(newErrors);
+        setLoading(false);
         return;
       }
-    }
-    
-    setLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    if (error) {
+      if (authError) {
+        console.error('Login error:', authError);
+        toast({
+          title: "Erreur de connexion",
+          description: authError.message,
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (authData.user) {
+        // Import device fingerprint dynamically
+        const { generateDeviceFingerprint } = await import('@/lib/deviceFingerprint');
+        const fingerprint = await generateDeviceFingerprint();
+        
+        // Check if this device is trusted
+        const { data: checkData } = await supabase.functions.invoke('check-trusted-device', {
+          body: {
+            userId: authData.user.id,
+            deviceFingerprint: fingerprint,
+          },
+        });
+
+        if (!checkData?.isTrusted) {
+          // Device not trusted, redirect to 2FA verification
+          navigate('/2fa-verify', { 
+            state: { 
+              userId: authData.user.id,
+              email: authData.user.email,
+            } 
+          });
+          return;
+        }
+
+        // Device is trusted, proceed with normal login
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', authData.user.id)
+          .single();
+
+        toast({
+          title: "Connexion réussie",
+          description: "Bienvenue !",
+        });
+
+        if (profile?.role === 'CANDIDAT') {
+          navigate('/candidat/dashboard');
+        } else if (profile?.role === 'PRESTATAIRE') {
+          navigate('/prestataire/dashboard');
+        } else {
+          navigate('/');
+        }
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
       toast({
-        title: "Erreur de connexion",
-        description: error.message,
+        title: "Erreur",
+        description: "Une erreur inattendue est survenue",
         variant: "destructive",
       });
-    } else if (data?.user) {
-      toast({
-        title: "Connexion réussie",
-        description: "Bienvenue !",
-      });
-      
-      // Récupérer le profil et rediriger en fonction du rôle
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', data.user.id)
-        .single();
-
-      if (profileData?.role === 'CANDIDAT') {
-        navigate('/candidat/dashboard');
-      } else {
-        navigate('/');
-      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {

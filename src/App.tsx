@@ -27,6 +27,8 @@ import CandidatProfil from "./pages/candidat/Profil";
 import PrestataireDashboard from "./pages/prestataire/PrestataireDashboard";
 import RecruteurSignup from "./pages/recruteur/RecruteurSignup";
 import PrestataireSignup from "./pages/prestataire/PrestataireSignup";
+import TwoFactorVerification from "./pages/TwoFactorVerification";
+import TrustedDevices from "./pages/TrustedDevices";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import Prestataires from "./pages/Prestataires";
@@ -67,6 +69,14 @@ const App = () => (
             <Route path="/candidat/signup" element={<CandidatSignup />} />
             <Route path="/recruteur/signup" element={<RecruteurSignup />} />
             <Route path="/prestataire/signup" element={<PrestataireSignup />} />
+            <Route path="/2fa-verify" element={<TwoFactorVerification />} />
+            <Route path="/trusted-devices" element={
+              <ProtectedRoute>
+                <MainLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<TrustedDevices />} />
+            </Route>
             
             {/* Routes pour les candidats */}
             <Route path="/candidat" element={
