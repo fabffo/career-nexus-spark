@@ -34,6 +34,76 @@ interface RecrutementGlobalViewProps {
 
 export function RecrutementGlobalView({ onPosteClick }: RecrutementGlobalViewProps) {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  const getStatusBadge = (statut: string) => {
+    const variants: Record<string, { label: string; className: string }> = {
+      'OUVERT': { label: 'Ouvert', className: 'bg-blue-100 text-blue-800 border-blue-200' },
+      'ENCOURS': { label: 'En cours', className: 'bg-orange-100 text-orange-800 border-orange-200' },
+      'REALISE': { label: 'Pourvu', className: 'bg-green-100 text-green-800 border-green-200' },
+      'ANNULE': { label: 'Fermé', className: 'bg-gray-100 text-gray-800 border-gray-200' },
+    };
+
+    const variant = variants[statut] || variants['OUVERT'];
+    return (
+      <Badge className={`font-medium border ${variant.className}`}>
+        {variant.label}
+      </Badge>
+    );
+  };
+
+  const columns: ColumnDef<PosteStats>[] = [
+    {
+      accessorKey: 'titre',
+      header: 'Titre du poste',
+      cell: ({ row }) => (
+        <div className="font-medium">{row.original.titre}</div>
+      ),
+    },
+    {
+      accessorKey: 'created_at',
+      header: 'Date de création',
+      cell: ({ row }) => format(new Date(row.original.created_at), 'dd/MM/yyyy', { locale: fr }),
+    },
+    {
+      accessorKey: 'statut',
+      header: 'Statut',
+      cell: ({ row }) => getStatusBadge(row.original.statut),
+    },
+    {
+      accessorKey: 'totalCandidats',
+      header: 'Candidats',
+      cell: ({ row }) => (
+        <div className="text-center">{row.original.totalCandidats}</div>
+      ),
+    },
+    {
+      accessorKey: 'totalRdvs',
+      header: 'Entretiens',
+      cell: ({ row }) => (
+        <div className="text-center">{row.original.totalRdvs}</div>
+      ),
+    },
+    {
+      accessorKey: 'tauxConversion',
+      header: 'Taux de conversion',
+      cell: ({ row }) => (
+        <div className="text-center font-medium">{row.original.tauxConversion}%</div>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onPosteClick(row.original.id)}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      ),
+    },
+  ];
   const [globalStats, setGlobalStats] = useState<GlobalStats>({
     postesOuverts: 0,
     postesPourvus: 0,
@@ -137,22 +207,6 @@ export function RecrutementGlobalView({ onPosteClick }: RecrutementGlobalViewPro
       poste.titre.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredPostes(filtered);
-  };
-
-  const getStatusBadge = (statut: string) => {
-    const variants: Record<string, { label: string; className: string }> = {
-      'OUVERT': { label: 'Ouvert', className: 'bg-blue-100 text-blue-800 border-blue-200' },
-      'ENCOURS': { label: 'En cours', className: 'bg-orange-100 text-orange-800 border-orange-200' },
-      'REALISE': { label: 'Pourvu', className: 'bg-green-100 text-green-800 border-green-200' },
-      'ANNULE': { label: 'Fermé', className: 'bg-gray-100 text-gray-800 border-gray-200' },
-    };
-
-    const variant = variants[statut] || variants['OUVERT'];
-    return (
-      <Badge className={`font-medium border ${variant.className}`}>
-        {variant.label}
-      </Badge>
-    );
   };
 
   if (loading) {
