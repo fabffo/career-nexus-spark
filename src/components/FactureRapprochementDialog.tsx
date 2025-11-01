@@ -122,10 +122,11 @@ export default function FactureRapprochementDialog({
       if (facturesError) throw facturesError;
 
       console.log("📋 Factures associées à cette ligne:", facturesAssociees?.length);
+      console.log("🔢 Numéro de ligne à afficher:", factureData.numero_ligne_rapprochement);
 
-      // Transformer en format d'affichage
+      // Transformer en format d'affichage - on utilise le numero_ligne_rapprochement de la BDD
       const rapprochementInfo: RapprochementInfo = {
-        id: rapprochementLigne.numero_ligne || factureData.numero_ligne_rapprochement,
+        id: factureData.numero_ligne_rapprochement, // Le vrai numéro de ligne (RL-YYYYMMDD-XXXXX)
         date: rapprochementLigne.transaction.date,
         libelle: rapprochementLigne.transaction.libelle,
         montant: rapprochementLigne.transaction.montant,
