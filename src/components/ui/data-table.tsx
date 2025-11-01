@@ -99,47 +99,50 @@ export function DataTable<TData, TValue>({
         </div>
       </div>
 
-      <div className="rounded-lg border border-border overflow-hidden">
-        <div className="max-h-[600px] overflow-auto">
-          <Table>
-            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
+      <div className="rounded-lg border border-border">
+        <div className="overflow-auto max-h-[600px]">
+          <table className="w-full caption-bottom text-sm">
+            <thead className="[&_tr]:border-b sticky top-0 bg-background z-10">
               {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="hover:bg-transparent border-b-2">
+                <tr key={headerGroup.id} className="border-b transition-colors hover:bg-muted/50">
                   {headerGroup.headers.map((header) => (
-                    <TableHead
+                    <th
                       key={header.id}
-                      className={(header.column.columnDef.meta as any)?.className || "bg-background"}
+                      className={`h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-background ${(header.column.columnDef.meta as any)?.className || ""}`}
                     >
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
+                    </th>
                   ))}
-                </TableRow>
+                </tr>
               ))}
-            </TableHeader>
-            <TableBody>
+            </thead>
+            <tbody className="[&_tr:last-child]:border-0">
               {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow
+                  <tr
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
-                    className="hover:bg-muted/50 transition-colors"
+                    className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className={(cell.column.columnDef.meta as any)?.className}>
+                      <td
+                        key={cell.id}
+                        className={`p-4 align-middle ${(cell.column.columnDef.meta as any)?.className || ""}`}
+                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
+                      </td>
                     ))}
-                  </TableRow>
+                  </tr>
                 ))
               ) : (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                <tr>
+                  <td colSpan={columns.length} className="h-24 text-center">
                     Aucun résultat trouvé.
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               )}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
       </div>
 
