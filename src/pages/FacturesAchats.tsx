@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, TrendingDown, Eye, Pencil, Trash2, Download, Sparkles, UserPlus, CheckCircle2, AlertCircle } from "lucide-react";
+import { Plus, TrendingDown, Eye, Pencil, Trash2, Download, Sparkles, UserPlus, CheckCircle2, AlertCircle, Link } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,7 @@ import ExtractionFactureDialog from "@/components/ExtractionFactureDialog";
 import EditFactureDialog from "@/components/EditFactureDialog";
 import ViewFactureDialog from "@/components/ViewFactureDialog";
 import CreateFournisseurQuickDialog from "@/components/CreateFournisseurQuickDialog";
+import FactureRapprochementDialog from "@/components/FactureRapprochementDialog";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -24,6 +25,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -75,6 +77,7 @@ export default function FacturesAchats() {
   const [openViewDialog, setOpenViewDialog] = useState(false);
   const [openExtractionDialog, setOpenExtractionDialog] = useState(false);
   const [openCreateFournisseur, setOpenCreateFournisseur] = useState(false);
+  const [openRapprochementDialog, setOpenRapprochementDialog] = useState(false);
   const [selectedFacture, setSelectedFacture] = useState<Facture | null>(null);
   const [fournisseurInitialData, setFournisseurInitialData] = useState<{
     raison_sociale?: string;
@@ -460,12 +463,30 @@ export default function FacturesAchats() {
       header: "Rapprochement",
       cell: ({ row }) => {
         const numero = row.getValue("numero_rapprochement") as string;
-        return numero ? (
-          <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-            {numero}
-          </span>
-        ) : (
-          <span className="text-muted-foreground text-xs">Non rapproché</span>
+        return (
+          <div className="flex items-center gap-2">
+            {numero ? (
+              <>
+                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                  {numero}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => {
+                    setSelectedFacture(row.original);
+                    setOpenRapprochementDialog(true);
+                  }}
+                  title="Voir les détails du rapprochement"
+                >
+                  <Link className="h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              <span className="text-muted-foreground text-xs">Non rapproché</span>
+            )}
+          </div>
         );
       },
     },
@@ -807,6 +828,16 @@ export default function FacturesAchats() {
         }}
         initialData={fournisseurInitialData}
       />
+
+      {selectedFacture && (
+        <FactureRapprochementDialog
+          open={openRapprochementDialog}
+          onOpenChange={setOpenRapprochementDialog}
+          factureId={selectedFacture.id}
+          factureNumero={selectedFacture.numero_facture}
+          onSuccess={fetchFactures}
+        />
+      )}
     </div>
   );
 }
