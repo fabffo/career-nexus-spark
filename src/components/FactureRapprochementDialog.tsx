@@ -53,8 +53,8 @@ export default function FactureRapprochementDialog({
   const loadRapprochements = async () => {
     setLoading(true);
     try {
-      // Charger les rapprochements liés à cette facture via rapprochements_factures
-      const { data, error } = await supabase
+      // Méthode 1: Charger via rapprochements_factures (nouveau système many-to-many)
+      const { data: dataNew, error: errorNew } = await supabase
         .from("rapprochements_factures")
         .select(`
           rapprochement_id,
@@ -71,13 +71,35 @@ export default function FactureRapprochementDialog({
         `)
         .eq("facture_id", factureId);
 
-      if (error) throw error;
+      if (errorNew) throw errorNew;
+
+      // Méthode 2: Charger via facture_id directement (ancien système 1:1)
+      const { data: dataOld, error: errorOld } = await supabase
+        .from("rapprochements_bancaires")
+        .select("id, numero_ligne, transaction_date, transaction_libelle, transaction_debit, transaction_credit, transaction_montant, notes")
+        .eq("facture_id", factureId);
+
+      if (errorOld) throw errorOld;
+
+      // Combiner les deux sources et dédupliquer
+      const allRapprochements = new Map();
+
+      // Ajouter les rapprochements du nouveau système
+      for (const item of dataNew || []) {
+        const rapprochementData = item.rapprochements_bancaires as any;
+        allRapprochements.set(rapprochementData.id, rapprochementData);
+      }
+
+      // Ajouter les rapprochements de l'ancien système
+      for (const rapprochement of dataOld || []) {
+        if (!allRapprochements.has(rapprochement.id)) {
+          allRapprochements.set(rapprochement.id, rapprochement);
+        }
+      }
 
       // Pour chaque rapprochement, charger le fichier de rapprochement associé
       const rapprochementsWithFiles = await Promise.all(
-        (data || []).map(async (item) => {
-          const rapprochementData = item.rapprochements_bancaires as any;
-          
+        Array.from(allRapprochements.values()).map(async (rapprochementData: any) => {
           // Trouver le fichier de rapprochement qui contient ce rapprochement
           const { data: fichierData } = await supabase
             .from("fichiers_rapprochement")
