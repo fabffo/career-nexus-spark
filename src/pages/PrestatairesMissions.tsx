@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Calendar, Users, DollarSign, Clock, FileText, TrendingUp } from "lucide-react";
+import { Calendar, Users, DollarSign, Clock, FileText, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { format, getDaysInMonth, startOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
+import { DataTable } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
 
 interface PrestataireMission {
   id: string;
@@ -209,6 +211,106 @@ export default function PrestatairesMissions() {
     { value: 12, label: "Décembre" }
   ];
 
+  const columns: ColumnDef<PrestataireMission>[] = [
+    {
+      id: "prestataire",
+      header: "Prestataire",
+      cell: ({ row }) => (
+        <span className="font-medium cursor-pointer" onClick={() => navigate(`/prestataire-mission/${row.original.id}`)}>
+          {row.original.prenom} {row.original.nom}
+        </span>
+      ),
+    },
+    {
+      id: "client",
+      header: "Client",
+      cell: ({ row }) => row.original.mission?.contrat?.client?.raison_sociale || '-',
+    },
+    {
+      id: "poste",
+      header: "Poste",
+      cell: ({ row }) => row.original.mission?.titre || '-',
+    },
+    {
+      id: "dates",
+      header: "Dates",
+      cell: ({ row }) => {
+        const mission = row.original.mission;
+        if (!mission) return '-';
+        return (
+          <span className="text-sm">
+            {mission.date_debut && format(new Date(mission.date_debut), 'dd/MM/yyyy', { locale: fr })}
+            {' - '}
+            {mission.date_fin ? format(new Date(mission.date_fin), 'dd/MM/yyyy', { locale: fr }) : 'En cours'}
+          </span>
+        );
+      },
+    },
+    {
+      id: "tjm",
+      header: "TJM",
+      cell: ({ row }) => (
+        <span className="text-right block">
+          {row.original.mission?.tjm ? `${row.original.mission.tjm} €` : '-'}
+        </span>
+      ),
+      meta: { className: "text-right" },
+    },
+    {
+      id: "jours_mois",
+      header: "Jours (mois)",
+      cell: ({ row }) => (
+        <span className="text-right block">{row.original.cra_actuel?.jours_travailles || 0}</span>
+      ),
+      meta: { className: "text-right" },
+    },
+    {
+      id: "ca_mois",
+      header: "CA (mois)",
+      cell: ({ row }) => (
+        <span className="text-right block font-medium">
+          {row.original.cra_actuel?.ca_mensuel 
+            ? `${row.original.cra_actuel.ca_mensuel.toLocaleString('fr-FR')} €`
+            : '-'
+          }
+        </span>
+      ),
+      meta: { className: "text-right" },
+    },
+    {
+      id: "statut_cra",
+      header: "Statut CRA",
+      cell: ({ row }) => getStatutCRABadge(row.original.cra_actuel?.statut),
+    },
+    {
+      id: "mission_statut",
+      header: "Mission",
+      cell: ({ row }) =>
+        row.original.mission ? (
+          <Badge className="bg-green-500">Actif</Badge>
+        ) : (
+          <Badge variant="secondary">Inactif</Badge>
+        ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/prestataire-mission/${row.original.id}`);
+          }}
+        >
+          Voir détail
+        </Button>
+      ),
+      meta: { className: "text-right" },
+    },
+  ];
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -305,17 +407,7 @@ export default function PrestatairesMissions() {
       </div>
 
       {/* Barre de recherche et filtres */}
-      <div className="flex gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher un prestataire, client ou poste..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        
+      <div className="flex gap-4 mb-4">        
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-48">
             <SelectValue />
@@ -326,93 +418,22 @@ export default function PrestatairesMissions() {
             <SelectItem value="termine">Terminés</SelectItem>
           </SelectContent>
         </Select>
+        
+        <Button
+          onClick={() => navigate('/cra-gestion')}
+          variant="outline"
+        >
+          <FileText className="h-4 w-4 mr-2" />
+          Gestion des CRA
+        </Button>
       </div>
 
       {/* Tableau des prestataires */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Liste des Prestataires</CardTitle>
-          <CardDescription>{filteredPrestataires.length} prestataire(s)</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left p-4 font-medium">Prestataire</th>
-                  <th className="text-left p-4 font-medium">Client</th>
-                  <th className="text-left p-4 font-medium">Poste</th>
-                  <th className="text-left p-4 font-medium">Dates</th>
-                  <th className="text-right p-4 font-medium">TJM</th>
-                  <th className="text-right p-4 font-medium">Jours (mois)</th>
-                  <th className="text-right p-4 font-medium">CA (mois)</th>
-                  <th className="text-left p-4 font-medium">Statut CRA</th>
-                  <th className="text-left p-4 font-medium">Mission</th>
-                  <th className="text-right p-4 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPrestataires.map((prestataire) => (
-                  <tr 
-                    key={prestataire.id} 
-                    className="border-b hover:bg-accent cursor-pointer transition-colors"
-                    onClick={() => navigate(`/prestataire-mission/${prestataire.id}`)}
-                  >
-                    <td className="p-4 font-medium">{prestataire.prenom} {prestataire.nom}</td>
-                    <td className="p-4">
-                      {prestataire.mission?.contrat?.client?.raison_sociale || '-'}
-                    </td>
-                    <td className="p-4">{prestataire.mission?.titre || '-'}</td>
-                    <td className="p-4 text-sm">
-                      {prestataire.mission ? (
-                        <>
-                          {prestataire.mission.date_debut && format(new Date(prestataire.mission.date_debut), 'dd/MM/yyyy', { locale: fr })}
-                          {' - '}
-                          {prestataire.mission.date_fin ? format(new Date(prestataire.mission.date_fin), 'dd/MM/yyyy', { locale: fr }) : 'En cours'}
-                        </>
-                      ) : '-'}
-                    </td>
-                    <td className="p-4 text-right">
-                      {prestataire.mission?.tjm ? `${prestataire.mission.tjm} €` : '-'}
-                    </td>
-                    <td className="p-4 text-right">
-                      {prestataire.cra_actuel?.jours_travailles || 0}
-                    </td>
-                    <td className="p-4 text-right font-medium">
-                      {prestataire.cra_actuel?.ca_mensuel 
-                        ? `${prestataire.cra_actuel.ca_mensuel.toLocaleString('fr-FR')} €`
-                        : '-'
-                      }
-                    </td>
-                    <td className="p-4">
-                      {getStatutCRABadge(prestataire.cra_actuel?.statut)}
-                    </td>
-                    <td className="p-4">
-                      {prestataire.mission ? (
-                        <Badge className="bg-green-500">Actif</Badge>
-                      ) : (
-                        <Badge variant="secondary">Inactif</Badge>
-                      )}
-                    </td>
-                    <td className="p-4 text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/prestataire-mission/${prestataire.id}`);
-                        }}
-                      >
-                        Voir détail
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      <DataTable
+        columns={columns}
+        data={filteredPrestataires}
+        searchPlaceholder="Rechercher un prestataire, client ou poste..."
+      />
     </div>
   );
 }

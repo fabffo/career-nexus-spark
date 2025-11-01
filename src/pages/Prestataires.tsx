@@ -1,19 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, FileText, Mail, Phone, Edit, Trash2, Eye, Copy, Download, Upload, Send } from 'lucide-react';
+import { Download, Upload, Send, Eye, Edit, Copy, Trash2, Plus, Search, FileText } from 'lucide-react';
 import { prestataireService } from '@/services/contratService';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { supabase } from '@/integrations/supabase/client';
 import { FileUploadField } from '@/components/FileUploadField';
+import { DataTable } from '@/components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
 
 export default function Prestataires() {
   const [prestataires, setPrestataires] = useState<any[]>([]);
@@ -230,6 +231,98 @@ export default function Prestataires() {
       .includes(searchTerm.toLowerCase())
   );
 
+  const columns: ColumnDef<any>[] = [
+    {
+      accessorKey: "nom",
+      header: "Nom",
+      cell: ({ row }) => <span className="font-medium">{row.original.nom}</span>,
+    },
+    {
+      accessorKey: "prenom",
+      header: "Prénom",
+    },
+    {
+      accessorKey: "type_prestataire",
+      header: "Type",
+      cell: ({ row }) => (
+        <Badge variant={row.original.type_prestataire === 'SOCIETE' ? 'default' : 'secondary'}>
+          {row.original.type_prestataire === 'SOCIETE' ? 'Société' : 'Indépendant'}
+        </Badge>
+      ),
+    },
+    {
+      id: "societe",
+      header: "Société",
+      cell: ({ row }) =>
+        row.original.type_prestataire === 'SOCIETE' && row.original.fournisseur_services
+          ? row.original.fournisseur_services.raison_sociale
+          : '-',
+    },
+    {
+      accessorKey: "email",
+      header: "Email",
+      cell: ({ row }) => row.original.email || '-',
+    },
+    {
+      accessorKey: "telephone",
+      header: "Téléphone",
+      cell: ({ row }) => row.original.telephone || '-',
+    },
+    {
+      id: "cv",
+      header: "CV",
+      cell: ({ row }) =>
+        row.original.cv_url ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => window.open(row.original.cv_url, '_blank')}
+          >
+            <Download className="h-4 w-4" />
+          </Button>
+        ) : null,
+    },
+    {
+      id: "statut",
+      header: "Statut",
+      cell: ({ row }) => {
+        if (row.original.user_id) {
+          return <Badge variant="default">Actif</Badge>;
+        } else if (row.original.invitation_sent_at) {
+          return <Badge variant="secondary">Invité</Badge>;
+        } else {
+          return <Badge variant="outline">En attente</Badge>;
+        }
+      },
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-1">
+          <Button size="sm" variant="ghost" onClick={() => openViewDialog(row.original)}>
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => openEditDialog(row.original)}>
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => handleDuplicate(row.original)}>
+            <Copy className="h-4 w-4" />
+          </Button>
+          {!row.original.user_id && row.original.email && (
+            <Button size="sm" variant="ghost" onClick={() => handleSendInvitation(row.original)}>
+              <Send className="h-4 w-4" />
+            </Button>
+          )}
+          <Button size="sm" variant="ghost" onClick={() => handleDelete(row.original.id)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+      meta: { className: "text-right" },
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -245,133 +338,11 @@ export default function Prestataires() {
         </Button>
       </div>
 
-      <Card>
-        <CardContent className="p-6">
-          <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Rechercher un prestataire..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-
-          <div className="rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nom</TableHead>
-                  <TableHead>Prénom</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Société</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Téléphone</TableHead>
-                  <TableHead>CV</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center">
-                      Chargement...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredPrestataires.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center">
-                      Aucun prestataire trouvé
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredPrestataires.map((prestataire) => (
-                    <TableRow key={prestataire.id}>
-                      <TableCell className="font-medium">{prestataire.nom}</TableCell>
-                      <TableCell>{prestataire.prenom}</TableCell>
-                      <TableCell>
-                        <Badge variant={prestataire.type_prestataire === 'SOCIETE' ? 'default' : 'secondary'}>
-                          {prestataire.type_prestataire === 'SOCIETE' ? 'Société' : 'Indépendant'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {prestataire.type_prestataire === 'SOCIETE' && prestataire.fournisseur_services ? 
-                          prestataire.fournisseur_services.raison_sociale : '-'}
-                      </TableCell>
-                      <TableCell>{prestataire.email || '-'}</TableCell>
-                      <TableCell>{prestataire.telephone || '-'}</TableCell>
-                      <TableCell>
-                        {prestataire.cv_url && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => window.open(prestataire.cv_url, '_blank')}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {prestataire.user_id ? (
-                          <Badge variant="default">Actif</Badge>
-                        ) : prestataire.invitation_sent_at ? (
-                          <Badge variant="secondary">Invité</Badge>
-                        ) : (
-                          <Badge variant="outline">En attente</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => openViewDialog(prestataire)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => openEditDialog(prestataire)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDuplicate(prestataire)}
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          {!prestataire.user_id && prestataire.email && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleSendInvitation(prestataire)}
-                            >
-                              <Send className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDelete(prestataire.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+      <DataTable
+        columns={columns}
+        data={filteredPrestataires}
+        searchPlaceholder="Rechercher un prestataire..."
+      />
 
       {/* Dialog de création/modification */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

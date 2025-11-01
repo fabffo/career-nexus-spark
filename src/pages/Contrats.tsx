@@ -3,10 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Plus, FileText, Edit, Trash2, Eye, Copy, Download, Calendar, DollarSign, FileCheck, XCircle, Archive } from 'lucide-react';
+import { Plus, FileText, Edit, Trash2, Eye, Copy, Download, FileCheck, XCircle, Archive } from 'lucide-react';
 import { contratService, prestataireService, fournisseurServicesService, fournisseurGeneralService } from '@/services/contratService';
 import { clientService } from '@/services';
 import { toast } from 'sonner';
@@ -20,6 +19,8 @@ import { ContratType, ContratStatut } from '@/types/contrat';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { DataTable } from '@/components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
 
 export default function Contrats() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -444,6 +445,165 @@ export default function Contrats() {
       .includes(searchTerm.toLowerCase())
   );
 
+  const columns: ColumnDef<any>[] = [
+    {
+      accessorKey: "numero_contrat",
+      header: "N° Contrat",
+      cell: ({ row }) => <span className="font-medium">{row.original.numero_contrat}</span>,
+    },
+    {
+      accessorKey: "type",
+      header: "Type",
+      cell: ({ row }) => getTypeLabel(row.original.type),
+    },
+    {
+      id: "partie",
+      header: "Partie",
+      cell: ({ row }) => getContratParty(row.original),
+    },
+    {
+      accessorKey: "montant",
+      header: "Montant",
+      cell: ({ row }) =>
+        row.original.montant ? `${row.original.montant.toLocaleString('fr-FR')} €` : '-',
+    },
+    {
+      accessorKey: "date_debut",
+      header: "Date début",
+      cell: ({ row }) =>
+        row.original.date_debut
+          ? format(new Date(row.original.date_debut), 'dd/MM/yyyy', { locale: fr })
+          : '-',
+    },
+    {
+      accessorKey: "date_fin",
+      header: "Date fin",
+      cell: ({ row }) =>
+        row.original.date_fin
+          ? format(new Date(row.original.date_fin), 'dd/MM/yyyy', { locale: fr })
+          : '-',
+    },
+    {
+      accessorKey: "version",
+      header: "Version",
+    },
+    {
+      accessorKey: "statut",
+      header: "Statut",
+      cell: ({ row }) => (
+        <Badge variant={getStatutBadgeVariant(row.original.statut)}>
+          {row.original.statut}
+        </Badge>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => {
+        const contrat = row.original;
+        return (
+          <TooltipProvider>
+            <div className="flex justify-end gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="sm" variant="ghost" onClick={() => openViewDialog(contrat)}>
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent><p>Voir les détails</p></TooltipContent>
+              </Tooltip>
+              
+              {contrat.statut !== 'ARCHIVE' && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="sm" variant="ghost" onClick={() => openEditDialog(contrat)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p>Modifier le contrat</p></TooltipContent>
+                </Tooltip>
+              )}
+              
+              {contrat.statut === 'BROUILLON' && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="sm" variant="ghost" onClick={() => handleStatusAction(contrat.id, 'activer')}>
+                      <FileCheck className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p>Activer le contrat</p></TooltipContent>
+                </Tooltip>
+              )}
+              
+              {contrat.statut === 'ACTIF' && (
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="sm" variant="ghost" onClick={() => openAvenantDialog(contrat)}>
+                        <Archive className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Créer un avenant</p></TooltipContent>
+                  </Tooltip>
+                  
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="sm" variant="ghost" onClick={() => handleStatusAction(contrat.id, 'terminer')}>
+                        <FileCheck className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Terminer le contrat</p></TooltipContent>
+                  </Tooltip>
+                  
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="sm" variant="ghost" onClick={() => handleStatusAction(contrat.id, 'annuler')}>
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Annuler le contrat</p></TooltipContent>
+                  </Tooltip>
+                </>
+              )}
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="sm" variant="ghost" onClick={() => handleDuplicate(contrat)}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent><p>Dupliquer le contrat</p></TooltipContent>
+              </Tooltip>
+              
+              {contrat.piece_jointe_url && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="sm" variant="ghost" onClick={() => window.open(contrat.piece_jointe_url, '_blank')}>
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p>Télécharger la pièce jointe</p></TooltipContent>
+                </Tooltip>
+              )}
+              
+              {contrat.statut === 'BROUILLON' && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="sm" variant="ghost" onClick={() => handleDelete(contrat.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent><p>Supprimer le contrat</p></TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          </TooltipProvider>
+        );
+      },
+      meta: { className: "text-right" },
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -462,15 +622,6 @@ export default function Contrats() {
       <Card>
         <CardContent className="p-6">
           <div className="mb-4 space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Rechercher un contrat..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
             <div className="flex items-center gap-2">
               <Label className="text-sm font-medium">Filtrer par statut:</Label>
               <div className="flex flex-wrap gap-2">
@@ -481,12 +632,10 @@ export default function Contrats() {
                     size="sm"
                     onClick={() => {
                       if (selectedStatuts.includes(statut)) {
-                        // Retirer le statut si déjà sélectionné (mais garder au moins un)
                         if (selectedStatuts.length > 1) {
                           setSelectedStatuts(selectedStatuts.filter(s => s !== statut));
                         }
                       } else {
-                        // Ajouter le statut
                         setSelectedStatuts([...selectedStatuts, statut]);
                       }
                     }}
@@ -505,215 +654,11 @@ export default function Contrats() {
             </div>
           </div>
 
-          <div className="rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>N° Contrat</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Partie</TableHead>
-                  <TableHead>Montant</TableHead>
-                  <TableHead>Date début</TableHead>
-                  <TableHead>Date fin</TableHead>
-                  <TableHead>Version</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center">
-                      Chargement...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredContrats.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center">
-                      Aucun contrat trouvé
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredContrats.map((contrat) => (
-                    <TableRow key={contrat.id}>
-                      <TableCell className="font-medium">{contrat.numero_contrat}</TableCell>
-                      <TableCell>{getTypeLabel(contrat.type)}</TableCell>
-                      <TableCell>{getContratParty(contrat)}</TableCell>
-                      <TableCell>
-                        {contrat.montant ? `${contrat.montant.toLocaleString('fr-FR')} €` : '-'}
-                      </TableCell>
-                      <TableCell>
-                        {contrat.date_debut ? format(new Date(contrat.date_debut), 'dd/MM/yyyy', { locale: fr }) : '-'}
-                      </TableCell>
-                      <TableCell>
-                        {contrat.date_fin ? format(new Date(contrat.date_fin), 'dd/MM/yyyy', { locale: fr }) : '-'}
-                      </TableCell>
-                      <TableCell>{contrat.version}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatutBadgeVariant(contrat.statut)}>
-                          {contrat.statut}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <TooltipProvider>
-                          <div className="flex justify-end gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => openViewDialog(contrat)}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Voir les détails</p>
-                              </TooltipContent>
-                            </Tooltip>
-                            
-                            {/* Bouton modifier disponible pour tous les statuts sauf ARCHIVE */}
-                            {contrat.statut !== 'ARCHIVE' && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => openEditDialog(contrat)}
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Modifier le contrat</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                            
-                            {/* Bouton activer uniquement pour les brouillons */}
-                            {contrat.statut === 'BROUILLON' && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleStatusAction(contrat.id, 'activer')}
-                                  >
-                                    <FileCheck className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Activer le contrat</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                            
-                            {contrat.statut === 'ACTIF' && (
-                              <>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => openAvenantDialog(contrat)}
-                                    >
-                                      <Archive className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Créer un avenant</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleStatusAction(contrat.id, 'terminer')}
-                                    >
-                                      <FileCheck className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Terminer le contrat</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleStatusAction(contrat.id, 'annuler')}
-                                    >
-                                      <XCircle className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Annuler le contrat</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </>
-                            )}
-                            
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleDuplicate(contrat)}
-                                >
-                                  <Copy className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Dupliquer le contrat</p>
-                              </TooltipContent>
-                            </Tooltip>
-                            
-                            {contrat.piece_jointe_url && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => window.open(contrat.piece_jointe_url, '_blank')}
-                                  >
-                                    <Download className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Télécharger la pièce jointe</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                            
-                            {contrat.statut === 'BROUILLON' && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleDelete(contrat.id)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Supprimer le contrat</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                          </div>
-                        </TooltipProvider>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable
+            columns={columns}
+            data={filteredContrats}
+            searchPlaceholder="Rechercher un contrat..."
+          />
         </CardContent>
       </Card>
 

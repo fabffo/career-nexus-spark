@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { Briefcase, Users, CheckCircle, TrendingUp, Search, ChevronRight } from 'lucide-react';
+import { Briefcase, Users, CheckCircle, TrendingUp, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { DataTable } from '@/components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
 
 interface PosteStats {
   id: string;
@@ -260,109 +262,12 @@ export function RecrutementGlobalView({ onPosteClick }: RecrutementGlobalViewPro
         </Card>
       </div>
 
-      {/* Barre de recherche */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher un poste..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        {(searchTerm || filteredPostes.length !== postesStats.length) && (
-          <Button
-            variant="outline"
-            onClick={() => {
-              setSearchTerm('');
-              setFilteredPostes(postesStats);
-            }}
-          >
-            Réinitialiser
-          </Button>
-        )}
-      </div>
-
       {/* Tableau des postes */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Liste des postes ({filteredPostes.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium">Titre du poste</th>
-                  <th className="text-left py-3 px-4 font-medium">Date d'ouverture</th>
-                  <th className="text-center py-3 px-4 font-medium">Candidats</th>
-                  <th className="text-center py-3 px-4 font-medium">RDV prévus</th>
-                  <th className="text-center py-3 px-4 font-medium">Taux conversion</th>
-                  <th className="text-center py-3 px-4 font-medium">Statut</th>
-                  <th className="text-center py-3 px-4 font-medium">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPostes.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Aucun poste trouvé
-                    </td>
-                  </tr>
-                ) : (
-                  filteredPostes.map((poste) => (
-                    <tr
-                      key={poste.id}
-                      className="border-b hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => onPosteClick(poste.id)}
-                    >
-                      <td className="py-3 px-4 font-medium">{poste.titre}</td>
-                      <td className="py-3 px-4 text-sm text-muted-foreground">
-                        {format(new Date(poste.created_at), 'dd MMM yyyy', { locale: fr })}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <Badge variant="secondary">{poste.totalCandidats}</Badge>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <Badge variant="secondary">{poste.totalRdvs}</Badge>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <Badge
-                          className={
-                            poste.tauxConversion >= 50
-                              ? 'bg-green-100 text-green-800'
-                              : poste.tauxConversion >= 25
-                              ? 'bg-orange-100 text-orange-800'
-                              : 'bg-red-100 text-red-800'
-                          }
-                        >
-                          {poste.tauxConversion}%
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        {getStatusBadge(poste.statut)}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onPosteClick(poste.id);
-                          }}
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      <DataTable
+        columns={columns}
+        data={filteredPostes}
+        searchPlaceholder="Rechercher un poste..."
+      />
     </div>
   );
 }
