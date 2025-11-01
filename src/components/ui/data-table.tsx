@@ -11,14 +11,7 @@ import {
 } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search } from "lucide-react";
 
@@ -49,22 +42,21 @@ export function DataTable<TData, TValue>({
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: (row, columnId, filterValue) => {
       const search = String(filterValue).toLowerCase();
-      
-      // Fonction récursive pour chercher dans tous les champs
+
       const searchInValue = (value: any): boolean => {
         if (value == null) return false;
-        
-        if (typeof value === 'string' || typeof value === 'number') {
+
+        if (typeof value === "string" || typeof value === "number") {
           return String(value).toLowerCase().includes(search);
         }
-        
-        if (typeof value === 'object') {
+
+        if (typeof value === "object") {
           return Object.values(value).some(searchInValue);
         }
-        
+
         return false;
       };
-      
+
       return searchInValue(row.original);
     },
     state: {
@@ -107,23 +99,18 @@ export function DataTable<TData, TValue>({
         </div>
       </div>
 
-      <div className="relative rounded-lg border border-border overflow-hidden">
-        <div className="max-h-[600px] overflow-y-auto">
+      <div className="rounded-lg border border-border overflow-hidden">
+        <div className="max-h-[600px] overflow-auto">
           <Table>
-            <TableHeader className="sticky top-0 bg-background z-10 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-border">
+            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
               {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                <TableRow key={headerGroup.id} className="hover:bg-transparent border-b-2">
                   {headerGroup.headers.map((header) => (
-                    <TableHead 
+                    <TableHead
                       key={header.id}
                       className={(header.column.columnDef.meta as any)?.className || "bg-background"}
                     >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -138,10 +125,7 @@ export function DataTable<TData, TValue>({
                     className="hover:bg-muted/50 transition-colors"
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell 
-                        key={cell.id}
-                        className={(cell.column.columnDef.meta as any)?.className}
-                      >
+                      <TableCell key={cell.id} className={(cell.column.columnDef.meta as any)?.className}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
@@ -183,12 +167,7 @@ export function DataTable<TData, TValue>({
           <span className="text-sm text-muted-foreground px-2">
             Page {table.getPageCount() > 0 ? pageIndex + 1 : 0} sur {table.getPageCount()}
           </span>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
+          <Button variant="outline" size="icon" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button
