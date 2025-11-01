@@ -94,7 +94,7 @@ const handler = async (req: Request): Promise<Response> => {
       .insert({
         user_id: userId,
         code_hash: codeHash,
-        method: 'EMAIL',
+        method: 'email',
         expires_at: expiresAt,
         attempts: 0,
       });
