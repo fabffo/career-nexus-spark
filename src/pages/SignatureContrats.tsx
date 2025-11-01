@@ -3,13 +3,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Download, FileSignature, ExternalLink } from "lucide-react";
+import { FileText, FileSignature } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Contrat } from "@/types/contrat";
+import { DataTable } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
 import {
   Dialog,
   DialogContent,
@@ -58,36 +59,6 @@ export default function SignatureContrats() {
     }
   };
 
-  const handleDownload = async (contrat: Contrat) => {
-    if (!contrat.piece_jointe_url) {
-      toast.error("Aucun document disponible pour ce contrat");
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase.storage
-        .from("factures")
-        .download(contrat.piece_jointe_url);
-
-      if (error) throw error;
-
-      const blob = new Blob([data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Contrat_${contrat.numero_contrat}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast.success("Contrat téléchargé avec succès");
-    } catch (error: any) {
-      console.error("Erreur lors du téléchargement:", error);
-      toast.error("Erreur lors du téléchargement du contrat");
-    }
-  };
-
   const handleSendToAdobeSign = async (contrat: Contrat) => {
     if (!adobeSignUrl) {
       toast.error("Veuillez configurer l'URL Adobe Sign dans les paramètres");
@@ -118,6 +89,102 @@ export default function SignatureContrats() {
     };
     return labels[type] || type;
   };
+
+  const handleDownload = async (contrat: Contrat) => {
+    if (!contrat.piece_jointe_url) {
+      toast.error("Aucun document disponible pour ce contrat");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.storage
+        .from("factures")
+        .download(contrat.piece_jointe_url);
+
+      if (error) throw error;
+
+      const blob = new Blob([data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Contrat_${contrat.numero_contrat}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success("Contrat téléchargé avec succès");
+    } catch (error: any) {
+      console.error("Erreur lors du téléchargement:", error);
+      toast.error("Erreur lors du téléchargement du contrat");
+    }
+  };
+
+  const columns: ColumnDef<Contrat>[] = [
+    {
+      accessorKey: "numero_contrat",
+      header: "N° Contrat",
+      cell: ({ row }) => <span className="font-medium">{row.original.numero_contrat}</span>,
+    },
+    {
+      accessorKey: "type",
+      header: "Type",
+      cell: ({ row }) => <Badge variant="outline">{getTypeLabel(row.original.type)}</Badge>,
+    },
+    {
+      id: "entite",
+      header: "Entité",
+      cell: ({ row }) => getEntityName(row.original),
+    },
+    {
+      accessorKey: "date_debut",
+      header: "Date début",
+      cell: ({ row }) =>
+        format(new Date(row.original.date_debut), "dd/MM/yyyy", { locale: fr }),
+    },
+    {
+      accessorKey: "date_fin",
+      header: "Date fin",
+      cell: ({ row }) =>
+        row.original.date_fin
+          ? format(new Date(row.original.date_fin), "dd/MM/yyyy", { locale: fr })
+          : "Indéterminée",
+    },
+    {
+      accessorKey: "montant",
+      header: "Montant",
+      cell: ({ row }) =>
+        row.original.montant ? `${row.original.montant.toLocaleString("fr-FR")} €` : "-",
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleDownload(row.original)}
+            disabled={!row.original.piece_jointe_url}
+          >
+            Télécharger
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => {
+              setSelectedContrat(row.original);
+              handleSendToAdobeSign(row.original);
+            }}
+          >
+            <FileSignature className="mr-2 h-4 w-4" />
+            Signer
+          </Button>
+        </div>
+      ),
+      meta: { className: "text-right" },
+    },
+  ];
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -168,81 +235,11 @@ export default function SignatureContrats() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="text-center py-8">Chargement...</div>
-          ) : contratsActifs.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>Aucun contrat actif à signer</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>N° Contrat</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Entité</TableHead>
-                  <TableHead>Date début</TableHead>
-                  <TableHead>Date fin</TableHead>
-                  <TableHead>Montant</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {contratsActifs.map((contrat) => (
-                  <TableRow key={contrat.id}>
-                    <TableCell className="font-medium">
-                      {contrat.numero_contrat}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {getTypeLabel(contrat.type)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{getEntityName(contrat)}</TableCell>
-                    <TableCell>
-                      {format(new Date(contrat.date_debut), "dd/MM/yyyy", {
-                        locale: fr,
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      {contrat.date_fin
-                        ? format(new Date(contrat.date_fin), "dd/MM/yyyy", {
-                            locale: fr,
-                          })
-                        : "Indéterminée"}
-                    </TableCell>
-                    <TableCell>
-                      {contrat.montant
-                        ? `${contrat.montant.toLocaleString("fr-FR")} €`
-                        : "-"}
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDownload(contrat)}
-                        disabled={!contrat.piece_jointe_url}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedContrat(contrat);
-                          handleSendToAdobeSign(contrat);
-                        }}
-                      >
-                        <FileSignature className="mr-2 h-4 w-4" />
-                        Signer
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <DataTable
+            columns={columns}
+            data={contratsActifs || []}
+            searchPlaceholder="Rechercher un contrat..."
+          />
         </CardContent>
       </Card>
 

@@ -2,22 +2,25 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { DataTable } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
 
 const TYPE_CHARGE_LABELS: Record<string, string> = {
   SALAIRE: "Salaire",
   COTISATIONS: "Cotisations",
   CHARGES_PATRONALES: "Charges Patronales",
   AUTRES: "Autres",
+};
+
+type Charge = {
+  id: string;
+  date_paiement: string;
+  montant: number;
+  notes: string;
+  declaration?: { id: string; nom: string; organisme: string; type_charge: string };
+  rapprochement?: { id: string; transaction_libelle: string };
 };
 
 export default function ChargesSalaries() {
@@ -48,6 +51,64 @@ export default function ChargesSalaries() {
       return acc;
     }, {} as Record<string, number>),
   };
+
+  const columns: ColumnDef<Charge>[] = [
+    {
+      accessorKey: "date_paiement",
+      header: "Date",
+      cell: ({ row }) =>
+        format(new Date(row.original.date_paiement), "dd MMM yyyy", { locale: fr }),
+    },
+    {
+      id: "declaration",
+      header: "Déclaration",
+      cell: ({ row }) => (
+        <span className="font-medium">{row.original.declaration?.nom || "-"}</span>
+      ),
+    },
+    {
+      id: "organisme",
+      header: "Organisme",
+      cell: ({ row }) => row.original.declaration?.organisme || "-",
+    },
+    {
+      id: "type_charge",
+      header: "Type de charge",
+      cell: ({ row }) => {
+        const type = row.original.declaration?.type_charge;
+        return type ? (
+          <Badge variant="outline">
+            {TYPE_CHARGE_LABELS[type] || type}
+          </Badge>
+        ) : null;
+      },
+    },
+    {
+      accessorKey: "montant",
+      header: "Montant",
+      cell: ({ row }) => (
+        <span className="font-semibold">{Number(row.original.montant).toFixed(2)} €</span>
+      ),
+    },
+    {
+      id: "rapprochement",
+      header: "Rapprochement",
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">
+          {row.original.rapprochement?.transaction_libelle || "-"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "notes",
+      header: "Notes",
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground max-w-xs truncate block">
+          {row.original.notes || "-"}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div className="container mx-auto py-6">
@@ -89,69 +150,11 @@ export default function ChargesSalaries() {
         </Card>
       </div>
 
-      {/* Tableau des charges */}
-      <div className="bg-card rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Déclaration</TableHead>
-              <TableHead>Organisme</TableHead>
-              <TableHead>Type de charge</TableHead>
-              <TableHead>Montant</TableHead>
-              <TableHead>Rapprochement</TableHead>
-              <TableHead>Notes</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center">
-                  Chargement...
-                </TableCell>
-              </TableRow>
-            ) : charges.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center">
-                  Aucune charge enregistrée
-                </TableCell>
-              </TableRow>
-            ) : (
-              charges.map((charge) => (
-                <TableRow key={charge.id}>
-                  <TableCell>
-                    {format(new Date(charge.date_paiement), "dd MMM yyyy", {
-                      locale: fr,
-                    })}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {charge.declaration?.nom || "-"}
-                  </TableCell>
-                  <TableCell>
-                    {charge.declaration?.organisme || "-"}
-                  </TableCell>
-                  <TableCell>
-                    {charge.declaration?.type_charge && (
-                      <Badge variant="outline">
-                        {TYPE_CHARGE_LABELS[charge.declaration.type_charge] || charge.declaration.type_charge}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-semibold">
-                    {Number(charge.montant).toFixed(2)} €
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {charge.rapprochement?.transaction_libelle || "-"}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                    {charge.notes || "-"}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        columns={columns}
+        data={charges || []}
+        searchPlaceholder="Rechercher une charge..."
+      />
     </div>
   );
 }

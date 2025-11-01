@@ -3,12 +3,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import AddDeclarationChargeDialog from "@/components/AddDeclarationChargeDialog";
 import EditDeclarationChargeDialog from "@/components/EditDeclarationChargeDialog";
+import { DataTable } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
 
 const PERIODICITE_LABELS = {
   MENSUEL: "Mensuel",
@@ -21,6 +22,17 @@ const TYPE_CHARGE_LABELS = {
   CHARGES_SOCIALES: "Charges sociales",
   RETRAITE: "Retraite",
   MUTUELLE: "Mutuelle"
+};
+
+type Declaration = {
+  id: string;
+  nom: string;
+  organisme: string;
+  type_charge: string;
+  periodicite: string;
+  montant_estime: number;
+  jour_echeance: number;
+  actif: boolean;
 };
 
 export default function DeclarationsChargesSociales() {
@@ -79,6 +91,94 @@ export default function DeclarationsChargesSociales() {
     }
   });
 
+  const columns: ColumnDef<Declaration>[] = [
+    {
+      accessorKey: "nom",
+      header: "Nom",
+      cell: ({ row }) => <span className="font-medium">{row.original.nom}</span>,
+    },
+    {
+      accessorKey: "organisme",
+      header: "Organisme",
+    },
+    {
+      accessorKey: "type_charge",
+      header: "Type",
+      cell: ({ row }) => (
+        <Badge variant="outline">
+          {TYPE_CHARGE_LABELS[row.original.type_charge as keyof typeof TYPE_CHARGE_LABELS]}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "periodicite",
+      header: "Périodicité",
+      cell: ({ row }) => PERIODICITE_LABELS[row.original.periodicite as keyof typeof PERIODICITE_LABELS],
+    },
+    {
+      accessorKey: "montant_estime",
+      header: "Montant estimé",
+      cell: ({ row }) =>
+        row.original.montant_estime
+          ? `${Number(row.original.montant_estime).toFixed(2)} €`
+          : "-",
+    },
+    {
+      accessorKey: "jour_echeance",
+      header: "Jour échéance",
+      cell: ({ row }) => row.original.jour_echeance || "-",
+    },
+    {
+      id: "statut",
+      header: "Statut",
+      cell: ({ row }) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() =>
+            toggleActifMutation.mutate({
+              id: row.original.id,
+              actif: !row.original.actif,
+            })
+          }
+        >
+          {row.original.actif ? (
+            <CheckCircle className="h-4 w-4 text-green-600" />
+          ) : (
+            <XCircle className="h-4 w-4 text-gray-400" />
+          )}
+        </Button>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setEditingDeclaration(row.original)}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (confirm("Êtes-vous sûr de vouloir supprimer cette déclaration ?")) {
+                deleteMutation.mutate(row.original.id);
+              }
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+      meta: { className: "text-right" },
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -99,87 +199,11 @@ export default function DeclarationsChargesSociales() {
           <CardTitle>Liste des déclarations</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div>Chargement...</div>
-          ) : !declarations?.length ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Aucune déclaration enregistrée
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nom</TableHead>
-                  <TableHead>Organisme</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Périodicité</TableHead>
-                  <TableHead>Montant estimé</TableHead>
-                  <TableHead>Jour échéance</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {declarations.map((declaration) => (
-                  <TableRow key={declaration.id}>
-                    <TableCell className="font-medium">{declaration.nom}</TableCell>
-                    <TableCell>{declaration.organisme}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {TYPE_CHARGE_LABELS[declaration.type_charge as keyof typeof TYPE_CHARGE_LABELS]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {PERIODICITE_LABELS[declaration.periodicite as keyof typeof PERIODICITE_LABELS]}
-                    </TableCell>
-                    <TableCell>
-                      {declaration.montant_estime ? 
-                        `${Number(declaration.montant_estime).toFixed(2)} €` : 
-                        '-'
-                      }
-                    </TableCell>
-                    <TableCell>{declaration.jour_echeance || '-'}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleActifMutation.mutate({
-                          id: declaration.id,
-                          actif: !declaration.actif
-                        })}
-                      >
-                        {declaration.actif ? (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                        ) : (
-                          <XCircle className="h-4 w-4 text-gray-400" />
-                        )}
-                      </Button>
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEditingDeclaration(declaration)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          if (confirm('Êtes-vous sûr de vouloir supprimer cette déclaration ?')) {
-                            deleteMutation.mutate(declaration.id);
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <DataTable
+            columns={columns}
+            data={declarations || []}
+            searchPlaceholder="Rechercher une déclaration..."
+          />
         </CardContent>
       </Card>
 

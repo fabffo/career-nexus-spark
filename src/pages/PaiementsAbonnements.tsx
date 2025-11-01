@@ -1,18 +1,11 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { DataTable } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
 
 const NATURE_LABELS: Record<string, string> = {
   RELEVE_BANQUE: "Relevé Banque",
@@ -20,6 +13,15 @@ const NATURE_LABELS: Record<string, string> = {
   LOA_VOITURE: "LOA Voiture",
   LOYER: "Loyer",
   AUTRE: "Autre",
+};
+
+type Paiement = {
+  id: string;
+  date_paiement: string;
+  montant: number;
+  notes: string;
+  abonnement?: { id: string; nom: string; nature: string };
+  rapprochement?: { id: string; transaction_libelle: string };
 };
 
 export default function PaiementsAbonnements() {
@@ -50,6 +52,57 @@ export default function PaiementsAbonnements() {
       return acc;
     }, {} as Record<string, number>),
   };
+
+  const columns: ColumnDef<Paiement>[] = [
+    {
+      accessorKey: "date_paiement",
+      header: "Date",
+      cell: ({ row }) =>
+        format(new Date(row.original.date_paiement), "dd MMM yyyy", { locale: fr }),
+    },
+    {
+      id: "abonnement",
+      header: "Abonnement",
+      cell: ({ row }) => (
+        <span className="font-medium">{row.original.abonnement?.nom || "-"}</span>
+      ),
+    },
+    {
+      id: "nature",
+      header: "Nature",
+      cell: ({ row }) => {
+        const nature = row.original.abonnement?.nature;
+        return nature ? (
+          <Badge variant="outline">{NATURE_LABELS[nature]}</Badge>
+        ) : null;
+      },
+    },
+    {
+      accessorKey: "montant",
+      header: "Montant",
+      cell: ({ row }) => (
+        <span className="font-semibold">{Number(row.original.montant).toFixed(2)} €</span>
+      ),
+    },
+    {
+      id: "rapprochement",
+      header: "Rapprochement",
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground max-w-xs truncate block">
+          {row.original.rapprochement?.transaction_libelle || "-"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "notes",
+      header: "Notes",
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground max-w-xs truncate block">
+          {row.original.notes || "-"}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div className="container mx-auto py-6">
@@ -91,65 +144,11 @@ export default function PaiementsAbonnements() {
         </Card>
       </div>
 
-      {/* Tableau des paiements */}
-      <div className="bg-card rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Abonnement</TableHead>
-              <TableHead>Nature</TableHead>
-              <TableHead>Montant</TableHead>
-              <TableHead>Rapprochement</TableHead>
-              <TableHead>Notes</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center">
-                  Chargement...
-                </TableCell>
-              </TableRow>
-            ) : paiements.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center">
-                  Aucun paiement enregistré
-                </TableCell>
-              </TableRow>
-            ) : (
-              paiements.map((paiement) => (
-                <TableRow key={paiement.id}>
-                  <TableCell>
-                    {format(new Date(paiement.date_paiement), "dd MMM yyyy", {
-                      locale: fr,
-                    })}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {paiement.abonnement?.nom || "-"}
-                  </TableCell>
-                  <TableCell>
-                    {paiement.abonnement?.nature && (
-                      <Badge variant="outline">
-                        {NATURE_LABELS[paiement.abonnement.nature]}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-semibold">
-                    {Number(paiement.montant).toFixed(2)} €
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                    {paiement.rapprochement?.transaction_libelle || "-"}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                    {paiement.notes || "-"}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        columns={columns}
+        data={paiements || []}
+        searchPlaceholder="Rechercher un paiement..."
+      />
     </div>
   );
 }
