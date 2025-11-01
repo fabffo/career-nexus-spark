@@ -873,6 +873,7 @@ export type Database = {
           id: string
           informations_paiement: string | null
           numero_facture: string
+          numero_ligne_rapprochement: string | null
           numero_rapprochement: string | null
           reference_societe: string | null
           statut: string | null
@@ -903,6 +904,7 @@ export type Database = {
           id?: string
           informations_paiement?: string | null
           numero_facture: string
+          numero_ligne_rapprochement?: string | null
           numero_rapprochement?: string | null
           reference_societe?: string | null
           statut?: string | null
@@ -933,6 +935,7 @@ export type Database = {
           id?: string
           informations_paiement?: string | null
           numero_facture?: string
+          numero_ligne_rapprochement?: string | null
           numero_rapprochement?: string | null
           reference_societe?: string | null
           statut?: string | null

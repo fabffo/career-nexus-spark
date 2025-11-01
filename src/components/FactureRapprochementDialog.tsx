@@ -6,22 +6,24 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Loader2, AlertTriangle, Link, Unlink } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface RapprochementInfo {
   id: string;
-  numero_ligne: string;
-  transaction_date: string;
-  transaction_libelle: string;
-  transaction_debit: number;
-  transaction_credit: number;
-  transaction_montant: number;
+  date: string;
+  libelle: string;
+  montant: number;
+  debit: number;
+  credit: number;
+  fichierNumero: string;
   notes?: string;
-  fichier?: {
-    numero_rapprochement: string;
-    statut: string;
-  };
+  facturesAssociees?: Array<{
+    numero_facture: string;
+    total_ttc: number;
+    total_tva: number;
+    type_facture: string;
+  }>;
 }
 
 interface FactureRapprochementDialogProps {
@@ -51,67 +53,91 @@ export default function FactureRapprochementDialog({
   }, [open, factureId]);
 
   const loadRapprochements = async () => {
+    if (!factureId) return;
+    
     setLoading(true);
     try {
-      // Récupérer d'abord la facture pour obtenir son numero_rapprochement
+      // Récupérer le numero_ligne_rapprochement de la facture
       const { data: factureData, error: factureError } = await supabase
         .from("factures")
-        .select("numero_rapprochement")
+        .select("numero_rapprochement, numero_ligne_rapprochement")
         .eq("id", factureId)
         .single();
 
       if (factureError) throw factureError;
-
-      const numeroRapprochement = factureData?.numero_rapprochement;
-
-      if (!numeroRapprochement) {
+      
+      if (!factureData?.numero_ligne_rapprochement) {
+        console.log("Pas de numero_ligne_rapprochement pour cette facture");
         setRapprochements([]);
         return;
       }
 
-      // Charger le fichier de rapprochement avec ce numéro
+      console.log("📄 Numero ligne rapprochement:", factureData.numero_ligne_rapprochement);
+
+      // Charger le fichier de rapprochement
       const { data: fichierData, error: fichierError } = await supabase
         .from("fichiers_rapprochement")
-        .select("numero_rapprochement, statut, fichier_data")
-        .eq("numero_rapprochement", numeroRapprochement)
-        .eq("statut", "VALIDE")
+        .select("fichier_data, numero_rapprochement")
+        .eq("numero_rapprochement", factureData.numero_rapprochement)
         .single();
 
-      if (fichierError) {
-        if (fichierError.code === "PGRST116") {
-          // Aucun fichier trouvé
-          setRapprochements([]);
-          return;
-        }
-        throw fichierError;
+      if (fichierError) throw fichierError;
+      
+      if (!fichierData?.fichier_data) {
+        console.log("Pas de fichier_data");
+        setRapprochements([]);
+        return;
       }
 
-      const fichierDataParsed = fichierData.fichier_data as any;
+      console.log("📦 Fichier data:", fichierData.fichier_data);
+
+      // Extraire les rapprochements du JSON avec un cast approprié
+      const fichierDataTyped = fichierData.fichier_data as any;
       const allRapprochements = [
-        ...(fichierDataParsed?.rapprochements || []),
-        ...(fichierDataParsed?.rapprochementsManuels || [])
+        ...(fichierDataTyped?.rapprochements || []),
+        ...(fichierDataTyped?.rapprochementsManuels || [])
       ];
 
-      // Filtrer les rapprochements pour cette facture uniquement
-      const factureRapprochements = allRapprochements
-        .filter((item: any) => item.facture?.id === factureId)
-        .map((item: any, index: number) => ({
-          id: `${numeroRapprochement}-${index}`,
-          numero_ligne: `Transaction ${index + 1}`,
-          transaction_date: item.transaction?.date,
-          transaction_libelle: item.transaction?.libelle,
-          transaction_debit: item.transaction?.debit || 0,
-          transaction_credit: item.transaction?.credit || 0,
-          transaction_montant: item.transaction?.montant,
-          notes: item.isManual ? "Rapprochement manuel" : "Rapprochement automatique",
-          fichier: {
-            numero_rapprochement: fichierData.numero_rapprochement,
-            statut: fichierData.statut,
-          },
-        }));
+      console.log("📊 Total rapprochements dans le fichier:", allRapprochements.length);
 
-      setRapprochements(factureRapprochements);
-    } catch (error: any) {
+      // Trouver le rapprochement spécifique par numero_ligne
+      const rapprochementLigne = allRapprochements.find((item: any) => 
+        item.numero_ligne === factureData.numero_ligne_rapprochement
+      );
+
+      if (!rapprochementLigne) {
+        console.log("❌ Aucun rapprochement trouvé avec ce numero_ligne");
+        setRapprochements([]);
+        return;
+      }
+
+      console.log("✅ Rapprochement trouvé:", rapprochementLigne);
+
+      // Récupérer toutes les factures associées à cette ligne
+      const { data: facturesAssociees, error: facturesError } = await supabase
+        .from("factures")
+        .select("numero_facture, total_ttc, total_tva, type_facture")
+        .eq("numero_ligne_rapprochement", factureData.numero_ligne_rapprochement);
+
+      if (facturesError) throw facturesError;
+
+      console.log("📋 Factures associées à cette ligne:", facturesAssociees?.length);
+
+      // Transformer en format d'affichage
+      const rapprochementInfo: RapprochementInfo = {
+        id: factureData.numero_ligne_rapprochement,
+        date: rapprochementLigne.transaction.date,
+        libelle: rapprochementLigne.transaction.libelle,
+        montant: rapprochementLigne.transaction.montant,
+        debit: rapprochementLigne.transaction.debit || 0,
+        credit: rapprochementLigne.transaction.credit || 0,
+        fichierNumero: fichierData.numero_rapprochement,
+        notes: rapprochementLigne.notes,
+        facturesAssociees: facturesAssociees || []
+      };
+
+      setRapprochements([rapprochementInfo]);
+    } catch (error) {
       console.error("Erreur chargement rapprochements:", error);
       toast({
         title: "Erreur",
@@ -123,86 +149,103 @@ export default function FactureRapprochementDialog({
     }
   };
 
-  const handleUnlink = async (rapprochementId: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir annuler ce rapprochement ? La facture redeviendra disponible pour un nouveau rapprochement.")) {
+  const handleUnlink = async (numeroLigne: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir annuler ce rapprochement ? Toutes les factures associées à cette ligne seront dé-rapprochées.")) {
       return;
     }
 
     setUnlinking(true);
     try {
-      // Récupérer le numero_rapprochement de la facture
-      const { data: factureData, error: factureError } = await supabase
+      // Récupérer toutes les factures associées à ce numero_ligne
+      const { data: facturesAssociees, error: facturesError } = await supabase
         .from("factures")
-        .select("numero_rapprochement")
-        .eq("id", factureId)
-        .single();
+        .select("id, numero_rapprochement")
+        .eq("numero_ligne_rapprochement", numeroLigne);
 
-      if (factureError) throw factureError;
+      if (facturesError) throw facturesError;
 
-      const numeroRapprochement = factureData?.numero_rapprochement;
-
-      if (!numeroRapprochement) {
-        throw new Error("Numéro de rapprochement introuvable");
+      if (!facturesAssociees || facturesAssociees.length === 0) {
+        throw new Error("Aucune facture trouvée pour ce numero_ligne");
       }
+
+      const numeroRapprochement = facturesAssociees[0].numero_rapprochement;
 
       // Charger le fichier de rapprochement
       const { data: fichierData, error: fichierError } = await supabase
         .from("fichiers_rapprochement")
-        .select("fichier_data")
+        .select("id, fichier_data")
         .eq("numero_rapprochement", numeroRapprochement)
         .single();
 
       if (fichierError) throw fichierError;
+      if (!fichierData?.fichier_data) {
+        throw new Error("Pas de fichier_data trouvé");
+      }
 
-      const fichierDataParsed = fichierData.fichier_data as any;
+      // Modifier le JSON pour mettre cette ligne en "partial" avec cast approprié
+      const fichierDataTyped = fichierData.fichier_data as any;
+      const updatedRapprochements = fichierDataTyped?.rapprochements?.map((item: any) => {
+        if (item.numero_ligne === numeroLigne) {
+          return {
+            ...item,
+            facture: undefined,
+            factureIds: undefined,
+            factures: undefined,
+            status: "partial"
+          };
+        }
+        return item;
+      }) || [];
 
-      // Retirer la facture de tous les rapprochements (automatiques et manuels)
-      const updatedRapprochements = (fichierDataParsed?.rapprochements || [])
-        .filter((item: any) => item.facture?.id !== factureId);
+      const updatedManuels = fichierDataTyped?.rapprochementsManuels?.map((item: any) => {
+        if (item.numero_ligne === numeroLigne) {
+          return {
+            ...item,
+            facture: undefined,
+            factureIds: undefined,
+            factures: undefined,
+            status: "partial"
+          };
+        }
+        return item;
+      }) || [];
 
-      const updatedRapprochementsManuels = (fichierDataParsed?.rapprochementsManuels || [])
-        .filter((item: any) => item.facture?.id !== factureId);
-
-      // Mettre à jour le fichier_data
+      // Mettre à jour le fichier
       const { error: updateFichierError } = await supabase
         .from("fichiers_rapprochement")
         .update({
           fichier_data: {
-            ...fichierDataParsed,
+            ...fichierDataTyped,
             rapprochements: updatedRapprochements,
-            rapprochementsManuels: updatedRapprochementsManuels,
-          },
+            rapprochementsManuels: updatedManuels
+          } as any
         })
-        .eq("numero_rapprochement", numeroRapprochement);
+        .eq("id", fichierData.id);
 
       if (updateFichierError) throw updateFichierError;
 
-      // Remettre la facture en statut VALIDEE
-      const { error: updateFactureError } = await supabase
+      // Mettre à jour toutes les factures associées
+      const { error: updateFacturesError } = await supabase
         .from("factures")
         .update({
           statut: "VALIDEE",
           numero_rapprochement: null,
-          date_rapprochement: null,
-          updated_at: new Date().toISOString(),
+          numero_ligne_rapprochement: null,
+          date_rapprochement: null
         })
-        .eq("id", factureId);
+        .eq("numero_ligne_rapprochement", numeroLigne);
 
-      if (updateFactureError) throw updateFactureError;
+      if (updateFacturesError) throw updateFacturesError;
 
       toast({
         title: "Succès",
-        description: "Rapprochement annulé avec succès",
+        description: `Le rapprochement a été annulé pour ${facturesAssociees.length} facture(s)`,
       });
 
-      // Recharger les rapprochements
-      await loadRapprochements();
-      
-      if (onSuccess) {
-        onSuccess();
-      }
-    } catch (error: any) {
-      console.error("Erreur lors de l'annulation:", error);
+      onSuccess?.();
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Erreur:", error);
       toast({
         title: "Erreur",
         description: "Impossible d'annuler le rapprochement",
@@ -215,114 +258,121 @@ export default function FactureRapprochementDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Rapprochements bancaires - Facture {factureNumero}</DialogTitle>
+          <DialogTitle>Détail du rapprochement - Facture {factureNumero}</DialogTitle>
         </DialogHeader>
 
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin" />
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : rapprochements.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <AlertTriangle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>Aucun rapprochement trouvé pour cette facture</p>
+          <div className="text-center py-8">
+            <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <p className="text-muted-foreground">Aucun rapprochement trouvé pour cette facture</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {rapprochements.map((rapprochement) => (
-              <Card key={rapprochement.id}>
-                <CardContent className="pt-6">
-                  <div className="space-y-3">
-                    {/* Numéro de ligne */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Link className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-semibold">N° Ligne:</span>
-                        <Badge variant="outline" className="font-mono">
-                          {rapprochement.numero_ligne}
-                        </Badge>
-                      </div>
-                      {rapprochement.fichier && (
-                        <Badge variant="secondary">
-                          {rapprochement.fichier.numero_rapprochement}
-                        </Badge>
-                      )}
-                    </div>
-
-                    {/* Date de transaction */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="text-sm text-muted-foreground">Date transaction:</span>
-                        <p className="font-medium">
-                          {format(new Date(rapprochement.transaction_date), "dd/MM/yyyy", { locale: fr })}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-sm text-muted-foreground">Montant:</span>
-                        <p className="font-medium">
-                          {new Intl.NumberFormat("fr-FR", {
-                            style: "currency",
-                            currency: "EUR",
-                          }).format(rapprochement.transaction_montant)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Libellé */}
-                    <div>
-                      <span className="text-sm text-muted-foreground">Libellé bancaire:</span>
-                      <p className="font-medium">{rapprochement.transaction_libelle}</p>
-                    </div>
-
-                    {/* Débit/Crédit */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="text-sm text-muted-foreground">Débit:</span>
-                        <p className="font-medium text-red-600">
-                          {new Intl.NumberFormat("fr-FR", {
-                            style: "currency",
-                            currency: "EUR",
-                          }).format(rapprochement.transaction_debit)}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-sm text-muted-foreground">Crédit:</span>
-                        <p className="font-medium text-green-600">
-                          {new Intl.NumberFormat("fr-FR", {
-                            style: "currency",
-                            currency: "EUR",
-                          }).format(rapprochement.transaction_credit)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Notes */}
-                    {rapprochement.notes && (
-                      <div>
-                        <span className="text-sm text-muted-foreground">Notes:</span>
-                        <p className="text-sm">{rapprochement.notes}</p>
-                      </div>
-                    )}
-
-                    {/* Actions */}
-                    <div className="pt-2 border-t">
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleUnlink(rapprochement.id)}
-                        disabled={unlinking}
-                      >
-                        {unlinking ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : (
-                          <Unlink className="h-4 w-4 mr-2" />
-                        )}
-                        Annuler ce rapprochement
-                      </Button>
-                    </div>
+            {rapprochements.map((rappr) => (
+              <Card key={rappr.id}>
+                <CardContent className="pt-6 space-y-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Date:</span>
+                    <span className="font-medium">
+                      {format(new Date(rappr.date), "dd/MM/yyyy", { locale: fr })}
+                    </span>
                   </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Libellé:</span>
+                    <span className="font-medium text-right max-w-[200px] truncate">
+                      {rappr.libelle}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Montant:</span>
+                    <span className="font-medium">
+                      {new Intl.NumberFormat("fr-FR", {
+                        style: "currency",
+                        currency: "EUR",
+                      }).format(rappr.montant)}
+                    </span>
+                  </div>
+                  {rappr.debit > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Débit:</span>
+                      <span className="font-medium text-destructive">
+                        {new Intl.NumberFormat("fr-FR", {
+                          style: "currency",
+                          currency: "EUR",
+                        }).format(rappr.debit)}
+                      </span>
+                    </div>
+                  )}
+                  {rappr.credit > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Crédit:</span>
+                      <span className="font-medium text-green-600">
+                        {new Intl.NumberFormat("fr-FR", {
+                          style: "currency",
+                          currency: "EUR",
+                        }).format(rappr.credit)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Fichier:</span>
+                    <span className="font-medium">{rappr.fichierNumero}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">N° Ligne:</span>
+                    <span className="font-mono text-xs font-medium">{rappr.id}</span>
+                  </div>
+                  {rappr.facturesAssociees && rappr.facturesAssociees.length > 1 && (
+                    <div className="space-y-2 mt-4">
+                      <span className="text-sm font-medium">Factures associées ({rappr.facturesAssociees.length}):</span>
+                      <div className="space-y-1 max-h-[150px] overflow-y-auto">
+                        {rappr.facturesAssociees.map((facture, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-xs bg-muted p-2 rounded">
+                            <span className="font-medium">{facture.numero_facture}</span>
+                            <div className="flex gap-2">
+                              <span>{new Intl.NumberFormat("fr-FR", {
+                                style: "currency",
+                                currency: "EUR",
+                              }).format(facture.total_ttc)}</span>
+                              <Badge variant={facture.type_facture === "VENTES" ? "default" : "secondary"} className="text-xs">
+                                {facture.type_facture === "VENTES" ? "Vente" : "Achat"}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center justify-between text-sm font-medium bg-primary/10 p-2 rounded">
+                        <span>TVA totale:</span>
+                        <span>
+                          {new Intl.NumberFormat("fr-FR", {
+                            style: "currency",
+                            currency: "EUR",
+                          }).format(rappr.facturesAssociees.reduce((sum, f) => sum + (f.total_tva || 0), 0))}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {rappr.notes && (
+                    <div className="space-y-1">
+                      <span className="text-sm text-muted-foreground">Notes:</span>
+                      <p className="text-sm font-medium">{rappr.notes}</p>
+                    </div>
+                  )}
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleUnlink(rappr.id)}
+                    disabled={unlinking}
+                    className="w-full mt-4"
+                  >
+                    {unlinking ? "Annulation..." : "Annuler ce rapprochement"}
+                  </Button>
                 </CardContent>
               </Card>
             ))}

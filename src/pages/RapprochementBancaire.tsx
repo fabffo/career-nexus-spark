@@ -58,6 +58,7 @@ interface Rapprochement {
   isManual?: boolean;
   manualId?: string;
   notes?: string | null;
+  numero_ligne?: string; // Numéro unique de la ligne de rapprochement (format: RL-YYYYMMDD-XXXXX)
   abonnement_info?: { id: string; nom: string };
   declaration_info?: { id: string; nom: string; organisme: string };
   factureIds?: string[]; // Pour les rapprochements avec plusieurs factures
@@ -1561,30 +1562,66 @@ export default function RapprochementBancaire() {
         return;
       }
 
-      // Mettre à jour les factures rapprochées
-      const facturesRapprochees = rapprochements
-        .filter(r => r.status === 'matched' && r.facture?.id)
-        .map(r => r.facture!.id);
-
-      if (facturesRapprochees.length > 0) {
-        const { error: updateError } = await supabase
-          .from('factures')
-          .update({
-            numero_rapprochement: numeroRapprochement,
-            date_rapprochement: new Date().toISOString()
-          } as any)
-          .in('id', facturesRapprochees);
-
-        if (updateError) {
-          console.error("Erreur lors de la mise à jour des factures:", updateError);
-          toast({
-            title: "Erreur",
-            description: "Erreur lors de la mise à jour des factures",
-            variant: "destructive",
-          });
-          return;
+      // Générer et enregistrer les rapprochements avec numéro de ligne unique
+      console.log("💾 Génération des numéros de ligne pour chaque rapprochement...");
+      
+      for (const r of rapprochements) {
+        if (r.status !== 'matched') continue;
+        
+        // Générer un numero_ligne unique pour cette transaction
+        const { data: numeroLigneData, error: numeroLigneError } = await supabase
+          .rpc('generate_numero_ligne');
+        
+        if (numeroLigneError || !numeroLigneData) {
+          console.error("❌ Erreur génération numero_ligne:", numeroLigneError);
+          continue;
+        }
+        
+        const numeroLigne = numeroLigneData;
+        console.log(`✅ Numéro de ligne généré: ${numeroLigne}`);
+        
+        // Mettre à jour le rapprochement avec le numero_ligne
+        r.numero_ligne = numeroLigne;
+        
+        // Mettre à jour la ou les factures associées
+        if (r.facture?.id) {
+          // Cas simple: une seule facture
+          const { error: updateError } = await supabase
+            .from('factures')
+            .update({
+              numero_rapprochement: numeroRapprochement,
+              numero_ligne_rapprochement: numeroLigne,
+              date_rapprochement: new Date().toISOString()
+            } as any)
+            .eq('id', r.facture.id);
+          
+          if (updateError) {
+            console.error("❌ Erreur mise à jour facture:", updateError);
+          } else {
+            console.log(`✅ Facture ${r.facture.numero_facture} mise à jour avec numero_ligne ${numeroLigne}`);
+          }
+        }
+        
+        if (r.factureIds && r.factureIds.length > 0) {
+          // Cas multiple: plusieurs factures
+          const { error: updateError } = await supabase
+            .from('factures')
+            .update({
+              numero_rapprochement: numeroRapprochement,
+              numero_ligne_rapprochement: numeroLigne,
+              date_rapprochement: new Date().toISOString()
+            } as any)
+            .in('id', r.factureIds);
+          
+          if (updateError) {
+            console.error("❌ Erreur mise à jour factures multiples:", updateError);
+          } else {
+            console.log(`✅ ${r.factureIds.length} factures mises à jour avec numero_ligne ${numeroLigne}`);
+          }
         }
       }
+      
+      console.log("✅ Tous les numéros de ligne ont été générés et assignés");
 
       // Créer les paiements pour les abonnements et déclarations de charges
       const rapprochementsAbonnements = rapprochements.filter(r => r.status === 'matched' && r.abonnement_info);
@@ -1599,7 +1636,7 @@ export default function RapprochementBancaire() {
         console.log("💾 Création des rapprochements avec facture simple:", rapprochementsSimpleFacture.length);
         
         for (const r of rapprochementsSimpleFacture) {
-          // Créer le rapprochement bancaire
+          // Créer le rapprochement bancaire avec le numero_ligne
           const { data: rapprochementBancaire, error: rbError } = await supabase
             .from('rapprochements_bancaires')
             .insert({
@@ -1608,6 +1645,7 @@ export default function RapprochementBancaire() {
               transaction_debit: r.transaction.debit || 0,
               transaction_credit: r.transaction.credit || 0,
               transaction_montant: r.transaction.montant,
+              numero_ligne: r.numero_ligne,
               notes: r.notes || `Rapprochement ${numeroRapprochement}`,
               created_by: user?.id
             })
@@ -1619,7 +1657,7 @@ export default function RapprochementBancaire() {
             continue;
           }
 
-          console.log("✅ Rapprochement bancaire créé (simple):", rapprochementBancaire.id);
+          console.log("✅ Rapprochement bancaire créé (simple):", rapprochementBancaire.id, "avec numero_ligne:", r.numero_ligne);
 
           // Créer la liaison rapprochements_factures
           const { error: liaisonError } = await supabase
@@ -1731,7 +1769,7 @@ export default function RapprochementBancaire() {
         console.log("💾 Création des rapprochements avec factures multiples:", rapprochementsMultiFactures.length);
         
         for (const r of rapprochementsMultiFactures) {
-          // Créer le rapprochement bancaire
+          // Créer le rapprochement bancaire avec le numero_ligne
           const { data: rapprochementBancaire, error: rbError } = await supabase
             .from('rapprochements_bancaires')
             .insert({
@@ -1740,6 +1778,7 @@ export default function RapprochementBancaire() {
               transaction_debit: r.transaction.debit || 0,
               transaction_credit: r.transaction.credit || 0,
               transaction_montant: r.transaction.montant,
+              numero_ligne: r.numero_ligne,
               notes: r.notes || `Rapprochement ${numeroRapprochement} - ${r.factureIds!.length} factures`,
               created_by: user?.id
             })
@@ -1751,7 +1790,7 @@ export default function RapprochementBancaire() {
             continue;
           }
 
-          console.log("✅ Rapprochement bancaire créé:", rapprochementBancaire.id);
+          console.log("✅ Rapprochement bancaire créé:", rapprochementBancaire.id, "avec numero_ligne:", r.numero_ligne);
 
           // Créer les liaisons rapprochements_factures
           const liaisons = r.factureIds!.map((factureId: string) => ({
