@@ -110,13 +110,13 @@ export function DataTable<TData, TValue>({
       <div className="relative rounded-lg border border-border overflow-hidden">
         <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
           <Table className="min-w-full">
-            <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10 shadow-sm">
+            <TableHeader className="sticky top-0 bg-background z-20 shadow-md border-b-2">
               {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="hover:bg-muted/80">
+                <TableRow key={headerGroup.id} className="hover:bg-transparent">
                   {headerGroup.headers.map((header) => (
                     <TableHead 
                       key={header.id}
-                      className={(header.column.columnDef.meta as any)?.className}
+                      className={(header.column.columnDef.meta as any)?.className || "bg-background"}
                     >
                       {header.isPlaceholder
                         ? null
