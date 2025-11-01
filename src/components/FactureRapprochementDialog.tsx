@@ -53,94 +53,64 @@ export default function FactureRapprochementDialog({
   const loadRapprochements = async () => {
     setLoading(true);
     try {
-      // Méthode 1: Charger via rapprochements_factures (nouveau système many-to-many)
-      const { data: dataNew, error: errorNew } = await supabase
-        .from("rapprochements_factures")
-        .select(`
-          rapprochement_id,
-          rapprochements_bancaires!inner(
-            id,
-            numero_ligne,
-            transaction_date,
-            transaction_libelle,
-            transaction_debit,
-            transaction_credit,
-            transaction_montant,
-            notes
-          )
-        `)
-        .eq("facture_id", factureId);
+      // Récupérer d'abord la facture pour obtenir son numero_rapprochement
+      const { data: factureData, error: factureError } = await supabase
+        .from("factures")
+        .select("numero_rapprochement")
+        .eq("id", factureId)
+        .single();
 
-      if (errorNew) throw errorNew;
+      if (factureError) throw factureError;
 
-      // Méthode 2: Charger via facture_id directement (ancien système 1:1)
-      const { data: dataOld, error: errorOld } = await supabase
-        .from("rapprochements_bancaires")
-        .select("id, numero_ligne, transaction_date, transaction_libelle, transaction_debit, transaction_credit, transaction_montant, notes")
-        .eq("facture_id", factureId);
+      const numeroRapprochement = factureData?.numero_rapprochement;
 
-      if (errorOld) throw errorOld;
-
-      // Combiner les deux sources et dédupliquer
-      const allRapprochements = new Map();
-
-      // Ajouter les rapprochements du nouveau système
-      for (const item of dataNew || []) {
-        const rapprochementData = item.rapprochements_bancaires as any;
-        allRapprochements.set(rapprochementData.id, rapprochementData);
+      if (!numeroRapprochement) {
+        setRapprochements([]);
+        return;
       }
 
-      // Ajouter les rapprochements de l'ancien système
-      for (const rapprochement of dataOld || []) {
-        if (!allRapprochements.has(rapprochement.id)) {
-          allRapprochements.set(rapprochement.id, rapprochement);
+      // Charger le fichier de rapprochement avec ce numéro
+      const { data: fichierData, error: fichierError } = await supabase
+        .from("fichiers_rapprochement")
+        .select("numero_rapprochement, statut, fichier_data")
+        .eq("numero_rapprochement", numeroRapprochement)
+        .eq("statut", "VALIDE")
+        .single();
+
+      if (fichierError) {
+        if (fichierError.code === "PGRST116") {
+          // Aucun fichier trouvé
+          setRapprochements([]);
+          return;
         }
+        throw fichierError;
       }
 
-      // Pour chaque rapprochement, charger le fichier de rapprochement associé
-      const rapprochementsWithFiles = await Promise.all(
-        Array.from(allRapprochements.values()).map(async (rapprochementData: any) => {
-          // Trouver le fichier de rapprochement qui contient ce rapprochement
-          const { data: fichierData } = await supabase
-            .from("fichiers_rapprochement")
-            .select("numero_rapprochement, statut, fichier_data")
-            .eq("statut", "VALIDE")
-            .order("created_at", { ascending: false });
+      const fichierDataParsed = fichierData.fichier_data as any;
+      const allRapprochements = [
+        ...(fichierDataParsed?.rapprochements || []),
+        ...(fichierDataParsed?.rapprochementsManuels || [])
+      ];
 
-          let fichierInfo = null;
-          if (fichierData) {
-            for (const fichier of fichierData) {
-              const fichierDataParsed = fichier.fichier_data as any;
-              if (fichierDataParsed?.rapprochementsManuels) {
-                const found = fichierDataParsed.rapprochementsManuels.find(
-                  (rm: any) => rm.id === rapprochementData.id
-                );
-                if (found) {
-                  fichierInfo = {
-                    numero_rapprochement: fichier.numero_rapprochement,
-                    statut: fichier.statut,
-                  };
-                  break;
-                }
-              }
-            }
-          }
+      // Filtrer les rapprochements pour cette facture uniquement
+      const factureRapprochements = allRapprochements
+        .filter((item: any) => item.facture?.id === factureId)
+        .map((item: any, index: number) => ({
+          id: `${numeroRapprochement}-${index}`,
+          numero_ligne: `Transaction ${index + 1}`,
+          transaction_date: item.transaction?.date,
+          transaction_libelle: item.transaction?.libelle,
+          transaction_debit: item.transaction?.debit || 0,
+          transaction_credit: item.transaction?.credit || 0,
+          transaction_montant: item.transaction?.montant,
+          notes: item.isManual ? "Rapprochement manuel" : "Rapprochement automatique",
+          fichier: {
+            numero_rapprochement: fichierData.numero_rapprochement,
+            statut: fichierData.statut,
+          },
+        }));
 
-          return {
-            id: rapprochementData.id,
-            numero_ligne: rapprochementData.numero_ligne,
-            transaction_date: rapprochementData.transaction_date,
-            transaction_libelle: rapprochementData.transaction_libelle,
-            transaction_debit: rapprochementData.transaction_debit,
-            transaction_credit: rapprochementData.transaction_credit,
-            transaction_montant: rapprochementData.transaction_montant,
-            notes: rapprochementData.notes,
-            fichier: fichierInfo,
-          };
-        })
-      );
-
-      setRapprochements(rapprochementsWithFiles);
+      setRapprochements(factureRapprochements);
     } catch (error: any) {
       console.error("Erreur chargement rapprochements:", error);
       toast({
@@ -160,32 +130,65 @@ export default function FactureRapprochementDialog({
 
     setUnlinking(true);
     try {
-      // Supprimer la liaison dans rapprochements_factures
-      const { error: deleteError } = await supabase
-        .from("rapprochements_factures")
-        .delete()
-        .eq("rapprochement_id", rapprochementId)
-        .eq("facture_id", factureId);
+      // Récupérer le numero_rapprochement de la facture
+      const { data: factureData, error: factureError } = await supabase
+        .from("factures")
+        .select("numero_rapprochement")
+        .eq("id", factureId)
+        .single();
 
-      if (deleteError) throw deleteError;
+      if (factureError) throw factureError;
 
-      // Mettre à jour le statut de la facture si plus aucun rapprochement
-      const remainingRapprochements = rapprochements.filter(r => r.id !== rapprochementId);
-      
-      if (remainingRapprochements.length === 0) {
-        // Remettre la facture en statut VALIDEE
-        const { error: updateError } = await supabase
-          .from("factures")
-          .update({
-            statut: "VALIDEE",
-            numero_rapprochement: null,
-            date_rapprochement: null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", factureId);
+      const numeroRapprochement = factureData?.numero_rapprochement;
 
-        if (updateError) throw updateError;
+      if (!numeroRapprochement) {
+        throw new Error("Numéro de rapprochement introuvable");
       }
+
+      // Charger le fichier de rapprochement
+      const { data: fichierData, error: fichierError } = await supabase
+        .from("fichiers_rapprochement")
+        .select("fichier_data")
+        .eq("numero_rapprochement", numeroRapprochement)
+        .single();
+
+      if (fichierError) throw fichierError;
+
+      const fichierDataParsed = fichierData.fichier_data as any;
+
+      // Retirer la facture de tous les rapprochements (automatiques et manuels)
+      const updatedRapprochements = (fichierDataParsed?.rapprochements || [])
+        .filter((item: any) => item.facture?.id !== factureId);
+
+      const updatedRapprochementsManuels = (fichierDataParsed?.rapprochementsManuels || [])
+        .filter((item: any) => item.facture?.id !== factureId);
+
+      // Mettre à jour le fichier_data
+      const { error: updateFichierError } = await supabase
+        .from("fichiers_rapprochement")
+        .update({
+          fichier_data: {
+            ...fichierDataParsed,
+            rapprochements: updatedRapprochements,
+            rapprochementsManuels: updatedRapprochementsManuels,
+          },
+        })
+        .eq("numero_rapprochement", numeroRapprochement);
+
+      if (updateFichierError) throw updateFichierError;
+
+      // Remettre la facture en statut VALIDEE
+      const { error: updateFactureError } = await supabase
+        .from("factures")
+        .update({
+          statut: "VALIDEE",
+          numero_rapprochement: null,
+          date_rapprochement: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", factureId);
+
+      if (updateFactureError) throw updateFactureError;
 
       toast({
         title: "Succès",
