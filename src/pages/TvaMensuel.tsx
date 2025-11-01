@@ -2,16 +2,15 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableRow, TableHeader } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { Receipt, RefreshCcw, ArrowUpDown, Search } from "lucide-react";
+import { Receipt, RefreshCcw } from "lucide-react";
+import { DataTable } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
 
 interface RapprochementLigne {
   id: string;
@@ -52,20 +51,7 @@ export default function TvaMensuel() {
   const [stats, setStats] = useState<PeriodeStat>({ tva_collectee: 0, tva_deductible: 0, tva_a_payer: 0 });
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortColumn, setSortColumn] = useState<keyof RapprochementLigne | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const { toast } = useToast();
-
-  useEffect(() => {
-    loadAvailablePeriods();
-  }, []);
-
-  useEffect(() => {
-    if (selectedMonth && selectedYear) {
-      loadTvaData();
-    }
-  }, [selectedMonth, selectedYear]);
 
   const toggleLineSelection = (lineId: string) => {
     setSelectedLines(prev => {
@@ -87,52 +73,101 @@ export default function TvaMensuel() {
     }
   };
 
-  const handleSort = (column: keyof RapprochementLigne) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortColumn(column);
-      setSortDirection("asc");
+  const columns: ColumnDef<RapprochementLigne>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={selectedLines.size === lignes.length && lignes.length > 0}
+          onCheckedChange={toggleAllLines}
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={selectedLines.has(row.original.id)}
+          onCheckedChange={() => toggleLineSelection(row.original.id)}
+        />
+      ),
+      enableSorting: false,
+    },
+    {
+      accessorKey: "transaction_date",
+      header: "Date",
+      cell: ({ row }) => 
+        row.original.transaction_date 
+          ? format(new Date(row.original.transaction_date), "dd/MM/yyyy", { locale: fr })
+          : "",
+    },
+    {
+      accessorKey: "transaction_libelle",
+      header: "Libellé",
+    },
+    {
+      accessorKey: "transaction_montant",
+      header: "Montant",
+      cell: ({ row }) => 
+        new Intl.NumberFormat("fr-FR", {
+          style: "currency",
+          currency: "EUR",
+        }).format(row.original.transaction_montant),
+    },
+    {
+      accessorKey: "statut",
+      header: "Statut",
+      cell: ({ row }) => (
+        <Badge variant={row.original.statut === "RAPPROCHE" ? "default" : "outline"}>
+          {row.original.statut === "RAPPROCHE" ? "Rapprochée" : "Non rapprochée"}
+        </Badge>
+      ),
+    },
+    {
+      id: "facture",
+      header: "Facture",
+      cell: ({ row }) => {
+        if (row.original.factures && row.original.factures.length > 0) {
+          return row.original.factures.map(f => f.numero_facture).join(", ");
+        }
+        return row.original.facture?.numero_facture || "—";
+      },
+    },
+    {
+      id: "type",
+      header: "Type",
+      cell: ({ row }) => {
+        if (row.original.factures && row.original.factures.length > 0) {
+          return row.original.factures[0].type_facture === "VENTES" ? "Vente" : "Achat";
+        }
+        if (row.original.facture) {
+          return row.original.facture.type_facture === "VENTES" ? "Vente" 
+            : row.original.facture.type_facture === "ACHATS" ? "Achat" : "—";
+        }
+        return "—";
+      },
+    },
+    {
+      id: "total_tva",
+      header: "TVA",
+      cell: ({ row }) => {
+        const tva = row.original.total_tva ?? row.original.facture?.total_tva;
+        return tva !== undefined
+          ? new Intl.NumberFormat("fr-FR", {
+              style: "currency",
+              currency: "EUR",
+            }).format(tva)
+          : "—";
+      },
+    },
+  ];
+
+  useEffect(() => {
+    loadAvailablePeriods();
+  }, []);
+
+  useEffect(() => {
+    if (selectedMonth && selectedYear) {
+      loadTvaData();
     }
-  };
-
-  // Filtrer et trier les lignes
-  const filteredAndSortedLignes = lignes
-    .filter(ligne => {
-      if (!searchTerm) return true;
-      const searchLower = searchTerm.toLowerCase();
-      return (
-        ligne.transaction_libelle?.toLowerCase().includes(searchLower) ||
-        ligne.transaction_date?.includes(searchTerm) ||
-        (ligne.facture?.numero_facture && ligne.facture.numero_facture.toLowerCase().includes(searchLower)) ||
-        (ligne.factures && ligne.factures.some(f => f.numero_facture.toLowerCase().includes(searchLower)))
-      );
-    })
-    .sort((a, b) => {
-      if (!sortColumn) return 0;
-      
-      let aValue: any = a[sortColumn];
-      let bValue: any = b[sortColumn];
-
-      // Gestion spéciale pour les dates
-      if (sortColumn === "transaction_date") {
-        aValue = new Date(aValue || 0).getTime();
-        bValue = new Date(bValue || 0).getTime();
-      }
-
-      // Gestion spéciale pour les montants
-      if (sortColumn === "transaction_montant" || sortColumn === "total_tva") {
-        aValue = aValue || 0;
-        bValue = bValue || 0;
-      }
-
-      if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
-      if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
-
-  const lignesRapprochees = filteredAndSortedLignes.filter(l => l.statut === "RAPPROCHE");
-  const lignesNonRapprochees = filteredAndSortedLignes.filter(l => l.statut === "NON_RAPPROCHE");
+  }, [selectedMonth, selectedYear]);
 
   const loadAvailablePeriods = async () => {
     try {
@@ -601,11 +636,15 @@ export default function TvaMensuel() {
               </div>
               <div className="text-center">
                 <div className="text-sm text-muted-foreground">Rapprochées</div>
-                <div className="text-2xl font-bold text-green-600">{lignesRapprochees.length}</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {lignes.filter(l => l.statut === "RAPPROCHE").length}
+                </div>
               </div>
               <div className="text-center">
                 <div className="text-sm text-muted-foreground">Non rapprochées</div>
-                <div className="text-2xl font-bold text-orange-600">{lignesNonRapprochees.length}</div>
+                <div className="text-2xl font-bold text-orange-600">
+                  {lignes.filter(l => l.statut === "NON_RAPPROCHE").length}
+                </div>
               </div>
               <div className="text-center">
                 <div className="text-sm text-muted-foreground">Sélectionnées</div>
@@ -672,145 +711,14 @@ export default function TvaMensuel() {
           {/* Détail des lignes */}
           <Card>
             <CardHeader>
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <CardTitle>Détail des transactions</CardTitle>
-                <div className="relative w-full sm:w-64">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Rechercher..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-8"
-                  />
-                </div>
-              </div>
+              <CardTitle>Détail des transactions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="relative overflow-auto max-h-[600px] border rounded-md">
-                <Table>
-                  <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
-                    <TableRow>
-                      <TableHead className="w-[50px] bg-background">
-                        <Checkbox
-                          checked={selectedLines.size === filteredAndSortedLignes.length && filteredAndSortedLignes.length > 0}
-                          onCheckedChange={toggleAllLines}
-                        />
-                      </TableHead>
-                      <TableHead className="bg-background min-w-[100px]">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-full justify-start px-2 hover:bg-accent"
-                          onClick={() => handleSort("transaction_date")}
-                        >
-                          Date
-                          <ArrowUpDown className="ml-2 h-3 w-3" />
-                        </Button>
-                      </TableHead>
-                      <TableHead className="bg-background min-w-[200px]">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-full justify-start px-2 hover:bg-accent"
-                          onClick={() => handleSort("transaction_libelle")}
-                        >
-                          Libellé
-                          <ArrowUpDown className="ml-2 h-3 w-3" />
-                        </Button>
-                      </TableHead>
-                      <TableHead className="bg-background min-w-[120px]">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-full justify-start px-2 hover:bg-accent"
-                          onClick={() => handleSort("transaction_montant")}
-                        >
-                          Montant
-                          <ArrowUpDown className="ml-2 h-3 w-3" />
-                        </Button>
-                      </TableHead>
-                      <TableHead className="bg-background min-w-[100px]">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-full justify-start px-2 hover:bg-accent"
-                          onClick={() => handleSort("statut")}
-                        >
-                          Statut
-                          <ArrowUpDown className="ml-2 h-3 w-3" />
-                        </Button>
-                      </TableHead>
-                      <TableHead className="bg-background min-w-[150px]">Facture</TableHead>
-                      <TableHead className="bg-background min-w-[100px]">Type</TableHead>
-                      <TableHead className="text-right bg-background min-w-[100px]">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-full justify-end px-2 hover:bg-accent"
-                          onClick={() => handleSort("total_tva")}
-                        >
-                          TVA
-                          <ArrowUpDown className="ml-2 h-3 w-3" />
-                        </Button>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredAndSortedLignes.map((ligne) => (
-                      <TableRow key={ligne.id}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedLines.has(ligne.id)}
-                            onCheckedChange={() => toggleLineSelection(ligne.id)}
-                          />
-                        </TableCell>
-                        <TableCell>{ligne.transaction_date ? format(new Date(ligne.transaction_date), "dd/MM/yyyy", { locale: fr }) : ""}</TableCell>
-                        <TableCell>{ligne.transaction_libelle}</TableCell>
-                        <TableCell>
-                          {new Intl.NumberFormat("fr-FR", {
-                            style: "currency",
-                            currency: "EUR",
-                          }).format(ligne.transaction_montant)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              ligne.statut === "RAPPROCHE"
-                                ? "default"
-                                : "outline"
-                            }
-                          >
-                            {ligne.statut === "RAPPROCHE" ? "Rapprochée" : "Non rapprochée"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {ligne.factures && ligne.factures.length > 0
-                            ? ligne.factures.map(f => f.numero_facture).join(", ")
-                            : ligne.facture?.numero_facture || "—"}
-                        </TableCell>
-                        <TableCell>
-                          {ligne.factures && ligne.factures.length > 0
-                            ? ligne.factures[0].type_facture === "VENTES" ? "Vente" : "Achat"
-                            : ligne.facture?.type_facture === "VENTES" ? "Vente" : ligne.facture?.type_facture === "ACHATS" ? "Achat" : "—"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {ligne.total_tva !== undefined && ligne.total_tva !== null
-                            ? new Intl.NumberFormat("fr-FR", {
-                                style: "currency",
-                                currency: "EUR",
-                              }).format(ligne.total_tva)
-                            : ligne.facture?.total_tva !== undefined
-                            ? new Intl.NumberFormat("fr-FR", {
-                                style: "currency",
-                                currency: "EUR",
-                              }).format(ligne.facture.total_tva)
-                            : "—"}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <DataTable
+                columns={columns}
+                data={lignes}
+                searchPlaceholder="Rechercher une transaction..."
+              />
             </CardContent>
           </Card>
         </>
