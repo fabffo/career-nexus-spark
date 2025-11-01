@@ -125,7 +125,7 @@ export default function FactureRapprochementDialog({
 
       // Transformer en format d'affichage
       const rapprochementInfo: RapprochementInfo = {
-        id: factureData.numero_ligne_rapprochement,
+        id: rapprochementLigne.numero_ligne || factureData.numero_ligne_rapprochement,
         date: rapprochementLigne.transaction.date,
         libelle: rapprochementLigne.transaction.libelle,
         montant: rapprochementLigne.transaction.montant,
