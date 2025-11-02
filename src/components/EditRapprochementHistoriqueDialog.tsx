@@ -279,13 +279,11 @@ export default function EditRapprochementHistoriqueDialog({
       const { data: authData } = await supabase.auth.getUser();
       const transaction = rapprochement.transaction;
 
-      // 1. Mettre à jour ou créer le rapprochement manuel
+      // 1. Mettre à jour ou créer le rapprochement manuel - RECHERCHER PAR numero_ligne
       const { data: existing } = await supabase
         .from("rapprochements_bancaires")
         .select("id")
-        .eq("transaction_date", transaction.date)
-        .eq("transaction_libelle", transaction.libelle)
-        .eq("transaction_montant", transaction.montant)
+        .eq("numero_ligne", transaction.numero_ligne || "")
         .maybeSingle();
 
       let rapprochementId = existing?.id;
@@ -325,22 +323,12 @@ export default function EditRapprochementHistoriqueDialog({
       }
 
       // Gérer les factures associées
-      if (rapprochementId) {
-        // 1. Récupérer les anciennes factures associées et dé-rapprocher
-        const { data: oldFactures } = await supabase
-          .from("rapprochements_factures")
-          .select("facture_id")
-          .eq("rapprochement_id", rapprochementId);
-
-        if (oldFactures && oldFactures.length > 0) {
-          // Mettre à null le numero_ligne_rapprochement des anciennes factures
-          for (const oldFacture of oldFactures) {
-            await supabase
-              .from("factures")
-              .update({ numero_ligne_rapprochement: null })
-              .eq("id", oldFacture.facture_id);
-          }
-        }
+      if (rapprochementId && transaction.numero_ligne) {
+        // 1. Dé-rapprocher TOUTES les factures qui ont ce numero_ligne
+        await supabase
+          .from("factures")
+          .update({ numero_ligne_rapprochement: null })
+          .eq("numero_ligne_rapprochement", transaction.numero_ligne);
 
         // 2. Supprimer les anciennes associations
         await supabase
