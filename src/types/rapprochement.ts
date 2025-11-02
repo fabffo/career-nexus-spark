@@ -92,7 +92,6 @@ export interface FactureMatch {
 // Structure pour l'affichage dans les dialogues de rapprochement
 export interface Rapprochement {
   id: string;
-  numero_ligne: string;
   transaction: TransactionBancaire;
   selectedFactureIds: string[];
   status: StatutRapprochement;
