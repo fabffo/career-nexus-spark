@@ -18,6 +18,7 @@ interface TransactionBancaire {
   debit: number;
   credit: number;
   montant: number;
+  numero_ligne?: string; // Conservé tel quel, jamais modifié
 }
 
 interface FactureMatch {
@@ -310,6 +311,7 @@ export default function EditRapprochementHistoriqueDialog({
             transaction_debit: transaction.debit,
             transaction_credit: transaction.credit,
             transaction_montant: transaction.montant,
+            numero_ligne: transaction.numero_ligne || null,
             abonnement_id: selectedAbonnementId && selectedAbonnementId !== "none" ? selectedAbonnementId : null,
             declaration_charge_id: selectedDeclarationId && selectedDeclarationId !== "none" ? selectedDeclarationId : null,
             notes,
@@ -323,31 +325,53 @@ export default function EditRapprochementHistoriqueDialog({
       }
 
       // Gérer les factures associées
-      if (rapprochementId && selectedFactureIds.length > 0) {
-        // Supprimer les anciennes associations
+      if (rapprochementId) {
+        // 1. Récupérer les anciennes factures associées et dé-rapprocher
+        const { data: oldFactures } = await supabase
+          .from("rapprochements_factures")
+          .select("facture_id")
+          .eq("rapprochement_id", rapprochementId);
+
+        if (oldFactures && oldFactures.length > 0) {
+          // Mettre à null le numero_ligne_rapprochement des anciennes factures
+          for (const oldFacture of oldFactures) {
+            await supabase
+              .from("factures")
+              .update({ numero_ligne_rapprochement: null })
+              .eq("id", oldFacture.facture_id);
+          }
+        }
+
+        // 2. Supprimer les anciennes associations
         await supabase
           .from("rapprochements_factures")
           .delete()
           .eq("rapprochement_id", rapprochementId);
 
-        // Créer les nouvelles associations
-        const facturesAssociations = selectedFactureIds.map((factureId) => ({
-          rapprochement_id: rapprochementId,
-          facture_id: factureId,
-          created_by: authData.user?.id,
-        }));
+        // 3. Créer les nouvelles associations et rapprocher les factures
+        if (selectedFactureIds.length > 0) {
+          const facturesAssociations = selectedFactureIds.map((factureId) => ({
+            rapprochement_id: rapprochementId,
+            facture_id: factureId,
+            created_by: authData.user?.id,
+          }));
 
-        const { error: facturesError } = await supabase
-          .from("rapprochements_factures")
-          .insert(facturesAssociations);
+          const { error: facturesError } = await supabase
+            .from("rapprochements_factures")
+            .insert(facturesAssociations);
 
-        if (facturesError) throw facturesError;
-      } else if (rapprochementId) {
-        // Supprimer toutes les associations si aucune facture n'est sélectionnée
-        await supabase
-          .from("rapprochements_factures")
-          .delete()
-          .eq("rapprochement_id", rapprochementId);
+          if (facturesError) throw facturesError;
+
+          // 4. Mettre à jour le numero_ligne_rapprochement des nouvelles factures
+          if (transaction.numero_ligne) {
+            for (const factureId of selectedFactureIds) {
+              await supabase
+                .from("factures")
+                .update({ numero_ligne_rapprochement: transaction.numero_ligne })
+                .eq("id", factureId);
+            }
+          }
+        }
       }
 
       // 2. Créer le paiement d'abonnement si nécessaire
@@ -536,10 +560,10 @@ export default function EditRapprochementHistoriqueDialog({
           {/* Transaction info */}
           <div className="p-4 bg-muted rounded-lg space-y-2">
             <h3 className="font-semibold">Transaction bancaire</h3>
-            {rapprochement.manualId && (
+            {transaction.numero_ligne && (
               <div className="mb-2">
                 <span className="text-muted-foreground text-sm">Numéro de ligne:</span>{" "}
-                <span className="font-mono text-sm font-medium text-primary">{rapprochement.manualId}</span>
+                <span className="font-mono text-sm font-medium text-primary">{transaction.numero_ligne}</span>
               </div>
             )}
             <div className="grid grid-cols-2 gap-2 text-sm">
