@@ -31,6 +31,7 @@ interface FactureMatch {
   statut: string;
   numero_rapprochement?: string;
   date_rapprochement?: string;
+  numero_ligne_rapprochement?: string;
 }
 
 interface Rapprochement {
@@ -142,15 +143,26 @@ export default function EditRapprochementHistoriqueDialog({
 
       console.log("✓ Factures reçues:", factures.length);
       
-      // Filtrer par numero_rapprochement
-      const nonRapprocheesBase = factures.filter(f => !f.numero_rapprochement);
-      console.log("✓ Factures sans numero_rapprochement:", nonRapprocheesBase.length);
-      console.log("  Détail:", nonRapprocheesBase.slice(0, 5).map(f => ({ id: f.id, numero: f.numero_facture, type: f.type_facture })));
+      const numeroLigneActuel = rapprochement?.transaction?.numero_ligne;
+      console.log("✓ Numéro de ligne actuel:", numeroLigneActuel);
       
-      // Récupérer les IDs de factures dans la table de jonction
+      // Filtrer: factures non rapprochées OU factures avec ce numero_ligne spécifique
+      const nonRapprocheesBase = factures.filter(f => {
+        const hasNumeroLigne = f.numero_ligne_rapprochement;
+        if (!hasNumeroLigne) {
+          return true; // Facture non rapprochée
+        }
+        // Si elle a un numero_ligne, n'inclure que si c'est le même que celui actuel (mode édition)
+        return numeroLigneActuel && hasNumeroLigne === numeroLigneActuel;
+      });
+      
+      console.log("✓ Factures disponibles (non rapprochées ou avec même numero_ligne):", nonRapprocheesBase.length);
+      console.log("  Détail:", nonRapprocheesBase.slice(0, 5).map(f => ({ id: f.id, numero: f.numero_facture, type: f.type_facture, numero_ligne: f.numero_ligne_rapprochement })));
+      
+      // Récupérer les IDs de factures dans la table de jonction (sauf celles du rapprochement actuel)
       const { data: facturesRapprochees, error } = await supabase
         .from("rapprochements_factures")
-        .select("facture_id");
+        .select("facture_id, rapprochement_id");
 
       if (error) {
         console.error("❌ Erreur chargement rapprochements_factures:", error);
@@ -158,19 +170,13 @@ export default function EditRapprochementHistoriqueDialog({
         console.log("✓ Table de jonction - Factures rapprochées:", facturesRapprochees?.length || 0);
       }
 
-      const idsRapproches = new Set(facturesRapprochees?.map(r => r.facture_id) || []);
+      const idsRapproches = new Set(
+        (facturesRapprochees || [])
+          .filter(r => r.rapprochement_id !== rapprochement?.manualId)
+          .map(r => r.facture_id)
+      );
       
-      // Si on édite un rapprochement existant, récupérer ses factures
-      if (rapprochement?.manualId) {
-        console.log("✓ Mode édition - rapprochement ID:", rapprochement.manualId);
-        const { data: currentFactures } = await supabase
-          .from("rapprochements_factures")
-          .select("facture_id")
-          .eq("rapprochement_id", rapprochement.manualId);
-        
-        console.log("  Factures du rapprochement actuel:", currentFactures?.length || 0);
-        currentFactures?.forEach(f => idsRapproches.delete(f.facture_id));
-      }
+      console.log("✓ IDs à exclure (autres rapprochements):", idsRapproches.size);
       
       // Filtrer les factures de la table de jonction
       const facturesFinales = nonRapprocheesBase.filter(f => !idsRapproches.has(f.id));

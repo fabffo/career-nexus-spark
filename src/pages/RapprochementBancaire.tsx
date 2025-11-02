@@ -38,6 +38,7 @@ interface FactureMatch {
   statut: string;
   numero_rapprochement?: string;
   date_rapprochement?: string;
+  numero_ligne_rapprochement?: string;
 }
 
 interface RapprochementManuel {
@@ -189,6 +190,7 @@ export default function RapprochementBancaire() {
         statut: f.statut,
         numero_rapprochement: f.numero_rapprochement,
         date_rapprochement: f.date_rapprochement,
+        numero_ligne_rapprochement: f.numero_ligne_rapprochement,
       }));
 
       console.log("✅ Factures chargées:", facturesFormatted.length);
