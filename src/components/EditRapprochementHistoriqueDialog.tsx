@@ -128,9 +128,9 @@ export default function EditRapprochementHistoriqueDialog({
   const [facturesNonRapprochees, setFacturesNonRapprochees] = useState<FactureMatch[]>([]);
 
   useEffect(() => {
-    console.log("===== EDIT HISTORIQUE DIALOG =====");
+    console.log("===== EDIT HISTORIQUE DIALOG - USEEFFECT TRIGGERED =====");
     console.log("Dialog open:", open);
-    console.log("Factures reçues en prop:", factures.length);
+    console.log("Factures reçues en prop:", factures?.length || 0);
     console.log("Rapprochement:", rapprochement);
     
     const loadFacturesNonRapprochees = async () => {
@@ -202,9 +202,12 @@ export default function EditRapprochementHistoriqueDialog({
     };
 
     if (open) {
+      console.log("🚀 Démarrage chargement des factures...");
       loadFacturesNonRapprochees();
+    } else {
+      console.log("❌ Dialog fermé, pas de chargement");
     }
-  }, [open, factures, rapprochement?.manualId]);
+  }, [open, factures, rapprochement]);
 
   // Initialiser les valeurs au chargement
   useEffect(() => {
