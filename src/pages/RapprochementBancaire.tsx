@@ -351,16 +351,16 @@ export default function RapprochementBancaire() {
         // Fusionner avec les rapprochements existants du fichier
         const existingRapprochements = fichier.fichier_data?.rapprochements || [];
         
-        // Identifier les transactions qui ont des rapprochements via liaison
+        // Identifier les transactions qui ont des rapprochements via liaison - UTILISER numero_ligne
         const transactionsAvecLiaison = new Set(
           rapprochementsManuelsFormatted.map(r => 
-            `${r.transaction.date}_${r.transaction.libelle}_${r.transaction.montant}`
+            r.transaction.numero_ligne || `${r.transaction.date}_${r.transaction.libelle}_${r.transaction.montant}`
           )
         );
 
         // Filtrer les rapprochements existants: garder ceux sans liaison
         const rapprochementsAutoSansLiaison = existingRapprochements.filter((r: Rapprochement) => {
-          const key = `${r.transaction.date}_${r.transaction.libelle}_${r.transaction.montant}`;
+          const key = r.transaction.numero_ligne || `${r.transaction.date}_${r.transaction.libelle}_${r.transaction.montant}`;
           return !transactionsAvecLiaison.has(key);
         });
 
@@ -399,9 +399,9 @@ export default function RapprochementBancaire() {
       [transactionKey]: newStatus
     }));
 
-    // Mettre à jour le statut dans le tableau des rapprochements
+    // Mettre à jour le statut dans le tableau des rapprochements - UTILISER numero_ligne
     setRapprochements(prev => prev.map(r => {
-      const key = `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`;
+      const key = r.transaction.numero_ligne || `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`;
       if (key === transactionKey) {
         return { ...r, status: newStatus };
       }
@@ -416,11 +416,12 @@ export default function RapprochementBancaire() {
       [key]: newStatus
     }));
 
-    // Mettre à jour le statut dans le fichier sélectionné
+    // Mettre à jour le statut dans le fichier sélectionné - UTILISER numero_ligne comme clé unique
     setFichiersRapprochement(prev => prev.map(fichier => {
       if (fichier.id === fichierId && fichier.fichier_data) {
         const updatedRapprochements = fichier.fichier_data.rapprochements.map(r => {
-          const rKey = `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`;
+          // Utiliser numero_ligne ou fallback sur date-libellé-montant
+          const rKey = r.transaction.numero_ligne || `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`;
           if (rKey === transactionKey) {
             return { ...r, status: newStatus };
           }
@@ -443,7 +444,8 @@ export default function RapprochementBancaire() {
       setSelectedFichier(prev => {
         if (!prev || !prev.fichier_data) return prev;
         const updatedRapprochements = prev.fichier_data.rapprochements.map(r => {
-          const rKey = `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`;
+          // Utiliser numero_ligne ou fallback sur date-libellé-montant
+          const rKey = r.transaction.numero_ligne || `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`;
           if (rKey === transactionKey) {
             return { ...r, status: newStatus };
           }
@@ -523,14 +525,20 @@ export default function RapprochementBancaire() {
       console.log("🗑️ Début suppression rapprochement:", rapprochement);
       console.log("🗑️ Type:", rapprochement.isManual ? "Manuel" : "Automatique");
       
-      // Trouver le rapprochement_id dans la base de données
-      const { data: rapprochementData, error: fetchError } = await supabase
-        .from("rapprochements_bancaires")
-        .select("id")
-        .eq("transaction_date", rapprochement.transaction.date)
-        .eq("transaction_libelle", rapprochement.transaction.libelle)
-        .eq("transaction_montant", rapprochement.transaction.montant)
-        .maybeSingle();
+      // Trouver le rapprochement_id dans la base de données - UTILISER numero_ligne si disponible
+      const { data: rapprochementData, error: fetchError } = rapprochement.transaction.numero_ligne
+        ? await supabase
+            .from("rapprochements_bancaires")
+            .select("id")
+            .eq("numero_ligne", rapprochement.transaction.numero_ligne)
+            .maybeSingle()
+        : await supabase
+            .from("rapprochements_bancaires")
+            .select("id")
+            .eq("transaction_date", rapprochement.transaction.date)
+            .eq("transaction_libelle", rapprochement.transaction.libelle)
+            .eq("transaction_montant", rapprochement.transaction.montant)
+            .maybeSingle();
 
       if (fetchError) throw fetchError;
 
@@ -670,7 +678,8 @@ export default function RapprochementBancaire() {
   };
 
   const getTransactionKey = (transaction: TransactionBancaire) => {
-    return `${transaction.date}-${transaction.libelle}-${transaction.montant}`;
+    // UTILISER numero_ligne comme clé unique si disponible
+    return transaction.numero_ligne || `${transaction.date}-${transaction.libelle}-${transaction.montant}`;
   };
 
   const parseDate = (dateStr: string): Date | null => {
@@ -2537,9 +2546,11 @@ export default function RapprochementBancaire() {
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               const nextStatus = rapprochement.status === "matched" ? "uncertain" : rapprochement.status === "uncertain" ? "unmatched" : "matched";
+                                              // UTILISER numero_ligne si disponible
+                                              const transactionKey = rapprochement.transaction.numero_ligne || `${rapprochement.transaction.date}-${rapprochement.transaction.libelle}-${rapprochement.transaction.montant}`;
                                               handleHistoriqueStatusChange(
                                                 fichier.id,
-                                                `${rapprochement.transaction.date}-${rapprochement.transaction.libelle}-${rapprochement.transaction.montant}`,
+                                                transactionKey,
                                                 nextStatus
                                               );
                                             }}
