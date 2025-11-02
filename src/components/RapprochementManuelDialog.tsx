@@ -55,8 +55,8 @@ export default function RapprochementManuelDialog({
   onSuccess,
 }: RapprochementManuelDialogProps) {
   const [selectedFactureIds, setSelectedFactureIds] = useState<string[]>([]);
-  const [selectedAbonnementId, setSelectedAbonnementId] = useState<string>("");
-  const [selectedDeclarationId, setSelectedDeclarationId] = useState<string>("");
+  const [selectedAbonnementId, setSelectedAbonnementId] = useState<string>("none");
+  const [selectedDeclarationId, setSelectedDeclarationId] = useState<string>("none");
   const [abonnements, setAbonnements] = useState<any[]>([]);
   const [declarations, setDeclarations] = useState<any[]>([]);
   const [consommations, setConsommations] = useState<Consommation[]>([]);
@@ -70,8 +70,8 @@ export default function RapprochementManuelDialog({
   useEffect(() => {
     if (!open) {
       setSelectedFactureIds([]);
-      setSelectedAbonnementId("");
-      setSelectedDeclarationId("");
+      setSelectedAbonnementId("none");
+      setSelectedDeclarationId("none");
       setConsommations([]);
       setMontantAbonnement("");
       setNotes("");
@@ -207,7 +207,7 @@ export default function RapprochementManuelDialog({
     }
 
     // Validation: au moins une facture, un abonnement ou une déclaration doit être sélectionné
-    if (selectedFactureIds.length === 0 && !selectedAbonnementId && !selectedDeclarationId) {
+    if (selectedFactureIds.length === 0 && (!selectedAbonnementId || selectedAbonnementId === "none") && (!selectedDeclarationId || selectedDeclarationId === "none")) {
       toast({
         title: "Erreur",
         description: "Veuillez sélectionner au moins une facture, un abonnement ou une déclaration",
@@ -237,8 +237,8 @@ export default function RapprochementManuelDialog({
         const { error } = await supabase
           .from("rapprochements_bancaires")
           .update({
-            abonnement_id: selectedAbonnementId || null,
-            declaration_charge_id: selectedDeclarationId || null,
+            abonnement_id: selectedAbonnementId && selectedAbonnementId !== "none" ? selectedAbonnementId : null,
+            declaration_charge_id: selectedDeclarationId && selectedDeclarationId !== "none" ? selectedDeclarationId : null,
             notes,
             updated_at: new Date().toISOString(),
           })
@@ -257,8 +257,8 @@ export default function RapprochementManuelDialog({
             transaction_credit: transaction.credit,
             transaction_montant: transaction.montant,
             numero_ligne: transaction.numero_ligne || null,
-            abonnement_id: selectedAbonnementId || null,
-            declaration_charge_id: selectedDeclarationId || null,
+            abonnement_id: selectedAbonnementId && selectedAbonnementId !== "none" ? selectedAbonnementId : null,
+            declaration_charge_id: selectedDeclarationId && selectedDeclarationId !== "none" ? selectedDeclarationId : null,
             notes,
             created_by: authData.user?.id,
           })
@@ -302,7 +302,7 @@ export default function RapprochementManuelDialog({
       }
 
       // Si un abonnement est sélectionné, créer automatiquement un paiement d'abonnement
-      if (selectedAbonnementId && rapprochementId) {
+      if (selectedAbonnementId && selectedAbonnementId !== "none" && rapprochementId) {
         const montant = parseFloat(montantAbonnement) || Math.abs(transaction.montant);
         
         const { error: paiementError } = await supabase
@@ -354,7 +354,7 @@ export default function RapprochementManuelDialog({
       }
 
       // Si une déclaration est sélectionnée, créer automatiquement un paiement de déclaration
-      if (selectedDeclarationId && rapprochementId) {
+      if (selectedDeclarationId && selectedDeclarationId !== "none" && rapprochementId) {
         const { error: paiementError } = await supabase
           .from("paiements_declarations_charges")
           .insert({
@@ -378,9 +378,9 @@ export default function RapprochementManuelDialog({
 
       toast({
         title: "Succès",
-        description: selectedAbonnementId 
+        description: selectedAbonnementId && selectedAbonnementId !== "none"
           ? `Rapprochement enregistré, paiement d'abonnement créé${consommations.length > 0 ? ` et ${consommations.length} consommation(s) ajoutée(s)` : ""}`
-          : selectedDeclarationId
+          : selectedDeclarationId && selectedDeclarationId !== "none"
           ? "Rapprochement enregistré, paiement de déclaration créé"
           : `Rapprochement manuel enregistré${selectedFactureIds.length > 0 ? ` avec ${selectedFactureIds.length} facture(s)` : ""}`,
       });
@@ -388,8 +388,8 @@ export default function RapprochementManuelDialog({
       onSuccess();
       onOpenChange(false);
       setSelectedFactureIds([]);
-      setSelectedAbonnementId("");
-      setSelectedDeclarationId("");
+      setSelectedAbonnementId("none");
+      setSelectedDeclarationId("none");
       setConsommations([]);
       setMontantAbonnement("");
       setNotes("");
@@ -568,7 +568,7 @@ export default function RapprochementManuelDialog({
                 <SelectValue placeholder="Sélectionner un abonnement (optionnel)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">
+                <SelectItem value="none">
                   <span className="text-muted-foreground">Aucun abonnement</span>
                 </SelectItem>
                 {abonnements.map((abonnement) => (
@@ -588,7 +588,7 @@ export default function RapprochementManuelDialog({
                 ))}
               </SelectContent>
             </Select>
-            {selectedAbonnementId && (
+            {selectedAbonnementId && selectedAbonnementId !== "none" && (
               <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">Partenaire:</span>
@@ -621,7 +621,7 @@ export default function RapprochementManuelDialog({
                 <SelectValue placeholder="Sélectionner une déclaration (optionnel)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">
+                <SelectItem value="none">
                   <span className="text-muted-foreground">Aucune déclaration</span>
                 </SelectItem>
                 {declarations.map((declaration) => (
