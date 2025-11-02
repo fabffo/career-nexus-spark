@@ -17,6 +17,7 @@ interface TransactionBancaire {
   debit: number;
   credit: number;
   montant: number;
+  numero_ligne?: string; // Conservé tel quel, jamais modifié
 }
 
 interface FactureMatch {
@@ -147,6 +148,12 @@ export default function EditRapprochementEnCoursDialog({
           <div className="space-y-4 p-4 bg-muted rounded-lg">
             <h3 className="font-semibold text-lg">Transaction bancaire</h3>
             <div className="grid grid-cols-2 gap-4">
+              {transaction.numero_ligne && (
+                <div>
+                  <Label className="text-muted-foreground">Numéro de ligne</Label>
+                  <p className="font-medium font-mono text-sm">{transaction.numero_ligne}</p>
+                </div>
+              )}
               <div>
                 <Label className="text-muted-foreground">Date</Label>
                 <p className="font-medium">{format(new Date(transaction.date), "dd/MM/yyyy", { locale: fr })}</p>
