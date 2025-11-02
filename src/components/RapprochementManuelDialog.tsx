@@ -18,6 +18,7 @@ interface TransactionBancaire {
   debit: number;
   credit: number;
   montant: number;
+  numero_ligne?: string;
 }
 
 interface FactureMatch {
@@ -255,6 +256,7 @@ export default function RapprochementManuelDialog({
             transaction_debit: transaction.debit,
             transaction_credit: transaction.credit,
             transaction_montant: transaction.montant,
+            numero_ligne: transaction.numero_ligne || null,
             abonnement_id: selectedAbonnementId || null,
             declaration_charge_id: selectedDeclarationId || null,
             notes,
@@ -287,6 +289,16 @@ export default function RapprochementManuelDialog({
           .insert(facturesAssociations);
 
         if (facturesError) throw facturesError;
+
+        // Mettre à jour le numero_ligne_rapprochement pour chaque facture
+        if (transaction.numero_ligne) {
+          for (const factureId of selectedFactureIds) {
+            await supabase
+              .from("factures")
+              .update({ numero_ligne_rapprochement: transaction.numero_ligne })
+              .eq("id", factureId);
+          }
+        }
       }
 
       // Si un abonnement est sélectionné, créer automatiquement un paiement d'abonnement
