@@ -25,6 +25,7 @@ interface TransactionBancaire {
   debit: number;
   credit: number;
   montant: number; // Débit en négatif, Crédit en positif
+  numero_ligne?: string; // Format: RL-YYYYMMDD-RANDOM-INDEX
 }
 
 interface FactureMatch {
@@ -806,12 +807,19 @@ export default function RapprochementBancaire() {
               const credit = parseAmount(String(creditValue || "0"));
               const montant = credit > 0 ? credit : -debit;
 
+              // Générer le numero_ligne unique au format RL-YYYYMMDD-RANDOM-INDEX
+              const dateStr = format(date, "yyyyMMdd");
+              const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+              const indexPart = (i - headerRow).toString().padStart(5, '0');
+              const numero_ligne = `RL-${dateStr}-${randomPart}-${indexPart}`;
+
               transactionsParsed.push({
                 date: format(date, "yyyy-MM-dd"),
                 libelle: String(libelleValue || ""),
                 debit,
                 credit,
                 montant,
+                numero_ligne,
               });
             }
 
@@ -848,8 +856,8 @@ export default function RapprochementBancaire() {
           header: true,
           skipEmptyLines: true,
           complete: async (results) => {
-            const transactionsParsed: TransactionBancaire[] = results.data
-              .map((row: any) => {
+            const transactionsParsed = results.data
+              .map((row: any, index: number) => {
                 const dateStr = row.DATE || row.date || row.Date;
                 const date = parseDate(dateStr);
                 if (!date) return null;
@@ -858,13 +866,20 @@ export default function RapprochementBancaire() {
                 const credit = parseAmount(row.Crédit || row.CREDIT || row.credit || "0");
                 const montant = credit > 0 ? credit : -debit;
 
+                // Générer le numero_ligne unique au format RL-YYYYMMDD-RANDOM-INDEX
+                const dateFormatted = format(date, "yyyyMMdd");
+                const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+                const indexPart = (index + 1).toString().padStart(5, '0');
+                const numero_ligne = `RL-${dateFormatted}-${randomPart}-${indexPart}`;
+
                 return {
                   date: format(date, "yyyy-MM-dd"),
                   libelle: row.LIBELLE || row.libelle || row.Libelle || "",
                   debit,
                   credit,
                   montant,
-                };
+                  numero_ligne,
+                } as TransactionBancaire;
               })
               .filter((t): t is TransactionBancaire => t !== null);
 
