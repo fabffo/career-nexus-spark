@@ -237,6 +237,12 @@ export function AssociateCandidatsDialog({ open, onOpenChange, posteId, posteTit
                             {candidat.nom} {candidat.prenom}
                           </p>
                           <p className="text-xs text-muted-foreground">{candidat.metier}</p>
+                          {candidat.mail && (
+                            <p className="text-xs text-muted-foreground">{candidat.mail}</p>
+                          )}
+                          {candidat.telephone && (
+                            <p className="text-xs text-muted-foreground">{candidat.telephone}</p>
+                          )}
                         </div>
                         {isAssociated && (
                           <Badge variant="secondary" className="text-xs">Déjà associé</Badge>
@@ -280,6 +286,12 @@ export function AssociateCandidatsDialog({ open, onOpenChange, posteId, posteTit
                           <p className="text-xs text-muted-foreground">
                             {assoc.candidats?.metier}
                           </p>
+                          {assoc.candidats?.mail && (
+                            <p className="text-xs text-muted-foreground">{assoc.candidats.mail}</p>
+                          )}
+                          {assoc.candidats?.telephone && (
+                            <p className="text-xs text-muted-foreground">{assoc.candidats.telephone}</p>
+                          )}
                         </div>
                         <Button
                           variant="ghost"
