@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import CalendrierRecrutement from '@/components/calendrier/CalendrierRecrutement';
 import { RecrutementGlobalView } from '@/components/recrutement/RecrutementGlobalView';
 import { RecrutementPosteDetail } from '@/components/recrutement/RecrutementPosteDetail';
+import { AssociateCandidatsDialog } from '@/components/AssociateCandidatsDialog';
 
 interface PosteWithDetails extends PosteClient {
   localisation?: string;
@@ -295,6 +296,8 @@ export default function Dashboard() {
 
   const [selectedPosteForDetail, setSelectedPosteForDetail] = useState<string | null>(null);
   const [showRecrutementDetail, setShowRecrutementDetail] = useState(false);
+  const [associateDialogOpen, setAssociateDialogOpen] = useState(false);
+  const [selectedPosteForCandidats, setSelectedPosteForCandidats] = useState<{ id: string; titre: string } | null>(null);
 
   return (
     <div className="space-y-8">
@@ -662,6 +665,10 @@ export default function Dashboard() {
                 setSelectedPosteForDetail(posteId);
                 setShowRecrutementDetail(true);
               }}
+              onCandidatsClick={(posteId, posteTitle) => {
+                setSelectedPosteForCandidats({ id: posteId, titre: posteTitle });
+                setAssociateDialogOpen(true);
+              }}
             />
           )}
         </TabsContent>
@@ -670,6 +677,19 @@ export default function Dashboard() {
           <CalendrierRecrutement />
         </TabsContent>
       </Tabs>
+
+      {/* Dialog pour gérer les candidats d'un poste */}
+      {selectedPosteForCandidats && (
+        <AssociateCandidatsDialog
+          open={associateDialogOpen}
+          onOpenChange={(open) => {
+            setAssociateDialogOpen(open);
+            if (!open) setSelectedPosteForCandidats(null);
+          }}
+          posteId={selectedPosteForCandidats.id}
+          posteTitle={selectedPosteForCandidats.titre}
+        />
+      )}
     </div>
   );
 }

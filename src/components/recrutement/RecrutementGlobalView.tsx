@@ -30,9 +30,10 @@ interface GlobalStats {
 
 interface RecrutementGlobalViewProps {
   onPosteClick: (posteId: string) => void;
+  onCandidatsClick?: (posteId: string, posteTitle: string) => void;
 }
 
-export function RecrutementGlobalView({ onPosteClick }: RecrutementGlobalViewProps) {
+export function RecrutementGlobalView({ onPosteClick, onCandidatsClick }: RecrutementGlobalViewProps) {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   const getStatusBadge = (statut: string) => {
@@ -73,7 +74,15 @@ export function RecrutementGlobalView({ onPosteClick }: RecrutementGlobalViewPro
       accessorKey: 'totalCandidats',
       header: 'Candidats',
       cell: ({ row }) => (
-        <div className="text-center">{row.original.totalCandidats}</div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onCandidatsClick?.(row.original.id, row.original.titre)}
+          className="w-full hover:bg-blue-50"
+        >
+          <Users className="h-4 w-4 mr-2 text-blue-600" />
+          <span className="font-medium">{row.original.totalCandidats}</span>
+        </Button>
       ),
     },
     {
