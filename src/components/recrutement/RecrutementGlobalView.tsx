@@ -16,6 +16,7 @@ interface PosteStats {
   titre: string;
   created_at: string;
   statut: string;
+  client_raison_sociale?: string;
   totalCandidats: number;
   totalRdvs: number;
   tauxConversion: number;
@@ -69,6 +70,13 @@ export function RecrutementGlobalView({ onPosteClick, onCandidatsClick }: Recrut
       accessorKey: 'statut',
       header: 'Statut',
       cell: ({ row }) => getStatusBadge(row.original.statut),
+    },
+    {
+      accessorKey: 'client_raison_sociale',
+      header: 'Client',
+      cell: ({ row }) => (
+        <div className="font-medium">{row.original.client_raison_sociale || '-'}</div>
+      ),
     },
     {
       accessorKey: 'totalCandidats',
@@ -143,10 +151,10 @@ export function RecrutementGlobalView({ onPosteClick, onCandidatsClick }: Recrut
       const startDate = new Date(selectedYear, 0, 1).toISOString();
       const endDate = new Date(selectedYear, 11, 31, 23, 59, 59).toISOString();
 
-      // Charger tous les postes de l'année
+      // Charger tous les postes de l'année avec les infos client
       const { data: postes } = await supabase
         .from('postes')
-        .select('*')
+        .select('*, clients(raison_sociale)')
         .gte('created_at', startDate)
         .lte('created_at', endDate)
         .order('created_at', { ascending: false });
@@ -190,6 +198,7 @@ export function RecrutementGlobalView({ onPosteClick, onCandidatsClick }: Recrut
           titre: poste.titre,
           created_at: poste.created_at,
           statut: poste.statut,
+          client_raison_sociale: poste.clients?.raison_sociale,
           totalCandidats,
           totalRdvs,
           tauxConversion,
