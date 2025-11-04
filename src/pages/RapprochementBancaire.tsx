@@ -406,20 +406,45 @@ export default function RapprochementBancaire() {
 
         console.log(`📊 Rapprochements via liaison trouvés pour ${fichier.numero_rapprochement}:`, rapprochementsViaLiaison?.length || 0);
         if (!liaisonError && rapprochementsViaLiaison) {
+          // Grouper les factures par rapprochement_id pour compter correctement les lignes
+          const rapprochementsGroupes = new Map<string, any>();
+          
           rapprochementsViaLiaison.forEach((rap: any) => {
             if (rap.factures && rap.rapprochements_bancaires) {
               const rb = rap.rapprochements_bancaires;
-              console.log(`  ✓ Ajout:`, rb.transaction_libelle?.substring(0, 40), '→', rap.factures.numero_facture);
+              const rapprochementId = rap.rapprochement_id;
               
-              rapprochementsManuelsFormatted.push({
-                transaction: {
-                  date: rb.transaction_date,
-                  libelle: rb.transaction_libelle,
-                  montant: rb.transaction_montant,
-                  debit: rb.transaction_debit || 0,
-                  credit: rb.transaction_credit || 0,
-                },
-                facture: {
+              if (!rapprochementsGroupes.has(rapprochementId)) {
+                // Première facture pour ce rapprochement
+                rapprochementsGroupes.set(rapprochementId, {
+                  transaction: {
+                    date: rb.transaction_date,
+                    libelle: rb.transaction_libelle,
+                    montant: rb.transaction_montant,
+                    debit: rb.transaction_debit || 0,
+                    credit: rb.transaction_credit || 0,
+                  },
+                  factureIds: [rap.factures.id],
+                  factures: [{
+                    id: rap.factures.id,
+                    numero_facture: rap.factures.numero_facture,
+                    type_facture: rap.factures.type_facture,
+                    total_ttc: rap.factures.total_ttc,
+                    partenaire_nom: rap.factures.type_facture === "VENTES" 
+                      ? rap.factures.destinataire_nom 
+                      : rap.factures.emetteur_nom,
+                  }],
+                  score: 100,
+                  status: "matched",
+                  isManual: true,
+                  manualId: `liaison_${rap.id}`,
+                  notes: rb.notes,
+                });
+              } else {
+                // Ajouter la facture au rapprochement existant
+                const existing = rapprochementsGroupes.get(rapprochementId);
+                existing.factureIds.push(rap.factures.id);
+                existing.factures.push({
                   id: rap.factures.id,
                   numero_facture: rap.factures.numero_facture,
                   type_facture: rap.factures.type_facture,
@@ -427,16 +452,32 @@ export default function RapprochementBancaire() {
                   partenaire_nom: rap.factures.type_facture === "VENTES" 
                     ? rap.factures.destinataire_nom 
                     : rap.factures.emetteur_nom,
+                });
+              }
+            }
+          });
+          
+          // Ajouter les rapprochements groupés
+          rapprochementsGroupes.forEach((rapprochement, rapprochementId) => {
+            if (rapprochement.factureIds.length === 1) {
+              // Une seule facture : format simple
+              rapprochementsManuelsFormatted.push({
+                ...rapprochement,
+                facture: {
+                  ...rapprochement.factures[0],
                   date_emission: "",
                   statut: "PAYEE",
                 },
-                score: 100,
-                status: "matched",
-                isManual: true,
-                manualId: `liaison_${rap.id}`,
-                notes: rb.notes,
+                factureIds: undefined,
+              });
+            } else {
+              // Plusieurs factures : format avec factureIds
+              rapprochementsManuelsFormatted.push({
+                ...rapprochement,
+                facture: null,
               });
             }
+            console.log(`  ✓ Transaction avec ${rapprochement.factureIds.length} facture(s):`, rapprochement.transaction.libelle?.substring(0, 40));
           });
         }
 
