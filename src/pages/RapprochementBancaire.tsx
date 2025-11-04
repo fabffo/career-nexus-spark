@@ -428,38 +428,22 @@ export default function RapprochementBancaire() {
           });
         }
 
-        const existingRapprochements = fichier.fichier_data?.rapprochements || [];
+        // On ne garde QUE les rapprochements de la base de données
+        // car fichier_data.rapprochements contient les rapprochements automatiques du moment de la validation
+        // mais on veut afficher les rapprochements réels de la base
+        const matchedCount = rapprochementsManuelsFormatted.filter((r: Rapprochement) => r.status === "matched").length;
         
         console.log(`🔍 DEBUG ${fichier.numero_rapprochement}:`);
         console.log(`   - Rapprochements via liaison (brut): ${rapprochementsViaLiaison?.length || 0}`);
         console.log(`   - Rapprochements groupés (transactions): ${rapprochementsManuelsFormatted.length}`);
-        console.log(`   - Rapprochements existants (fichier_data): ${existingRapprochements.length}`);
-        
-        const transactionsAvecLiaison = new Set(
-          rapprochementsManuelsFormatted.map(r => 
-            r.transaction.numero_ligne || `${r.transaction.date}_${r.transaction.libelle}_${r.transaction.montant}`
-          )
-        );
-
-        const rapprochementsAutoSansLiaison = existingRapprochements.filter((r: Rapprochement) => {
-          const key = r.transaction.numero_ligne || `${r.transaction.date}_${r.transaction.libelle}_${r.transaction.montant}`;
-          return !transactionsAvecLiaison.has(key);
-        });
-
-        const combinedRapprochements = [...rapprochementsAutoSansLiaison, ...rapprochementsManuelsFormatted];
-        const matchedCount = combinedRapprochements.filter((r: Rapprochement) => r.status === "matched").length;
-        
-        console.log(`   - Auto sans liaison: ${rapprochementsAutoSansLiaison.length}`);
-        console.log(`   - Combinés: ${combinedRapprochements.length}`);
         console.log(`   - Matched (CALCUL FINAL): ${matchedCount}`);
-        console.log(`   - Dans base (lignes_rapprochees): ${fichier.lignes_rapprochees}`);
 
         return {
           ...fichier,
           fichier_data: {
             ...fichier.fichier_data,
             transactions: fichier.fichier_data?.transactions || [],
-            rapprochements: combinedRapprochements,
+            rapprochements: rapprochementsManuelsFormatted,
             rapprochementsManuels: fichier.fichier_data?.rapprochementsManuels || [],
           },
           lignes_rapprochees: matchedCount,
