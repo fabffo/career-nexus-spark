@@ -242,13 +242,19 @@ export default function TvaMensuel() {
         return;
       }
 
-      // 2. Extraire les transactions et rapprochements du JSON
+      // 2. Extraire les transactions et rapprochements du JSON (automatiques + manuels)
       const transactions = (fichiers.fichier_data as any)?.transactions || [];
       const rapprochementsJSON = (fichiers.fichier_data as any)?.rapprochements || [];
+      const rapprochementsManuels = (fichiers.fichier_data as any)?.rapprochementsManuels || [];
+      
+      // Fusionner les rapprochements automatiques et manuels
+      const tousLesRapprochements = [...rapprochementsJSON, ...rapprochementsManuels];
       
       console.log("📦 Total transactions dans le fichier:", transactions.length);
-      console.log("📦 Total rapprochements dans le JSON:", rapprochementsJSON.length);
-      console.log("📦 Exemple de rapprochement:", rapprochementsJSON[0]);
+      console.log("📦 Rapprochements automatiques:", rapprochementsJSON.length);
+      console.log("📦 Rapprochements manuels:", rapprochementsManuels.length);
+      console.log("📦 Total rapprochements:", tousLesRapprochements.length);
+      console.log("📦 Exemple de rapprochement:", tousLesRapprochements[0]);
 
       if (transactions.length === 0) {
         console.log("⚠️ Aucune transaction trouvée dans le fichier");
@@ -257,20 +263,20 @@ export default function TvaMensuel() {
         return;
       }
 
-      // 3. Créer une map transaction -> rapprochement depuis le JSON
+      // 3. Créer une map transaction -> rapprochement depuis TOUS les rapprochements
       const transactionToRapprochement = new Map<string, any>();
-      rapprochementsJSON.forEach((rapp: any) => {
+      tousLesRapprochements.forEach((rapp: any) => {
         if (rapp.status === 'matched') {
           const key = `${rapp.transaction.date}_${rapp.transaction.libelle}_${rapp.transaction.montant}`;
           transactionToRapprochement.set(key, rapp);
         }
       });
       
-      console.log("🔗 Map transaction -> rapprochement créée avec", transactionToRapprochement.size, "entrées matched");
+      console.log("🔗 Map transaction -> rapprochement créée avec", transactionToRapprochement.size, "entrées matched (auto + manuels)");
 
-      // 4. Récupérer tous les IDs de factures depuis les rapprochements JSON
+      // 4. Récupérer tous les IDs de factures depuis TOUS les rapprochements
       const factureIds = new Set<string>();
-      rapprochementsJSON.forEach((rapp: any) => {
+      tousLesRapprochements.forEach((rapp: any) => {
         if (rapp.status === 'matched') {
           if (rapp.facture?.id) {
             factureIds.add(rapp.facture.id);
@@ -281,7 +287,7 @@ export default function TvaMensuel() {
         }
       });
 
-      console.log("📋 Total factures uniques trouvées:", factureIds.size);
+      console.log("📋 Total factures uniques trouvées:", factureIds.size, "(auto + manuels)");
 
       // 5. Charger toutes les factures nécessaires
       let facturesMap = new Map<string, any>();
