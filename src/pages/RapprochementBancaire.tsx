@@ -1950,55 +1950,6 @@ export default function RapprochementBancaire() {
       const rapprochementsAbonnements = rapprochements.filter(r => r.status === 'matched' && r.abonnement_info);
       const rapprochementsDeclarations = rapprochements.filter(r => r.status === 'matched' && r.declaration_info);
 
-      // Créer les rapprochements bancaires et liaisons pour les factures simples (une seule facture)
-      const rapprochementsSimpleFacture = rapprochements.filter(r => 
-        r.status === 'matched' && r.facture?.id && !r.factureIds
-      );
-
-      if (rapprochementsSimpleFacture.length > 0) {
-        console.log("💾 Création des rapprochements avec facture simple:", rapprochementsSimpleFacture.length);
-        
-        for (const r of rapprochementsSimpleFacture) {
-          // Créer le rapprochement bancaire avec le numero_ligne
-          const { data: rapprochementBancaire, error: rbError } = await supabase
-            .from('rapprochements_bancaires')
-            .insert({
-              transaction_date: r.transaction.date,
-              transaction_libelle: r.transaction.libelle,
-              transaction_debit: r.transaction.debit || 0,
-              transaction_credit: r.transaction.credit || 0,
-              transaction_montant: r.transaction.montant,
-              numero_ligne: r.numero_ligne,
-              notes: r.notes || `Rapprochement ${numeroRapprochement}`,
-              created_by: user?.id
-            })
-            .select()
-            .single();
-
-          if (rbError) {
-            console.error("❌ Erreur création rapprochement bancaire (simple):", rbError);
-            continue;
-          }
-
-          console.log("✅ Rapprochement bancaire créé (simple):", rapprochementBancaire.id, "avec numero_ligne:", r.numero_ligne);
-
-          // Créer la liaison rapprochements_factures
-          const { error: liaisonError } = await supabase
-            .from('rapprochements_factures')
-            .insert({
-              rapprochement_id: rapprochementBancaire.id,
-              facture_id: r.facture!.id,
-              created_by: user?.id
-            });
-
-          if (liaisonError) {
-            console.error("❌ Erreur création liaison facture:", liaisonError);
-          } else {
-            console.log(`✅ Liaison créée pour le rapprochement ${rapprochementBancaire.id}`);
-          }
-        }
-      }
-
       // Créer les paiements d'abonnements (rapprochements déjà créés dans la boucle précédente)
       if (rapprochementsAbonnements.length > 0) {
         for (const r of rapprochementsAbonnements) {
@@ -2065,57 +2016,6 @@ export default function RapprochementBancaire() {
             console.error("❌ Erreur lors de la création du paiement déclaration:", paiementError);
           } else {
             console.log(`✅ Paiement déclaration créé pour ${r.declaration_info!.nom}`);
-          }
-        }
-      }
-
-      // Créer les rapprochements bancaires et liaisons pour les factures multiples
-      const rapprochementsMultiFactures = rapprochements.filter(r => 
-        r.status === 'matched' && r.factureIds && r.factureIds.length > 1
-      );
-      
-      if (rapprochementsMultiFactures.length > 0) {
-        console.log("💾 Création des rapprochements avec factures multiples:", rapprochementsMultiFactures.length);
-        
-        for (const r of rapprochementsMultiFactures) {
-          // Créer le rapprochement bancaire avec le numero_ligne
-          const { data: rapprochementBancaire, error: rbError } = await supabase
-            .from('rapprochements_bancaires')
-            .insert({
-              transaction_date: r.transaction.date,
-              transaction_libelle: r.transaction.libelle,
-              transaction_debit: r.transaction.debit || 0,
-              transaction_credit: r.transaction.credit || 0,
-              transaction_montant: r.transaction.montant,
-              numero_ligne: r.numero_ligne,
-              notes: r.notes || `Rapprochement ${numeroRapprochement} - ${r.factureIds!.length} factures`,
-              created_by: user?.id
-            })
-            .select()
-            .single();
-
-          if (rbError) {
-            console.error("❌ Erreur création rapprochement bancaire:", rbError);
-            continue;
-          }
-
-          console.log("✅ Rapprochement bancaire créé:", rapprochementBancaire.id, "avec numero_ligne:", r.numero_ligne);
-
-          // Créer les liaisons rapprochements_factures
-          const liaisons = r.factureIds!.map((factureId: string) => ({
-            rapprochement_id: rapprochementBancaire.id,
-            facture_id: factureId,
-            created_by: user?.id
-          }));
-
-          const { error: liaisonsError } = await supabase
-            .from('rapprochements_factures')
-            .insert(liaisons);
-
-          if (liaisonsError) {
-            console.error("❌ Erreur création liaisons factures:", liaisonsError);
-          } else {
-            console.log(`✅ ${liaisons.length} liaisons créées pour le rapprochement ${rapprochementBancaire.id}`);
           }
         }
       }
