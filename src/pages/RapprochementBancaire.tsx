@@ -151,7 +151,10 @@ export default function RapprochementBancaire() {
     } else {
       setSelectedFichier(null);
       setHistoriqueStatusChanges({});
-      // Ne pas vider les factures pour qu'elles restent disponibles lors de l'édition
+      // Recharger le fichier EN_COURS quand on revient sur l'onglet "En cours"
+      if (activeTab === "en_cours") {
+        loadFichierEnCours();
+      }
     }
   }, [activeTab]);
 
