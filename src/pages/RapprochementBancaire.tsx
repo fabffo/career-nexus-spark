@@ -314,29 +314,7 @@ export default function RapprochementBancaire() {
       if (error) throw error;
       
       const enrichedFiles = await Promise.all((data || []).map(async (fichier: any) => {
-        const { data: rapprochementsManuelsDirects, error: directsError } = await supabase
-          .from("rapprochements_bancaires")
-          .select(`
-            id,
-            transaction_date,
-            transaction_libelle,
-            transaction_montant,
-            transaction_credit,
-            transaction_debit,
-            notes,
-            factures (
-              id,
-              numero_facture,
-              type_facture,
-              total_ttc,
-              destinataire_nom,
-              emetteur_nom
-            )
-          `)
-          .gte("transaction_date", fichier.date_debut)
-          .lte("transaction_date", fichier.date_fin)
-          .not("facture_id", "is", null);
-
+        // Récupérer tous les rapprochements bancaires de cette période
         const { data: allRapprochements } = await supabase
           .from("rapprochements_bancaires")
           .select("id, transaction_date")
@@ -345,6 +323,7 @@ export default function RapprochementBancaire() {
 
         const rapprochementIds = (allRapprochements || []).map(r => r.id);
 
+        // Récupérer uniquement les rapprochements via la table de liaison (nouveau système)
         const { data: rapprochementsViaLiaison, error: liaisonError } = await supabase
           .from("rapprochements_factures")
           .select(`
@@ -371,38 +350,6 @@ export default function RapprochementBancaire() {
           .in("rapprochement_id", rapprochementIds.length > 0 ? rapprochementIds : ["00000000-0000-0000-0000-000000000000"]);
 
         const rapprochementsManuelsFormatted: Rapprochement[] = [];
-        
-        if (!directsError && rapprochementsManuelsDirects) {
-          rapprochementsManuelsDirects.forEach((rap: any) => {
-            if (rap.factures) {
-              rapprochementsManuelsFormatted.push({
-                transaction: {
-                  date: rap.transaction_date,
-                  libelle: rap.transaction_libelle,
-                  montant: rap.transaction_montant,
-                  debit: rap.transaction_debit || 0,
-                  credit: rap.transaction_credit || 0,
-                },
-                facture: {
-                  id: rap.factures.id,
-                  numero_facture: rap.factures.numero_facture,
-                  type_facture: rap.factures.type_facture,
-                  total_ttc: rap.factures.total_ttc,
-                  partenaire_nom: rap.factures.type_facture === "VENTES" 
-                    ? rap.factures.destinataire_nom 
-                    : rap.factures.emetteur_nom,
-                  date_emission: "",
-                  statut: "PAYEE",
-                },
-                score: 100,
-                status: "matched",
-                isManual: true,
-                manualId: rap.id,
-                notes: rap.notes,
-              });
-            }
-          });
-        }
 
         console.log(`📊 Rapprochements via liaison trouvés pour ${fichier.numero_rapprochement}:`, rapprochementsViaLiaison?.length || 0);
         if (!liaisonError && rapprochementsViaLiaison) {
