@@ -242,17 +242,100 @@ export default function TvaMensuel() {
         return;
       }
 
-      // 2. Extraire les transactions et rapprochements du JSON (automatiques + manuels)
+      // 2. Reconstruire les rapprochements depuis la DB (pour avoir les factureIds à jour)
+      const { data: allRapprochementsDetails } = await supabase
+        .from("rapprochements_bancaires")
+        .select(`
+          id,
+          transaction_date,
+          transaction_libelle,
+          transaction_montant,
+          transaction_credit,
+          transaction_debit,
+          numero_ligne,
+          notes
+        `)
+        .gte("transaction_date", fichiers.date_debut)
+        .lte("transaction_date", fichiers.date_fin);
+
+      const rapprochementIds = (allRapprochementsDetails || []).map(r => r.id);
+
+      // Récupérer les factures associées via la table de liaison
+      const { data: rapprochementsViaLiaison } = await supabase
+        .from("rapprochements_factures")
+        .select(`
+          id,
+          rapprochement_id,
+          factures (
+            id,
+            numero_facture,
+            type_facture,
+            total_ttc,
+            total_tva,
+            destinataire_nom,
+            emetteur_nom
+          )
+        `)
+        .in("rapprochement_id", rapprochementIds.length > 0 ? rapprochementIds : ["00000000-0000-0000-0000-000000000000"]);
+
+      // Créer une Map des factures par rapprochement_id
+      const facturesParRapprochement = new Map<string, any[]>();
+      if (rapprochementsViaLiaison) {
+        rapprochementsViaLiaison.forEach((liaison: any) => {
+          if (liaison.factures) {
+            if (!facturesParRapprochement.has(liaison.rapprochement_id)) {
+              facturesParRapprochement.set(liaison.rapprochement_id, []);
+            }
+            facturesParRapprochement.get(liaison.rapprochement_id)!.push(liaison.factures);
+          }
+        });
+      }
+
+      // Reconstruire les rapprochements avec les factureIds depuis la DB
+      const rapprochementsReconstruits: any[] = [];
+      (allRapprochementsDetails || []).forEach((rb: any) => {
+        const factures = facturesParRapprochement.get(rb.id) || [];
+        
+        const rapprochement: any = {
+          transaction: {
+            date: rb.transaction_date,
+            libelle: rb.transaction_libelle,
+            montant: rb.transaction_montant,
+            debit: rb.transaction_debit || 0,
+            credit: rb.transaction_credit || 0,
+            numero_ligne: rb.numero_ligne,
+          },
+          facture: null,
+          factureIds: [],
+          score: 100,
+          status: "matched",
+          isManual: true,
+          notes: rb.notes,
+        };
+        
+        if (factures.length === 1) {
+          rapprochement.facture = {
+            id: factures[0].id,
+            numero_facture: factures[0].numero_facture,
+            type_facture: factures[0].type_facture,
+            total_ttc: factures[0].total_ttc,
+            total_tva: factures[0].total_tva,
+            partenaire_nom: factures[0].type_facture === "VENTES" 
+              ? factures[0].destinataire_nom 
+              : factures[0].emetteur_nom,
+          };
+        } else if (factures.length > 1) {
+          rapprochement.factureIds = factures.map(f => f.id);
+        }
+        
+        rapprochementsReconstruits.push(rapprochement);
+      });
+
       const transactions = (fichiers.fichier_data as any)?.transactions || [];
-      const rapprochementsJSON = (fichiers.fichier_data as any)?.rapprochements || [];
-      const rapprochementsManuels = (fichiers.fichier_data as any)?.rapprochementsManuels || [];
-      
-      // Fusionner les rapprochements automatiques et manuels
-      const tousLesRapprochements = [...rapprochementsJSON, ...rapprochementsManuels];
+      const tousLesRapprochements = rapprochementsReconstruits;
       
       console.log("📦 Total transactions dans le fichier:", transactions.length);
-      console.log("📦 Rapprochements automatiques:", rapprochementsJSON.length);
-      console.log("📦 Rapprochements manuels:", rapprochementsManuels.length);
+      console.log("📦 Rapprochements reconstruits depuis DB:", rapprochementsReconstruits.length);
       console.log("📦 Total rapprochements:", tousLesRapprochements.length);
       console.log("📦 Exemple de rapprochement:", tousLesRapprochements[0]);
 
@@ -278,13 +361,6 @@ export default function TvaMensuel() {
       const factureIds = new Set<string>();
       tousLesRapprochements.forEach((rapp: any) => {
         if (rapp.status === 'matched') {
-          // Log pour débugger les rapprochements ECOLE
-          if (rapp.transaction?.libelle?.includes('ECOLE')) {
-            console.log("🏫 DEBUG ECOLE - Rapprochement complet:", JSON.stringify(rapp, null, 2));
-            console.log("🏫 DEBUG ECOLE - facture?.id:", rapp.facture?.id);
-            console.log("🏫 DEBUG ECOLE - factureIds:", rapp.factureIds);
-          }
-          
           if (rapp.facture?.id) {
             factureIds.add(rapp.facture.id);
           }
@@ -347,39 +423,22 @@ export default function TvaMensuel() {
         // Récupérer les factures depuis le JSON
         let facturesData: any[] = [];
         
-        // Debug pour ECOLE
-        const isEcole = transaction.libelle.includes('ECOLE');
-        if (isEcole) {
-          console.log("🏫 DEBUG ECOLE - Transaction:", transaction);
-          console.log("🏫 DEBUG ECOLE - Rapprochement:", rapp);
-        }
-        
         // Cas 1: Facture unique
         if (rapp.facture?.id) {
           const facture = facturesMap.get(rapp.facture.id);
           if (facture) {
             facturesData.push(facture);
-            if (isEcole) console.log("🏫 DEBUG ECOLE - Facture unique ajoutée:", facture);
           }
         }
         
         // Cas 2: Factures multiples
         if (rapp.factureIds && Array.isArray(rapp.factureIds)) {
-          if (isEcole) console.log("🏫 DEBUG ECOLE - factureIds trouvés:", rapp.factureIds);
           rapp.factureIds.forEach((factureId: string) => {
             const facture = facturesMap.get(factureId);
             if (facture) {
               facturesData.push(facture);
-              if (isEcole) console.log("🏫 DEBUG ECOLE - Facture multiple ajoutée:", facture);
-            } else {
-              if (isEcole) console.log("🏫 DEBUG ECOLE - Facture non trouvée dans map:", factureId);
             }
           });
-        }
-
-        if (isEcole) {
-          console.log("🏫 DEBUG ECOLE - Total factures trouvées:", facturesData.length);
-          console.log("🏫 DEBUG ECOLE - Factures data:", facturesData);
         }
 
         if (countRapprochees === 1 && facturesData.length > 0) {

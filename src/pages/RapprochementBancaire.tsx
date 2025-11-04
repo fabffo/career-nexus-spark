@@ -368,20 +368,10 @@ export default function RapprochementBancaire() {
         console.log(`📊 Rapprochements bancaires trouvés pour ${fichier.numero_rapprochement}:`, allRapprochementsDetails?.length || 0);
         console.log(`📊 Rapprochements avec factures:`, rapprochementsViaLiaison?.length || 0);
         
-        // Debug ECOLE
-        const ecoleRapp = allRapprochementsDetails?.find(r => r.transaction_libelle?.includes('ECOLE'));
-        if (ecoleRapp) {
-          console.log("🏫 ECOLE - Rapprochement bancaire trouvé:", ecoleRapp);
-          console.log("🏫 ECOLE - Rapprochement ID:", ecoleRapp.id);
-        }
-        
         // Créer une Map des factures par rapprochement_id
         const facturesParRapprochement = new Map<string, any[]>();
         if (!liaisonError && rapprochementsViaLiaison) {
           rapprochementsViaLiaison.forEach((liaison: any) => {
-            if (liaison.rapprochement_id === ecoleRapp?.id) {
-              console.log("🏫 ECOLE - Liaison trouvée:", liaison);
-            }
             if (liaison.factures) {
               if (!facturesParRapprochement.has(liaison.rapprochement_id)) {
                 facturesParRapprochement.set(liaison.rapprochement_id, []);
@@ -389,9 +379,6 @@ export default function RapprochementBancaire() {
               facturesParRapprochement.get(liaison.rapprochement_id)!.push(liaison.factures);
             }
           });
-          if (ecoleRapp) {
-            console.log("🏫 ECOLE - Factures trouvées dans Map:", facturesParRapprochement.get(ecoleRapp.id));
-          }
         } else if (liaisonError) {
           console.error("❌ Erreur chargement liaisons:", liaisonError);
         }
@@ -399,13 +386,6 @@ export default function RapprochementBancaire() {
         // Traiter TOUS les rapprochements bancaires
         (allRapprochementsDetails || []).forEach((rb: any) => {
           const factures = facturesParRapprochement.get(rb.id) || [];
-          
-          // Debug ECOLE
-          if (rb.transaction_libelle?.includes('ECOLE')) {
-            console.log("🏫 ECOLE - Traitement du rapprochement:", rb.id);
-            console.log("🏫 ECOLE - Factures récupérées:", factures);
-            console.log("🏫 ECOLE - Nombre de factures:", factures.length);
-          }
           
           const rapprochement: Rapprochement = {
             transaction: {
