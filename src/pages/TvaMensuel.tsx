@@ -278,6 +278,13 @@ export default function TvaMensuel() {
       const factureIds = new Set<string>();
       tousLesRapprochements.forEach((rapp: any) => {
         if (rapp.status === 'matched') {
+          // Log pour débugger les rapprochements ECOLE
+          if (rapp.transaction?.libelle?.includes('ECOLE')) {
+            console.log("🏫 DEBUG ECOLE - Rapprochement complet:", JSON.stringify(rapp, null, 2));
+            console.log("🏫 DEBUG ECOLE - facture?.id:", rapp.facture?.id);
+            console.log("🏫 DEBUG ECOLE - factureIds:", rapp.factureIds);
+          }
+          
           if (rapp.facture?.id) {
             factureIds.add(rapp.facture.id);
           }
@@ -340,22 +347,39 @@ export default function TvaMensuel() {
         // Récupérer les factures depuis le JSON
         let facturesData: any[] = [];
         
+        // Debug pour ECOLE
+        const isEcole = transaction.libelle.includes('ECOLE');
+        if (isEcole) {
+          console.log("🏫 DEBUG ECOLE - Transaction:", transaction);
+          console.log("🏫 DEBUG ECOLE - Rapprochement:", rapp);
+        }
+        
         // Cas 1: Facture unique
         if (rapp.facture?.id) {
           const facture = facturesMap.get(rapp.facture.id);
           if (facture) {
             facturesData.push(facture);
+            if (isEcole) console.log("🏫 DEBUG ECOLE - Facture unique ajoutée:", facture);
           }
         }
         
         // Cas 2: Factures multiples
         if (rapp.factureIds && Array.isArray(rapp.factureIds)) {
+          if (isEcole) console.log("🏫 DEBUG ECOLE - factureIds trouvés:", rapp.factureIds);
           rapp.factureIds.forEach((factureId: string) => {
             const facture = facturesMap.get(factureId);
             if (facture) {
               facturesData.push(facture);
+              if (isEcole) console.log("🏫 DEBUG ECOLE - Facture multiple ajoutée:", facture);
+            } else {
+              if (isEcole) console.log("🏫 DEBUG ECOLE - Facture non trouvée dans map:", factureId);
             }
           });
+        }
+
+        if (isEcole) {
+          console.log("🏫 DEBUG ECOLE - Total factures trouvées:", facturesData.length);
+          console.log("🏫 DEBUG ECOLE - Factures data:", facturesData);
         }
 
         if (countRapprochees === 1 && facturesData.length > 0) {
