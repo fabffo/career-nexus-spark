@@ -1865,18 +1865,30 @@ export default function RapprochementBancaire() {
         let rapprochementId = existingRapprochement?.id;
         
         if (!existingRapprochement) {
+          const rapprochementData: any = {
+            transaction_date: r.transaction.date,
+            transaction_libelle: r.transaction.libelle,
+            transaction_debit: r.transaction.debit,
+            transaction_credit: r.transaction.credit,
+            transaction_montant: r.transaction.montant,
+            numero_ligne: numeroLigne,
+            notes: r.notes || null,
+            created_by: user?.id
+          };
+          
+          // Ajouter abonnement_id si présent
+          if (r.abonnement_info?.id) {
+            rapprochementData.abonnement_id = r.abonnement_info.id;
+          }
+          
+          // Ajouter declaration_charge_id si présent
+          if (r.declaration_info?.id) {
+            rapprochementData.declaration_charge_id = r.declaration_info.id;
+          }
+          
           const { data: newRapprochement, error: insertError } = await supabase
             .from('rapprochements_bancaires')
-            .insert({
-              transaction_date: r.transaction.date,
-              transaction_libelle: r.transaction.libelle,
-              transaction_debit: r.transaction.debit,
-              transaction_credit: r.transaction.credit,
-              transaction_montant: r.transaction.montant,
-              numero_ligne: numeroLigne,
-              notes: r.notes || null,
-              created_by: user?.id
-            } as any)
+            .insert(rapprochementData)
             .select()
             .single();
           
@@ -2007,28 +2019,18 @@ export default function RapprochementBancaire() {
         }
       }
 
-      // Créer les rapprochements bancaires et paiements d'abonnements
+      // Créer les paiements d'abonnements (rapprochements déjà créés dans la boucle précédente)
       if (rapprochementsAbonnements.length > 0) {
         for (const r of rapprochementsAbonnements) {
-          // Créer le rapprochement bancaire
-          const { data: rapprochementBancaire, error: rbError } = await supabase
+          // Récupérer le rapprochement bancaire déjà créé par numero_ligne
+          const { data: rapprochementBancaire } = await supabase
             .from('rapprochements_bancaires')
-            .insert({
-              transaction_date: r.transaction.date,
-              transaction_libelle: r.transaction.libelle,
-              transaction_debit: r.transaction.debit,
-              transaction_credit: r.transaction.credit,
-              transaction_montant: r.transaction.montant,
-              abonnement_id: r.abonnement_info!.id,
-              notes: `Rapprochement automatique ${numeroRapprochement}`,
-              created_by: user?.id,
-              numero_ligne: '' // Sera généré automatiquement par le trigger
-            } as any)
-            .select()
+            .select('id')
+            .eq('numero_ligne', r.numero_ligne)
             .single();
 
-          if (rbError) {
-            console.error("Erreur lors de la création du rapprochement bancaire (abonnement):", rbError);
+          if (!rapprochementBancaire) {
+            console.error("❌ Rapprochement bancaire introuvable pour", r.numero_ligne);
             continue;
           }
 
@@ -2045,33 +2047,25 @@ export default function RapprochementBancaire() {
             });
 
           if (paiementError) {
-            console.error("Erreur lors de la création du paiement abonnement:", paiementError);
+            console.error("❌ Erreur lors de la création du paiement abonnement:", paiementError);
+          } else {
+            console.log(`✅ Paiement abonnement créé pour ${r.abonnement_info!.nom}`);
           }
         }
       }
 
-      // Créer les rapprochements bancaires et paiements de déclarations
+      // Créer les paiements de déclarations (rapprochements déjà créés dans la boucle précédente)
       if (rapprochementsDeclarations.length > 0) {
         for (const r of rapprochementsDeclarations) {
-          // Créer le rapprochement bancaire
-          const { data: rapprochementBancaire, error: rbError } = await supabase
+          // Récupérer le rapprochement bancaire déjà créé par numero_ligne
+          const { data: rapprochementBancaire } = await supabase
             .from('rapprochements_bancaires')
-            .insert({
-              transaction_date: r.transaction.date,
-              transaction_libelle: r.transaction.libelle,
-              transaction_debit: r.transaction.debit,
-              transaction_credit: r.transaction.credit,
-              transaction_montant: r.transaction.montant,
-              declaration_charge_id: r.declaration_info!.id,
-              notes: `Rapprochement automatique ${numeroRapprochement}`,
-              created_by: user?.id,
-              numero_ligne: '' // Sera généré automatiquement par le trigger
-            } as any)
-            .select()
+            .select('id')
+            .eq('numero_ligne', r.numero_ligne)
             .single();
 
-          if (rbError) {
-            console.error("Erreur lors de la création du rapprochement bancaire (déclaration):", rbError);
+          if (!rapprochementBancaire) {
+            console.error("❌ Rapprochement bancaire introuvable pour", r.numero_ligne);
             continue;
           }
 
@@ -2088,7 +2082,9 @@ export default function RapprochementBancaire() {
             });
 
           if (paiementError) {
-            console.error("Erreur lors de la création du paiement déclaration:", paiementError);
+            console.error("❌ Erreur lors de la création du paiement déclaration:", paiementError);
+          } else {
+            console.log(`✅ Paiement déclaration créé pour ${r.declaration_info!.nom}`);
           }
         }
       }
