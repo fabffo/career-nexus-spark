@@ -8,8 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CheckCircle, XCircle, AlertCircle, X } from "lucide-react";
+import { CheckCircle, XCircle, AlertCircle, X, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface TransactionBancaire {
   date: string;
@@ -65,6 +67,8 @@ export default function EditRapprochementEnCoursDialog({
   const [selectedFactureIds, setSelectedFactureIds] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [associatedFactures, setAssociatedFactures] = useState<any[]>([]);
+  const [loadingAssociated, setLoadingAssociated] = useState(false);
   const { toast } = useToast();
 
   // Réinitialiser les états quand le dialogue se ferme
@@ -85,8 +89,54 @@ export default function EditRapprochementEnCoursDialog({
       if (rapprochement.facture) {
         setSelectedFactureIds([rapprochement.facture.id]);
       }
+      
+      // Charger les factures associées si la transaction a un numero_ligne
+      if (rapprochement.transaction.numero_ligne) {
+        loadAssociatedFactures(rapprochement.transaction.numero_ligne);
+      }
     }
   }, [rapprochement, open]);
+
+  const loadAssociatedFactures = async (numeroLigne: string) => {
+    setLoadingAssociated(true);
+    try {
+      // 1. Chercher le rapprochement bancaire
+      const { data: rapprochementData, error: rapprochementError } = await supabase
+        .from('rapprochements_bancaires')
+        .select('id')
+        .eq('numero_ligne', numeroLigne)
+        .single();
+
+      if (rapprochementError) throw rapprochementError;
+
+      // 2. Chercher toutes les factures liées via rapprochements_factures
+      const { data: liaisonsFactures, error: liaisonsError } = await supabase
+        .from('rapprochements_factures')
+        .select('facture_id')
+        .eq('rapprochement_id', rapprochementData.id);
+
+      if (liaisonsError) throw liaisonsError;
+
+      const factureIds = liaisonsFactures?.map(l => l.facture_id) || [];
+      
+      if (factureIds.length > 0) {
+        const { data: facturesData, error: facturesError } = await supabase
+          .from('factures')
+          .select('*')
+          .in('id', factureIds);
+
+        if (facturesError) throw facturesError;
+        setAssociatedFactures(facturesData || []);
+      } else {
+        setAssociatedFactures([]);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des factures associées:', error);
+      setAssociatedFactures([]);
+    } finally {
+      setLoadingAssociated(false);
+    }
+  };
 
   // Filtrer les factures disponibles (non rapprochées)
   const facturesDisponibles = factures.filter(f => !f.numero_rapprochement || (rapprochement?.facture && f.id === rapprochement.facture.id));
@@ -145,37 +195,41 @@ export default function EditRapprochementEnCoursDialog({
 
         <div className="space-y-6">
           {/* Informations de la transaction */}
-          <div className="space-y-4 p-4 bg-muted rounded-lg">
-            <h3 className="font-semibold text-lg">Transaction bancaire</h3>
-            <div className="grid grid-cols-2 gap-4">
-              {transaction.numero_ligne && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Transaction bancaire</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                {transaction.numero_ligne && (
+                  <div>
+                    <Label className="text-muted-foreground">Numéro de ligne</Label>
+                    <p className="font-medium font-mono text-sm">{transaction.numero_ligne}</p>
+                  </div>
+                )}
                 <div>
-                  <Label className="text-muted-foreground">Numéro de ligne</Label>
-                  <p className="font-medium font-mono text-sm">{transaction.numero_ligne}</p>
+                  <Label className="text-muted-foreground">Date</Label>
+                  <p className="font-medium">{format(new Date(transaction.date), "dd/MM/yyyy", { locale: fr })}</p>
                 </div>
-              )}
-              <div>
-                <Label className="text-muted-foreground">Date</Label>
-                <p className="font-medium">{format(new Date(transaction.date), "dd/MM/yyyy", { locale: fr })}</p>
+                <div>
+                  <Label className="text-muted-foreground">Montant</Label>
+                  <p className={`font-medium ${transaction.montant > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(Math.abs(transaction.montant))}
+                    {transaction.montant > 0 ? " (Crédit)" : " (Débit)"}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-muted-foreground">Libellé</Label>
+                  <p className="font-medium">{transaction.libelle}</p>
+                </div>
               </div>
-              <div>
-                <Label className="text-muted-foreground">Montant</Label>
-                <p className={`font-medium ${transaction.montant > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(Math.abs(transaction.montant))}
-                  {transaction.montant > 0 ? " (Crédit)" : " (Débit)"}
-                </p>
-              </div>
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Libellé</Label>
-              <p className="font-medium">{transaction.libelle}</p>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Statut */}
           <div className="space-y-2">
             <Label>Statut du rapprochement</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as any)}>
+            <Select value={status} onValueChange={(v) => setStatus(v as any)} disabled={transaction.numero_ligne !== undefined}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -202,116 +256,163 @@ export default function EditRapprochementEnCoursDialog({
             </Select>
           </div>
 
-          {/* Factures sélectionnées */}
-          {selectedFactures.length > 0 && (
-            <div className="space-y-2">
-              <Label>Facture(s) associée(s)</Label>
-              <div className="space-y-2">
-                {selectedFactures.map((facture) => (
-                  <div key={facture.id} className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{facture.numero_facture}</span>
-                        <Badge variant={facture.type_facture === "VENTES" ? "default" : "secondary"}>
-                          {facture.type_facture}
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {facture.partenaire_nom} • {format(new Date(facture.date_emission), "dd/MM/yyyy")} • {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(facture.total_ttc)}
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => toggleFactureSelection(facture.id)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <div className="flex items-center justify-between p-2 bg-muted rounded">
-                  <span className="font-medium">Total factures :</span>
-                  <span className="font-bold">{new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(totalFacturesSelectionnees)}</span>
-                </div>
-                {Math.abs(Math.abs(transaction.montant) - totalFacturesSelectionnees) > 0.01 && (
-                  <div className="flex items-center gap-2 p-2 bg-orange-50 border border-orange-200 rounded text-sm text-orange-800">
-                    <AlertCircle className="h-4 w-4" />
-                    Différence de {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(Math.abs(Math.abs(transaction.montant) - totalFacturesSelectionnees))}
-                  </div>
-                )}
+          {/* Afficher les factures déjà associées (depuis la base de données) */}
+          {transaction.numero_ligne && (
+            loadingAssociated ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            </div>
+            ) : associatedFactures.length > 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Facture(s) associée(s)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {associatedFactures.map((facture) => (
+                      <div key={facture.id} className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{facture.numero_facture}</span>
+                            <Badge variant={facture.type_facture === "VENTES" ? "default" : "secondary"}>
+                              {facture.type_facture}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {facture.type_facture === "VENTES" ? facture.destinataire_nom : facture.emetteur_nom} • {format(new Date(facture.date_emission), "dd/MM/yyyy")} • {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(facture.total_ttc)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between p-2 bg-muted rounded">
+                      <span className="font-medium">Total factures :</span>
+                      <span className="font-bold">
+                        {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
+                          associatedFactures.reduce((sum, f) => sum + f.total_ttc, 0)
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null
           )}
 
-          {/* Recherche et sélection de factures */}
-          <div className="space-y-2">
-            <Label>Associer une facture</Label>
-            <Input
-              placeholder="Rechercher par numéro, partenaire ou montant..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-
-            <div className="grid grid-cols-2 gap-4 max-h-[300px] overflow-y-auto">
-              {/* Factures de ventes */}
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm text-muted-foreground">Factures de ventes ({facturesVentes.length})</h4>
-                {facturesVentes.map((facture) => (
-                  <div
-                    key={facture.id}
-                    onClick={() => toggleFactureSelection(facture.id)}
-                    className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                      selectedFactureIds.includes(facture.id)
-                        ? "border-primary bg-primary/10"
-                        : "border-border hover:border-primary/50 hover:bg-muted"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm">{facture.numero_facture}</span>
-                      <Badge variant="default" className="text-xs">VENTE</Badge>
+          {/* Ne pas afficher la sélection de factures si la transaction est déjà rapprochée */}
+          {!transaction.numero_ligne && (
+            <>
+              {/* Factures sélectionnées */}
+              {selectedFactures.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Facture(s) associée(s)</Label>
+                  <div className="space-y-2">
+                    {selectedFactures.map((facture) => (
+                      <div key={facture.id} className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{facture.numero_facture}</span>
+                            <Badge variant={facture.type_facture === "VENTES" ? "default" : "secondary"}>
+                              {facture.type_facture}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {facture.partenaire_nom} • {format(new Date(facture.date_emission), "dd/MM/yyyy")} • {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(facture.total_ttc)}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => toggleFactureSelection(facture.id)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between p-2 bg-muted rounded">
+                      <span className="font-medium">Total factures :</span>
+                      <span className="font-bold">{new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(totalFacturesSelectionnees)}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">{facture.partenaire_nom}</p>
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-xs text-muted-foreground">{format(new Date(facture.date_emission), "dd/MM/yyyy")}</span>
-                      <span className="font-medium text-sm">{new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(facture.total_ttc)}</span>
-                    </div>
+                    {Math.abs(Math.abs(transaction.montant) - totalFacturesSelectionnees) > 0.01 && (
+                      <div className="flex items-center gap-2 p-2 bg-orange-50 border border-orange-200 rounded text-sm text-orange-800">
+                        <AlertCircle className="h-4 w-4" />
+                        Différence de {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(Math.abs(Math.abs(transaction.montant) - totalFacturesSelectionnees))}
+                      </div>
+                    )}
                   </div>
-                ))}
-                {facturesVentes.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center p-4">Aucune facture de vente disponible</p>
-                )}
-              </div>
+                </div>
+              )}
 
-              {/* Factures d'achats */}
+              {/* Recherche et sélection de factures */}
               <div className="space-y-2">
-                <h4 className="font-medium text-sm text-muted-foreground">Factures d'achats ({facturesAchats.length})</h4>
-                {facturesAchats.map((facture) => (
-                  <div
-                    key={facture.id}
-                    onClick={() => toggleFactureSelection(facture.id)}
-                    className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                      selectedFactureIds.includes(facture.id)
-                        ? "border-primary bg-primary/10"
-                        : "border-border hover:border-primary/50 hover:bg-muted"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm">{facture.numero_facture}</span>
-                      <Badge variant="secondary" className="text-xs">ACHAT</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">{facture.partenaire_nom}</p>
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-xs text-muted-foreground">{format(new Date(facture.date_emission), "dd/MM/yyyy")}</span>
-                      <span className="font-medium text-sm">{new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(facture.total_ttc)}</span>
-                    </div>
+                <Label>Associer une facture</Label>
+                <Input
+                  placeholder="Rechercher par numéro, partenaire ou montant..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+
+                <div className="grid grid-cols-2 gap-4 max-h-[300px] overflow-y-auto">
+                  {/* Factures de ventes */}
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm text-muted-foreground">Factures de ventes ({facturesVentes.length})</h4>
+                    {facturesVentes.map((facture) => (
+                      <div
+                        key={facture.id}
+                        onClick={() => toggleFactureSelection(facture.id)}
+                        className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                          selectedFactureIds.includes(facture.id)
+                            ? "border-primary bg-primary/10"
+                            : "border-border hover:border-primary/50 hover:bg-muted"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">{facture.numero_facture}</span>
+                          <Badge variant="default" className="text-xs">VENTE</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">{facture.partenaire_nom}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-xs text-muted-foreground">{format(new Date(facture.date_emission), "dd/MM/yyyy")}</span>
+                          <span className="font-medium text-sm">{new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(facture.total_ttc)}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {facturesVentes.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center p-4">Aucune facture de vente disponible</p>
+                    )}
                   </div>
-                ))}
-                {facturesAchats.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center p-4">Aucune facture d'achat disponible</p>
-                )}
+
+                  {/* Factures d'achats */}
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm text-muted-foreground">Factures d'achats ({facturesAchats.length})</h4>
+                    {facturesAchats.map((facture) => (
+                      <div
+                        key={facture.id}
+                        onClick={() => toggleFactureSelection(facture.id)}
+                        className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                          selectedFactureIds.includes(facture.id)
+                            ? "border-primary bg-primary/10"
+                            : "border-border hover:border-primary/50 hover:bg-muted"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">{facture.numero_facture}</span>
+                          <Badge variant="secondary" className="text-xs">ACHAT</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">{facture.partenaire_nom}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-xs text-muted-foreground">{format(new Date(facture.date_emission), "dd/MM/yyyy")}</span>
+                          <span className="font-medium text-sm">{new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(facture.total_ttc)}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {facturesAchats.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center p-4">Aucune facture d'achat disponible</p>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
 
           {/* Notes */}
           <div className="space-y-2">
@@ -321,17 +422,20 @@ export default function EditRapprochementEnCoursDialog({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
+              disabled={transaction.numero_ligne !== undefined}
             />
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Annuler
+            {transaction.numero_ligne ? "Fermer" : "Annuler"}
           </Button>
-          <Button onClick={handleSave}>
-            Enregistrer
-          </Button>
+          {!transaction.numero_ligne && (
+            <Button onClick={handleSave}>
+              Enregistrer
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
