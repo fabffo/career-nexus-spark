@@ -67,10 +67,6 @@ export default function EditRapprochementEnCoursDialog({
   const [selectedFactureIds, setSelectedFactureIds] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [associatedFactures, setAssociatedFactures] = useState<any[]>([]);
-  const [associatedAbonnement, setAssociatedAbonnement] = useState<any>(null);
-  const [associatedDeclaration, setAssociatedDeclaration] = useState<any>(null);
-  const [loadingAssociated, setLoadingAssociated] = useState(false);
   const { toast } = useToast();
 
   // Réinitialiser les états quand le dialogue se ferme
@@ -91,114 +87,8 @@ export default function EditRapprochementEnCoursDialog({
       if (rapprochement.facture) {
         setSelectedFactureIds([rapprochement.facture.id]);
       }
-      
-      // Charger les factures associées si la transaction a un numero_ligne
-      if (rapprochement.transaction.numero_ligne) {
-        loadAssociatedFactures(rapprochement.transaction.numero_ligne);
-      }
     }
   }, [rapprochement, open]);
-
-  const loadAssociatedFactures = async (numeroLigne: string) => {
-    setLoadingAssociated(true);
-    console.log('🔍 Chargement des données associées pour:', numeroLigne);
-    try {
-      // 1. Chercher le rapprochement bancaire
-      const { data: rapprochementData, error: rapprochementError } = await supabase
-        .from('rapprochements_bancaires')
-        .select('id, abonnement_id, declaration_charge_id')
-        .eq('numero_ligne', numeroLigne)
-        .maybeSingle();
-
-      console.log('📊 Rapprochement trouvé:', rapprochementData);
-      
-      if (rapprochementError) {
-        console.error('❌ Erreur rapprochement:', rapprochementError);
-        throw rapprochementError;
-      }
-      
-      // Si pas de rapprochement trouvé, ne rien afficher
-      if (!rapprochementData) {
-        console.warn('⚠️ Aucun rapprochement trouvé pour ce numéro de ligne');
-        setAssociatedFactures([]);
-        setAssociatedAbonnement(null);
-        setAssociatedDeclaration(null);
-        setLoadingAssociated(false);
-        return;
-      }
-
-      // 2. Chercher toutes les factures liées via rapprochements_factures
-      const { data: liaisonsFactures, error: liaisonsError } = await supabase
-        .from('rapprochements_factures')
-        .select('facture_id')
-        .eq('rapprochement_id', rapprochementData.id);
-
-      console.log('🔗 Liaisons factures trouvées:', liaisonsFactures);
-      
-      if (liaisonsError) {
-        console.error('❌ Erreur liaisons:', liaisonsError);
-        throw liaisonsError;
-      }
-
-      const factureIds = liaisonsFactures?.map(l => l.facture_id) || [];
-      
-      if (factureIds.length > 0) {
-        const { data: facturesData, error: facturesError } = await supabase
-          .from('factures')
-          .select('*')
-          .in('id', factureIds);
-
-        console.log('📄 Factures chargées:', facturesData);
-        
-        if (facturesError) {
-          console.error('❌ Erreur factures:', facturesError);
-          throw facturesError;
-        }
-        setAssociatedFactures(facturesData || []);
-      } else {
-        console.log('ℹ️ Aucune facture associée');
-        setAssociatedFactures([]);
-      }
-
-      // 3. Charger l'abonnement si présent
-      if (rapprochementData.abonnement_id) {
-        console.log('🔍 Chargement abonnement:', rapprochementData.abonnement_id);
-        const { data: abonnementData } = await supabase
-          .from('abonnements_partenaires')
-          .select('*')
-          .eq('id', rapprochementData.abonnement_id)
-          .single();
-        
-        console.log('📦 Abonnement chargé:', abonnementData);
-        setAssociatedAbonnement(abonnementData || null);
-      } else {
-        setAssociatedAbonnement(null);
-      }
-
-      // 4. Charger la déclaration de charge si présente
-      if (rapprochementData.declaration_charge_id) {
-        console.log('🔍 Chargement déclaration:', rapprochementData.declaration_charge_id);
-        const { data: declarationData } = await supabase
-          .from('declarations_charges_sociales')
-          .select('*')
-          .eq('id', rapprochementData.declaration_charge_id)
-          .single();
-        
-        console.log('📋 Déclaration chargée:', declarationData);
-        setAssociatedDeclaration(declarationData || null);
-      } else {
-        setAssociatedDeclaration(null);
-      }
-    } catch (error) {
-      console.error('❌ Erreur lors du chargement des données associées:', error);
-      setAssociatedFactures([]);
-      setAssociatedAbonnement(null);
-      setAssociatedDeclaration(null);
-    } finally {
-      setLoadingAssociated(false);
-      console.log('✅ Chargement terminé');
-    }
-  };
 
   // Filtrer les factures disponibles (non rapprochées)
   const facturesDisponibles = factures.filter(f => !f.numero_rapprochement || (rapprochement?.facture && f.id === rapprochement.facture.id));
@@ -318,152 +208,50 @@ export default function EditRapprochementEnCoursDialog({
             </Select>
           </div>
 
-          {/* Afficher les données déjà associées (depuis la base de données) */}
-          {transaction.numero_ligne && (
-            loadingAssociated ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          {/* Afficher les factures sélectionnées (en cours uniquement) */}
+          {!transaction.numero_ligne && selectedFactures.length > 0 && (
+            <div className="space-y-2">
+              <Label>Facture(s) associée(s)</Label>
+              <div className="space-y-2">
+                {selectedFactures.map((facture) => (
+                  <div key={facture.id} className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{facture.numero_facture}</span>
+                        <Badge variant={facture.type_facture === "VENTES" ? "default" : "secondary"}>
+                          {facture.type_facture}
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {facture.partenaire_nom} • {format(new Date(facture.date_emission), "dd/MM/yyyy")} • {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(facture.total_ttc)}
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => toggleFactureSelection(facture.id)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between p-2 bg-muted rounded">
+                  <span className="font-medium">Total factures :</span>
+                  <span className="font-bold">{new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(totalFacturesSelectionnees)}</span>
+                </div>
+                {Math.abs(Math.abs(transaction.montant) - totalFacturesSelectionnees) > 0.01 && (
+                  <div className="flex items-center gap-2 p-2 bg-orange-50 border border-orange-200 rounded text-sm text-orange-800">
+                    <AlertCircle className="h-4 w-4" />
+                    Différence de {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(Math.abs(Math.abs(transaction.montant) - totalFacturesSelectionnees))}
+                  </div>
+                )}
               </div>
-            ) : (
-              <>
-                {/* Factures associées */}
-                {associatedFactures.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-sm">Facture(s) associée(s)</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {associatedFactures.map((facture) => (
-                          <div key={facture.id} className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">{facture.numero_facture}</span>
-                                <Badge variant={facture.type_facture === "VENTES" ? "default" : "secondary"}>
-                                  {facture.type_facture}
-                                </Badge>
-                              </div>
-                              <div className="text-sm text-muted-foreground mt-1">
-                                {facture.type_facture === "VENTES" ? facture.destinataire_nom : facture.emetteur_nom} • {format(new Date(facture.date_emission), "dd/MM/yyyy")} • {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(facture.total_ttc)}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        <div className="flex items-center justify-between p-2 bg-muted rounded">
-                          <span className="font-medium">Total factures :</span>
-                          <span className="font-bold">
-                            {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
-                              associatedFactures.reduce((sum, f) => sum + f.total_ttc, 0)
-                            )}
-                          </span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Abonnement associé */}
-                {associatedAbonnement && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-sm">Abonnement associé</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                        <div className="font-medium">{associatedAbonnement.nom}</div>
-                        <div className="text-sm text-muted-foreground mt-1">
-                          Nature: {associatedAbonnement.nature}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Montant mensuel: {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(associatedAbonnement.montant_mensuel || 0)}
-                        </div>
-                        {associatedAbonnement.jour_prelevement && (
-                          <div className="text-sm text-muted-foreground">
-                            Jour de prélèvement: {associatedAbonnement.jour_prelevement}
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Déclaration de charge associée */}
-                {associatedDeclaration && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-sm">Déclaration de charge associée</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                        <div className="font-medium">{associatedDeclaration.nom}</div>
-                        <div className="text-sm text-muted-foreground mt-1">
-                          Organisme: {associatedDeclaration.organisme}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Type: {associatedDeclaration.type_charge}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Périodicité: {associatedDeclaration.periodicite}
-                        </div>
-                        {associatedDeclaration.montant_estime && (
-                          <div className="text-sm text-muted-foreground">
-                            Montant estimé: {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(associatedDeclaration.montant_estime)}
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </>
-            )
+            </div>
           )}
 
-          {/* Ne pas afficher la sélection de factures si la transaction est déjà rapprochée */}
+          {/* Recherche et sélection de factures (en cours uniquement) */}
           {!transaction.numero_ligne && (
-            <>
-              {/* Factures sélectionnées */}
-              {selectedFactures.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Facture(s) associée(s)</Label>
-                  <div className="space-y-2">
-                    {selectedFactures.map((facture) => (
-                      <div key={facture.id} className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{facture.numero_facture}</span>
-                            <Badge variant={facture.type_facture === "VENTES" ? "default" : "secondary"}>
-                              {facture.type_facture}
-                            </Badge>
-                          </div>
-                          <div className="text-sm text-muted-foreground mt-1">
-                            {facture.partenaire_nom} • {format(new Date(facture.date_emission), "dd/MM/yyyy")} • {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(facture.total_ttc)}
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => toggleFactureSelection(facture.id)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                    <div className="flex items-center justify-between p-2 bg-muted rounded">
-                      <span className="font-medium">Total factures :</span>
-                      <span className="font-bold">{new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(totalFacturesSelectionnees)}</span>
-                    </div>
-                    {Math.abs(Math.abs(transaction.montant) - totalFacturesSelectionnees) > 0.01 && (
-                      <div className="flex items-center gap-2 p-2 bg-orange-50 border border-orange-200 rounded text-sm text-orange-800">
-                        <AlertCircle className="h-4 w-4" />
-                        Différence de {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(Math.abs(Math.abs(transaction.montant) - totalFacturesSelectionnees))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Recherche et sélection de factures */}
-              <div className="space-y-2">
+            <div className="space-y-2">
                 <Label>Associer une facture</Label>
                 <Input
                   placeholder="Rechercher par numéro, partenaire ou montant..."
@@ -531,7 +319,6 @@ export default function EditRapprochementEnCoursDialog({
                   </div>
                 </div>
               </div>
-            </>
           )}
 
           {/* Notes */}
