@@ -182,9 +182,10 @@ export default function EditRapprochementHistoriqueDialog({
       }
 
       // Exclure les factures qui sont dans la table de jonction avec un AUTRE rapprochement
+      const realId = rapprochement?.manualId?.replace(/^rb_/, '');
       const idsRapproches = new Set(
         (facturesRapprochees || [])
-          .filter(r => r.rapprochement_id !== rapprochement?.manualId)
+          .filter(r => r.rapprochement_id !== realId)
           .map(r => r.facture_id)
       );
       
@@ -219,11 +220,14 @@ export default function EditRapprochementHistoriqueDialog({
       const loadAssociatedData = async () => {
         if (!rapprochement.manualId) return;
         
+        // Extraire l'ID réel en enlevant le préfixe "rb_"
+        const realId = rapprochement.manualId.replace(/^rb_/, '');
+        
         // Charger les factures associées depuis la table de jonction
         const { data: facturesData } = await supabase
           .from("rapprochements_factures")
           .select("facture_id")
-          .eq("rapprochement_id", rapprochement.manualId);
+          .eq("rapprochement_id", realId);
         
         if (facturesData) {
           setSelectedFactureIds(facturesData.map(f => f.facture_id));
@@ -232,7 +236,7 @@ export default function EditRapprochementHistoriqueDialog({
         const { data } = await supabase
           .from("rapprochements_bancaires")
           .select("abonnement_id, declaration_charge_id")
-          .eq("id", rapprochement.manualId)
+          .eq("id", realId)
           .maybeSingle();
         
         if (data?.abonnement_id) {
@@ -242,7 +246,7 @@ export default function EditRapprochementHistoriqueDialog({
           const { data: consommationsData } = await supabase
             .from("abonnements_consommations")
             .select("*")
-            .eq("rapprochement_id", rapprochement.manualId);
+            .eq("rapprochement_id", realId);
           
           if (consommationsData) {
             setConsommations(consommationsData.map(c => ({
