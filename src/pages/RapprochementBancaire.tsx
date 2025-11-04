@@ -430,6 +430,11 @@ export default function RapprochementBancaire() {
 
         const existingRapprochements = fichier.fichier_data?.rapprochements || [];
         
+        console.log(`🔍 DEBUG ${fichier.numero_rapprochement}:`);
+        console.log(`   - Rapprochements via liaison (brut): ${rapprochementsViaLiaison?.length || 0}`);
+        console.log(`   - Rapprochements groupés (transactions): ${rapprochementsManuelsFormatted.length}`);
+        console.log(`   - Rapprochements existants (fichier_data): ${existingRapprochements.length}`);
+        
         const transactionsAvecLiaison = new Set(
           rapprochementsManuelsFormatted.map(r => 
             r.transaction.numero_ligne || `${r.transaction.date}_${r.transaction.libelle}_${r.transaction.montant}`
@@ -444,7 +449,10 @@ export default function RapprochementBancaire() {
         const combinedRapprochements = [...rapprochementsAutoSansLiaison, ...rapprochementsManuelsFormatted];
         const matchedCount = combinedRapprochements.filter((r: Rapprochement) => r.status === "matched").length;
         
-        console.log(`📦 Fichier ${fichier.numero_rapprochement}: ${rapprochementsAutoSansLiaison.length} auto sans liaison + ${rapprochementsManuelsFormatted.length} manuels (factures) = ${combinedRapprochements.length} total (${matchedCount} matched)`);
+        console.log(`   - Auto sans liaison: ${rapprochementsAutoSansLiaison.length}`);
+        console.log(`   - Combinés: ${combinedRapprochements.length}`);
+        console.log(`   - Matched (CALCUL FINAL): ${matchedCount}`);
+        console.log(`   - Dans base (lignes_rapprochees): ${fichier.lignes_rapprochees}`);
 
         return {
           ...fichier,
