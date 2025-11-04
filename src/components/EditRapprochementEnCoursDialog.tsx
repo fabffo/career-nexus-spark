@@ -107,9 +107,18 @@ export default function EditRapprochementEnCoursDialog({
         .from('rapprochements_bancaires')
         .select('id, abonnement_id, declaration_charge_id')
         .eq('numero_ligne', numeroLigne)
-        .single();
+        .maybeSingle();
 
       if (rapprochementError) throw rapprochementError;
+      
+      // Si pas de rapprochement trouvé, ne rien afficher
+      if (!rapprochementData) {
+        setAssociatedFactures([]);
+        setAssociatedAbonnement(null);
+        setAssociatedDeclaration(null);
+        setLoadingAssociated(false);
+        return;
+      }
 
       // 2. Chercher toutes les factures liées via rapprochements_factures
       const { data: liaisonsFactures, error: liaisonsError } = await supabase
