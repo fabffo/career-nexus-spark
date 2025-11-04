@@ -444,33 +444,14 @@ export default function RapprochementBancaire() {
         
         console.log(`✅ Total rapprochements formatés: ${rapprochementsManuelsFormatted.length}`);
 
-        // Ajouter les transactions non rapprochées
-        const transactionsRapprochees = new Set(
-          rapprochementsManuelsFormatted.map(r => r.transaction.numero_ligne || `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`)
-        );
-        
-        const transactionsNonRapprochees: Rapprochement[] = (fichier.fichier_data?.transactions || [])
-          .filter((t: TransactionBancaire) => {
-            const key = t.numero_ligne || `${t.date}-${t.libelle}-${t.montant}`;
-            return !transactionsRapprochees.has(key);
-          })
-          .map((t: TransactionBancaire) => ({
-            transaction: t,
-            facture: null,
-            factureIds: [],
-            score: 0,
-            status: "unmatched" as const,
-            isManual: false,
-          }));
-        
-        const tousLesRapprochements = [...rapprochementsManuelsFormatted, ...transactionsNonRapprochees];
+        // Les rapprochementsManuelsFormatted contiennent TOUS les rapprochements de la base
+        // Il n'y a pas besoin d'ajouter les transactions "non rapprochées" car elles
+        // n'existent pas dans l'historique validé - seules les transactions rapprochées sont conservées
         const matchedCount = rapprochementsManuelsFormatted.filter((r: Rapprochement) => r.status === "matched").length;
         
         console.log(`🔍 DEBUG ${fichier.numero_rapprochement}:`);
         console.log(`   - Rapprochements via liaison (brut): ${rapprochementsViaLiaison?.length || 0}`);
         console.log(`   - Rapprochements groupés (transactions): ${rapprochementsManuelsFormatted.length}`);
-        console.log(`   - Non rapprochées: ${transactionsNonRapprochees.length}`);
-        console.log(`   - TOTAL: ${tousLesRapprochements.length}`);
         console.log(`   - Matched (CALCUL FINAL): ${matchedCount}`);
 
         return {
@@ -478,7 +459,7 @@ export default function RapprochementBancaire() {
           fichier_data: {
             ...fichier.fichier_data,
             transactions: fichier.fichier_data?.transactions || [],
-            rapprochements: tousLesRapprochements,
+            rapprochements: rapprochementsManuelsFormatted,
             rapprochementsManuels: fichier.fichier_data?.rapprochementsManuels || [],
           },
           lignes_rapprochees: matchedCount,
