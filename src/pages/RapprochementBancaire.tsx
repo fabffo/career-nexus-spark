@@ -2012,7 +2012,8 @@ export default function RapprochementBancaire() {
       const maxScroll = scrollWidth - clientWidth;
       const progress = maxScroll > 0 ? (scrollLeft / maxScroll) * 100 : 0;
       setScrollProgress(progress);
-      };
+    }
+  };
 
   useEffect(() => {
     const scrollElement = scrollRef.current;
