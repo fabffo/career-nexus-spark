@@ -1843,7 +1843,7 @@ export type Database = {
           facture_id: string | null
           id: string
           notes: string | null
-          numero_ligne: string | null
+          numero_ligne: string
           transaction_credit: number | null
           transaction_date: string
           transaction_debit: number | null
@@ -1859,7 +1859,7 @@ export type Database = {
           facture_id?: string | null
           id?: string
           notes?: string | null
-          numero_ligne?: string | null
+          numero_ligne: string
           transaction_credit?: number | null
           transaction_date: string
           transaction_debit?: number | null
@@ -1875,7 +1875,7 @@ export type Database = {
           facture_id?: string | null
           id?: string
           notes?: string | null
-          numero_ligne?: string | null
+          numero_ligne?: string
           transaction_credit?: number | null
           transaction_date?: string
           transaction_debit?: number | null
