@@ -22,9 +22,9 @@ const typeRegles = [
   { value: "LIBELLE", label: "Libellé" },
   { value: "TYPE_TRANSACTION", label: "Type de transaction" },
   { value: "PARTENAIRE", label: "Partenaire" },
+  { value: "PERSONNALISEE", label: "Fournisseur Mensuel (Mois/Année)" },
   { value: "ABONNEMENT", label: "Abonnement partenaire" },
   { value: "DECLARATION_CHARGE", label: "Déclaration de charges" },
-  { value: "PERSONNALISEE", label: "Personnalisée" },
 ];
 
 export default function AddRegleRapprochementDialog({
@@ -42,6 +42,9 @@ export default function AddRegleRapprochementDialog({
   const [conditionJson, setConditionJson] = useState("{}");
   const [selectedAbonnementId, setSelectedAbonnementId] = useState<string>("");
   const [keywords, setKeywords] = useState<string>("");
+  const [fournisseurNom, setFournisseurNom] = useState("");
+  const [tolerance, setTolerance] = useState("0.01");
+  const [memeMois, setMemeMois] = useState(true);
 
   // Charger les abonnements
   const { data: abonnements } = useQuery({
@@ -94,7 +97,28 @@ export default function AddRegleRapprochementDialog({
     // Construire le condition_json selon le type de règle
     let finalConditionJson: any = {};
     
-    if (typeRegle === "ABONNEMENT") {
+    // Si PERSONNALISEE avec un nom de fournisseur = règle fournisseur mensuel
+    if (typeRegle === "PERSONNALISEE" && fournisseurNom && fournisseurNom.trim() !== "") {
+      const toleranceNum = parseFloat(tolerance);
+      if (isNaN(toleranceNum) || toleranceNum < 0) {
+        toast({
+          title: "Erreur",
+          description: "La tolérance doit être un nombre positif",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      finalConditionJson = {
+        type_interne: "FOURNISSEUR_MENSUEL",
+        fournisseur_nom: fournisseurNom.trim(),
+        keywords: keywords.split(",").map(k => k.trim()).filter(k => k),
+        tolerance: toleranceNum,
+        meme_mois: memeMois === true,
+      };
+      
+      console.log("📋 FOURNISSEUR_MENSUEL - Condition JSON:", finalConditionJson);
+    } else if (typeRegle === "ABONNEMENT") {
       finalConditionJson = {
         keywords: keywords.split(",").map(k => k.trim()).filter(k => k),
       };
@@ -127,20 +151,43 @@ export default function AddRegleRapprochementDialog({
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      const { error } = await supabase
-        .from("regles_rapprochement")
-        .insert({
-          nom,
-          type_regle: typeRegle,
-          description,
-          condition_json: finalConditionJson,
-          score_attribue: score,
-          priorite: parseInt(priorite),
-          actif: true,
-          created_by: user?.id,
-        });
+      console.log("📤 Envoi de la règle:", {
+        nom,
+        type_regle: typeRegle,
+        description,
+        condition_json: finalConditionJson,
+        score_attribue: score,
+        priorite: parseInt(priorite),
+        actif: true,
+      });
 
-      if (error) throw error;
+      // Déterminer le type réel à enregistrer en base
+let typeRegleDB = typeRegle;
+
+// Si c'est un fournisseur mensuel, forcer le type à "PERSONNALISEE" pour la BD
+if (typeRegle === "PERSONNALISEE" && finalConditionJson.type_interne === "FOURNISSEUR_MENSUEL") {
+  typeRegleDB = "PERSONNALISEE";
+  console.log("🔧 Conversion type: Fournisseur Mensuel → PERSONNALISEE pour la BD");
+}
+
+const { error } = await supabase
+  .from("regles_rapprochement")
+  .insert({
+    nom,
+    type_regle: typeRegleDB, // ⭐ Utiliser le type converti
+    description: description || null,
+    condition_json: finalConditionJson,
+    score_attribue: score,
+    priorite: parseInt(priorite),
+    actif: true,
+    created_by: user?.id,
+  });
+
+      if (error) {
+        console.error("❌ Erreur Supabase:", error);
+        console.error("❌ Détails erreur:", JSON.stringify(error, null, 2));
+        throw error;
+      }
 
       toast({
         title: "Succès",
@@ -156,14 +203,18 @@ export default function AddRegleRapprochementDialog({
       setConditionJson("{}");
       setSelectedAbonnementId("");
       setKeywords("");
+      setFournisseurNom("");
+      setTolerance("0.01");
+      setMemeMois(true);
 
       onSuccess();
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur:", error);
+      const errorMessage = error?.message || error?.hint || "Impossible de créer la règle";
       toast({
         title: "Erreur",
-        description: "Impossible de créer la règle",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -185,7 +236,7 @@ export default function AddRegleRapprochementDialog({
               id="nom"
               value={nom}
               onChange={(e) => setNom(e.target.value)}
-              placeholder="Ex: Correspondance numéro de commande"
+              placeholder="Ex: LinkedIn - Facture mensuelle"
             />
           </div>
 
@@ -215,6 +266,97 @@ export default function AddRegleRapprochementDialog({
               rows={3}
             />
           </div>
+
+          {typeRegle === "PERSONNALISEE" && (
+            <>
+              <div>
+                <Label htmlFor="fournisseur">Nom du fournisseur (pour mode Fournisseur Mensuel)</Label>
+                <Input
+                  id="fournisseur"
+                  value={fournisseurNom}
+                  onChange={(e) => setFournisseurNom(e.target.value)}
+                  placeholder="Ex: LINKEDIN, EDF, Orange"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Remplissez ce champ pour activer le mode Fournisseur Mensuel (mois/année + montant exact)
+                </p>
+              </div>
+
+              {fournisseurNom && fournisseurNom.trim() !== "" && (
+                <>
+                  <div>
+                    <Label htmlFor="keywords-fournisseur">Mots-clés additionnels (optionnel)</Label>
+                    <Input
+                      id="keywords-fournisseur"
+                      value={keywords}
+                      onChange={(e) => setKeywords(e.target.value)}
+                      placeholder="Ex: FACTURE, PRELEVEMENT, RECRUTE"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Mots-clés à rechercher en plus du nom (séparés par des virgules)
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="tolerance">Tolérance de montant (€)</Label>
+                    <Input
+                      id="tolerance"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={tolerance}
+                      onChange={(e) => setTolerance(e.target.value)}
+                      placeholder="0.01"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Différence maximale acceptée entre le montant de la transaction et de la facture
+                    </p>
+                  </div>
+
+                  <div className="flex items-center space-x-2 p-4 border rounded-lg bg-muted/30">
+                    <input
+                      type="checkbox"
+                      id="memeMois"
+                      checked={memeMois}
+                      onChange={(e) => setMemeMois(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                    <Label htmlFor="memeMois" className="cursor-pointer font-normal">
+                      Vérifier que la facture est du même mois/année que la transaction
+                    </Label>
+                  </div>
+
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>💡 Mode Fournisseur Mensuel activé !</strong> Cette règle vérifiera :
+                    </p>
+                    <ul className="text-sm text-blue-700 mt-2 ml-4 list-disc space-y-1">
+                      <li>Le nom du fournisseur "{fournisseurNom}" apparaît dans le libellé</li>
+                      <li>Le montant correspond (avec tolérance de {tolerance}€)</li>
+                      <li>La facture est du même mois/année que la transaction</li>
+                    </ul>
+                  </div>
+                </>
+              )}
+
+              {(!fournisseurNom || fournisseurNom.trim() === "") && (
+                <div>
+                  <Label htmlFor="condition">Conditions (JSON personnalisées)</Label>
+                  <Textarea
+                    id="condition"
+                    value={conditionJson}
+                    onChange={(e) => setConditionJson(e.target.value)}
+                    placeholder='{"tolerance": 0.01, "keywords": ["facture", "paiement"]}'
+                    rows={4}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Configuration JSON pour les paramètres de la règle personnalisée
+                  </p>
+                </div>
+              )}
+            </>
+          )}
 
           {typeRegle === "ABONNEMENT" && (
             <>
@@ -274,9 +416,9 @@ export default function AddRegleRapprochementDialog({
               </div>
 
               <div>
-                <Label htmlFor="keywords">Mots-clés (séparés par des virgules)</Label>
+                <Label htmlFor="keywords-declaration">Mots-clés (séparés par des virgules)</Label>
                 <Input
-                  id="keywords"
+                  id="keywords-declaration"
                   value={keywords}
                   onChange={(e) => setKeywords(e.target.value)}
                   placeholder="Ex: URSSAF, Retraite"
@@ -286,6 +428,23 @@ export default function AddRegleRapprochementDialog({
                 </p>
               </div>
             </>
+          )}
+
+          {typeRegle !== "ABONNEMENT" && typeRegle !== "DECLARATION_CHARGE" && typeRegle !== "PERSONNALISEE" && (
+            <div>
+              <Label htmlFor="condition">Conditions (JSON)</Label>
+              <Textarea
+                id="condition"
+                value={conditionJson}
+                onChange={(e) => setConditionJson(e.target.value)}
+                placeholder='{"tolerance": 0.01, "keywords": ["facture", "paiement"]}'
+                rows={4}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Configuration JSON pour les paramètres de la règle
+              </p>
+            </div>
           )}
 
           <div className="grid grid-cols-2 gap-4">
@@ -314,23 +473,6 @@ export default function AddRegleRapprochementDialog({
               </p>
             </div>
           </div>
-
-          {typeRegle !== "ABONNEMENT" && typeRegle !== "DECLARATION_CHARGE" && (
-            <div>
-              <Label htmlFor="condition">Conditions (JSON)</Label>
-              <Textarea
-                id="condition"
-                value={conditionJson}
-                onChange={(e) => setConditionJson(e.target.value)}
-                placeholder='{"tolerance": 0.01, "keywords": ["facture", "paiement"]}'
-                rows={4}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Configuration JSON pour les paramètres de la règle
-              </p>
-            </div>
-          )}
         </div>
 
         <DialogFooter>

@@ -24,8 +24,8 @@ interface TransactionBancaire {
   libelle: string;
   debit: number;
   credit: number;
-  montant: number; // Débit en négatif, Crédit en positif
-  numero_ligne?: string; // Format: RL-YYYYMMDD-RANDOM-INDEX
+  montant: number;
+  numero_ligne?: string; // Format: RL-YYYYMMDD-XXXXX
 }
 
 interface FactureMatch {
@@ -55,7 +55,7 @@ interface RapprochementManuel {
 interface Rapprochement {
   transaction: TransactionBancaire;
   facture: FactureMatch | null;
-  score: number; // 0-100, score de confiance du match
+  score: number;
   status: "matched" | "unmatched" | "uncertain";
   isManual?: boolean;
   manualId?: string;
@@ -130,21 +130,17 @@ export default function RapprochementBancaire() {
   // Réinitialiser les états et charger les données selon l'onglet actif
   useEffect(() => {
     if (activeTab === "historique") {
-      // Réinitialiser les états de l'onglet "en_cours"
       setTransactions([]);
       setRapprochements([]);
       setManualStatusChanges({});
       setStatusFilter("all");
       setCurrentPage(1);
       
-      // Charger les données de l'historique
       loadFichiersRapprochement();
       loadFactures();
     } else if (activeTab === "parametres") {
-      // Charger les règles de rapprochement
       loadReglesRapprochement();
     } else {
-      // Réinitialiser les états de l'onglet "historique"
       setSelectedFichier(null);
       setHistoriqueStatusChanges({});
       setFactures([]);
@@ -217,9 +213,7 @@ export default function RapprochementBancaire() {
 
       if (error) throw error;
       
-      // Enrichir chaque fichier avec les rapprochements manuels de la période
       const enrichedFiles = await Promise.all((data || []).map(async (fichier: any) => {
-        // Charger les rapprochements manuels directs (avec facture_id renseigné)
         const { data: rapprochementsManuelsDirects, error: directsError } = await supabase
           .from("rapprochements_bancaires")
           .select(`
@@ -243,7 +237,6 @@ export default function RapprochementBancaire() {
           .lte("transaction_date", fichier.date_fin)
           .not("facture_id", "is", null);
 
-        // Charger tous les rapprochements bancaires de la période
         const { data: allRapprochements } = await supabase
           .from("rapprochements_bancaires")
           .select("id, transaction_date")
@@ -252,7 +245,6 @@ export default function RapprochementBancaire() {
 
         const rapprochementIds = (allRapprochements || []).map(r => r.id);
 
-        // Charger les rapprochements via la table de liaison pour ces IDs
         const { data: rapprochementsViaLiaison, error: liaisonError } = await supabase
           .from("rapprochements_factures")
           .select(`
@@ -278,7 +270,6 @@ export default function RapprochementBancaire() {
           `)
           .in("rapprochement_id", rapprochementIds.length > 0 ? rapprochementIds : ["00000000-0000-0000-0000-000000000000"]);
 
-        // Créer les objets Rapprochement pour les rapprochements manuels directs
         const rapprochementsManuelsFormatted: Rapprochement[] = [];
         
         if (!directsError && rapprochementsManuelsDirects) {
@@ -313,7 +304,6 @@ export default function RapprochementBancaire() {
           });
         }
 
-        // Ajouter les rapprochements via liaison
         console.log(`📊 Rapprochements via liaison trouvés pour ${fichier.numero_rapprochement}:`, rapprochementsViaLiaison?.length || 0);
         if (!liaisonError && rapprochementsViaLiaison) {
           rapprochementsViaLiaison.forEach((rap: any) => {
@@ -350,23 +340,19 @@ export default function RapprochementBancaire() {
           });
         }
 
-        // Fusionner avec les rapprochements existants du fichier
         const existingRapprochements = fichier.fichier_data?.rapprochements || [];
         
-        // Identifier les transactions qui ont des rapprochements via liaison - UTILISER numero_ligne
         const transactionsAvecLiaison = new Set(
           rapprochementsManuelsFormatted.map(r => 
             r.transaction.numero_ligne || `${r.transaction.date}_${r.transaction.libelle}_${r.transaction.montant}`
           )
         );
 
-        // Filtrer les rapprochements existants: garder ceux sans liaison
         const rapprochementsAutoSansLiaison = existingRapprochements.filter((r: Rapprochement) => {
           const key = r.transaction.numero_ligne || `${r.transaction.date}_${r.transaction.libelle}_${r.transaction.montant}`;
           return !transactionsAvecLiaison.has(key);
         });
 
-        // Combiner: rapprochements auto (sans ceux qui ont des liaisons) + rapprochements manuels (une ligne par facture)
         const combinedRapprochements = [...rapprochementsAutoSansLiaison, ...rapprochementsManuelsFormatted];
         const matchedCount = combinedRapprochements.filter((r: Rapprochement) => r.status === "matched").length;
         
@@ -401,7 +387,6 @@ export default function RapprochementBancaire() {
       [transactionKey]: newStatus
     }));
 
-    // Mettre à jour le statut dans le tableau des rapprochements - UTILISER numero_ligne
     setRapprochements(prev => prev.map(r => {
       const key = r.transaction.numero_ligne || `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`;
       if (key === transactionKey) {
@@ -418,11 +403,9 @@ export default function RapprochementBancaire() {
       [key]: newStatus
     }));
 
-    // Mettre à jour le statut dans le fichier sélectionné - UTILISER numero_ligne comme clé unique
     setFichiersRapprochement(prev => prev.map(fichier => {
       if (fichier.id === fichierId && fichier.fichier_data) {
         const updatedRapprochements = fichier.fichier_data.rapprochements.map(r => {
-          // Utiliser numero_ligne ou fallback sur date-libellé-montant
           const rKey = r.transaction.numero_ligne || `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`;
           if (rKey === transactionKey) {
             return { ...r, status: newStatus };
@@ -441,12 +424,10 @@ export default function RapprochementBancaire() {
       return fichier;
     }));
 
-    // Mettre à jour selectedFichier si c'est celui modifié
     if (selectedFichier?.id === fichierId) {
       setSelectedFichier(prev => {
         if (!prev || !prev.fichier_data) return prev;
         const updatedRapprochements = prev.fichier_data.rapprochements.map(r => {
-          // Utiliser numero_ligne ou fallback sur date-libellé-montant
           const rKey = r.transaction.numero_ligne || `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`;
           if (rKey === transactionKey) {
             return { ...r, status: newStatus };
@@ -471,7 +452,6 @@ export default function RapprochementBancaire() {
     setSavingHistorique(true);
     
     try {
-      // Recalculer le nombre de lignes rapprochées
       const lignesRapprochees = selectedFichier.fichier_data.rapprochements.filter(
         r => r.status === "matched"
       ).length;
@@ -492,7 +472,6 @@ export default function RapprochementBancaire() {
         description: "Les statuts ont été mis à jour avec succès",
       });
 
-      // Nettoyer les changements en attente pour ce fichier
       setHistoriqueStatusChanges(prev => {
         const newChanges = { ...prev };
         Object.keys(newChanges).forEach(key => {
@@ -503,7 +482,6 @@ export default function RapprochementBancaire() {
         return newChanges;
       });
 
-      // Recharger les fichiers
       await loadFichiersRapprochement();
       
     } catch (error) {
@@ -526,6 +504,7 @@ export default function RapprochementBancaire() {
     try {
       console.log("🗑️ Début suppression rapprochement:", rapprochement);
       console.log("🗑️ Type:", rapprochement.isManual ? "Manuel" : "Automatique");
+      console.log("🗑️ Numéro de ligne:", rapprochement.numero_ligne || rapprochement.transaction.numero_ligne);
       
       // Trouver le rapprochement_id dans la base de données - UTILISER numero_ligne si disponible
       const { data: rapprochementData, error: fetchError } = rapprochement.transaction.numero_ligne
@@ -547,7 +526,6 @@ export default function RapprochementBancaire() {
       console.log("🔍 Rapprochement trouvé dans la BD:", rapprochementData);
 
       if (rapprochementData) {
-        // C'est un rapprochement manuel ou sauvegardé
         // Supprimer les liaisons dans rapprochements_factures
         const { error: deleteRapprochementsFacturesError } = await supabase
           .from("rapprochements_factures")
@@ -585,12 +563,13 @@ export default function RapprochementBancaire() {
         console.log("✅ Rapprochement bancaire supprimé");
       }
       
-      // Remettre la facture à l'état non rapprochée si elle existe
+      // Remettre la facture à l'état non rapprochée si elle existe (une seule facture)
       if (rapprochement.facture?.id) {
         const { error: updateFactureError } = await supabase
           .from("factures")
           .update({
             numero_rapprochement: null,
+            numero_ligne_rapprochement: null,
             date_rapprochement: null,
             updated_at: new Date().toISOString()
           })
@@ -602,11 +581,30 @@ export default function RapprochementBancaire() {
           console.log("✅ Facture dé-rapprochée:", rapprochement.facture.numero_facture);
         }
       }
+      
+      // Remettre les factures à l'état non rapproché (plusieurs factures)
+      if (rapprochement.factureIds && rapprochement.factureIds.length > 0) {
+        const { error: updateFacturesError } = await supabase
+          .from("factures")
+          .update({
+            numero_rapprochement: null,
+            numero_ligne_rapprochement: null,
+            date_rapprochement: null,
+            updated_at: new Date().toISOString()
+          })
+          .in("id", rapprochement.factureIds);
+
+        if (updateFacturesError) {
+          console.error("❌ Erreur mise à jour factures:", updateFacturesError);
+        } else {
+          console.log(`✅ ${rapprochement.factureIds.length} factures dé-rapprochées`);
+        }
+      }
 
       // Mettre à jour le fichier de rapprochement dans la BD
       const fichier = fichiersRapprochement.find(f => f.id === fichierId);
       if (fichier && fichier.fichier_data) {
-        // Garder la ligne mais changer son statut à "partial"
+        // Garder la ligne mais changer son statut à "unmatched"
         const updatedRapprochements = fichier.fichier_data.rapprochements.map(r => {
           if (r.transaction.date === rapprochement.transaction.date &&
               r.transaction.libelle === rapprochement.transaction.libelle &&
@@ -614,7 +612,8 @@ export default function RapprochementBancaire() {
             return {
               ...r,
               facture: undefined,
-              status: "partial" as const,
+              factureIds: undefined,
+              status: "unmatched" as const,
               score: 0,
               isManual: false
             };
@@ -651,7 +650,6 @@ export default function RapprochementBancaire() {
       await loadFichiersRapprochement();
       
       // Re-sélectionner le fichier courant pour forcer la mise à jour de l'interface
-      // On attend un peu que l'état soit mis à jour
       setTimeout(() => {
         setFichiersRapprochement(prev => {
           const fichierActualise = prev.find(f => f.id === fichierId);
@@ -956,21 +954,7 @@ export default function RapprochementBancaire() {
       .eq("actif", true);
 
     console.log("📋 Abonnements actifs:", abonnements?.length || 0);
-    if (abonnements && abonnements.length > 0) {
-      console.log("📋 Liste des abonnements:", abonnements.map(a => ({ id: a.id, nom: a.nom, montant: a.montant_mensuel })));
-    }
     console.log("📋 Déclarations actives:", declarations?.length || 0);
-    
-    // Debug: Afficher toutes les règles ABONNEMENT
-    if (regles) {
-      const reglesAbonnement = regles.filter(r => r.type_regle === "ABONNEMENT");
-      console.log("📋 Règles ABONNEMENT:", reglesAbonnement.map(r => ({
-        nom: r.nom,
-        condition: r.condition_json,
-        actif: r.actif,
-        score: r.score_attribue
-      })));
-    }
 
     // Étape 1: Collecter toutes les correspondances possibles transaction-facture avec scores
     const factureMatches: Array<{
@@ -1008,6 +992,45 @@ export default function RapprochementBancaire() {
           continue;
         }
 
+        // ⭐ PRÉ-FILTRAGE : Vérifier si une règle FOURNISSEUR_MENSUEL exclut cette facture
+        let factureExclue = false;
+
+        if (regles) {
+          for (const regle of regles) {
+            if (regle.type_regle === "PERSONNALISEE") {
+              const condition = regle.condition_json as any;
+              if (condition.type_interne === "FOURNISSEUR_MENSUEL" && condition.meme_mois) {
+                // Vérifier si le fournisseur correspond
+                if (condition.fournisseur_nom) {
+                  const fournisseurNormalized = normalizeString(condition.fournisseur_nom);
+                  const partenaireNorm = normalizeString(facture.partenaire_nom);
+                  const hasMatchFournisseur = libelleNormalized.includes(fournisseurNormalized) ||
+                    partenaireNorm.includes(fournisseurNormalized);
+                  
+                  if (hasMatchFournisseur) {
+                    // Vérifier le mois/année
+                    const dateTrans = new Date(transaction.date);
+                    const dateFact = new Date(facture.date_emission);
+                    const memeAnnee = dateTrans.getFullYear() === dateFact.getFullYear();
+                    const memeMois = dateTrans.getMonth() === dateFact.getMonth();
+                    
+                    if (!memeAnnee || !memeMois) {
+                      console.log(`🚫 EXCLUSION: Facture ${facture.numero_facture} exclue car mois différent`);
+                      factureExclue = true;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Si la facture est exclue, passer à la facture suivante
+        if (factureExclue) {
+          continue;
+        }
+
         let score = 40; // Score de base pour correspondance du montant
 
         // Appliquer les règles personnalisées
@@ -1015,6 +1038,67 @@ export default function RapprochementBancaire() {
           for (const regle of regles) {
             const condition = regle.condition_json as any;
             
+            // ⭐ CAS SPÉCIAL : FOURNISSEUR_MENSUEL (traité avant le switch)
+            if (regle.type_regle === "PERSONNALISEE" && condition.type_interne === "FOURNISSEUR_MENSUEL") {
+              if (condition.fournisseur_nom) {
+                const fournisseurNormalized = normalizeString(condition.fournisseur_nom);
+                const partenaireNorm = normalizeString(facture.partenaire_nom);
+                const hasMatchFournisseur = libelleNormalized.includes(fournisseurNormalized) ||
+                  partenaireNorm.includes(fournisseurNormalized);
+                
+                if (!hasMatchFournisseur) {
+                  console.log(`❌ FOURNISSEUR_MENSUEL: Fournisseur "${condition.fournisseur_nom}" non trouvé`);
+                  continue;
+                }
+                
+                console.log(`✅ FOURNISSEUR_MENSUEL: Fournisseur "${condition.fournisseur_nom}" trouvé`);
+                
+                const tolerance = condition.tolerance || 0.01;
+                const montantMatch = diffMontant <= tolerance;
+                
+                if (!montantMatch) {
+                  console.log(`❌ FOURNISSEUR_MENSUEL: Montant ne correspond pas (diff: ${diffMontant.toFixed(2)}€)`);
+                  continue;
+                }
+                
+                console.log(`✅ FOURNISSEUR_MENSUEL: Montant OK`);
+                
+                // Vérification mois/année
+                if (condition.meme_mois) {
+                  const dateTrans = new Date(transaction.date);
+                  const dateFact = new Date(facture.date_emission);
+                  
+                  const memeAnnee = dateTrans.getFullYear() === dateFact.getFullYear();
+                  const memeMois = dateTrans.getMonth() === dateFact.getMonth();
+                  
+                  if (!memeAnnee || !memeMois) {
+                    console.log(`❌ FOURNISSEUR_MENSUEL: Mois/Année différent (Transaction: ${dateTrans.getMonth()+1}/${dateTrans.getFullYear()}, Facture: ${dateFact.getMonth()+1}/${dateFact.getFullYear()})`);
+                    continue;
+                  }
+                  
+                  console.log(`✅ FOURNISSEUR_MENSUEL: Même mois/année`);
+                }
+                
+                // Bonus keywords
+                let bonusScore = 0;
+                if (condition.keywords && Array.isArray(condition.keywords) && condition.keywords.length > 0) {
+                  const hasKeyword = condition.keywords.some((kw: string) => 
+                    libelleNormalized.includes(normalizeString(kw))
+                  );
+                  if (hasKeyword) {
+                    console.log(`✅ FOURNISSEUR_MENSUEL: Keyword trouvé (+5 bonus)`);
+                    bonusScore = 5;
+                  }
+                }
+                
+                // Toutes les conditions OK - ajouter le score
+                console.log(`✅ FOURNISSEUR_MENSUEL: Match complet ! Score: +${regle.score_attribue + bonusScore}`);
+                score += regle.score_attribue + bonusScore;
+                continue;
+              }
+            }
+            
+            // ⭐ AUTRES RÈGLES (switch standard)
             switch (regle.type_regle) {
               case "MONTANT":
                 if (condition.tolerance) {
@@ -1196,56 +1280,36 @@ export default function RapprochementBancaire() {
 
           // Règle ABONNEMENT
           if (regle.type_regle === "ABONNEMENT" && abonnements) {
-            // Si la règle a un abonnement_id spécifique, on le cherche
-            // Sinon, on cherche parmi tous les abonnements celui qui correspond aux keywords
             const abonnementsToTest = condition.abonnement_id 
               ? abonnements.filter(a => a.id === condition.abonnement_id)
               : abonnements;
 
             for (const abonnement of abonnementsToTest) {
-              console.log(`🔍 Test règle abonnement: ${regle.nom} (${abonnement.nom})`);
-              console.log(`   Transaction libellé: "${transaction.libelle}"`);
-              console.log(`   Transaction montant: ${transaction.montant}`);
-              console.log(`   Abonnement montant: ${abonnement.montant_mensuel}`);
-              console.log(`   Condition keywords:`, condition.keywords);
-              
               let match = false;
               
-              // Vérifier le libellé
               if (condition.keywords && Array.isArray(condition.keywords)) {
                 const abonnementNormalized = normalizeString(abonnement.nom);
                 const hasKeywordMatch = condition.keywords.some((kw: string) => {
                   const kwNormalized = normalizeString(kw);
                   const matchesKeyword = libelleNormalized.includes(kwNormalized);
                   const matchesName = libelleNormalized.includes(abonnementNormalized);
-                  console.log(`     Test keyword "${kw}" (normalized: "${kwNormalized}"): ${matchesKeyword ? '✅' : '❌'}`);
-                  console.log(`     Test nom abonnement "${abonnement.nom}" (normalized: "${abonnementNormalized}"): ${matchesName ? '✅' : '❌'}`);
                   return matchesKeyword || matchesName;
                 });
                 match = hasKeywordMatch;
-                console.log(`   Résultat match libellé: ${match ? '✅' : '❌'}`);
               }
 
-              // Vérifier le montant si l'abonnement a un montant défini
               if (match && abonnement.montant_mensuel && abonnement.montant_mensuel > 0) {
                 if (condition.montant_exact) {
                   const tolerance = condition.tolerance || 0.01;
                   const montantMatch = Math.abs(Math.abs(transaction.montant) - abonnement.montant_mensuel) <= tolerance;
-                  console.log(`   Vérification montant (tolerance: ${tolerance}): ${montantMatch ? '✅' : '❌'}`);
                   match = montantMatch;
                 }
-              } else {
-                console.log(`   Pas de vérification montant (montant_mensuel: ${abonnement.montant_mensuel}, montant_exact: ${condition.montant_exact})`);
               }
-              // Si l'abonnement n'a pas de montant, le match sur le nom suffit
 
               if (match && regle.score_attribue > ruleScore) {
-                console.log(`✅ Match abonnement TROUVÉ: ${abonnement.nom} (score: ${regle.score_attribue})`);
                 abonnementMatch = abonnement;
                 ruleScore = regle.score_attribue;
-                break; // On arrête dès qu'on trouve un match pour cette règle
-              } else if (match) {
-                console.log(`   Match trouvé mais score inférieur: ${regle.score_attribue} <= ${ruleScore}`);
+                break;
               }
             }
           }
@@ -1256,7 +1320,6 @@ export default function RapprochementBancaire() {
             if (declaration) {
               let match = false;
               
-              // Vérifier le libellé
               if (condition.keywords && Array.isArray(condition.keywords)) {
                 const declarationNormalized = normalizeString(declaration.nom);
                 const organismeNormalized = normalizeString(declaration.organisme);
@@ -1267,14 +1330,12 @@ export default function RapprochementBancaire() {
                 );
               }
 
-              // Vérifier le montant estimé si spécifié
               if (match && condition.montant_estime && declaration.montant_estime) {
                 const tolerance = condition.tolerance || 0.01;
                 match = Math.abs(Math.abs(transaction.montant) - declaration.montant_estime) <= tolerance;
               }
 
               if (match && regle.score_attribue > ruleScore) {
-                console.log(`✅ Match déclaration: ${declaration.nom} (score: ${regle.score_attribue})`);
                 declarationMatch = declaration;
                 ruleScore = regle.score_attribue;
               }
@@ -1359,6 +1420,9 @@ export default function RapprochementBancaire() {
           if (r.facture?.id) {
             factureIds.push(r.facture.id);
           }
+          if (r.factureIds && r.factureIds.length > 0) {
+            factureIds.push(...r.factureIds);
+          }
         });
       }
 
@@ -1367,7 +1431,6 @@ export default function RapprochementBancaire() {
       console.log("📋 Factures à réinitialiser:", factureIds.length);
 
       // 3. Récupérer TOUS les rapprochements bancaires créés entre les dates du fichier
-      // (pour inclure les rapprochements automatiques créés lors de la validation)
       const { data: allRapprochements } = await supabase
         .from("rapprochements_bancaires")
         .select("id")
@@ -1455,6 +1518,7 @@ export default function RapprochementBancaire() {
           .from("factures")
           .update({
             numero_rapprochement: null,
+            numero_ligne_rapprochement: null,
             date_rapprochement: null
           } as any)
           .in("id", factureIds);
@@ -1588,7 +1652,7 @@ export default function RapprochementBancaire() {
         return;
       }
 
-      // Générer et enregistrer les rapprochements avec numéro de ligne unique
+      // ⭐ Générer et enregistrer les rapprochements avec numéro de ligne unique
       console.log("💾 Génération des numéros de ligne pour chaque rapprochement...");
       
       for (const r of rapprochements) {
@@ -1841,7 +1905,7 @@ export default function RapprochementBancaire() {
 
       toast({
         title: "Rapprochement validé",
-        description: `Rapprochement ${numeroRapprochement} validé avec succès ! ${lignesRapprochees}/${transactions.length} lignes rapprochées. ${rapprochementsSimpleFacture.length} factures simples, ${rapprochementsMultiFactures.length} factures multiples, ${rapprochementsAbonnements.length} abonnements et ${rapprochementsDeclarations.length} charges.`,
+        description: `Rapprochement ${numeroRapprochement} validé avec succès ! ${lignesRapprochees}/${transactions.length} lignes rapprochées.`,
       });
 
       // Recharger les factures pour mettre à jour le statut
@@ -1861,6 +1925,7 @@ export default function RapprochementBancaire() {
           statut: f.statut,
           numero_rapprochement: f.numero_rapprochement,
           date_rapprochement: f.date_rapprochement,
+          numero_ligne_rapprochement: f.numero_ligne_rapprochement,
         }));
         setFactures(facturesFormatted);
         
@@ -1884,6 +1949,7 @@ export default function RapprochementBancaire() {
   const exportResults = () => {
     const csv = Papa.unparse(
       rapprochements.map((r) => ({
+        "Numéro de ligne": r.numero_ligne || r.transaction.numero_ligne || "",
         Date: format(new Date(r.transaction.date), "dd/MM/yyyy"),
         Libellé: r.transaction.libelle,
         Débit: r.transaction.debit || "",
@@ -1946,8 +2012,7 @@ export default function RapprochementBancaire() {
       const maxScroll = scrollWidth - clientWidth;
       const progress = maxScroll > 0 ? (scrollLeft / maxScroll) * 100 : 0;
       setScrollProgress(progress);
-    }
-  };
+      };
 
   useEffect(() => {
     const scrollElement = scrollRef.current;
@@ -2246,10 +2311,11 @@ export default function RapprochementBancaire() {
                   onScroll={handleScroll}
                   style={{ maxHeight: '600px' }}
                 >
-                  <table className="w-full border-collapse" style={{ minWidth: '2000px' }}>
+                  <table className="w-full border-collapse" style={{ minWidth: '2200px' }}>
                     <thead className="bg-muted sticky top-0 z-10">
                       <tr className="border-b">
                         <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '80px' }}>Statut</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '180px' }}>N° Ligne</th>
                         <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '140px' }}>Date</th>
                         <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '350px' }}>Libellé</th>
                         <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '140px' }}>Débit</th>
@@ -2274,7 +2340,8 @@ export default function RapprochementBancaire() {
                         <td className="p-4 align-middle">
                           <div className="flex items-center gap-2">
                             <div
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 const nextStatus = rapprochement.status === "matched" ? "uncertain" : rapprochement.status === "uncertain" ? "unmatched" : "matched";
                                 handleStatusChange(
                                   getTransactionKey(rapprochement.transaction),
@@ -2294,6 +2361,11 @@ export default function RapprochementBancaire() {
                               </div>
                             )}
                           </div>
+                        </td>
+                        <td className="p-4 align-middle">
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {rapprochement.numero_ligne || rapprochement.transaction.numero_ligne || "N/A"}
+                          </Badge>
                         </td>
                        <td className="p-4 align-middle">
                          {format(new Date(rapprochement.transaction.date), "dd/MM/yyyy")}
@@ -2325,6 +2397,8 @@ export default function RapprochementBancaire() {
                                {rapprochement.facture.type_facture}
                              </span>
                            </div>
+                         ) : rapprochement.factureIds && rapprochement.factureIds.length > 0 ? (
+                           <Badge variant="outline">{rapprochement.factureIds.length} factures</Badge>
                          ) : (
                            <span className="text-muted-foreground">-</span>
                          )}
@@ -2377,7 +2451,7 @@ export default function RapprochementBancaire() {
                               <LinkIcon className="h-4 w-4" />
                               {rapprochement.isManual ? "Modifier" : "Rapprocher"}
                             </Button>
-                            {(rapprochement.facture || rapprochement.abonnement_info || rapprochement.declaration_info) && (
+                            {(rapprochement.facture || rapprochement.factureIds || rapprochement.abonnement_info || rapprochement.declaration_info) && (
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -2391,6 +2465,7 @@ export default function RapprochementBancaire() {
                                       return {
                                         ...r,
                                         facture: null,
+                                        factureIds: undefined,
                                         abonnement_info: undefined,
                                         declaration_info: undefined,
                                         status: "unmatched" as const,
@@ -2522,6 +2597,7 @@ export default function RapprochementBancaire() {
                                 <TableHeader>
                                   <TableRow>
                                     <TableHead>Statut</TableHead>
+                                    <TableHead>N° Ligne</TableHead>
                                     <TableHead>Date</TableHead>
                                     <TableHead>Libellé</TableHead>
                                     <TableHead className="text-right">Débit</TableHead>
@@ -2550,7 +2626,6 @@ export default function RapprochementBancaire() {
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               const nextStatus = rapprochement.status === "matched" ? "uncertain" : rapprochement.status === "uncertain" ? "unmatched" : "matched";
-                                              // UTILISER numero_ligne si disponible
                                               const transactionKey = rapprochement.transaction.numero_ligne || `${rapprochement.transaction.date}-${rapprochement.transaction.libelle}-${rapprochement.transaction.montant}`;
                                               handleHistoriqueStatusChange(
                                                 fichier.id,
@@ -2565,6 +2640,11 @@ export default function RapprochementBancaire() {
                                             {rapprochement.status === "uncertain" && <AlertCircle className="h-5 w-5 text-orange-600" />}
                                             {rapprochement.status === "unmatched" && <XCircle className="h-5 w-5 text-red-600" />}
                                           </div>
+                                        </TableCell>
+                                        <TableCell>
+                                          <Badge variant="outline" className="font-mono text-xs">
+                                            {rapprochement.numero_ligne || rapprochement.transaction.numero_ligne || "N/A"}
+                                          </Badge>
                                         </TableCell>
                                         <TableCell>
                                           {format(new Date(rapprochement.transaction.date), "dd/MM/yyyy")}
@@ -2598,6 +2678,8 @@ export default function RapprochementBancaire() {
                                                 {rapprochement.facture.type_facture}
                                               </span>
                                             </div>
+                                          ) : rapprochement.factureIds && rapprochement.factureIds.length > 0 ? (
+                                            <Badge variant="outline">{rapprochement.factureIds.length} factures</Badge>
                                           ) : (
                                             "-"
                                           )}
@@ -2850,6 +2932,7 @@ export default function RapprochementBancaire() {
                           .from("factures")
                           .update({
                             numero_rapprochement: null,
+                            numero_ligne_rapprochement: null,
                             date_rapprochement: null,
                             updated_at: new Date().toISOString()
                           } as any)
@@ -3004,12 +3087,23 @@ export default function RapprochementBancaire() {
             handleStatusChange(key, newStatus);
           }
         }}
-        onFactureSelect={(factureIds) => {
-          if (selectedEnCoursRapprochement && factureIds.length > 0) {
-            console.log("📋 Sélection de", factureIds.length, "facture(s)");
-            
-            // Si une seule facture, utiliser l'ancien système
-            if (factureIds.length === 1) {
+        onFactureSelect={async (factureIds) => {
+          if (selectedEnCoursRapprochement) {
+            if (factureIds.length === 0) {
+              setRapprochements(prev => prev.map(r => {
+                const key = getTransactionKey(r.transaction);
+                const selectedKey = getTransactionKey(selectedEnCoursRapprochement.transaction);
+                if (key === selectedKey) {
+                  return {
+                    ...r,
+                    facture: null,
+                    factureIds: undefined,
+                    status: "unmatched" as const,
+                  };
+                }
+                return r;
+              }));
+            } else if (factureIds.length === 1) {
               const facture = factures.find(f => f.id === factureIds[0]);
               setRapprochements(prev => prev.map(r => {
                 const key = getTransactionKey(r.transaction);
@@ -3018,24 +3112,22 @@ export default function RapprochementBancaire() {
                   return {
                     ...r,
                     facture: facture || null,
-                    status: facture ? "matched" : r.status,
+                    status: facture ? "matched" as const : r.status,
                     factureIds: undefined,
                   };
                 }
                 return r;
               }));
             } else {
-              // Si plusieurs factures, utiliser le nouveau système avec factureIds
               setRapprochements(prev => prev.map(r => {
                 const key = getTransactionKey(r.transaction);
                 const selectedKey = getTransactionKey(selectedEnCoursRapprochement.transaction);
                 if (key === selectedKey) {
-                  console.log("✅ Mise à jour rapprochement avec", factureIds.length, "factures");
                   return {
                     ...r,
-                    facture: null, // Pas de facture unique
-                    factureIds: factureIds, // Stocker tous les IDs
-                    status: "matched",
+                    facture: null,
+                    factureIds: factureIds,
+                    status: "matched" as const,
                     isManual: true,
                   };
                 }
