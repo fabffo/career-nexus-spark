@@ -1855,6 +1855,65 @@ export default function RapprochementBancaire() {
         // Mettre à jour le rapprochement avec le numero_ligne
         r.numero_ligne = numeroLigne;
         
+        // Créer ou mettre à jour le rapprochement bancaire
+        const { data: existingRapprochement } = await supabase
+          .from('rapprochements_bancaires')
+          .select('id')
+          .eq('numero_ligne', numeroLigne)
+          .maybeSingle();
+        
+        let rapprochementId = existingRapprochement?.id;
+        
+        if (!existingRapprochement) {
+          const { data: newRapprochement, error: insertError } = await supabase
+            .from('rapprochements_bancaires')
+            .insert({
+              transaction_date: r.transaction.date,
+              transaction_libelle: r.transaction.libelle,
+              transaction_debit: r.transaction.debit,
+              transaction_credit: r.transaction.credit,
+              transaction_montant: r.transaction.montant,
+              numero_ligne: numeroLigne,
+              notes: r.notes || null,
+              created_by: user?.id
+            } as any)
+            .select()
+            .single();
+          
+          if (insertError) {
+            console.error("❌ Erreur insertion rapprochement_bancaire:", insertError);
+          } else {
+            rapprochementId = newRapprochement.id;
+            console.log(`✅ Rapprochement bancaire créé pour ${numeroLigne}`);
+          }
+        }
+        
+        // Gérer les associations de factures via rapprochements_factures
+        if (rapprochementId && (r.facture?.id || (r.factureIds && r.factureIds.length > 0))) {
+          const factureIds = r.facture?.id ? [r.facture.id] : (r.factureIds || []);
+          
+          // Supprimer les anciennes associations
+          await supabase
+            .from('rapprochements_factures')
+            .delete()
+            .eq('rapprochement_id', rapprochementId);
+          
+          // Créer les nouvelles associations
+          const facturesAssociations = factureIds.map(factureId => ({
+            rapprochement_id: rapprochementId,
+            facture_id: factureId,
+            created_by: user?.id,
+          }));
+          
+          const { error: associationError } = await supabase
+            .from('rapprochements_factures')
+            .insert(facturesAssociations);
+          
+          if (associationError) {
+            console.error("❌ Erreur création associations factures:", associationError);
+          }
+        }
+        
         // Mettre à jour la ou les factures associées
         if (r.facture?.id) {
           // Cas simple: une seule facture
