@@ -68,6 +68,8 @@ export default function EditRapprochementEnCoursDialog({
   const [notes, setNotes] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [associatedFactures, setAssociatedFactures] = useState<any[]>([]);
+  const [associatedAbonnement, setAssociatedAbonnement] = useState<any>(null);
+  const [associatedDeclaration, setAssociatedDeclaration] = useState<any>(null);
   const [loadingAssociated, setLoadingAssociated] = useState(false);
   const { toast } = useToast();
 
@@ -103,7 +105,7 @@ export default function EditRapprochementEnCoursDialog({
       // 1. Chercher le rapprochement bancaire
       const { data: rapprochementData, error: rapprochementError } = await supabase
         .from('rapprochements_bancaires')
-        .select('id')
+        .select('id, abonnement_id, declaration_charge_id')
         .eq('numero_ligne', numeroLigne)
         .single();
 
@@ -130,9 +132,37 @@ export default function EditRapprochementEnCoursDialog({
       } else {
         setAssociatedFactures([]);
       }
+
+      // 3. Charger l'abonnement si présent
+      if (rapprochementData.abonnement_id) {
+        const { data: abonnementData } = await supabase
+          .from('abonnements_partenaires')
+          .select('*')
+          .eq('id', rapprochementData.abonnement_id)
+          .single();
+        
+        setAssociatedAbonnement(abonnementData || null);
+      } else {
+        setAssociatedAbonnement(null);
+      }
+
+      // 4. Charger la déclaration de charge si présente
+      if (rapprochementData.declaration_charge_id) {
+        const { data: declarationData } = await supabase
+          .from('declarations_charges_sociales')
+          .select('*')
+          .eq('id', rapprochementData.declaration_charge_id)
+          .single();
+        
+        setAssociatedDeclaration(declarationData || null);
+      } else {
+        setAssociatedDeclaration(null);
+      }
     } catch (error) {
-      console.error('Erreur lors du chargement des factures associées:', error);
+      console.error('Erreur lors du chargement des données associées:', error);
       setAssociatedFactures([]);
+      setAssociatedAbonnement(null);
+      setAssociatedDeclaration(null);
     } finally {
       setLoadingAssociated(false);
     }
@@ -256,46 +286,104 @@ export default function EditRapprochementEnCoursDialog({
             </Select>
           </div>
 
-          {/* Afficher les factures déjà associées (depuis la base de données) */}
+          {/* Afficher les données déjà associées (depuis la base de données) */}
           {transaction.numero_ligne && (
             loadingAssociated ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : associatedFactures.length > 0 ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Facture(s) associée(s)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {associatedFactures.map((facture) => (
-                      <div key={facture.id} className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{facture.numero_facture}</span>
-                            <Badge variant={facture.type_facture === "VENTES" ? "default" : "secondary"}>
-                              {facture.type_facture}
-                            </Badge>
+            ) : (
+              <>
+                {/* Factures associées */}
+                {associatedFactures.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">Facture(s) associée(s)</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {associatedFactures.map((facture) => (
+                          <div key={facture.id} className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{facture.numero_facture}</span>
+                                <Badge variant={facture.type_facture === "VENTES" ? "default" : "secondary"}>
+                                  {facture.type_facture}
+                                </Badge>
+                              </div>
+                              <div className="text-sm text-muted-foreground mt-1">
+                                {facture.type_facture === "VENTES" ? facture.destinataire_nom : facture.emetteur_nom} • {format(new Date(facture.date_emission), "dd/MM/yyyy")} • {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(facture.total_ttc)}
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-sm text-muted-foreground mt-1">
-                            {facture.type_facture === "VENTES" ? facture.destinataire_nom : facture.emetteur_nom} • {format(new Date(facture.date_emission), "dd/MM/yyyy")} • {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(facture.total_ttc)}
-                          </div>
+                        ))}
+                        <div className="flex items-center justify-between p-2 bg-muted rounded">
+                          <span className="font-medium">Total factures :</span>
+                          <span className="font-bold">
+                            {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
+                              associatedFactures.reduce((sum, f) => sum + f.total_ttc, 0)
+                            )}
+                          </span>
                         </div>
                       </div>
-                    ))}
-                    <div className="flex items-center justify-between p-2 bg-muted rounded">
-                      <span className="font-medium">Total factures :</span>
-                      <span className="font-bold">
-                        {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
-                          associatedFactures.reduce((sum, f) => sum + f.total_ttc, 0)
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Abonnement associé */}
+                {associatedAbonnement && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">Abonnement associé</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                        <div className="font-medium">{associatedAbonnement.nom}</div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          Nature: {associatedAbonnement.nature}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Montant mensuel: {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(associatedAbonnement.montant_mensuel || 0)}
+                        </div>
+                        {associatedAbonnement.jour_prelevement && (
+                          <div className="text-sm text-muted-foreground">
+                            Jour de prélèvement: {associatedAbonnement.jour_prelevement}
+                          </div>
                         )}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : null
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Déclaration de charge associée */}
+                {associatedDeclaration && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">Déclaration de charge associée</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                        <div className="font-medium">{associatedDeclaration.nom}</div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          Organisme: {associatedDeclaration.organisme}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Type: {associatedDeclaration.type_charge}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Périodicité: {associatedDeclaration.periodicite}
+                        </div>
+                        {associatedDeclaration.montant_estime && (
+                          <div className="text-sm text-muted-foreground">
+                            Montant estimé: {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(associatedDeclaration.montant_estime)}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )
           )}
 
           {/* Ne pas afficher la sélection de factures si la transaction est déjà rapprochée */}
