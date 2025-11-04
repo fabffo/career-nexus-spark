@@ -67,6 +67,8 @@ export default function EditRapprochementEnCoursDialog({
   const [selectedFactureIds, setSelectedFactureIds] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [associatedFactures, setAssociatedFactures] = useState<any[]>([]);
+  const [loadingAssociated, setLoadingAssociated] = useState(false);
   const { toast } = useToast();
 
   // Réinitialiser les états quand le dialogue se ferme
@@ -87,8 +89,54 @@ export default function EditRapprochementEnCoursDialog({
       if (rapprochement.facture) {
         setSelectedFactureIds([rapprochement.facture.id]);
       }
+      
+      // Charger les factures associées si la transaction a un numero_ligne
+      if (rapprochement.transaction.numero_ligne) {
+        loadAssociatedFactures(rapprochement.transaction.numero_ligne);
+      }
     }
   }, [rapprochement, open]);
+
+  const loadAssociatedFactures = async (numeroLigne: string) => {
+    setLoadingAssociated(true);
+    try {
+      // 1. Chercher le rapprochement bancaire
+      const { data: rapprochementData, error: rapprochementError } = await supabase
+        .from('rapprochements_bancaires')
+        .select('id')
+        .eq('numero_ligne', numeroLigne)
+        .single();
+
+      if (rapprochementError) throw rapprochementError;
+
+      // 2. Chercher toutes les factures liées via rapprochements_factures
+      const { data: liaisonsFactures, error: liaisonsError } = await supabase
+        .from('rapprochements_factures')
+        .select('facture_id')
+        .eq('rapprochement_id', rapprochementData.id);
+
+      if (liaisonsError) throw liaisonsError;
+
+      const factureIds = liaisonsFactures?.map(l => l.facture_id) || [];
+      
+      if (factureIds.length > 0) {
+        const { data: facturesData, error: facturesError } = await supabase
+          .from('factures')
+          .select('*')
+          .in('id', factureIds);
+
+        if (facturesError) throw facturesError;
+        setAssociatedFactures(facturesData || []);
+      } else {
+        setAssociatedFactures([]);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des factures associées:', error);
+      setAssociatedFactures([]);
+    } finally {
+      setLoadingAssociated(false);
+    }
+  };
 
   // Filtrer les factures disponibles (non rapprochées)
   const facturesDisponibles = factures.filter(f => !f.numero_rapprochement || (rapprochement?.facture && f.id === rapprochement.facture.id));
@@ -208,50 +256,94 @@ export default function EditRapprochementEnCoursDialog({
             </Select>
           </div>
 
-          {/* Afficher les factures sélectionnées (en cours uniquement) */}
-          {!transaction.numero_ligne && selectedFactures.length > 0 && (
-            <div className="space-y-2">
-              <Label>Facture(s) associée(s)</Label>
-              <div className="space-y-2">
-                {selectedFactures.map((facture) => (
-                  <div key={facture.id} className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{facture.numero_facture}</span>
-                        <Badge variant={facture.type_facture === "VENTES" ? "default" : "secondary"}>
-                          {facture.type_facture}
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {facture.partenaire_nom} • {format(new Date(facture.date_emission), "dd/MM/yyyy")} • {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(facture.total_ttc)}
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => toggleFactureSelection(facture.id)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <div className="flex items-center justify-between p-2 bg-muted rounded">
-                  <span className="font-medium">Total factures :</span>
-                  <span className="font-bold">{new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(totalFacturesSelectionnees)}</span>
-                </div>
-                {Math.abs(Math.abs(transaction.montant) - totalFacturesSelectionnees) > 0.01 && (
-                  <div className="flex items-center gap-2 p-2 bg-orange-50 border border-orange-200 rounded text-sm text-orange-800">
-                    <AlertCircle className="h-4 w-4" />
-                    Différence de {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(Math.abs(Math.abs(transaction.montant) - totalFacturesSelectionnees))}
-                  </div>
-                )}
+          {/* Afficher les factures déjà associées (depuis la base de données) */}
+          {transaction.numero_ligne && (
+            loadingAssociated ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            </div>
+            ) : associatedFactures.length > 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Facture(s) associée(s)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {associatedFactures.map((facture) => (
+                      <div key={facture.id} className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{facture.numero_facture}</span>
+                            <Badge variant={facture.type_facture === "VENTES" ? "default" : "secondary"}>
+                              {facture.type_facture}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {facture.type_facture === "VENTES" ? facture.destinataire_nom : facture.emetteur_nom} • {format(new Date(facture.date_emission), "dd/MM/yyyy")} • {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(facture.total_ttc)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between p-2 bg-muted rounded">
+                      <span className="font-medium">Total factures :</span>
+                      <span className="font-bold">
+                        {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
+                          associatedFactures.reduce((sum, f) => sum + f.total_ttc, 0)
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null
           )}
 
-          {/* Recherche et sélection de factures (en cours uniquement) */}
+          {/* Ne pas afficher la sélection de factures si la transaction est déjà rapprochée */}
           {!transaction.numero_ligne && (
-            <div className="space-y-2">
+            <>
+              {/* Factures sélectionnées */}
+              {selectedFactures.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Facture(s) associée(s)</Label>
+                  <div className="space-y-2">
+                    {selectedFactures.map((facture) => (
+                      <div key={facture.id} className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{facture.numero_facture}</span>
+                            <Badge variant={facture.type_facture === "VENTES" ? "default" : "secondary"}>
+                              {facture.type_facture}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {facture.partenaire_nom} • {format(new Date(facture.date_emission), "dd/MM/yyyy")} • {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(facture.total_ttc)}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => toggleFactureSelection(facture.id)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between p-2 bg-muted rounded">
+                      <span className="font-medium">Total factures :</span>
+                      <span className="font-bold">{new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(totalFacturesSelectionnees)}</span>
+                    </div>
+                    {Math.abs(Math.abs(transaction.montant) - totalFacturesSelectionnees) > 0.01 && (
+                      <div className="flex items-center gap-2 p-2 bg-orange-50 border border-orange-200 rounded text-sm text-orange-800">
+                        <AlertCircle className="h-4 w-4" />
+                        Différence de {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(Math.abs(Math.abs(transaction.montant) - totalFacturesSelectionnees))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Recherche et sélection de factures */}
+              <div className="space-y-2">
                 <Label>Associer une facture</Label>
                 <Input
                   placeholder="Rechercher par numéro, partenaire ou montant..."
@@ -319,6 +411,7 @@ export default function EditRapprochementEnCoursDialog({
                   </div>
                 </div>
               </div>
+            </>
           )}
 
           {/* Notes */}

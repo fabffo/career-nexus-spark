@@ -74,8 +74,6 @@ export default function EditRapprochementHistoriqueDialog({
   const [selectedDeclarationId, setSelectedDeclarationId] = useState<string>("");
   const [abonnements, setAbonnements] = useState<any[]>([]);
   const [declarations, setDeclarations] = useState<any[]>([]);
-  const [associatedAbonnement, setAssociatedAbonnement] = useState<any>(null);
-  const [associatedDeclaration, setAssociatedDeclaration] = useState<any>(null);
   const [consommations, setConsommations] = useState<Consommation[]>([]);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
@@ -240,17 +238,6 @@ export default function EditRapprochementHistoriqueDialog({
         if (data?.abonnement_id) {
           setSelectedAbonnementId(data.abonnement_id);
           
-          // Charger les détails de l'abonnement
-          const { data: abonnementData } = await supabase
-            .from("abonnements_partenaires")
-            .select("*")
-            .eq("id", data.abonnement_id)
-            .single();
-          
-          if (abonnementData) {
-            setAssociatedAbonnement(abonnementData);
-          }
-          
           // Charger les consommations existantes
           const { data: consommationsData } = await supabase
             .from("abonnements_consommations")
@@ -269,17 +256,6 @@ export default function EditRapprochementHistoriqueDialog({
         
         if (data?.declaration_charge_id) {
           setSelectedDeclarationId(data.declaration_charge_id);
-          
-          // Charger les détails de la déclaration
-          const { data: declarationData } = await supabase
-            .from("declarations_charges_sociales")
-            .select("*")
-            .eq("id", data.declaration_charge_id)
-            .single();
-          
-          if (declarationData) {
-            setAssociatedDeclaration(declarationData);
-          }
         }
       };
       
@@ -666,51 +642,6 @@ export default function EditRapprochementHistoriqueDialog({
               </div>
             </div>
           </div>
-
-          {/* Afficher l'abonnement déjà associé */}
-          {associatedAbonnement && (
-            <div className="p-4 border border-primary/20 bg-primary/5 rounded-lg space-y-2">
-              <div className="flex items-center gap-2">
-                <h4 className="font-semibold text-sm">Abonnement associé</h4>
-                <Badge variant="outline">{associatedAbonnement.nature}</Badge>
-              </div>
-              <div className="space-y-1 text-sm">
-                <div className="font-medium">{associatedAbonnement.nom}</div>
-                <div className="text-muted-foreground">
-                  Montant mensuel: {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(associatedAbonnement.montant_mensuel || 0)}
-                </div>
-                {associatedAbonnement.jour_prelevement && (
-                  <div className="text-muted-foreground">
-                    Jour de prélèvement: {associatedAbonnement.jour_prelevement}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Afficher la déclaration déjà associée */}
-          {associatedDeclaration && (
-            <div className="p-4 border border-primary/20 bg-primary/5 rounded-lg space-y-2">
-              <div className="flex items-center gap-2">
-                <h4 className="font-semibold text-sm">Déclaration de charge associée</h4>
-                <Badge variant="outline">{associatedDeclaration.type_charge}</Badge>
-              </div>
-              <div className="space-y-1 text-sm">
-                <div className="font-medium">{associatedDeclaration.nom}</div>
-                <div className="text-muted-foreground">
-                  Organisme: {associatedDeclaration.organisme}
-                </div>
-                <div className="text-muted-foreground">
-                  Périodicité: {associatedDeclaration.periodicite}
-                </div>
-                {associatedDeclaration.montant_estime && (
-                  <div className="text-muted-foreground">
-                    Montant estimé: {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(associatedDeclaration.montant_estime)}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Status selection */}
           <div className="space-y-2">
