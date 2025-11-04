@@ -1716,8 +1716,9 @@ export default function RapprochementBancaire() {
               transaction_montant: r.transaction.montant,
               abonnement_id: r.abonnement_info!.id,
               notes: `Rapprochement automatique ${numeroRapprochement}`,
-              created_by: user?.id
-            })
+              created_by: user?.id,
+              numero_ligne: '' // Sera généré automatiquement par le trigger
+            } as any)
             .select()
             .single();
 
@@ -1758,8 +1759,9 @@ export default function RapprochementBancaire() {
               transaction_montant: r.transaction.montant,
               declaration_charge_id: r.declaration_info!.id,
               notes: `Rapprochement automatique ${numeroRapprochement}`,
-              created_by: user?.id
-            })
+              created_by: user?.id,
+              numero_ligne: '' // Sera généré automatiquement par le trigger
+            } as any)
             .select()
             .single();
 

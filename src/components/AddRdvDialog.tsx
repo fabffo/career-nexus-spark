@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -168,7 +168,7 @@ L'équipe de recrutement`;
   };
 
   // Fonction pour mettre à jour automatiquement les emails participants
-  const updateTeamsEmails = () => {
+  const updateTeamsEmails = useCallback(() => {
     if (formData.type_rdv !== 'TEAMS') return;
     
     const emails = new Set<string>();
@@ -203,12 +203,12 @@ L'équipe de recrutement`;
     // Combiner tous les emails
     const allEmails = [...emails, ...currentEmails];
     setFormData(prev => ({ ...prev, teamsEmails: allEmails.join(', ') }));
-  };
+  }, [formData.type_rdv, formData.candidat_id, formData.rdv_type, formData.referent_ids, formData.recruteur_id, formData.teamsEmails, candidats, recruteurs, referents]);
 
   // Appeler updateTeamsEmails quand les dépendances changent
   useEffect(() => {
     updateTeamsEmails();
-  }, [formData.type_rdv, formData.candidat_id, formData.rdv_type, formData.referent_ids, formData.recruteur_id]);
+  }, [updateTeamsEmails]);
 
   const createTeamsMeetingIfNeeded = async (rdvId: string, rdvData: any) => {
     if (rdvData.type_rdv !== 'TEAMS') {
