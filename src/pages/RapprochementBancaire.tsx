@@ -132,6 +132,7 @@ export default function RapprochementBancaire() {
   // Charger le fichier EN_COURS au montage du composant
   useEffect(() => {
     loadFichierEnCours();
+    loadFactures(); // Charger les factures au démarrage
   }, []);
 
   // Réinitialiser les états et charger les données selon l'onglet actif
@@ -150,7 +151,7 @@ export default function RapprochementBancaire() {
     } else {
       setSelectedFichier(null);
       setHistoriqueStatusChanges({});
-      setFactures([]);
+      // Ne pas vider les factures pour qu'elles restent disponibles lors de l'édition
     }
   }, [activeTab]);
 
@@ -225,6 +226,11 @@ export default function RapprochementBancaire() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      // Charger les factures si elles ne sont pas déjà chargées
+      if (factures.length === 0) {
+        await loadFactures();
+      }
 
       const { data, error } = await supabase
         .from("fichiers_rapprochement")
