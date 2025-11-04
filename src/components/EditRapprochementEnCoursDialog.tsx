@@ -101,6 +101,7 @@ export default function EditRapprochementEnCoursDialog({
 
   const loadAssociatedFactures = async (numeroLigne: string) => {
     setLoadingAssociated(true);
+    console.log('🔍 Chargement des données associées pour:', numeroLigne);
     try {
       // 1. Chercher le rapprochement bancaire
       const { data: rapprochementData, error: rapprochementError } = await supabase
@@ -109,10 +110,16 @@ export default function EditRapprochementEnCoursDialog({
         .eq('numero_ligne', numeroLigne)
         .maybeSingle();
 
-      if (rapprochementError) throw rapprochementError;
+      console.log('📊 Rapprochement trouvé:', rapprochementData);
+      
+      if (rapprochementError) {
+        console.error('❌ Erreur rapprochement:', rapprochementError);
+        throw rapprochementError;
+      }
       
       // Si pas de rapprochement trouvé, ne rien afficher
       if (!rapprochementData) {
+        console.warn('⚠️ Aucun rapprochement trouvé pour ce numéro de ligne');
         setAssociatedFactures([]);
         setAssociatedAbonnement(null);
         setAssociatedDeclaration(null);
@@ -126,7 +133,12 @@ export default function EditRapprochementEnCoursDialog({
         .select('facture_id')
         .eq('rapprochement_id', rapprochementData.id);
 
-      if (liaisonsError) throw liaisonsError;
+      console.log('🔗 Liaisons factures trouvées:', liaisonsFactures);
+      
+      if (liaisonsError) {
+        console.error('❌ Erreur liaisons:', liaisonsError);
+        throw liaisonsError;
+      }
 
       const factureIds = liaisonsFactures?.map(l => l.facture_id) || [];
       
@@ -136,20 +148,28 @@ export default function EditRapprochementEnCoursDialog({
           .select('*')
           .in('id', factureIds);
 
-        if (facturesError) throw facturesError;
+        console.log('📄 Factures chargées:', facturesData);
+        
+        if (facturesError) {
+          console.error('❌ Erreur factures:', facturesError);
+          throw facturesError;
+        }
         setAssociatedFactures(facturesData || []);
       } else {
+        console.log('ℹ️ Aucune facture associée');
         setAssociatedFactures([]);
       }
 
       // 3. Charger l'abonnement si présent
       if (rapprochementData.abonnement_id) {
+        console.log('🔍 Chargement abonnement:', rapprochementData.abonnement_id);
         const { data: abonnementData } = await supabase
           .from('abonnements_partenaires')
           .select('*')
           .eq('id', rapprochementData.abonnement_id)
           .single();
         
+        console.log('📦 Abonnement chargé:', abonnementData);
         setAssociatedAbonnement(abonnementData || null);
       } else {
         setAssociatedAbonnement(null);
@@ -157,23 +177,26 @@ export default function EditRapprochementEnCoursDialog({
 
       // 4. Charger la déclaration de charge si présente
       if (rapprochementData.declaration_charge_id) {
+        console.log('🔍 Chargement déclaration:', rapprochementData.declaration_charge_id);
         const { data: declarationData } = await supabase
           .from('declarations_charges_sociales')
           .select('*')
           .eq('id', rapprochementData.declaration_charge_id)
           .single();
         
+        console.log('📋 Déclaration chargée:', declarationData);
         setAssociatedDeclaration(declarationData || null);
       } else {
         setAssociatedDeclaration(null);
       }
     } catch (error) {
-      console.error('Erreur lors du chargement des données associées:', error);
+      console.error('❌ Erreur lors du chargement des données associées:', error);
       setAssociatedFactures([]);
       setAssociatedAbonnement(null);
       setAssociatedDeclaration(null);
     } finally {
       setLoadingAssociated(false);
+      console.log('✅ Chargement terminé');
     }
   };
 
