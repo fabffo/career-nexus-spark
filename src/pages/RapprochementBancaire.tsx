@@ -314,30 +314,41 @@ export default function RapprochementBancaire() {
       if (error) throw error;
       
       const enrichedFiles = await Promise.all((data || []).map(async (fichier: any) => {
-        // Récupérer tous les rapprochements bancaires de cette période
-        const { data: allRapprochements } = await supabase
+        // Récupérer TOUS les rapprochements bancaires de cette période
+        const { data: allRapprochementsDetails } = await supabase
           .from("rapprochements_bancaires")
-          .select("id, transaction_date")
+          .select(`
+            id,
+            transaction_date,
+            transaction_libelle,
+            transaction_montant,
+            transaction_credit,
+            transaction_debit,
+            numero_ligne,
+            notes,
+            abonnement_id,
+            declaration_charge_id,
+            abonnements_partenaires (
+              id,
+              nom
+            ),
+            declarations_charges_sociales (
+              id,
+              nom,
+              organisme
+            )
+          `)
           .gte("transaction_date", fichier.date_debut)
           .lte("transaction_date", fichier.date_fin);
 
-        const rapprochementIds = (allRapprochements || []).map(r => r.id);
+        const rapprochementIds = (allRapprochementsDetails || []).map(r => r.id);
 
-        // Récupérer uniquement les rapprochements via la table de liaison (nouveau système)
+        // Récupérer les rapprochements avec factures via la table de liaison
         const { data: rapprochementsViaLiaison, error: liaisonError } = await supabase
           .from("rapprochements_factures")
           .select(`
             id,
             rapprochement_id,
-            rapprochements_bancaires (
-              id,
-              transaction_date,
-              transaction_libelle,
-              transaction_montant,
-              transaction_credit,
-              transaction_debit,
-              notes
-            ),
             factures (
               id,
               numero_facture,
@@ -351,82 +362,84 @@ export default function RapprochementBancaire() {
 
         const rapprochementsManuelsFormatted: Rapprochement[] = [];
 
-        console.log(`📊 Rapprochements via liaison trouvés pour ${fichier.numero_rapprochement}:`, rapprochementsViaLiaison?.length || 0);
+        console.log(`📊 Rapprochements bancaires trouvés pour ${fichier.numero_rapprochement}:`, allRapprochementsDetails?.length || 0);
+        console.log(`📊 Rapprochements avec factures:`, rapprochementsViaLiaison?.length || 0);
+        
+        // Créer une Map des factures par rapprochement_id
+        const facturesParRapprochement = new Map<string, any[]>();
         if (!liaisonError && rapprochementsViaLiaison) {
-          // Grouper les factures par rapprochement_id pour compter correctement les lignes
-          const rapprochementsGroupes = new Map<string, any>();
-          
-          rapprochementsViaLiaison.forEach((rap: any) => {
-            if (rap.factures && rap.rapprochements_bancaires) {
-              const rb = rap.rapprochements_bancaires;
-              const rapprochementId = rap.rapprochement_id;
-              
-              if (!rapprochementsGroupes.has(rapprochementId)) {
-                // Première facture pour ce rapprochement
-                rapprochementsGroupes.set(rapprochementId, {
-                  transaction: {
-                    date: rb.transaction_date,
-                    libelle: rb.transaction_libelle,
-                    montant: rb.transaction_montant,
-                    debit: rb.transaction_debit || 0,
-                    credit: rb.transaction_credit || 0,
-                  },
-                  factureIds: [rap.factures.id],
-                  factures: [{
-                    id: rap.factures.id,
-                    numero_facture: rap.factures.numero_facture,
-                    type_facture: rap.factures.type_facture,
-                    total_ttc: rap.factures.total_ttc,
-                    partenaire_nom: rap.factures.type_facture === "VENTES" 
-                      ? rap.factures.destinataire_nom 
-                      : rap.factures.emetteur_nom,
-                  }],
-                  score: 100,
-                  status: "matched",
-                  isManual: true,
-                  manualId: `liaison_${rap.id}`,
-                  notes: rb.notes,
-                });
-              } else {
-                // Ajouter la facture au rapprochement existant
-                const existing = rapprochementsGroupes.get(rapprochementId);
-                existing.factureIds.push(rap.factures.id);
-                existing.factures.push({
-                  id: rap.factures.id,
-                  numero_facture: rap.factures.numero_facture,
-                  type_facture: rap.factures.type_facture,
-                  total_ttc: rap.factures.total_ttc,
-                  partenaire_nom: rap.factures.type_facture === "VENTES" 
-                    ? rap.factures.destinataire_nom 
-                    : rap.factures.emetteur_nom,
-                });
+          rapprochementsViaLiaison.forEach((liaison: any) => {
+            if (liaison.factures) {
+              if (!facturesParRapprochement.has(liaison.rapprochement_id)) {
+                facturesParRapprochement.set(liaison.rapprochement_id, []);
               }
+              facturesParRapprochement.get(liaison.rapprochement_id)!.push(liaison.factures);
             }
-          });
-          
-          // Ajouter les rapprochements groupés
-          rapprochementsGroupes.forEach((rapprochement, rapprochementId) => {
-            if (rapprochement.factureIds.length === 1) {
-              // Une seule facture : format simple
-              rapprochementsManuelsFormatted.push({
-                ...rapprochement,
-                facture: {
-                  ...rapprochement.factures[0],
-                  date_emission: "",
-                  statut: "PAYEE",
-                },
-                factureIds: undefined,
-              });
-            } else {
-              // Plusieurs factures : format avec factureIds
-              rapprochementsManuelsFormatted.push({
-                ...rapprochement,
-                facture: null,
-              });
-            }
-            console.log(`  ✓ Transaction avec ${rapprochement.factureIds.length} facture(s):`, rapprochement.transaction.libelle?.substring(0, 40));
           });
         }
+        
+        // Traiter TOUS les rapprochements bancaires
+        (allRapprochementsDetails || []).forEach((rb: any) => {
+          const factures = facturesParRapprochement.get(rb.id) || [];
+          
+          const rapprochement: Rapprochement = {
+            transaction: {
+              date: rb.transaction_date,
+              libelle: rb.transaction_libelle,
+              montant: rb.transaction_montant,
+              debit: rb.transaction_debit || 0,
+              credit: rb.transaction_credit || 0,
+              numero_ligne: rb.numero_ligne,
+            },
+            facture: null,
+            factureIds: [],
+            score: 100,
+            status: "matched",
+            isManual: true,
+            manualId: `rb_${rb.id}`,
+            notes: rb.notes,
+          };
+          
+          // Ajouter les infos d'abonnement si présent
+          if (rb.abonnement_id && rb.abonnements_partenaires) {
+            rapprochement.abonnement_info = {
+              id: rb.abonnements_partenaires.id,
+              nom: rb.abonnements_partenaires.nom,
+            };
+          }
+          
+          // Ajouter les infos de déclaration si présent
+          if (rb.declaration_charge_id && rb.declarations_charges_sociales) {
+            rapprochement.declaration_info = {
+              id: rb.declarations_charges_sociales.id,
+              nom: rb.declarations_charges_sociales.nom,
+              organisme: rb.declarations_charges_sociales.organisme,
+            };
+          }
+          
+          // Ajouter les factures si présentes
+          if (factures.length === 1) {
+            // Une seule facture
+            rapprochement.facture = {
+              id: factures[0].id,
+              numero_facture: factures[0].numero_facture,
+              type_facture: factures[0].type_facture,
+              total_ttc: factures[0].total_ttc,
+              partenaire_nom: factures[0].type_facture === "VENTES" 
+                ? factures[0].destinataire_nom 
+                : factures[0].emetteur_nom,
+              date_emission: "",
+              statut: "PAYEE",
+            };
+          } else if (factures.length > 1) {
+            // Plusieurs factures
+            rapprochement.factureIds = factures.map(f => f.id);
+          }
+          
+          rapprochementsManuelsFormatted.push(rapprochement);
+        });
+        
+        console.log(`✅ Total rapprochements formatés: ${rapprochementsManuelsFormatted.length}`);
 
         // On ne garde QUE les rapprochements de la base de données
         // car fichier_data.rapprochements contient les rapprochements automatiques du moment de la validation
