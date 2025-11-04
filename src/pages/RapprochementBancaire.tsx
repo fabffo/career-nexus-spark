@@ -125,7 +125,14 @@ export default function RapprochementBancaire() {
   const [selectedRegle, setSelectedRegle] = useState<RegleRapprochement | null>(null);
   const [editEnCoursDialogOpen, setEditEnCoursDialogOpen] = useState(false);
   const [selectedEnCoursRapprochement, setSelectedEnCoursRapprochement] = useState<Rapprochement | null>(null);
+  const [fichierEnCoursId, setFichierEnCoursId] = useState<string | null>(null);
+  const [autoSaving, setAutoSaving] = useState(false);
   const { toast } = useToast();
+
+  // Charger le fichier EN_COURS au montage du composant
+  useEffect(() => {
+    loadFichierEnCours();
+  }, []);
 
   // Réinitialiser les états et charger les données selon l'onglet actif
   useEffect(() => {
@@ -146,6 +153,17 @@ export default function RapprochementBancaire() {
       setFactures([]);
     }
   }, [activeTab]);
+
+  // Sauvegarde automatique des modifications EN_COURS
+  useEffect(() => {
+    if (fichierEnCoursId && transactions.length > 0 && rapprochements.length > 0) {
+      const timeoutId = setTimeout(() => {
+        saveFichierEnCours();
+      }, 2000); // Sauvegarde après 2 secondes d'inactivité
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [rapprochements, manualStatusChanges, fichierEnCoursId]);
 
   const loadReglesRapprochement = async () => {
     try {
@@ -202,6 +220,82 @@ export default function RapprochementBancaire() {
   useEffect(() => {
     setCurrentPage(1);
   }, [statusFilter, activeTab]);
+
+  const loadFichierEnCours = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("fichiers_rapprochement")
+        .select("*")
+        .eq("statut", "EN_COURS")
+        .eq("created_by", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Erreur lors du chargement du fichier EN_COURS:", error);
+        return;
+      }
+
+      if (data) {
+        setFichierEnCoursId(data.id);
+        
+        // Restaurer les données du fichier EN_COURS
+        if (data.fichier_data) {
+          const fichierData = data.fichier_data as {
+            transactions?: TransactionBancaire[];
+            rapprochements?: Rapprochement[];
+            rapprochementsManuels?: RapprochementManuel[];
+          };
+          
+          if (fichierData.transactions) setTransactions(fichierData.transactions);
+          if (fichierData.rapprochements) setRapprochements(fichierData.rapprochements);
+          if (fichierData.rapprochementsManuels) setRapprochementsManuels(fichierData.rapprochementsManuels);
+          
+          console.log("✅ Fichier EN_COURS restauré:", data.numero_rapprochement);
+          toast({
+            title: "Session restaurée",
+            description: `Rapprochement en cours: ${data.numero_rapprochement}`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Erreur lors du chargement du fichier EN_COURS:", error);
+    }
+  };
+
+  const saveFichierEnCours = async () => {
+    if (!fichierEnCoursId || autoSaving) return;
+
+    setAutoSaving(true);
+    try {
+      const lignesRapprochees = rapprochements.filter(r => r.status === 'matched').length;
+
+      const { error } = await supabase
+        .from('fichiers_rapprochement')
+        .update({
+          fichier_data: {
+            transactions,
+            rapprochements,
+            rapprochementsManuels
+          } as any,
+          lignes_rapprochees: lignesRapprochees,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', fichierEnCoursId);
+
+      if (error) throw error;
+
+      console.log("💾 Sauvegarde automatique effectuée");
+    } catch (error) {
+      console.error("Erreur lors de la sauvegarde automatique:", error);
+    } finally {
+      setAutoSaving(false);
+    }
+  };
 
   const loadFichiersRapprochement = async () => {
     try {
@@ -842,6 +936,9 @@ export default function RapprochementBancaire() {
             console.log("✅ Rapprochement terminé:", rapprochementsResult.filter(r => r.status === "matched").length, "matchés sur", rapprochementsResult.length);
             setRapprochements(rapprochementsResult);
 
+            // Créer automatiquement un fichier EN_COURS
+            await createFichierEnCours(transactionsParsed, rapprochementsResult);
+
             toast({
               title: "Fichier importé",
               description: `${transactionsParsed.length} transactions importées`,
@@ -900,6 +997,9 @@ export default function RapprochementBancaire() {
             console.log("✅ Rapprochement terminé:", rapprochementsResult.filter(r => r.status === "matched").length, "matchés sur", rapprochementsResult.length);
             setRapprochements(rapprochementsResult);
 
+            // Créer automatiquement un fichier EN_COURS
+            await createFichierEnCours(transactionsParsed, rapprochementsResult);
+
             toast({
               title: "Fichier importé",
               description: `${transactionsParsed.length} transactions importées`,
@@ -926,6 +1026,57 @@ export default function RapprochementBancaire() {
         variant: "destructive",
       });
       setLoading(false);
+    }
+  };
+
+  const createFichierEnCours = async (
+    transactionsParsed: TransactionBancaire[],
+    rapprochementsResult: Rapprochement[]
+  ) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Supprimer l'ancien fichier EN_COURS s'il existe
+      if (fichierEnCoursId) {
+        await supabase
+          .from('fichiers_rapprochement')
+          .delete()
+          .eq('id', fichierEnCoursId);
+      }
+
+      // Trouver les dates min et max
+      const dates = transactionsParsed.map(t => new Date(t.date));
+      const dateDebut = format(new Date(Math.min(...dates.map(d => d.getTime()))), 'yyyy-MM-dd');
+      const dateFin = format(new Date(Math.max(...dates.map(d => d.getTime()))), 'yyyy-MM-dd');
+
+      const lignesRapprochees = rapprochementsResult.filter(r => r.status === 'matched').length;
+
+      const { data: fichier, error } = await supabase
+        .from('fichiers_rapprochement')
+        .insert({
+          numero_rapprochement: `TEMP-${Date.now()}`,
+          date_debut: dateDebut,
+          date_fin: dateFin,
+          fichier_data: {
+            transactions: transactionsParsed,
+            rapprochements: rapprochementsResult,
+            rapprochementsManuels
+          } as any,
+          statut: 'EN_COURS',
+          total_lignes: transactionsParsed.length,
+          lignes_rapprochees: lignesRapprochees,
+          created_by: user.id
+        } as any)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setFichierEnCoursId(fichier.id);
+      console.log("✅ Fichier EN_COURS créé:", fichier.numero_rapprochement);
+    } catch (error) {
+      console.error("Erreur lors de la création du fichier EN_COURS:", error);
     }
   };
 
@@ -1575,6 +1726,8 @@ export default function RapprochementBancaire() {
       const dateDebut = format(new Date(Math.min(...dates.map(d => d.getTime()))), 'yyyy-MM-dd');
       const dateFin = format(new Date(Math.max(...dates.map(d => d.getTime()))), 'yyyy-MM-dd');
 
+      const { data: { user } } = await supabase.auth.getUser();
+
       // Vérifier si ces dates sont déjà rapprochées
       const { data: checkData, error: checkError } = await supabase
         .rpc('check_dates_already_reconciled', {
@@ -1622,34 +1775,57 @@ export default function RapprochementBancaire() {
       // Calculer les statistiques
       const lignesRapprochees = rapprochements.filter(r => r.status === 'matched').length;
 
-      // Enregistrer le fichier de rapprochement
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const { error: insertError } = await supabase
-        .from('fichiers_rapprochement')
-        .insert({
-          numero_rapprochement: numeroRapprochement,
-          date_debut: dateDebut,
-          date_fin: dateFin,
-          fichier_data: {
-            transactions,
-            rapprochements,
-            rapprochementsManuels
-          } as any,
-          statut: 'VALIDE',
-          total_lignes: transactions.length,
-          lignes_rapprochees: lignesRapprochees,
-          created_by: user?.id
-        } as any);
+      // Mettre à jour le fichier EN_COURS vers VALIDE ou créer un nouveau si pas de fichier EN_COURS
+      if (fichierEnCoursId) {
+        const { error: updateError } = await supabase
+          .from('fichiers_rapprochement')
+          .update({
+            numero_rapprochement: numeroRapprochement,
+            statut: 'VALIDE',
+            lignes_rapprochees: lignesRapprochees,
+            updated_at: new Date().toISOString()
+          } as any)
+          .eq('id', fichierEnCoursId);
 
-      if (insertError) {
-        console.error("Erreur lors de l'enregistrement:", insertError);
-        toast({
-          title: "Erreur",
-          description: "Erreur lors de l'enregistrement du rapprochement",
-          variant: "destructive",
-        });
-        return;
+        if (updateError) {
+          console.error("Erreur lors de la mise à jour:", updateError);
+          toast({
+            title: "Erreur",
+            description: "Erreur lors de la validation du rapprochement",
+            variant: "destructive",
+          });
+          return;
+        }
+        console.log("✅ Fichier EN_COURS converti en VALIDE");
+      } else {
+        // Fallback: créer un nouveau fichier VALIDE
+        const { error: insertError } = await supabase
+          .from('fichiers_rapprochement')
+          .insert({
+            numero_rapprochement: numeroRapprochement,
+            date_debut: dateDebut,
+            date_fin: dateFin,
+            fichier_data: {
+              transactions,
+              rapprochements,
+              rapprochementsManuels
+            } as any,
+            statut: 'VALIDE',
+            total_lignes: transactions.length,
+            lignes_rapprochees: lignesRapprochees,
+            created_by: user?.id
+          } as any);
+
+        if (insertError) {
+          console.error("Erreur lors de l'enregistrement:", insertError);
+          toast({
+            title: "Erreur",
+            description: "Erreur lors de l'enregistrement du rapprochement",
+            variant: "destructive",
+          });
+          return;
+        }
+        console.log("✅ Nouveau fichier VALIDE créé");
       }
 
       // ⭐ Générer et enregistrer les rapprochements avec numéro de ligne unique

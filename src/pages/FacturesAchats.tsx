@@ -12,6 +12,7 @@ import EditFactureDialog from "@/components/EditFactureDialog";
 import ViewFactureDialog from "@/components/ViewFactureDialog";
 import CreateFournisseurQuickDialog from "@/components/CreateFournisseurQuickDialog";
 import FactureRapprochementDialog from "@/components/FactureRapprochementDialog";
+import RapprochementDetailDialog from "@/components/RapprochementDetailDialog";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -67,6 +68,7 @@ export interface Facture {
   facture_url?: string;
   numero_rapprochement?: string;
   date_rapprochement?: string;
+  numero_ligne_rapprochement?: string;
 }
 
 export default function FacturesAchats() {
@@ -78,6 +80,8 @@ export default function FacturesAchats() {
   const [openExtractionDialog, setOpenExtractionDialog] = useState(false);
   const [openCreateFournisseur, setOpenCreateFournisseur] = useState(false);
   const [openRapprochementDialog, setOpenRapprochementDialog] = useState(false);
+  const [openDetailRapprochementDialog, setOpenDetailRapprochementDialog] = useState(false);
+  const [selectedNumeroLigne, setSelectedNumeroLigne] = useState<string>("");
   const [selectedFacture, setSelectedFacture] = useState<Facture | null>(null);
   const [fournisseurInitialData, setFournisseurInitialData] = useState<{
     raison_sociale?: string;
@@ -491,6 +495,28 @@ export default function FacturesAchats() {
       },
     },
     {
+      accessorKey: "numero_ligne_rapprochement",
+      header: "N° Ligne Rapprochement",
+      cell: ({ row }) => {
+        const numeroLigne = row.getValue("numero_ligne_rapprochement") as string;
+        return numeroLigne ? (
+          <Badge 
+            variant="outline" 
+            className="font-mono cursor-pointer hover:bg-primary/10 transition-colors"
+            onClick={() => {
+              setSelectedNumeroLigne(numeroLigne);
+              setOpenDetailRapprochementDialog(true);
+            }}
+            title="Cliquer pour voir les détails"
+          >
+            {numeroLigne}
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground text-xs">-</span>
+        );
+      },
+    },
+    {
       id: "actions",
       header: "Actions",
       cell: ({ row }) => (
@@ -830,12 +856,22 @@ export default function FacturesAchats() {
       />
 
       {selectedFacture && (
-        <FactureRapprochementDialog
-          open={openRapprochementDialog}
-          onOpenChange={setOpenRapprochementDialog}
-          factureId={selectedFacture.id}
-          factureNumero={selectedFacture.numero_facture}
-          onSuccess={fetchFactures}
+        <>
+          <FactureRapprochementDialog
+            open={openRapprochementDialog}
+            onOpenChange={setOpenRapprochementDialog}
+            factureId={selectedFacture.id}
+            factureNumero={selectedFacture.numero_facture}
+            onSuccess={fetchFactures}
+          />
+        </>
+      )}
+
+      {selectedNumeroLigne && (
+        <RapprochementDetailDialog
+          open={openDetailRapprochementDialog}
+          onOpenChange={setOpenDetailRapprochementDialog}
+          numeroLigne={selectedNumeroLigne}
         />
       )}
     </div>

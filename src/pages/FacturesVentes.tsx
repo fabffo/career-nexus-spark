@@ -10,6 +10,7 @@ import AddFactureDialog from "@/components/AddFactureDialog";
 import EditFactureDialog from "@/components/EditFactureDialog";
 import ViewFactureDialog from "@/components/ViewFactureDialog";
 import ExtractionFactureVenteDialog from "@/components/ExtractionFactureVenteDialog";
+import RapprochementDetailDialog from "@/components/RapprochementDetailDialog";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -30,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -77,6 +79,7 @@ export interface Facture {
   lignes?: FactureLigne[];
   numero_rapprochement?: string;
   date_rapprochement?: string;
+  numero_ligne_rapprochement?: string;
 }
 
 export interface FactureLigne {
@@ -99,6 +102,8 @@ export default function FacturesVentes() {
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [openViewDialog, setOpenViewDialog] = useState(false);
   const [openExtractionDialog, setOpenExtractionDialog] = useState(false);
+  const [openDetailRapprochementDialog, setOpenDetailRapprochementDialog] = useState(false);
+  const [selectedNumeroLigne, setSelectedNumeroLigne] = useState<string>("");
   const [selectedFacture, setSelectedFacture] = useState<Facture | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -453,6 +458,28 @@ export default function FacturesVentes() {
       },
     },
     {
+      accessorKey: "numero_ligne_rapprochement",
+      header: "N° Ligne Rapprochement",
+      cell: ({ row }) => {
+        const numeroLigne = row.getValue("numero_ligne_rapprochement") as string;
+        return numeroLigne ? (
+          <Badge 
+            variant="outline" 
+            className="font-mono cursor-pointer hover:bg-primary/10 transition-colors"
+            onClick={() => {
+              setSelectedNumeroLigne(numeroLigne);
+              setOpenDetailRapprochementDialog(true);
+            }}
+            title="Cliquer pour voir les détails"
+          >
+            {numeroLigne}
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground text-xs">-</span>
+        );
+      },
+    },
+    {
       id: "actions",
       header: "Actions",
       cell: ({ row }) => (
@@ -786,6 +813,14 @@ export default function FacturesVentes() {
             facture={selectedFacture}
           />
         </>
+      )}
+
+      {selectedNumeroLigne && (
+        <RapprochementDetailDialog
+          open={openDetailRapprochementDialog}
+          onOpenChange={setOpenDetailRapprochementDialog}
+          numeroLigne={selectedNumeroLigne}
+        />
       )}
     </div>
   );
