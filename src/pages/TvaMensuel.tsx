@@ -425,8 +425,8 @@ export default function TvaMensuel() {
       let countRapprochees = 0;
 
       tousLesRapprochements.forEach((rapp: any, index: number) => {
-        // ⭐ Compter UNIQUEMENT les lignes matched comme rapprochées
-        const estRapproche = rapp.status === 'matched';
+        // ⭐ Compter les lignes RAPPROCHE comme rapprochées
+        const estRapproche = rapp.status === 'matched' || rapp.status === 'RAPPROCHE';
         if (estRapproche) {
           countRapprochees++;
         }
