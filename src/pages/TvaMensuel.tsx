@@ -351,6 +351,9 @@ export default function TvaMensuel() {
         
         // ⭐ Enrichir avec les factures de la DB si disponibles
         if (facturesFromDB && facturesFromDB.length > 0) {
+          // Si des factures existent dans la DB, considérer comme rapproché
+          rapprochement.status = "matched";
+          
           if (facturesFromDB.length === 1) {
             rapprochement.facture = {
               id: facturesFromDB[0].id,
