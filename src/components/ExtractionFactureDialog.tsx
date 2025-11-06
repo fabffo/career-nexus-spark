@@ -216,12 +216,14 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
 
           // Validation détaillée avec génération de messages d'erreur
           const errors: string[] = [];
-          if (!donnees.fournisseur) errors.push("Fournisseur manquant");
-          if (!donnees.numero_facture) errors.push("Numéro de facture manquant");
-          if (!donnees.montant_ttc) errors.push("Montant TTC manquant");
+          const warnings: string[] = [];
           
-          const valide = errors.length === 0;
-          const erreur = errors.length > 0 ? errors.join(", ") : undefined;
+          if (!donnees.fournisseur) errors.push("Fournisseur manquant");
+          if (!donnees.montant_ttc) errors.push("Montant TTC manquant");
+          if (!donnees.numero_facture) warnings.push("Numéro de facture sera généré automatiquement");
+          
+          const valide = errors.length === 0; // Valide si fournisseur + montant présents
+          const erreur = errors.length > 0 ? errors.join(", ") : warnings.length > 0 ? warnings.join(", ") : undefined;
 
           console.log("✅ Extraction réussie:", { valide, donnees: Object.keys(donnees) });
 
@@ -342,9 +344,18 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           data: { user },
         } = await supabase.auth.getUser();
 
-        // 4. Insérer la facture dans la base de données
+        // 4. Générer un numéro de facture si manquant
+        let numeroFacture = facture.donnees.numero_facture;
+        if (!numeroFacture) {
+          const now = new Date();
+          const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+          const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+          numeroFacture = `FACHAT_${dateStr}_${timeStr}`;
+        }
+
+        // 5. Insérer la facture dans la base de données
         const { error: insertError } = await supabase.from("factures").insert({
-          numero_facture: facture.donnees.numero_facture || `FA-${timestamp}`,
+          numero_facture: numeroFacture,
           type_facture: "ACHATS",
           date_emission: facture.donnees.date_facture || new Date().toISOString().split("T")[0],
           date_echeance: facture.donnees.date_facture || new Date().toISOString().split("T")[0],
@@ -549,12 +560,14 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
 
                               {facture.erreur ? (
                                 <div className="space-y-2">
-                                  <p className="text-sm text-red-600 font-semibold">❌ Erreur de validation:</p>
-                                  <p className="text-sm text-red-600">{facture.erreur}</p>
+                                  <p className={`text-sm font-semibold ${facture.valide ? "text-amber-600" : "text-red-600"}`}>
+                                    {facture.valide ? "⚠ Attention:" : "❌ Erreur de validation:"}
+                                  </p>
+                                  <p className={`text-sm ${facture.valide ? "text-amber-600" : "text-red-600"}`}>{facture.erreur}</p>
                                   {!facture.donnees.fournisseur && !facture.donnees.numero_facture && !facture.donnees.montant_ttc ? (
                                     <p className="text-xs text-muted-foreground">L'IA n'a pas pu extraire les données de ce PDF.</p>
                                   ) : (
-                                    <div className="grid grid-cols-4 gap-3 text-sm pt-2 border-t border-red-200">
+                                    <div className="grid grid-cols-4 gap-3 text-sm pt-2 border-t">
                                       <div>
                                         <span className="text-muted-foreground">Fournisseur:</span>
                                         <p className={!facture.donnees.fournisseur ? "text-red-600 font-medium" : "font-medium"}>
@@ -563,8 +576,8 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                                       </div>
                                       <div>
                                         <span className="text-muted-foreground">N° Facture:</span>
-                                        <p className={!facture.donnees.numero_facture ? "text-red-600 font-medium" : "font-medium"}>
-                                          {facture.donnees.numero_facture || "⚠ Manquant"}
+                                        <p className={!facture.donnees.numero_facture ? "text-amber-600 font-medium italic" : "font-medium"}>
+                                          {facture.donnees.numero_facture || "🔄 Sera généré"}
                                         </p>
                                       </div>
                                       <div>
