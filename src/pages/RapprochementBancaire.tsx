@@ -399,11 +399,18 @@ export default function RapprochementBancaire() {
             facture: null,
             factureIds: [],
             score: 100,
-            status: "matched",
+            status: "matched", // ⭐ Pour l'instant on garde matched par défaut pour compatibilité
             isManual: true,
             manualId: `rb_${rb.id}`,
             notes: rb.notes,
           };
+          
+          // ⭐ Déterminer le statut: Si pas de facture/abonnement/déclaration -> unmatched
+          if (!rb.abonnement_id && !rb.declaration_charge_id && factures.length === 0) {
+            rapprochement.status = "unmatched";
+            rapprochement.isManual = false;
+            rapprochement.score = 0;
+          }
           
           // Ajouter les infos d'abonnement si présent
           if (rb.abonnement_id && rb.abonnements_partenaires) {
@@ -444,42 +451,22 @@ export default function RapprochementBancaire() {
           rapprochementsManuelsFormatted.push(rapprochement);
         });
         
-        console.log(`✅ Total rapprochements formatés: ${rapprochementsManuelsFormatted.length}`);
-
-        // Ajouter les transactions NON rapprochées depuis fichier_data.transactions
-        const transactionsRapprochees = new Set(
-          rapprochementsManuelsFormatted.map(r => r.transaction.numero_ligne || `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`)
-        );
+        console.log(`✅ Total rapprochements formatés depuis DB: ${rapprochementsManuelsFormatted.length}`);
         
-        const transactionsNonRapprochees: Rapprochement[] = (fichier.fichier_data?.transactions || [])
-          .filter((t: TransactionBancaire) => {
-            const key = t.numero_ligne || `${t.date}-${t.libelle}-${t.montant}`;
-            return !transactionsRapprochees.has(key);
-          })
-          .map((t: TransactionBancaire) => ({
-            transaction: t,
-            facture: null,
-            score: 0,
-            status: "unmatched" as const,
-            isManual: false,
-          }));
-        
-        const tousLesRapprochements = [...rapprochementsManuelsFormatted, ...transactionsNonRapprochees];
         const matchedCount = rapprochementsManuelsFormatted.filter((r: Rapprochement) => r.status === "matched").length;
+        const unmatchedCount = rapprochementsManuelsFormatted.filter((r: Rapprochement) => r.status === "unmatched").length;
         
         console.log(`🔍 DEBUG ${fichier.numero_rapprochement}:`);
-        console.log(`   - Rapprochements via liaison (brut): ${rapprochementsViaLiaison?.length || 0}`);
-        console.log(`   - Rapprochements groupés (transactions): ${rapprochementsManuelsFormatted.length}`);
-        console.log(`   - Transactions non rapprochées: ${transactionsNonRapprochees.length}`);
-        console.log(`   - Total transactions: ${tousLesRapprochements.length}`);
-        console.log(`   - Matched (CALCUL FINAL): ${matchedCount}`);
+        console.log(`   - Total transactions depuis DB: ${rapprochementsManuelsFormatted.length}`);
+        console.log(`   - Matched: ${matchedCount}`);
+        console.log(`   - Unmatched: ${unmatchedCount}`);
 
         return {
           ...fichier,
           fichier_data: {
             ...fichier.fichier_data,
             transactions: fichier.fichier_data?.transactions || [],
-            rapprochements: tousLesRapprochements,
+            rapprochements: rapprochementsManuelsFormatted,
             rapprochementsManuels: fichier.fichier_data?.rapprochementsManuels || [],
           },
           lignes_rapprochees: matchedCount,
@@ -1850,28 +1837,36 @@ export default function RapprochementBancaire() {
         console.log("✅ Nouveau fichier VALIDE créé");
       }
 
-      // ⭐ Générer et enregistrer les rapprochements avec numéro de ligne unique
-      console.log("💾 Génération des numéros de ligne pour chaque rapprochement...");
+      // ⭐ CRITIQUE: Générer et enregistrer TOUS les rapprochements (matched ET unmatched)
+      console.log("💾 Génération des numéros de ligne pour TOUTES les transactions...");
+      console.log(`📊 Total transactions à sauvegarder: ${rapprochements.length}`);
+      console.log(`  - Matched: ${rapprochements.filter(r => r.status === 'matched').length}`);
+      console.log(`  - Uncertain: ${rapprochements.filter(r => r.status === 'uncertain').length}`);
+      console.log(`  - Unmatched: ${rapprochements.filter(r => r.status === 'unmatched').length}`);
       
+      // ⭐ Sauvegarder TOUTES les transactions (pas seulement matched)
       for (const r of rapprochements) {
-        if (r.status !== 'matched') continue;
         
-        // Générer un numero_ligne unique pour cette transaction
-        const { data: numeroLigneData, error: numeroLigneError } = await supabase
-          .rpc('generate_numero_ligne');
+        // Utiliser le numero_ligne existant ou en générer un nouveau
+        let numeroLigne = r.numero_ligne || r.transaction.numero_ligne;
         
-        if (numeroLigneError || !numeroLigneData) {
-          console.error("❌ Erreur génération numero_ligne:", numeroLigneError);
-          continue;
+        if (!numeroLigne) {
+          const { data: numeroLigneData, error: numeroLigneError } = await supabase
+            .rpc('generate_numero_ligne');
+          
+          if (numeroLigneError || !numeroLigneData) {
+            console.error("❌ Erreur génération numero_ligne:", numeroLigneError);
+            continue;
+          }
+          numeroLigne = numeroLigneData;
         }
         
-        const numeroLigne = numeroLigneData;
-        console.log(`✅ Numéro de ligne généré: ${numeroLigne}`);
+        console.log(`✅ Traitement transaction ${numeroLigne} - Statut: ${r.status}`);
         
         // Mettre à jour le rapprochement avec le numero_ligne
         r.numero_ligne = numeroLigne;
         
-        // Créer ou mettre à jour le rapprochement bancaire
+        // ⭐ Créer ou mettre à jour le rapprochement bancaire (pour TOUS les statuts)
         const { data: existingRapprochement } = await supabase
           .from('rapprochements_bancaires')
           .select('id')
@@ -1892,13 +1887,13 @@ export default function RapprochementBancaire() {
             created_by: user?.id
           };
           
-          // Ajouter abonnement_id si présent
-          if (r.abonnement_info?.id) {
+          // Ajouter abonnement_id si présent (seulement pour matched)
+          if (r.status === 'matched' && r.abonnement_info?.id) {
             rapprochementData.abonnement_id = r.abonnement_info.id;
           }
           
-          // Ajouter declaration_charge_id si présent
-          if (r.declaration_info?.id) {
+          // Ajouter declaration_charge_id si présent (seulement pour matched)
+          if (r.status === 'matched' && r.declaration_info?.id) {
             rapprochementData.declaration_charge_id = r.declaration_info.id;
           }
           
@@ -1912,12 +1907,12 @@ export default function RapprochementBancaire() {
             console.error("❌ Erreur insertion rapprochement_bancaire:", insertError);
           } else {
             rapprochementId = newRapprochement.id;
-            console.log(`✅ Rapprochement bancaire créé pour ${numeroLigne}`);
+            console.log(`✅ Rapprochement bancaire créé: ${numeroLigne} (${r.status})`);
           }
         }
         
-        // Gérer les associations de factures via rapprochements_factures
-        if (rapprochementId && (r.facture?.id || (r.factureIds && r.factureIds.length > 0))) {
+        // ⭐ Gérer les associations de factures UNIQUEMENT pour les rapprochements matched
+        if (r.status === 'matched' && rapprochementId && (r.facture?.id || (r.factureIds && r.factureIds.length > 0))) {
           const factureIds = r.facture?.id ? [r.facture.id] : (r.factureIds || []);
           
           // Supprimer les anciennes associations
@@ -1942,8 +1937,8 @@ export default function RapprochementBancaire() {
           }
         }
         
-        // Mettre à jour la ou les factures associées
-        if (r.facture?.id) {
+        // ⭐ Mettre à jour la ou les factures associées (UNIQUEMENT pour matched)
+        if (r.status === 'matched' && r.facture?.id) {
           // Cas simple: une seule facture
           const { error: updateError } = await supabase
             .from('factures')
@@ -1961,7 +1956,8 @@ export default function RapprochementBancaire() {
           }
         }
         
-        if (r.factureIds && r.factureIds.length > 0) {
+        // ⭐ Plusieurs factures (UNIQUEMENT pour matched)
+        if (r.status === 'matched' && r.factureIds && r.factureIds.length > 0) {
           // Cas multiple: plusieurs factures
           const { error: updateError } = await supabase
             .from('factures')
@@ -1980,11 +1976,20 @@ export default function RapprochementBancaire() {
         }
       }
       
-      console.log("✅ Tous les numéros de ligne ont été générés et assignés");
+      console.log("✅ Tous les rapprochements ont été sauvegardés");
+      console.log(`📊 Récapitulatif final:`);
+      console.log(`  - Total transactions sauvegardées: ${rapprochements.length}`);
+      console.log(`  - Matched: ${rapprochements.filter(r => r.status === 'matched').length}`);
+      console.log(`  - Uncertain: ${rapprochements.filter(r => r.status === 'uncertain').length}`);
+      console.log(`  - Unmatched: ${rapprochements.filter(r => r.status === 'unmatched').length}`);
 
-      // Créer les paiements pour les abonnements et déclarations de charges
+      // ⭐ Créer les paiements UNIQUEMENT pour les abonnements et déclarations matched
       const rapprochementsAbonnements = rapprochements.filter(r => r.status === 'matched' && r.abonnement_info);
       const rapprochementsDeclarations = rapprochements.filter(r => r.status === 'matched' && r.declaration_info);
+      
+      console.log(`💰 Paiements à créer:`);
+      console.log(`  - Abonnements: ${rapprochementsAbonnements.length}`);
+      console.log(`  - Déclarations: ${rapprochementsDeclarations.length}`);
 
       // Créer les paiements d'abonnements (rapprochements déjà créés dans la boucle précédente)
       if (rapprochementsAbonnements.length > 0) {
@@ -2056,9 +2061,16 @@ export default function RapprochementBancaire() {
         }
       }
 
+      const statsFinales = {
+        total: rapprochements.length,
+        matched: rapprochements.filter(r => r.status === 'matched').length,
+        uncertain: rapprochements.filter(r => r.status === 'uncertain').length,
+        unmatched: rapprochements.filter(r => r.status === 'unmatched').length
+      };
+
       toast({
-        title: "Rapprochement validé",
-        description: `Rapprochement ${numeroRapprochement} validé avec succès ! ${lignesRapprochees}/${transactions.length} lignes rapprochées.`,
+        title: "✅ Rapprochement validé",
+        description: `${numeroRapprochement} : ${statsFinales.total} transactions (${statsFinales.matched} rapprochées, ${statsFinales.unmatched} non rapprochées)`,
       });
 
       // Recharger les factures pour mettre à jour le statut
@@ -2087,11 +2099,18 @@ export default function RapprochementBancaire() {
         setRapprochements(rapprochementsResult);
       }
 
+      // Recharger l'historique et basculer sur l'onglet historique
+      await loadFichiersRapprochement();
+      setTransactions([]);
+      setRapprochements([]);
+      setFichierEnCoursId(null);
+      setActiveTab("historique");
+
     } catch (error) {
-      console.error("Erreur:", error);
+      console.error("❌ Erreur validation:", error);
       toast({
         title: "Erreur",
-        description: "Une erreur est survenue",
+        description: error instanceof Error ? error.message : "Une erreur est survenue",
         variant: "destructive",
       });
     } finally {
