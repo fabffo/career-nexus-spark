@@ -165,6 +165,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
   const [currentFile, setCurrentFile] = useState("");
   const [progress, setProgress] = useState(0);
   const [selectedFacture, setSelectedFacture] = useState<FactureExtraite | null>(null);
+  const [editedData, setEditedData] = useState<FactureData | null>(null);
   const { toast } = useToast();
 
   const extraireFacture = async (file: File): Promise<FactureExtraite> => {
@@ -400,6 +401,43 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
         variant: "destructive",
       });
     }
+  };
+
+  const handleEditFacture = (facture: FactureExtraite) => {
+    setSelectedFacture(facture);
+    setEditedData({ ...facture.donnees });
+  };
+
+  const handleSaveEdit = () => {
+    if (!selectedFacture || !editedData) return;
+
+    // Revalider avec les nouvelles données
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    
+    if (!editedData.fournisseur) errors.push("Fournisseur manquant");
+    if (!editedData.montant_ttc) errors.push("Montant TTC manquant");
+    if (!editedData.numero_facture) warnings.push("Numéro de facture sera généré automatiquement");
+    
+    const valide = errors.length === 0;
+    const erreur = errors.length > 0 ? errors.join(", ") : warnings.length > 0 ? warnings.join(", ") : undefined;
+
+    // Mettre à jour la facture dans la liste
+    setFactures((prev) =>
+      prev.map((f) =>
+        f.id === selectedFacture.id
+          ? { ...f, donnees: editedData, valide, erreur }
+          : f
+      )
+    );
+
+    toast({
+      title: "Données mises à jour",
+      description: valide ? "Facture prête à être sauvegardée" : "Veuillez compléter les champs manquants",
+    });
+
+    setSelectedFacture(null);
+    setEditedData(null);
   };
 
   const stats = {
@@ -644,7 +682,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                             >
                               <Download className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => setSelectedFacture(facture)} title="Voir les détails">
+                            <Button variant="ghost" size="icon" onClick={() => handleEditFacture(facture)} title="Éditer les données">
                               <Eye className="h-4 w-4" />
                             </Button>
                             <Button
@@ -719,73 +757,141 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
         </div>
 
         {/* Modal détails facture */}
-        {selectedFacture && (
-          <Dialog open={!!selectedFacture} onOpenChange={() => setSelectedFacture(null)}>
-            <DialogContent>
+        {selectedFacture && editedData && (
+          <Dialog open={!!selectedFacture} onOpenChange={() => {
+            setSelectedFacture(null);
+            setEditedData(null);
+          }}>
+            <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Détails de la facture</DialogTitle>
+                <DialogTitle>Éditer la facture</DialogTitle>
+                <DialogDescription>
+                  Modifiez les données extraites avant sauvegarde
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
                   <Label>Fichier</Label>
-                  <p className="text-sm font-medium">{selectedFacture.fichier}</p>
+                  <p className="text-sm font-medium text-muted-foreground">{selectedFacture.fichier}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Fournisseur</Label>
-                    <p className="text-sm">{selectedFacture.donnees.fournisseur || "-"}</p>
-                  </div>
-                  <div>
-                    <Label>N° Facture</Label>
-                    <p className="text-sm">{selectedFacture.donnees.numero_facture || "-"}</p>
-                  </div>
-                  <div>
-                    <Label>Date</Label>
-                    <p className="text-sm">{selectedFacture.donnees.date_facture || "-"}</p>
-                  </div>
-                  <div>
-                    <Label>Montant HT</Label>
-                    <p className="text-sm">
-                      {selectedFacture.donnees.montant_ht
-                        ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
-                            selectedFacture.donnees.montant_ht,
-                          )
-                        : "-"}
+
+                {selectedFacture.erreur && (
+                  <div className={`p-3 rounded-lg ${selectedFacture.valide ? "bg-amber-50 border border-amber-200" : "bg-red-50 border border-red-200"}`}>
+                    <p className={`text-sm font-semibold mb-1 ${selectedFacture.valide ? "text-amber-700" : "text-red-700"}`}>
+                      {selectedFacture.valide ? "⚠ Attention" : "❌ Erreurs à corriger"}
                     </p>
-                  </div>
-                  <div>
-                    <Label>TVA</Label>
-                    <p className="text-sm">
-                      {selectedFacture.donnees.montant_tva
-                        ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
-                            selectedFacture.donnees.montant_tva,
-                          )
-                        : "-"}
+                    <p className={`text-sm ${selectedFacture.valide ? "text-amber-600" : "text-red-600"}`}>
+                      {selectedFacture.erreur}
                     </p>
-                  </div>
-                  <div>
-                    <Label>Montant TTC</Label>
-                    <p className="text-sm font-semibold text-green-600">
-                      {selectedFacture.donnees.montant_ttc
-                        ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
-                            selectedFacture.donnees.montant_ttc,
-                          )
-                        : "-"}
-                    </p>
-                  </div>
-                </div>
-                {selectedFacture.donnees.libelle && (
-                  <div>
-                    <Label>Libellé</Label>
-                    <p className="text-sm">{selectedFacture.donnees.libelle}</p>
                   </div>
                 )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <Label htmlFor="edit-fournisseur" className={!editedData.fournisseur ? "text-red-600" : ""}>
+                      Fournisseur {!editedData.fournisseur && <span className="text-red-600">*</span>}
+                    </Label>
+                    <Input
+                      id="edit-fournisseur"
+                      value={editedData.fournisseur || ""}
+                      onChange={(e) => setEditedData({ ...editedData, fournisseur: e.target.value })}
+                      placeholder="Nom du fournisseur"
+                      className={!editedData.fournisseur ? "border-red-300" : ""}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-numero">N° Facture</Label>
+                    <Input
+                      id="edit-numero"
+                      value={editedData.numero_facture || ""}
+                      onChange={(e) => setEditedData({ ...editedData, numero_facture: e.target.value })}
+                      placeholder="Auto-généré si vide"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-date">Date</Label>
+                    <Input
+                      id="edit-date"
+                      type="date"
+                      value={editedData.date_facture || ""}
+                      onChange={(e) => setEditedData({ ...editedData, date_facture: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-ht">Montant HT (€)</Label>
+                    <Input
+                      id="edit-ht"
+                      type="number"
+                      step="0.01"
+                      value={editedData.montant_ht || ""}
+                      onChange={(e) => setEditedData({ ...editedData, montant_ht: parseFloat(e.target.value) || null })}
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit-tva">Montant TVA (€)</Label>
+                    <Input
+                      id="edit-tva"
+                      type="number"
+                      step="0.01"
+                      value={editedData.montant_tva || ""}
+                      onChange={(e) => setEditedData({ ...editedData, montant_tva: parseFloat(e.target.value) || null })}
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <Label htmlFor="edit-ttc" className={!editedData.montant_ttc ? "text-red-600" : ""}>
+                      Montant TTC (€) {!editedData.montant_ttc && <span className="text-red-600">*</span>}
+                    </Label>
+                    <Input
+                      id="edit-ttc"
+                      type="number"
+                      step="0.01"
+                      value={editedData.montant_ttc || ""}
+                      onChange={(e) => setEditedData({ ...editedData, montant_ttc: parseFloat(e.target.value) || null })}
+                      placeholder="0.00"
+                      className={!editedData.montant_ttc ? "border-red-300" : ""}
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <Label htmlFor="edit-libelle">Libellé / Description</Label>
+                    <Textarea
+                      id="edit-libelle"
+                      value={editedData.libelle || ""}
+                      onChange={(e) => setEditedData({ ...editedData, libelle: e.target.value })}
+                      placeholder="Description de la facture"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+
                 {selectedFacture.tokens && (
                   <div className="text-xs text-muted-foreground">
                     Tokens: {selectedFacture.tokens.input + selectedFacture.tokens.output} • Coût: $
                     {(selectedFacture.cout_estime! * 100).toFixed(4)}¢
                   </div>
                 )}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSelectedFacture(null);
+                    setEditedData(null);
+                  }}
+                >
+                  Annuler
+                </Button>
+                <Button onClick={handleSaveEdit}>
+                  Enregistrer les modifications
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
