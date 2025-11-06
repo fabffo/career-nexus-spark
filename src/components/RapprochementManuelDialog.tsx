@@ -221,13 +221,11 @@ export default function RapprochementManuelDialog({
     try {
       const { data: authData } = await supabase.auth.getUser();
 
-      // Vérifier si un rapprochement existe déjà pour cette transaction
+      // Vérifier si un rapprochement existe déjà pour cette transaction (par numero_ligne)
       const { data: existing } = await supabase
         .from("rapprochements_bancaires")
         .select("id")
-        .eq("transaction_date", transaction.date)
-        .eq("transaction_libelle", transaction.libelle)
-        .eq("transaction_montant", transaction.montant)
+        .eq("numero_ligne", transaction.numero_ligne)
         .maybeSingle();
 
       let rapprochementId = existing?.id;
