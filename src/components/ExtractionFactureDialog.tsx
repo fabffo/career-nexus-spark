@@ -571,13 +571,31 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                           </div>
 
                           <div className="flex gap-1 ml-4">
-                            <Button variant="ghost" size="icon" onClick={() => setSelectedFacture(facture)}>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => {
+                                const url = URL.createObjectURL(facture.fileObject);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = facture.fichier;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                URL.revokeObjectURL(url);
+                              }}
+                              title="Télécharger le PDF"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => setSelectedFacture(facture)} title="Voir les détails">
                               <Eye className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
                               onClick={() => setFactures((prev) => prev.filter((f) => f.id !== facture.id))}
+                              title="Supprimer"
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
