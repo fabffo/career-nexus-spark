@@ -141,6 +141,15 @@ export default function TvaMensuel() {
       id: "facture",
       header: "Facture",
       cell: ({ row }) => {
+        // Si c'est un abonnement
+        if (row.original.abonnementId) {
+          return "Abonnement";
+        }
+        // Si c'est une déclaration de charges
+        if (row.original.declarationId) {
+          return "Déclaration";
+        }
+        // Si c'est une ou plusieurs factures
         if (row.original.factures && row.original.factures.length > 0) {
           return row.original.factures.map(f => f.numero_facture).join(", ");
         }
@@ -152,6 +161,15 @@ export default function TvaMensuel() {
       id: "type",
       header: "Type",
       cell: ({ row }) => {
+        // Si c'est un abonnement
+        if (row.original.abonnementId) {
+          return "Abonnement";
+        }
+        // Si c'est une déclaration de charges
+        if (row.original.declarationId) {
+          return "Déclaration";
+        }
+        // Si c'est une ou plusieurs factures
         if (row.original.factures && row.original.factures.length > 0) {
           return row.original.factures[0].type_facture === "VENTES" ? "Vente" : "Achat";
         }
@@ -163,6 +181,8 @@ export default function TvaMensuel() {
       },
       sortingFn: (rowA, rowB) => {
         const getType = (row: any) => {
+          if (row.original.abonnementId) return "Abonnement";
+          if (row.original.declarationId) return "Déclaration";
           if (row.original.factures && row.original.factures.length > 0) {
             return row.original.factures[0].type_facture;
           }
@@ -176,6 +196,11 @@ export default function TvaMensuel() {
       id: "total_tva",
       header: "TVA",
       cell: ({ row }) => {
+        // Pas de TVA pour les abonnements et déclarations
+        if (row.original.abonnementId || row.original.declarationId) {
+          return "—";
+        }
+        // TVA pour les factures
         const tva = row.original.total_tva ?? row.original.facture?.total_tva;
         return tva !== undefined
           ? new Intl.NumberFormat("fr-FR", {
@@ -185,8 +210,13 @@ export default function TvaMensuel() {
           : "—";
       },
       sortingFn: (rowA, rowB) => {
-        const tvaA = rowA.original.total_tva ?? rowA.original.facture?.total_tva ?? 0;
-        const tvaB = rowB.original.total_tva ?? rowB.original.facture?.total_tva ?? 0;
+        // Pas de TVA pour abonnements et déclarations
+        const tvaA = (rowA.original.abonnementId || rowA.original.declarationId) 
+          ? 0 
+          : (rowA.original.total_tva ?? rowA.original.facture?.total_tva ?? 0);
+        const tvaB = (rowB.original.abonnementId || rowB.original.declarationId) 
+          ? 0 
+          : (rowB.original.total_tva ?? rowB.original.facture?.total_tva ?? 0);
         return tvaA - tvaB;
       },
       enableSorting: true,
