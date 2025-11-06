@@ -214,7 +214,14 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           }
           // ==========================================
 
-          const valide = !!(donnees.fournisseur && donnees.numero_facture && donnees.montant_ttc);
+          // Validation détaillée avec génération de messages d'erreur
+          const errors: string[] = [];
+          if (!donnees.fournisseur) errors.push("Fournisseur manquant");
+          if (!donnees.numero_facture) errors.push("Numéro de facture manquant");
+          if (!donnees.montant_ttc) errors.push("Montant TTC manquant");
+          
+          const valide = errors.length === 0;
+          const erreur = errors.length > 0 ? errors.join(", ") : undefined;
 
           console.log("✅ Extraction réussie:", { valide, donnees: Object.keys(donnees) });
 
@@ -224,6 +231,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
             fileObject: file,
             donnees,
             valide,
+            erreur,
             tokens: data.tokens,
             cout_estime: data.cout_estime,
           };
@@ -540,7 +548,42 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                               </div>
 
                               {facture.erreur ? (
-                                <p className="text-sm text-red-600">{facture.erreur}</p>
+                                <div className="space-y-2">
+                                  <p className="text-sm text-red-600 font-semibold">❌ Erreur de validation:</p>
+                                  <p className="text-sm text-red-600">{facture.erreur}</p>
+                                  {!facture.donnees.fournisseur && !facture.donnees.numero_facture && !facture.donnees.montant_ttc ? (
+                                    <p className="text-xs text-muted-foreground">L'IA n'a pas pu extraire les données de ce PDF.</p>
+                                  ) : (
+                                    <div className="grid grid-cols-4 gap-3 text-sm pt-2 border-t border-red-200">
+                                      <div>
+                                        <span className="text-muted-foreground">Fournisseur:</span>
+                                        <p className={!facture.donnees.fournisseur ? "text-red-600 font-medium" : "font-medium"}>
+                                          {facture.donnees.fournisseur || "⚠ Manquant"}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">N° Facture:</span>
+                                        <p className={!facture.donnees.numero_facture ? "text-red-600 font-medium" : "font-medium"}>
+                                          {facture.donnees.numero_facture || "⚠ Manquant"}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">Montant TTC:</span>
+                                        <p className={!facture.donnees.montant_ttc ? "text-red-600 font-medium" : "font-semibold text-green-600"}>
+                                          {facture.donnees.montant_ttc
+                                            ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
+                                                facture.donnees.montant_ttc,
+                                              )
+                                            : "⚠ Manquant"}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">Date:</span>
+                                        <p className="font-medium">{facture.donnees.date_facture || "-"}</p>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
                               ) : (
                                 <div className="grid grid-cols-4 gap-3 text-sm">
                                   <div>
