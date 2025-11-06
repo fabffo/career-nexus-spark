@@ -579,12 +579,22 @@ export default function TvaMensuel() {
 
       // Parcourir les lignes et essayer d'associer les factures manquantes
       const updatedLignes = lignes.map(ligne => {
+        // Ne pas toucher les lignes qui sont déjà correctement rapprochées avec factures
+        if (ligne.factures && ligne.factures.length > 0) {
+          return ligne;
+        }
+        
+        // Ne pas toucher les abonnements et déclarations
+        if (ligne.abonnementId || ligne.declarationId) {
+          return ligne;
+        }
+        
         // Si la ligne a déjà une facture avec TVA, ne pas toucher
-        if (ligne.facture && ligne.facture.total_tva > 0) {
+        if (ligne.facture && ligne.facture.total_tva !== undefined && ligne.facture.total_tva > 0) {
           return ligne;
         }
 
-        // Chercher une facture correspondante
+        // Chercher une facture correspondante UNIQUEMENT pour les lignes sans facture
         let factureCorrespondante = null;
 
         // 1. Recherche par numéro de facture si présent dans le libellé
