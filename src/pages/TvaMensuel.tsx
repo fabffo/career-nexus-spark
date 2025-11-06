@@ -97,10 +97,17 @@ export default function TvaMensuel() {
         row.original.transaction_date 
           ? format(new Date(row.original.transaction_date), "dd/MM/yyyy", { locale: fr })
           : "",
+      sortingFn: (rowA, rowB) => {
+        const dateA = new Date(rowA.original.transaction_date);
+        const dateB = new Date(rowB.original.transaction_date);
+        return dateA.getTime() - dateB.getTime();
+      },
+      enableSorting: true,
     },
     {
       accessorKey: "transaction_libelle",
       header: "Libellé",
+      enableSorting: true,
     },
     {
       accessorKey: "transaction_montant",
@@ -110,6 +117,10 @@ export default function TvaMensuel() {
           style: "currency",
           currency: "EUR",
         }).format(row.original.transaction_montant),
+      sortingFn: (rowA, rowB) => {
+        return rowA.original.transaction_montant - rowB.original.transaction_montant;
+      },
+      enableSorting: true,
     },
     {
       accessorKey: "statut",
@@ -119,6 +130,12 @@ export default function TvaMensuel() {
           {row.original.statut === "RAPPROCHE" ? "Rapprochée" : "Non rapprochée"}
         </Badge>
       ),
+      sortingFn: (rowA, rowB) => {
+        const statusOrder = { "RAPPROCHE": 1, "NON_RAPPROCHE": 0 };
+        return (statusOrder[rowA.original.statut as keyof typeof statusOrder] || 0) - 
+               (statusOrder[rowB.original.statut as keyof typeof statusOrder] || 0);
+      },
+      enableSorting: true,
     },
     {
       id: "facture",
@@ -129,6 +146,7 @@ export default function TvaMensuel() {
         }
         return row.original.facture?.numero_facture || "—";
       },
+      enableSorting: false,
     },
     {
       id: "type",
@@ -143,6 +161,16 @@ export default function TvaMensuel() {
         }
         return "—";
       },
+      sortingFn: (rowA, rowB) => {
+        const getType = (row: any) => {
+          if (row.original.factures && row.original.factures.length > 0) {
+            return row.original.factures[0].type_facture;
+          }
+          return row.original.facture?.type_facture || "";
+        };
+        return getType(rowA).localeCompare(getType(rowB));
+      },
+      enableSorting: true,
     },
     {
       id: "total_tva",
@@ -156,6 +184,12 @@ export default function TvaMensuel() {
             }).format(tva)
           : "—";
       },
+      sortingFn: (rowA, rowB) => {
+        const tvaA = rowA.original.total_tva ?? rowA.original.facture?.total_tva ?? 0;
+        const tvaB = rowB.original.total_tva ?? rowB.original.facture?.total_tva ?? 0;
+        return tvaA - tvaB;
+      },
+      enableSorting: true,
     },
   ];
 
