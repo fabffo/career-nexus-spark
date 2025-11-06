@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -105,14 +105,37 @@ export function DataTable<TData, TValue>({
             <thead className="[&_tr]:border-b sticky top-0 bg-background z-10">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id} className="border-b transition-colors hover:bg-muted/50">
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className={`h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-background ${(header.column.columnDef.meta as any)?.className || ""}`}
-                    >
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))}
+                  {headerGroup.headers.map((header) => {
+                    const canSort = header.column.getCanSort();
+                    const isSorted = header.column.getIsSorted();
+                    
+                    return (
+                      <th
+                        key={header.id}
+                        className={`h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-background ${(header.column.columnDef.meta as any)?.className || ""}`}
+                      >
+                        {header.isPlaceholder ? null : (
+                          <div
+                            className={canSort ? "flex items-center gap-2 cursor-pointer select-none hover:text-foreground" : ""}
+                            onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                          >
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                            {canSort && (
+                              <span className="ml-auto">
+                                {isSorted === "asc" ? (
+                                  <ArrowUp className="h-4 w-4" />
+                                ) : isSorted === "desc" ? (
+                                  <ArrowDown className="h-4 w-4" />
+                                ) : (
+                                  <ArrowUpDown className="h-4 w-4 opacity-50" />
+                                )}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </th>
+                    );
+                  })}
                 </tr>
               ))}
             </thead>
