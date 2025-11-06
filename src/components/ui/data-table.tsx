@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 interface DataTableProps<TData, TValue> {
@@ -65,6 +65,11 @@ export function DataTable<TData, TValue>({
       globalFilter,
     },
   });
+
+  // Réinitialiser à la première page quand le tri ou le filtre change
+  useEffect(() => {
+    table.setPageIndex(0);
+  }, [sorting, globalFilter]);
 
   const pageSize = table.getState().pagination.pageSize;
   const pageIndex = table.getState().pagination.pageIndex;
