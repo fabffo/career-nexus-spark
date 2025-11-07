@@ -76,7 +76,8 @@ export default function PrestatairesMissions() {
           id,
           nom,
           prenom,
-          email
+          email,
+          salarie_id
         `);
 
       if (prestataireError) throw prestataireError;
@@ -92,6 +93,7 @@ export default function PrestatairesMissions() {
           date_fin,
           statut,
           prestataire_id,
+          salarie_id,
           contrat:contrats(
             client:clients(raison_sociale)
           )
@@ -111,7 +113,10 @@ export default function PrestatairesMissions() {
 
       // Combiner les données
       const prestatairesMissions: PrestataireMission[] = prestatairesData.map(p => {
-        const mission = missionsData?.find(m => m.prestataire_id === p.id);
+        // Chercher mission par prestataire_id ou par salarie_id si le prestataire est lié à un salarié
+        const mission = missionsData?.find(m => 
+          m.prestataire_id === p.id || (p.salarie_id && m.salarie_id === p.salarie_id)
+        );
         const cra = crasData?.find(c => c.prestataire_id === p.id);
         
         return {

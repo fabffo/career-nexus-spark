@@ -47,7 +47,7 @@ export default function PrestataireMissionDetail() {
       if (prestataireError) throw prestataireError;
       setPrestataire(prestataireData);
 
-      // Charger la mission active
+      // Charger la mission active (vérifier prestataire_id ou salarie_id lié au prestataire)
       const { data: missionData, error: missionError } = await supabase
         .from('missions')
         .select(`
@@ -55,9 +55,11 @@ export default function PrestataireMissionDetail() {
           contrat:contrats(
             *,
             client:clients(*)
-          )
+          ),
+          prestataire:prestataires(*),
+          salarie:salaries(*)
         `)
-        .eq('prestataire_id', id)
+        .or(`prestataire_id.eq.${id},salarie.prestataire_id.eq.${id}`)
         .eq('statut', 'EN_COURS')
         .maybeSingle();
 
