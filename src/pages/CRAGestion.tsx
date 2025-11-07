@@ -175,6 +175,10 @@ export default function CRAGestion() {
     setCraJours(newJours);
   };
 
+  // Conversion jours <-> heures
+  const joursToHeures = (jours: number): number => jours * 8;
+  const heuresToJours = (heures: number): number => heures / 8;
+
   const updateJour = (date: string, updates: Partial<CRAJour>) => {
     const newJours = new Map(craJours);
     const existing = newJours.get(date);
@@ -290,10 +294,13 @@ export default function CRAGestion() {
     let conges = 0;
     let absences = 0;
     let heures = 0;
+    let jours = 0;
 
     craJours.forEach(jour => {
       if (jour.type_jour === 'TRAVAILLE') {
-        travailles++;
+        const joursValue = heuresToJours(jour.heures || 0);
+        travailles += joursValue;
+        jours += joursValue;
         heures += jour.heures || 0;
       } else if (['CONGE_PAYE', 'RTT'].includes(jour.type_jour)) {
         conges++;
@@ -306,7 +313,7 @@ export default function CRAGestion() {
     const tjm = mission?.tjm || 0;
     const ca = travailles * tjm;
 
-    return { travailles, conges, absences, heures, ca, tjm };
+    return { travailles, conges, absences, heures, jours, ca, tjm };
   };
 
   const totals = calculateTotals();
@@ -478,7 +485,7 @@ export default function CRAGestion() {
                       <th className="text-left p-2 w-24">Date</th>
                       <th className="text-left p-2 w-32">Jour</th>
                       <th className="text-left p-2 w-48">Type</th>
-                      <th className="text-right p-2 w-24">Heures</th>
+                      <th className="text-right p-2 w-32">Jours</th>
                       <th className="text-left p-2">Commentaire</th>
                     </tr>
                   </thead>
@@ -514,16 +521,21 @@ export default function CRAGestion() {
                             </Select>
                           </td>
                           <td className="p-2">
-                            <Input
-                              type="number"
-                              step="0.5"
-                              min="0"
-                              max="24"
-                              value={jour?.heures || (jour?.type_jour === 'TRAVAILLE' ? 8 : 0)}
-                              onChange={(e) => updateJour(dateStr, { heures: parseFloat(e.target.value) || 0 })}
+                            <Select
+                              value={jour?.heures ? jour.heures.toString() : (jour?.type_jour === 'TRAVAILLE' ? '8' : '0')}
+                              onValueChange={(value) => updateJour(dateStr, { heures: parseFloat(value) })}
                               disabled={disabled || jour?.type_jour !== 'TRAVAILLE'}
-                              className="text-right"
-                            />
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="2">0,25 j</SelectItem>
+                                <SelectItem value="4">0,5 j</SelectItem>
+                                <SelectItem value="6">0,75 j</SelectItem>
+                                <SelectItem value="8">1 j</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </td>
                           <td className="p-2">
                             <Input
@@ -564,19 +576,15 @@ export default function CRAGestion() {
               <CardContent className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Jours travaillés:</span>
-                  <span className="font-bold">{totals.travailles}</span>
+                  <span className="font-bold">{totals.travailles.toFixed(2)} j</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Jours de congés:</span>
-                  <span className="font-bold">{totals.conges}</span>
+                  <span className="font-bold">{totals.conges} j</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Jours d'absence:</span>
-                  <span className="font-bold">{totals.absences}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total heures:</span>
-                  <span className="font-bold">{totals.heures}h</span>
+                  <span className="font-bold">{totals.absences} j</span>
                 </div>
                 <div className="flex justify-between pt-3 border-t">
                   <span className="font-semibold">CA du mois:</span>
