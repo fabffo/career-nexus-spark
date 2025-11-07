@@ -7,10 +7,11 @@ import { format, startOfYear, endOfYear, startOfMonth, endOfMonth } from "date-f
 import { fr } from "date-fns/locale";
 
 interface KPI {
-  caMois: number;
-  margeMois: number;
-  caAnnuel: number;
-  margeAnnuelle: number;
+  ca: number;
+  achatServices: number;
+  achat: number;
+  margeBrute: number;
+  margeNette: number;
   tauxMarge: number;
 }
 
@@ -32,10 +33,11 @@ export default function DashboardFinancier() {
   const [anneeSelectionnee, setAnneeSelectionnee] = useState(new Date().getFullYear());
   const [moisSelectionne, setMoisSelectionne] = useState<number | null>(null);
   const [kpis, setKpis] = useState<KPI>({
-    caMois: 0,
-    margeMois: 0,
-    caAnnuel: 0,
-    margeAnnuelle: 0,
+    ca: 0,
+    achatServices: 0,
+    achat: 0,
+    margeBrute: 0,
+    margeNette: 0,
     tauxMarge: 0,
   });
   const [caMensuel, setCaMensuel] = useState<any[]>([]);
@@ -69,61 +71,96 @@ export default function DashboardFinancier() {
   };
 
   const loadKPIs = async () => {
-    const debutAnnee = moisSelectionne !== null 
+    const debut = moisSelectionne !== null 
       ? startOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
       : startOfYear(new Date(anneeSelectionnee, 0, 1));
-    const finAnnee = moisSelectionne !== null
+    const fin = moisSelectionne !== null
       ? endOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
       : endOfYear(new Date(anneeSelectionnee, 11, 31));
-    const debutMois = moisSelectionne !== null
-      ? startOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
-      : startOfMonth(new Date());
-    const finMois = moisSelectionne !== null
-      ? endOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
-      : endOfMonth(new Date());
 
-    // CA et ventes
-    const { data: facturesAnnee } = await supabase
+    // CA = Factures de ventes
+    const { data: facturesVentes } = await supabase
       .from("factures")
       .select("total_ht")
-      .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
-      .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
+      .neq("type_facture", "ACHATS")
+      .gte("date_emission", format(debut, "yyyy-MM-dd"))
+      .lte("date_emission", format(fin, "yyyy-MM-dd"));
 
-    const { data: facturesMois } = await supabase
+    // Toutes les factures d'achat
+    const { data: toutesFacturesAchats } = await supabase
       .from("factures")
-      .select("total_ht")
-      .gte("date_emission", format(debutMois, "yyyy-MM-dd"))
-      .lte("date_emission", format(finMois, "yyyy-MM-dd"));
-
-    // Achats
-    const { data: achatsAnnee } = await supabase
-      .from("factures")
-      .select("total_ht")
+      .select("total_ht, mission_id, missions(prestataire_id, prestataires(fournisseur_services_id))")
       .eq("type_facture", "ACHATS")
-      .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
-      .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
+      .gte("date_emission", format(debut, "yyyy-MM-dd"))
+      .lte("date_emission", format(fin, "yyyy-MM-dd"));
 
-    const { data: achatsMois } = await supabase
-      .from("factures")
-      .select("total_ht")
-      .eq("type_facture", "ACHATS")
-      .gte("date_emission", format(debutMois, "yyyy-MM-dd"))
-      .lte("date_emission", format(finMois, "yyyy-MM-dd"));
+    // Abonnements
+    const { data: paiementsAbonnements } = await supabase
+      .from("paiements_abonnements")
+      .select("montant")
+      .gte("date_paiement", format(debut, "yyyy-MM-dd"))
+      .lte("date_paiement", format(fin, "yyyy-MM-dd"));
 
-    const caAnnuel = facturesAnnee?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
-    const caMois = facturesMois?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
-    const achatsAnnuels = achatsAnnee?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
-    const achatsMensuels = achatsMois?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
+    // Charges salariales actives pour la période
+    const { data: chargesSalariales } = await supabase
+      .from("declarations_charges_sociales")
+      .select("montant_estime, periodicite")
+      .eq("actif", true);
 
-    const margeAnnuelle = caAnnuel - achatsAnnuels;
-    const margeMois = caMois - achatsMensuels;
-    const tauxMarge = caAnnuel > 0 ? (margeAnnuelle / caAnnuel) * 100 : 0;
+    const ca = facturesVentes?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
+    
+    // Séparer achat services et autres achats
+    let achatServices = 0;
+    let autresAchatsTotal = 0;
+    
+    toutesFacturesAchats?.forEach((f: any) => {
+      const montant = Number(f.total_ht || 0);
+      // Si lié à un prestataire de service, c'est un achat service
+      if (f.missions?.prestataires?.fournisseur_services_id) {
+        achatServices += montant;
+      } else {
+        autresAchatsTotal += montant;
+      }
+    });
+    
+    const abonnementsTotal = paiementsAbonnements?.reduce((sum, p) => sum + Number(p.montant || 0), 0) || 0;
+    
+    // Calculer les charges pour la période sélectionnée
+    let chargesTotal = 0;
+    chargesSalariales?.forEach((c: any) => {
+      const montantEstime = Number(c.montant_estime || 0);
+      if (moisSelectionne !== null) {
+        // Pour un mois sélectionné
+        if (c.periodicite === 'MENSUEL') {
+          chargesTotal += montantEstime;
+        } else if (c.periodicite === 'TRIMESTRIEL') {
+          chargesTotal += montantEstime / 3;
+        } else if (c.periodicite === 'ANNUEL') {
+          chargesTotal += montantEstime / 12;
+        }
+      } else {
+        // Pour l'année entière
+        if (c.periodicite === 'MENSUEL') {
+          chargesTotal += montantEstime * 12;
+        } else if (c.periodicite === 'TRIMESTRIEL') {
+          chargesTotal += montantEstime * 4;
+        } else if (c.periodicite === 'ANNUEL') {
+          chargesTotal += montantEstime;
+        }
+      }
+    });
+    
+    const achat = autresAchatsTotal + abonnementsTotal + chargesTotal;
+    const margeBrute = ca - achatServices;
+    const margeNette = ca - achatServices - achat;
+    const tauxMarge = ca > 0 ? (margeNette / ca) * 100 : 0;
 
     setKpis({
-      caMois,
-      margeMois,
-      caAnnuel,
-      margeAnnuelle,
+      ca,
+      achatServices,
+      achat,
+      margeBrute,
+      margeNette,
       tauxMarge,
     });
   };
@@ -349,44 +386,54 @@ export default function DashboardFinancier() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">CA du Mois</CardTitle>
+            <CardTitle className="text-sm font-medium">CA</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{kpis.caMois.toLocaleString("fr-FR")} €</div>
+            <div className="text-2xl font-bold">{kpis.ca.toLocaleString("fr-FR")} €</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Marge du Mois</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis.margeMois.toLocaleString("fr-FR")} €</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">CA Annuel</CardTitle>
+            <CardTitle className="text-sm font-medium">Achat Services</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{kpis.caAnnuel.toLocaleString("fr-FR")} €</div>
+            <div className="text-2xl font-bold">{kpis.achatServices.toLocaleString("fr-FR")} €</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Marge Annuelle</CardTitle>
+            <CardTitle className="text-sm font-medium">Achat</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{kpis.achat.toLocaleString("fr-FR")} €</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Marge Brute</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{kpis.margeAnnuelle.toLocaleString("fr-FR")} €</div>
+            <div className="text-2xl font-bold">{kpis.margeBrute.toLocaleString("fr-FR")} €</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Marge Nette</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{kpis.margeNette.toLocaleString("fr-FR")} €</div>
           </CardContent>
         </Card>
 
