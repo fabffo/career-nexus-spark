@@ -337,11 +337,15 @@ export default function PrestatairesMissions() {
     {
       id: "tjm",
       header: "TJM",
-      cell: ({ row }) => (
-        <span className="text-right block">
-          {row.original.mission?.tjm ? `${row.original.mission.tjm} €` : '-'}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const mission = row.original.mission;
+        const tarif = mission?.tjm || mission?.prix_ht;
+        return (
+          <span className="text-right block">
+            {tarif ? `${tarif} €` : '-'}
+          </span>
+        );
+      },
       meta: { className: "text-right" },
     },
     {
