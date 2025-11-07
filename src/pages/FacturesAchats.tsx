@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Plus, TrendingDown, Eye, Pencil, Trash2, Download, Sparkles, UserPlus, CheckCircle2, AlertCircle, Link } from "lucide-react";
@@ -297,12 +297,30 @@ export default function FacturesAchats() {
   };
 
   const toggleAllFactures = () => {
-    if (selectedFactureIds.size === factures.length) {
+    if (selectedFactureIds.size === filteredFactures.length && filteredFactures.length > 0) {
       setSelectedFactureIds(new Set());
     } else {
-      setSelectedFactureIds(new Set(factures.map((f) => f.id)));
+      setSelectedFactureIds(new Set(filteredFactures.map((f) => f.id)));
     }
   };
+
+  // Filtrer les factures par type de fournisseur
+  const filteredFactures = useMemo(() => {
+    console.log("Calcul des factures filtrées...");
+    return factures.filter((facture) => {
+      if (selectedTypeFournisseur === "all") return true;
+      if (!facture.emetteur_nom) {
+        console.log("Facture sans emetteur_nom:", facture);
+        return false;
+      }
+      const emetteurKey = facture.emetteur_nom.toLowerCase().trim();
+      const type = fournisseurTypesMap.get(emetteurKey);
+      console.log(`Facture ${facture.numero_facture}, emetteur: "${facture.emetteur_nom}", type trouvé: "${type}", filtre: "${selectedTypeFournisseur}"`);
+      return type === selectedTypeFournisseur;
+    });
+  }, [factures, selectedTypeFournisseur, fournisseurTypesMap]);
+
+  console.log(`Nombre total de factures: ${factures.length}, après filtrage: ${filteredFactures.length}`);
 
   const downloadSelectedFactures = async () => {
     if (selectedFactureIds.size === 0) {
@@ -385,8 +403,11 @@ export default function FacturesAchats() {
       id: "select",
       header: ({ table }) => (
         <Checkbox
-          checked={selectedFactureIds.size === factures.length && factures.length > 0}
-          onCheckedChange={toggleAllFactures}
+          checked={
+            filteredFactures.length > 0 &&
+            selectedFactureIds.size === filteredFactures.length
+          }
+          onCheckedChange={() => toggleAllFactures()}
           aria-label="Tout sélectionner"
         />
       ),
@@ -628,14 +649,6 @@ export default function FacturesAchats() {
       ),
     },
   ];
-
-  // Filtrer les factures par type de fournisseur
-  const filteredFactures = factures.filter((facture) => {
-    if (selectedTypeFournisseur === "all") return true;
-    if (!facture.emetteur_nom) return false;
-    const type = fournisseurTypesMap.get(facture.emetteur_nom.toLowerCase().trim());
-    return type === selectedTypeFournisseur;
-  });
 
   const table = useReactTable({
     data: filteredFactures,
