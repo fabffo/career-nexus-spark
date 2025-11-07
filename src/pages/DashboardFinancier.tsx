@@ -189,22 +189,29 @@ export default function DashboardFinancier() {
       ? endOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
       : endOfYear(new Date(anneeSelectionnee, 11, 31));
 
-    const { data: factures } = await supabase
+    const { data: factures, error } = await supabase
       .from("factures")
-      .select("total_ht, missions(type_mission)")
+      .select("total_ht, mission_id, missions(type_mission)")
       .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
-      .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
+      .lte("date_emission", format(finAnnee, "yyyy-MM-dd"))
+      .neq("type_facture", "ACHATS");
+
+    if (error) {
+      console.error("Erreur loadRepartitionCA:", error);
+    }
 
     const repartition: Record<string, number> = {};
     factures?.forEach((f: any) => {
-      const type = f.missions?.type_mission || "Autre";
+      const type = f.missions?.type_mission || "Ventes diverses";
       repartition[type] = (repartition[type] || 0) + Number(f.total_ht || 0);
     });
 
-    const data = Object.entries(repartition).map(([name, value]) => ({
-      name,
-      value: Math.round(value),
-    }));
+    const data = Object.entries(repartition)
+      .map(([name, value]) => ({
+        name,
+        value: Math.round(value),
+      }))
+      .filter(item => item.value > 0);
 
     setRepartitionCA(data);
   };
@@ -217,11 +224,17 @@ export default function DashboardFinancier() {
       ? endOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
       : endOfYear(new Date(anneeSelectionnee, 11, 31));
 
-    const { data: factures } = await supabase
+    const { data: factures, error } = await supabase
       .from("factures")
       .select("client_id, total_ht, clients(raison_sociale)")
       .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
-      .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
+      .lte("date_emission", format(finAnnee, "yyyy-MM-dd"))
+      .neq("type_facture", "ACHATS")
+      .not("client_id", "is", null);
+
+    if (error) {
+      console.error("Erreur loadTopClients:", error);
+    }
 
     const caParClient: Record<string, { raison_sociale: string; ca: number }> = {};
     factures?.forEach((f: any) => {
@@ -249,13 +262,17 @@ export default function DashboardFinancier() {
       ? endOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
       : endOfYear(new Date(anneeSelectionnee, 11, 31));
 
-    const { data: achats } = await supabase
+    const { data: achats, error } = await supabase
       .from("factures")
       .select("fournisseur_id, total_ht, prestataires(nom, prenom)")
       .eq("type_facture", "ACHATS")
       .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
       .lte("date_emission", format(finAnnee, "yyyy-MM-dd"))
-      .not("prestataires", "is", null);
+      .not("fournisseur_id", "is", null);
+
+    if (error) {
+      console.error("Erreur loadTopPrestataires:", error);
+    }
 
     const montantParPrestataire: Record<string, { nom: string; prenom: string; montant: number }> = {};
     achats?.forEach((a: any) => {
@@ -428,16 +445,22 @@ export default function DashboardFinancier() {
             <CardTitle>Répartition CA par Activité</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie data={repartitionCA} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                  {repartitionCA.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {repartitionCA.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie data={repartitionCA} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                    {repartitionCA.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[250px] flex items-center justify-center">
+                <p className="text-sm text-muted-foreground">Aucune donnée disponible</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -447,15 +470,19 @@ export default function DashboardFinancier() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {topClients.map((client, index) => (
-                <div key={client.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-muted-foreground">#{index + 1}</span>
-                    <span className="text-sm">{client.raison_sociale}</span>
+              {topClients.length > 0 ? (
+                topClients.map((client, index) => (
+                  <div key={client.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-muted-foreground">#{index + 1}</span>
+                      <span className="text-sm">{client.raison_sociale}</span>
+                    </div>
+                    <span className="font-bold">{client.ca.toLocaleString("fr-FR")} €</span>
                   </div>
-                  <span className="font-bold">{client.ca.toLocaleString("fr-FR")} €</span>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">Aucune donnée disponible</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -466,17 +493,21 @@ export default function DashboardFinancier() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {topPrestataires.map((prestataire, index) => (
-                <div key={prestataire.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-muted-foreground">#{index + 1}</span>
-                    <span className="text-sm">
-                      {prestataire.prenom} {prestataire.nom}
-                    </span>
+              {topPrestataires.length > 0 ? (
+                topPrestataires.map((prestataire, index) => (
+                  <div key={prestataire.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-muted-foreground">#{index + 1}</span>
+                      <span className="text-sm">
+                        {prestataire.prenom} {prestataire.nom}
+                      </span>
+                    </div>
+                    <span className="font-bold">{prestataire.montant.toLocaleString("fr-FR")} €</span>
                   </div>
-                  <span className="font-bold">{prestataire.montant.toLocaleString("fr-FR")} €</span>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">Aucune donnée disponible</p>
+              )}
             </div>
           </CardContent>
         </Card>
