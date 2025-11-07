@@ -133,10 +133,15 @@ export default function CRAGestion() {
         }
       }
 
-      setMissions(allMissions);
+      // Dédupliquer les missions par ID
+      const uniqueMissions = Array.from(
+        new Map(allMissions.map(m => [m.id, m])).values()
+      );
+
+      setMissions(uniqueMissions);
       
-      if (allMissions.length > 0 && !selectedMission) {
-        setSelectedMission(allMissions[0].id);
+      if (uniqueMissions.length > 0 && !selectedMission) {
+        setSelectedMission(uniqueMissions[0].id);
       }
     } catch (error: any) {
       console.error("Erreur lors du chargement des missions:", error);
