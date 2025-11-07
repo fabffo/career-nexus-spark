@@ -10,9 +10,12 @@ interface KPI {
   ca: number;
   achatServices: number;
   achat: number;
+  abonnements: number;
+  chargesSociales: number;
   margeBrute: number;
   margeNette: number;
-  tauxMarge: number;
+  tauxMargeBrute: number;
+  tauxMargeNette: number;
 }
 
 interface TopClient {
@@ -36,9 +39,12 @@ export default function DashboardFinancier() {
     ca: 0,
     achatServices: 0,
     achat: 0,
+    abonnements: 0,
+    chargesSociales: 0,
     margeBrute: 0,
     margeNette: 0,
-    tauxMarge: 0,
+    tauxMargeBrute: 0,
+    tauxMargeNette: 0,
   });
   const [caMensuel, setCaMensuel] = useState<any[]>([]);
   const [margeMensuelle, setMargeMensuelle] = useState<any[]>([]);
@@ -197,18 +203,24 @@ export default function DashboardFinancier() {
       }
     });
     
-    const achat = autresAchatsTotal + abonnementsTotal + chargesTotal;
+    // Achat = uniquement les factures d'achat généraux (hors services)
+    const achat = autresAchatsTotal;
     const margeBrute = ca - achatServices;
-    const margeNette = ca - achatServices - achat;
-    const tauxMarge = ca > 0 ? (margeNette / ca) * 100 : 0;
+    // Marge nette = Marge brute - Achat - Abonnements - Charges sociales
+    const margeNette = margeBrute - achat - abonnementsTotal - chargesTotal;
+    const tauxMargeBrute = ca > 0 ? (margeBrute / ca) * 100 : 0;
+    const tauxMargeNette = ca > 0 ? (margeNette / ca) * 100 : 0;
 
     setKpis({
       ca,
       achatServices,
       achat,
+      abonnements: abonnementsTotal,
+      chargesSociales: chargesTotal,
       margeBrute,
       margeNette,
-      tauxMarge,
+      tauxMargeBrute,
+      tauxMargeNette,
     });
   };
 
@@ -483,16 +495,6 @@ export default function DashboardFinancier() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{kpis.margeNette.toLocaleString("fr-FR")} €</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Taux de Marge</CardTitle>
-            <Percent className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis.tauxMarge.toFixed(1)} %</div>
           </CardContent>
         </Card>
       </div>

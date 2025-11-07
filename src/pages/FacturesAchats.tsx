@@ -306,12 +306,7 @@ export default function FacturesAchats() {
 
   // Filtrer les factures par type de fournisseur
   const filteredFactures = useMemo(() => {
-    console.log("=== FILTRAGE FACTURES ===");
-    console.log("Nombre total de factures:", factures.length);
-    console.log("Filtre sélectionné:", selectedTypeFournisseur);
-    console.log("Taille de la map des types:", fournisseurTypesMap.size);
-    
-    const result = factures.filter((facture) => {
+    return factures.filter((facture) => {
       if (selectedTypeFournisseur === "all") return true;
       
       // Pour les Services, on filtre exactement
@@ -324,16 +319,10 @@ export default function FacturesAchats() {
       
       // Pour Généraux : exclure uniquement les Services
       if (selectedTypeFournisseur === "GENERAUX") {
-        if (!facture.emetteur_nom) {
-          console.log("Facture sans emetteur_nom incluse:", facture.numero_facture, facture.total_ht);
-          return true; // Inclure les non identifiés
-        }
+        if (!facture.emetteur_nom) return true;
         const emetteurKey = facture.emetteur_nom.toLowerCase().trim();
         const type = fournisseurTypesMap.get(emetteurKey);
-        const include = type !== "SERVICES";
-        console.log(`Facture ${facture.numero_facture} (${facture.emetteur_nom}):`, 
-          `type=${type}, montant=${facture.total_ht}, incluse=${include}`);
-        return include;
+        return type !== "SERVICES";
       }
       
       // Pour les autres filtres (ETAT_ORGANISMES)
@@ -342,10 +331,6 @@ export default function FacturesAchats() {
       const type = fournisseurTypesMap.get(emetteurKey);
       return type === selectedTypeFournisseur;
     });
-    
-    console.log("Nombre de factures filtrées:", result.length);
-    console.log("Total HT filtré:", result.reduce((sum, f) => sum + (f.total_ht || 0), 0));
-    return result;
   }, [factures, selectedTypeFournisseur, fournisseurTypesMap]);
 
   // Recalculer les statistiques basées sur les factures filtrées
