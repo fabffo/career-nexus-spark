@@ -390,7 +390,14 @@ export function EditMissionDialog({ open, onOpenChange, mission, onSuccess }: Ed
                 type="number"
                 step="0.01"
                 value={formData.prix_ht || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, prix_ht: parseFloat(e.target.value) }))}
+                onChange={(e) => {
+                  const prixHt = parseFloat(e.target.value);
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    prix_ht: prixHt,
+                    tjm: prixHt // Synchroniser TJM avec prix HT
+                  }));
+                }}
               />
             </div>
           )}
