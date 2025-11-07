@@ -17,6 +17,8 @@ interface PrestataireMission {
   id: string;
   nom: string;
   prenom: string;
+  email?: string;
+  salarie_id?: string;
   mission?: {
     id: string;
     titre: string;
@@ -86,6 +88,19 @@ export default function PrestatairesMissions() {
 
       if (prestataireError) throw prestataireError;
 
+      // Charger aussi les salariés de type PRESTATAIRE
+      const { data: salariesPrestataireData, error: salarieError } = await supabase
+        .from('salaries')
+        .select(`
+          id,
+          nom,
+          prenom,
+          email
+        `)
+        .eq('role', 'PRESTATAIRE');
+
+      if (salarieError) throw salarieError;
+
       // Charger les missions actives de type CLIENT uniquement
       const { data: missionsData, error: missionError } = await supabase
         .from('missions')
@@ -119,23 +134,51 @@ export default function PrestatairesMissions() {
       // Combiner les données - créer une ligne par mission de prestataire
       const prestatairesMissions: PrestataireMission[] = [];
       
+      // Traiter les prestataires de la table prestataires
       prestatairesData.forEach(p => {
-        // Chercher toutes les missions pour ce prestataire
         const missions = missionsData?.filter(m => 
           m.prestataire_id === p.id || (p.salarie_id && m.salarie_id === p.salarie_id)
         ) || [];
         
-        // Ne créer des lignes QUE pour les prestataires avec missions clients actives
         missions.forEach(mission => {
-          // Trouver le dernier CRA disponible pour cette mission (le plus récent)
           const missionCras = crasData?.filter(c => 
             c.prestataire_id === p.id && c.mission_id === mission.id
           ).sort((a, b) => b.mois - a.mois) || [];
           
-          const cra = missionCras[0]; // Prendre le plus récent
+          const cra = missionCras[0];
           
           prestatairesMissions.push({
             ...p,
+            mission: mission,
+            cra_actuel: cra ? {
+              id: cra.id,
+              statut: cra.statut,
+              jours_travailles: cra.jours_travailles || 0,
+              ca_mensuel: cra.ca_mensuel || 0,
+              annee: cra.annee,
+              mois: cra.mois
+            } : undefined
+          });
+        });
+      });
+
+      // Traiter les salariés de type PRESTATAIRE
+      salariesPrestataireData?.forEach(s => {
+        const missions = missionsData?.filter(m => m.salarie_id === s.id) || [];
+        
+        missions.forEach(mission => {
+          // Chercher dans les CRA avec salarie_id (pas prestataire_id pour les salariés)
+          const missionCras = crasData?.filter(c => 
+            c.mission_id === mission.id && (c.prestataire_id === s.id || !c.prestataire_id)
+          ).sort((a, b) => b.mois - a.mois) || [];
+          
+          const cra = missionCras[0];
+          
+          prestatairesMissions.push({
+            id: s.id,
+            nom: s.nom,
+            prenom: s.prenom,
+            email: s.email,
             mission: mission,
             cra_actuel: cra ? {
               id: cra.id,
