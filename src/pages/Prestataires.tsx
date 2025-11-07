@@ -114,9 +114,14 @@ export default function Prestataires() {
 
       const dataToSubmit = {
         ...formData,
-        email: formData.email || null, // Permettre null pour éviter la contrainte unique sur les emails vides
-        cv_url: cvUrl,
-        recommandation_url: recommandationUrl
+        email: formData.email || null,
+        telephone: formData.telephone || null,
+        detail_cv: formData.detail_cv || null,
+        cv_url: cvUrl || null,
+        recommandation_url: recommandationUrl || null,
+        // Convertir les chaînes vides en null pour les UUID
+        fournisseur_services_id: formData.fournisseur_services_id || null,
+        salarie_id: formData.salarie_id || null
       };
 
       if (isEditMode && selectedPrestataire) {
