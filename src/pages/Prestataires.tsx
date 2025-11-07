@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Download, Upload, Send, Eye, Edit, Copy, Trash2, Plus, Search, FileText } from 'lucide-react';
 import { prestataireService } from '@/services/contratService';
 import { toast } from 'sonner';
@@ -19,6 +20,7 @@ import { ColumnDef } from '@tanstack/react-table';
 export default function Prestataires() {
   const [prestataires, setPrestataires] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'tous' | 'actif' | 'inactif'>('tous');
   const [loading, setLoading] = useState(false);
   const [selectedPrestataire, setSelectedPrestataire] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -151,6 +153,17 @@ export default function Prestataires() {
     }
   };
 
+  const handleToggleActif = async (id: string, currentActif: boolean) => {
+    try {
+      await prestataireService.update(id, { actif: !currentActif });
+      toast.success(`Prestataire ${!currentActif ? 'activé' : 'désactivé'} avec succès`);
+      loadPrestataires();
+    } catch (error) {
+      console.error('Erreur lors de la modification du statut:', error);
+      toast.error('Erreur lors de la modification du statut');
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce prestataire ?')) {
       try {
@@ -266,11 +279,18 @@ export default function Prestataires() {
     setIsViewDialogOpen(true);
   };
 
-  const filteredPrestataires = prestataires.filter(prestataire =>
-    `${prestataire.nom} ${prestataire.prenom} ${prestataire.email || ''}`
+  const filteredPrestataires = prestataires.filter(prestataire => {
+    const matchesSearch = `${prestataire.nom} ${prestataire.prenom} ${prestataire.email || ''}`
       .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  );
+      .includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = 
+      statusFilter === 'tous' ? true :
+      statusFilter === 'actif' ? prestataire.actif !== false :
+      prestataire.actif === false;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   const columns: ColumnDef<any>[] = [
     {
@@ -327,11 +347,26 @@ export default function Prestataires() {
         ) : null,
     },
     {
+      id: "actif",
+      header: "Actif",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <Switch
+            checked={row.original.actif !== false}
+            onCheckedChange={() => handleToggleActif(row.original.id, row.original.actif !== false)}
+          />
+          <span className="text-sm text-muted-foreground">
+            {row.original.actif !== false ? 'Actif' : 'Inactif'}
+          </span>
+        </div>
+      ),
+    },
+    {
       id: "statut",
-      header: "Statut",
+      header: "Statut invitation",
       cell: ({ row }) => {
         if (row.original.user_id) {
-          return <Badge variant="default">Actif</Badge>;
+          return <Badge variant="default">Compte créé</Badge>;
         } else if (row.original.invitation_sent_at) {
           return <Badge variant="secondary">Invité</Badge>;
         } else {
@@ -382,10 +417,30 @@ export default function Prestataires() {
         </Button>
       </div>
 
+      <div className="flex gap-4 items-center">
+        <div className="flex-1">
+          <Input
+            placeholder="Rechercher un prestataire..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-sm"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={(value: 'tous' | 'actif' | 'inactif') => setStatusFilter(value)}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filtrer par statut" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="tous">Tous</SelectItem>
+            <SelectItem value="actif">Actifs</SelectItem>
+            <SelectItem value="inactif">Inactifs</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <DataTable
         columns={columns}
         data={filteredPrestataires}
-        searchPlaceholder="Rechercher un prestataire..."
       />
 
       {/* Dialog de création/modification */}

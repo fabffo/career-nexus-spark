@@ -46,6 +46,7 @@ export interface Prestataire {
   fournisseur_services_id?: string;
   salarie_id?: string;
   type_prestataire?: 'INDEPENDANT' | 'SOCIETE' | 'SALARIE';
+  actif?: boolean;
   created_at?: string;
   updated_at?: string;
 }

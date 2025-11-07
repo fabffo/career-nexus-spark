@@ -1679,6 +1679,7 @@ export type Database = {
       }
       prestataires: {
         Row: {
+          actif: boolean
           created_at: string | null
           cv_url: string | null
           detail_cv: string | null
@@ -1699,6 +1700,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          actif?: boolean
           created_at?: string | null
           cv_url?: string | null
           detail_cv?: string | null
@@ -1719,6 +1721,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          actif?: boolean
           created_at?: string | null
           cv_url?: string | null
           detail_cv?: string | null
