@@ -82,7 +82,7 @@ export default function PrestatairesMissions() {
 
       if (prestataireError) throw prestataireError;
 
-      // Charger les missions actives
+      // Charger les missions actives de type CLIENT uniquement
       const { data: missionsData, error: missionError } = await supabase
         .from('missions')
         .select(`
@@ -92,13 +92,15 @@ export default function PrestatairesMissions() {
           date_debut,
           date_fin,
           statut,
+          type_mission,
           prestataire_id,
           salarie_id,
           contrat:contrats(
             client:clients(raison_sociale)
           )
         `)
-        .eq('statut', 'EN_COURS');
+        .eq('statut', 'EN_COURS')
+        .not('contrat_id', 'is', null);
 
       if (missionError) throw missionError;
 

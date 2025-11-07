@@ -47,7 +47,7 @@ export default function PrestataireMissionDetail() {
       if (prestataireError) throw prestataireError;
       setPrestataire(prestataireData);
 
-      // Charger TOUTES les missions actives pour ce prestataire
+      // Charger les missions CLIENTS actives pour ce prestataire
       const { data: missionsData } = await supabase
         .from('missions')
         .select(`
@@ -61,6 +61,7 @@ export default function PrestataireMissionDetail() {
         `)
         .eq('prestataire_id', id)
         .eq('statut', 'EN_COURS')
+        .not('contrat_id', 'is', null)
         .order('created_at', { ascending: false });
 
       console.log('Missions trouvées:', missionsData);
@@ -84,6 +85,7 @@ export default function PrestataireMissionDetail() {
           `)
           .eq('salarie_id', prestataireData.salarie_id)
           .eq('statut', 'EN_COURS')
+          .not('contrat_id', 'is', null)
           .maybeSingle();
         
         missionData = missionDataSalarie;
