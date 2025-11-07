@@ -47,8 +47,8 @@ export default function PrestataireMissionDetail() {
       if (prestataireError) throw prestataireError;
       setPrestataire(prestataireData);
 
-      // Charger la mission active (vérifier prestataire_id ou salarie_id)
-      let missionQuery = supabase
+      // Charger TOUTES les missions actives pour ce prestataire
+      const { data: missionsData } = await supabase
         .from('missions')
         .select(`
           *,
@@ -59,13 +59,16 @@ export default function PrestataireMissionDetail() {
           prestataire:prestataires(*),
           salarie:salaries(*)
         `)
-        .eq('statut', 'EN_COURS');
+        .eq('prestataire_id', id)
+        .eq('statut', 'EN_COURS')
+        .order('created_at', { ascending: false });
 
-      // Chercher par prestataire_id direct
-      const { data: missionDataDirect } = await missionQuery.eq('prestataire_id', id);
+      console.log('Missions trouvées:', missionsData);
       
-      // Si pas trouvé, chercher par salarie_id via la table prestataires
-      let missionData = missionDataDirect && missionDataDirect.length > 0 ? missionDataDirect[0] : null;
+      // Prendre la première mission OU celle qui a un TJM défini
+      let missionData = missionsData?.find(m => m.tjm != null) || missionsData?.[0] || null;
+      
+      console.log('Mission sélectionnée:', missionData?.numero_mission, 'TJM:', missionData?.tjm);
       
       if (!missionData && prestataireData.salarie_id) {
         const { data: missionDataSalarie } = await supabase
@@ -90,6 +93,8 @@ export default function PrestataireMissionDetail() {
 
       // Charger les CRA de l'année en cours
       if (missionData) {
+        console.log('Chargement CRA pour mission:', missionData.id);
+        
         const { data: crasData, error: crasError } = await supabase
           .from('cra')
           .select('*')
@@ -97,6 +102,8 @@ export default function PrestataireMissionDetail() {
           .eq('annee', new Date().getFullYear())
           .order('mois', { ascending: false });
 
+        console.log('CRA trouvés:', crasData);
+        
         if (crasError) throw crasError;
         setCras((crasData || []) as CRA[]);
 
