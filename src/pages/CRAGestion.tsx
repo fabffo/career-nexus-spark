@@ -327,6 +327,33 @@ export default function CRAGestion() {
     }
   };
 
+  const devaliderCRA = async () => {
+    if (!cra || cra.statut !== 'VALIDE') {
+      toast.error("Ce CRA n'est pas validé");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      
+      await craService.update(cra.id, {
+        statut: 'BROUILLON',
+        date_validation: null,
+        valide_par: null,
+        commentaires_validation: null
+      });
+
+      toast.success("CRA dévalidé, vous pouvez maintenant le modifier");
+      await loadCRA();
+
+    } catch (error: any) {
+      console.error("Erreur lors de la dévalidation:", error);
+      toast.error("Erreur lors de la dévalidation du CRA");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const calculateTotals = () => {
     let travailles = 0;
     let conges = 0;
@@ -654,23 +681,37 @@ export default function CRAGestion() {
                       )}
                     </div>
                   )}
-                  <Button 
-                    className="w-full" 
-                    onClick={() => saveCRA(false)}
-                    disabled={saving || cra?.statut === 'VALIDE'}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    Enregistrer brouillon
-                  </Button>
-                  <Button 
-                    className="w-full" 
-                    variant="default"
-                    onClick={() => saveCRA(true)}
-                    disabled={saving || cra?.statut === 'VALIDE' || cra?.statut === 'SOUMIS'}
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    Soumettre pour validation
-                  </Button>
+                  {cra?.statut === 'VALIDE' ? (
+                    <Button 
+                      className="w-full" 
+                      variant="destructive"
+                      onClick={devaliderCRA}
+                      disabled={saving}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Dévalider pour modification
+                    </Button>
+                  ) : (
+                    <>
+                      <Button 
+                        className="w-full" 
+                        onClick={() => saveCRA(false)}
+                        disabled={saving}
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        Enregistrer brouillon
+                      </Button>
+                      <Button 
+                        className="w-full" 
+                        variant="default"
+                        onClick={() => saveCRA(true)}
+                        disabled={saving || cra?.statut === 'SOUMIS'}
+                      >
+                        <Send className="h-4 w-4 mr-2" />
+                        Soumettre pour validation
+                      </Button>
+                    </>
+                  )}
                   <Button 
                     className="w-full" 
                     variant="outline"
