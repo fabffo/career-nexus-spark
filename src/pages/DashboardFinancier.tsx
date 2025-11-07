@@ -145,11 +145,13 @@ export default function DashboardFinancier() {
       .gte("date_paiement", format(debut, "yyyy-MM-dd"))
       .lte("date_paiement", format(fin, "yyyy-MM-dd"));
 
-    // Charges salariales actives pour la période
-    const { data: chargesSalariales } = await supabase
-      .from("declarations_charges_sociales")
-      .select("montant_estime, periodicite")
-      .eq("actif", true);
+    // Charges sociales - montants réellement enregistrés/payés dans rapprochements bancaires
+    const { data: chargesSocialesRapprochements } = await supabase
+      .from("rapprochements_bancaires")
+      .select("transaction_montant")
+      .not("declaration_charge_id", "is", null)
+      .gte("transaction_date", format(debut, "yyyy-MM-dd"))
+      .lte("transaction_date", format(fin, "yyyy-MM-dd"));
 
     const ca = facturesVentes?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
     
@@ -178,30 +180,11 @@ export default function DashboardFinancier() {
     
     const abonnementsTotal = paiementsAbonnements?.reduce((sum, p) => sum + Number(p.montant || 0), 0) || 0;
     
-    // Calculer les charges pour la période sélectionnée
-    let chargesTotal = 0;
-    chargesSalariales?.forEach((c: any) => {
-      const montantEstime = Number(c.montant_estime || 0);
-      if (moisSelectionne !== null) {
-        // Pour un mois sélectionné
-        if (c.periodicite === 'MENSUEL') {
-          chargesTotal += montantEstime;
-        } else if (c.periodicite === 'TRIMESTRIEL') {
-          chargesTotal += montantEstime / 3;
-        } else if (c.periodicite === 'ANNUEL') {
-          chargesTotal += montantEstime / 12;
-        }
-      } else {
-        // Pour l'année entière
-        if (c.periodicite === 'MENSUEL') {
-          chargesTotal += montantEstime * 12;
-        } else if (c.periodicite === 'TRIMESTRIEL') {
-          chargesTotal += montantEstime * 4;
-        } else if (c.periodicite === 'ANNUEL') {
-          chargesTotal += montantEstime;
-        }
-      }
-    });
+    // Total des charges sociales enregistrées
+    const chargesTotal = chargesSocialesRapprochements?.reduce(
+      (sum, r) => sum + Number(r.transaction_montant || 0),
+      0
+    ) || 0;
     
     // Achat = uniquement les factures d'achat généraux (hors services)
     const achat = autresAchatsTotal;
