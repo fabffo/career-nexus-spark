@@ -99,6 +99,7 @@ export default function FacturesAchats() {
   const [selectedFactureIds, setSelectedFactureIds] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
   const [existingFournisseurs, setExistingFournisseurs] = useState<Set<string>>(new Set());
+  const [fournisseurTypesMap, setFournisseurTypesMap] = useState<Map<string, string>>(new Map());
   const [stats, setStats] = useState({
     totalFactures: 0,
     totalHT: 0,
@@ -125,21 +126,40 @@ export default function FacturesAchats() {
         .from("fournisseurs_generaux")
         .select("raison_sociale");
 
+      // Récupérer les fournisseurs État & organismes
+      const { data: etatOrganismes } = await supabase
+        .from("fournisseurs_etat_organismes")
+        .select("raison_sociale");
+
       const fournisseursSet = new Set<string>();
+      const typesMap = new Map<string, string>();
       
       services?.forEach(f => {
         if (f.raison_sociale) {
-          fournisseursSet.add(f.raison_sociale.toLowerCase().trim());
+          const key = f.raison_sociale.toLowerCase().trim();
+          fournisseursSet.add(key);
+          typesMap.set(key, "SERVICES");
         }
       });
       
       generaux?.forEach(f => {
         if (f.raison_sociale) {
-          fournisseursSet.add(f.raison_sociale.toLowerCase().trim());
+          const key = f.raison_sociale.toLowerCase().trim();
+          fournisseursSet.add(key);
+          typesMap.set(key, "GENERAUX");
+        }
+      });
+
+      etatOrganismes?.forEach(f => {
+        if (f.raison_sociale) {
+          const key = f.raison_sociale.toLowerCase().trim();
+          fournisseursSet.add(key);
+          typesMap.set(key, "ETAT_ORGANISMES");
         }
       });
 
       setExistingFournisseurs(fournisseursSet);
+      setFournisseurTypesMap(typesMap);
     } catch (error) {
       console.error("Erreur lors du chargement des fournisseurs:", error);
     }
@@ -417,6 +437,41 @@ export default function FacturesAchats() {
             )}
             <span>{emetteurNom}</span>
           </div>
+        );
+      },
+    },
+    {
+      accessorKey: "type_fournisseur",
+      header: "Type",
+      cell: ({ row }) => {
+        const emetteurNom = row.getValue("emetteur_nom") as string;
+        const type = fournisseurTypesMap.get(emetteurNom?.toLowerCase().trim());
+        
+        if (!type) {
+          return <span className="text-muted-foreground text-xs">-</span>;
+        }
+        
+        const typeConfig = {
+          SERVICES: {
+            label: "Services",
+            className: "bg-blue-100 text-blue-800 border-blue-200"
+          },
+          GENERAUX: {
+            label: "Généraux",
+            className: "bg-purple-100 text-purple-800 border-purple-200"
+          },
+          ETAT_ORGANISMES: {
+            label: "État & Organismes",
+            className: "bg-green-100 text-green-800 border-green-200"
+          }
+        };
+        
+        const config = typeConfig[type as keyof typeof typeConfig];
+        
+        return (
+          <Badge variant="outline" className={config.className}>
+            {config.label}
+          </Badge>
         );
       },
     },
