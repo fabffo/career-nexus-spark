@@ -447,7 +447,7 @@ export default function DashboardFinancier() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">CA</CardTitle>
@@ -470,21 +470,45 @@ export default function DashboardFinancier() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Achat</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis.achat.toLocaleString("fr-FR")} €</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Marge Brute</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{kpis.margeBrute.toLocaleString("fr-FR")} €</div>
+            <p className="text-xs text-muted-foreground">
+              {kpis.tauxMargeBrute.toFixed(1)} %
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Achat</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{kpis.achat.toLocaleString("fr-FR")} €</div>
+            <p className="text-xs text-muted-foreground">Factures généraux</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Abonnements</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{kpis.abonnements.toLocaleString("fr-FR")} €</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Charges Sociales</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{kpis.chargesSociales.toLocaleString("fr-FR")} €</div>
           </CardContent>
         </Card>
 
@@ -495,6 +519,9 @@ export default function DashboardFinancier() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{kpis.margeNette.toLocaleString("fr-FR")} €</div>
+            <p className="text-xs text-muted-foreground">
+              {kpis.tauxMargeNette.toFixed(1)} %
+            </p>
           </CardContent>
         </Card>
       </div>
