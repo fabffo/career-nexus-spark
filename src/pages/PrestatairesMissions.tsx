@@ -117,7 +117,11 @@ export default function PrestatairesMissions() {
         const mission = missionsData?.find(m => 
           m.prestataire_id === p.id || (p.salarie_id && m.salarie_id === p.salarie_id)
         );
-        const cra = crasData?.find(c => c.prestataire_id === p.id);
+        
+        // Chercher le CRA correspondant à cette mission spécifique
+        const cra = mission 
+          ? crasData?.find(c => c.prestataire_id === p.id && c.mission_id === mission.id)
+          : undefined;
         
         return {
           ...p,
@@ -200,18 +204,24 @@ export default function PrestatairesMissions() {
   };
 
   const handleValidateCRA = async (prestataire: PrestataireMission) => {
+    if (!prestataire.mission) {
+      toast.error("Aucune mission associée à ce prestataire");
+      return;
+    }
+
     console.log("=== Validation CRA ===");
-    console.log("Prestataire:", prestataire);
+    console.log("Mission ID:", prestataire.mission.id);
+    console.log("Prestataire ID:", prestataire.id);
 
     try {
-      // Chercher le CRA par prestataire, année et mois (pas par mission car il peut avoir changé de mission)
+      // Chercher le CRA par mission + prestataire + période
       const { data: craData, error: craError } = await supabase
         .from('cra')
         .select('*')
+        .eq('mission_id', prestataire.mission.id)
         .eq('prestataire_id', prestataire.id)
         .eq('annee', selectedYear)
         .eq('mois', selectedMonth)
-        .eq('statut', 'SOUMIS')
         .maybeSingle();
 
       if (craError) {
@@ -221,17 +231,22 @@ export default function PrestatairesMissions() {
       }
 
       if (!craData) {
-        toast.error(`Aucun CRA "En attente" trouvé pour ${prestataire.prenom} ${prestataire.nom} en ${selectedMonth}/${selectedYear}`);
-        console.log("Critères de recherche:", {
+        toast.error(`Aucun CRA trouvé pour ${prestataire.prenom} ${prestataire.nom} sur cette mission en ${selectedMonth}/${selectedYear}`);
+        console.error("CRA non trouvé avec:", {
+          mission_id: prestataire.mission.id,
           prestataire_id: prestataire.id,
           annee: selectedYear,
-          mois: selectedMonth,
-          statut: 'SOUMIS'
+          mois: selectedMonth
         });
         return;
       }
 
       console.log("CRA trouvé:", craData);
+
+      if (craData.statut !== 'SOUMIS') {
+        toast.error(`Le CRA est en statut "${craData.statut}". Seuls les CRA "SOUMIS" peuvent être validés.`);
+        return;
+      }
 
       // Valider le CRA
       const { data: { user } } = await supabase.auth.getUser();
