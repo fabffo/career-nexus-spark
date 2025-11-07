@@ -214,11 +214,27 @@ export default function PrestatairesMissions() {
         .eq('prestataire_id', prestataire.id)
         .eq('annee', selectedYear)
         .eq('mois', selectedMonth)
-        .eq('statut', 'SOUMIS')
-        .single();
+        .maybeSingle();
 
-      if (craError || !craData) {
-        toast.error("CRA non trouvé ou déjà validé");
+      if (craError) {
+        console.error("Erreur lors de la recherche du CRA:", craError);
+        toast.error("Erreur lors de la recherche du CRA");
+        return;
+      }
+
+      if (!craData) {
+        toast.error(`Aucun CRA trouvé pour ${prestataire.prenom} ${prestataire.nom} en ${selectedMonth}/${selectedYear}`);
+        console.log("Recherche CRA avec:", {
+          mission_id: prestataire.mission.id,
+          prestataire_id: prestataire.id,
+          annee: selectedYear,
+          mois: selectedMonth
+        });
+        return;
+      }
+
+      if (craData.statut !== 'SOUMIS') {
+        toast.error(`Le CRA est en statut "${craData.statut}", seuls les CRA "SOUMIS" peuvent être validés`);
         return;
       }
 
