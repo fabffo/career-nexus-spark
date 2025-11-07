@@ -140,10 +140,15 @@ export default function PrestatairesMissions() {
         });
       });
 
-      setPrestataires(prestatairesMissions);
+      // Filtrer pour ne garder QUE les lignes avec un client
+      const prestatairesMissionsAvecClient = prestatairesMissions.filter(pm => 
+        pm.mission?.contrat?.client?.raison_sociale
+      );
+      
+      setPrestataires(prestatairesMissionsAvecClient);
 
       // Calculer les stats
-      const prestatairesMission = prestatairesMissions.filter(p => p.mission).length;
+      const prestatairesMission = prestatairesMissionsAvecClient.filter(p => p.mission).length;
       const caMonth = crasData?.reduce((sum, cra) => sum + (cra.ca_mensuel || 0), 0) || 0;
       
       // CA annuel (tous les mois de l'année)
