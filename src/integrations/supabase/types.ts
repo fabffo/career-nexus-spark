@@ -516,7 +516,8 @@ export type Database = {
           jours_travailles: number | null
           mission_id: string
           mois: number
-          prestataire_id: string
+          prestataire_id: string | null
+          salarie_id: string | null
           statut: string
           total_heures: number | null
           updated_at: string | null
@@ -537,7 +538,8 @@ export type Database = {
           jours_travailles?: number | null
           mission_id: string
           mois: number
-          prestataire_id: string
+          prestataire_id?: string | null
+          salarie_id?: string | null
           statut?: string
           total_heures?: number | null
           updated_at?: string | null
@@ -558,7 +560,8 @@ export type Database = {
           jours_travailles?: number | null
           mission_id?: string
           mois?: number
-          prestataire_id?: string
+          prestataire_id?: string | null
+          salarie_id?: string | null
           statut?: string
           total_heures?: number | null
           updated_at?: string | null
@@ -577,6 +580,13 @@ export type Database = {
             columns: ["prestataire_id"]
             isOneToOne: false
             referencedRelation: "prestataires"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cra_salarie_id_fkey"
+            columns: ["salarie_id"]
+            isOneToOne: false
+            referencedRelation: "salaries"
             referencedColumns: ["id"]
           },
         ]

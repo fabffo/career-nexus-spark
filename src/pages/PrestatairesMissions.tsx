@@ -167,9 +167,9 @@ export default function PrestatairesMissions() {
         const missions = missionsData?.filter(m => m.salarie_id === s.id) || [];
         
         missions.forEach(mission => {
-          // Chercher dans les CRA avec salarie_id (pas prestataire_id pour les salariés)
+          // Chercher dans les CRA avec salarie_id pour les salariés
           const missionCras = crasData?.filter(c => 
-            c.mission_id === mission.id && (c.prestataire_id === s.id || !c.prestataire_id)
+            c.mission_id === mission.id && c.salarie_id === s.id
           ).sort((a, b) => b.mois - a.mois) || [];
           
           const cra = missionCras[0];

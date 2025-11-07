@@ -313,12 +313,15 @@ export default function CRAGestion() {
       setSaving(true);
 
       let craId = cra?.id;
+      
+      // Déterminer si c'est un salarié ou un prestataire
+      const selectedPrestataireObj = prestataires.find(p => p.id === selectedPrestataire);
+      const isSalarie = selectedPrestataireObj?.isSalarie;
 
       // Créer ou mettre à jour le CRA
       if (!cra) {
-        const newCra = await craService.create({
+        const craData: any = {
           mission_id: selectedMission,
-          prestataire_id: selectedPrestataire,
           annee: selectedYear,
           mois: selectedMonth,
           statut: submit ? 'SOUMIS' : 'BROUILLON',
@@ -329,7 +332,16 @@ export default function CRAGestion() {
           ca_mensuel: 0,
           commentaires,
           ...(submit && { date_soumission: new Date().toISOString() })
-        });
+        };
+
+        // Ajouter soit prestataire_id soit salarie_id
+        if (isSalarie) {
+          craData.salarie_id = selectedPrestataire;
+        } else {
+          craData.prestataire_id = selectedPrestataire;
+        }
+
+        const newCra = await craService.create(craData);
         craId = newCra.id;
         setCra(newCra);
       } else {

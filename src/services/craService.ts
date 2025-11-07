@@ -20,6 +20,7 @@ class CRAService {
           )
         ),
         prestataire:prestataires(id, nom, prenom, email),
+        salarie:salaries(id, nom, prenom, email),
         cra_jours(*)
       `)
       .order('annee', { ascending: false })
@@ -47,6 +48,7 @@ class CRAService {
           )
         ),
         prestataire:prestataires(id, nom, prenom, email),
+        salarie:salaries(id, nom, prenom, email),
         cra_jours(*)
       `)
       .eq('id', id)
@@ -74,6 +76,7 @@ class CRAService {
           )
         ),
         prestataire:prestataires(id, nom, prenom, email),
+        salarie:salaries(id, nom, prenom, email),
         cra_jours(*)
       `)
       .eq('mission_id', missionId)
@@ -228,6 +231,7 @@ class CRAService {
       .select(`
         *,
         prestataire:prestataires(id, nom, prenom),
+        salarie:salaries(id, nom, prenom),
         contrat:contrats(
           client:clients(raison_sociale)
         )

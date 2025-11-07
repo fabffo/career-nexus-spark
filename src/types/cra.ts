@@ -12,7 +12,8 @@ export type TypeJour =
 export interface CRA {
   id: string;
   mission_id: string;
-  prestataire_id: string;
+  prestataire_id?: string;
+  salarie_id?: string;
   annee: number;
   mois: number;
   statut: CRAStatut;
@@ -32,6 +33,7 @@ export interface CRA {
   // Relations
   mission?: any;
   prestataire?: any;
+  salarie?: any;
   cra_jours?: CRAJour[];
 }
 
