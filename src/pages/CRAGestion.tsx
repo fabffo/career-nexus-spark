@@ -530,6 +530,7 @@ export default function CRAGestion() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
+                                <SelectItem value="0">0 j</SelectItem>
                                 <SelectItem value="2">0,25 j</SelectItem>
                                 <SelectItem value="4">0,5 j</SelectItem>
                                 <SelectItem value="6">0,75 j</SelectItem>
