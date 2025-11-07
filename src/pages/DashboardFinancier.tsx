@@ -98,26 +98,39 @@ export default function DashboardFinancier() {
       .gte("date_emission", format(debut, "yyyy-MM-dd"))
       .lte("date_emission", format(fin, "yyyy-MM-dd"));
 
-    // Récupérer tous les fournisseurs de services et prestataires pour identification
+    // Récupérer tous les types de fournisseurs pour identification correcte
     const { data: fournisseursServices } = await supabase
       .from("fournisseurs_services")
-      .select("id, raison_sociale");
+      .select("raison_sociale");
     
-    const { data: prestataires } = await supabase
-      .from("prestataires")
-      .select("id, nom, prenom");
+    const { data: fournisseursGeneraux } = await supabase
+      .from("fournisseurs_generaux")
+      .select("raison_sociale");
+    
+    const { data: fournisseursEtatOrganismes } = await supabase
+      .from("fournisseurs_etat_organismes")
+      .select("raison_sociale");
 
-    // Créer des maps pour recherche rapide (insensible à la casse)
-    const fournisseursServicesMap = new Map(
-      fournisseursServices?.map(fs => [fs.raison_sociale.toLowerCase().trim(), fs.id]) || []
-    );
+    // Créer une map des types de fournisseurs (même logique que FacturesAchats)
+    const fournisseurTypesMap = new Map<string, string>();
     
-    const prestatairesMap = new Map(
-      prestataires?.map(p => {
-        const nomComplet = `${p.prenom} ${p.nom}`.toLowerCase().trim();
-        return [nomComplet, p.id];
-      }) || []
-    );
+    fournisseursServices?.forEach(f => {
+      if (f.raison_sociale) {
+        fournisseurTypesMap.set(f.raison_sociale.toLowerCase().trim(), "SERVICES");
+      }
+    });
+    
+    fournisseursGeneraux?.forEach(f => {
+      if (f.raison_sociale) {
+        fournisseurTypesMap.set(f.raison_sociale.toLowerCase().trim(), "GENERAUX");
+      }
+    });
+    
+    fournisseursEtatOrganismes?.forEach(f => {
+      if (f.raison_sociale) {
+        fournisseurTypesMap.set(f.raison_sociale.toLowerCase().trim(), "ETAT_ORGANISMES");
+      }
+    });
 
     // Abonnements
     const { data: paiementsAbonnements } = await supabase
@@ -134,21 +147,25 @@ export default function DashboardFinancier() {
 
     const ca = facturesVentes?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
     
-    // Séparer achat services et autres achats
+    // Séparer achat services et autres achats (même logique que FacturesAchats)
     let achatServices = 0;
     let autresAchatsTotal = 0;
     
     toutesFacturesAchats?.forEach((f: any) => {
       const montant = Number(f.total_ht || 0);
-      const emetteurNom = (f.emetteur_nom || '').toLowerCase().trim();
+      if (!f.emetteur_nom) {
+        autresAchatsTotal += montant;
+        return;
+      }
       
-      // Vérifier si c'est un achat service en cherchant dans les fournisseurs de services ou prestataires
-      const isFournisseurService = fournisseursServicesMap.has(emetteurNom);
-      const isPrestataire = prestatairesMap.has(emetteurNom);
+      const emetteurKey = f.emetteur_nom.toLowerCase().trim();
+      const typeFournisseur = fournisseurTypesMap.get(emetteurKey);
       
-      if (isFournisseurService || isPrestataire) {
+      // Les achats SERVICES sont comptés séparément
+      if (typeFournisseur === "SERVICES") {
         achatServices += montant;
       } else {
+        // GENERAUX, ETAT_ORGANISMES et non identifiés vont dans autres achats
         autresAchatsTotal += montant;
       }
     });
