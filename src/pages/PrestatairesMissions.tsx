@@ -111,27 +111,40 @@ export default function PrestatairesMissions() {
 
       if (craError) throw craError;
 
-      // Combiner les données
-      const prestatairesMissions: PrestataireMission[] = prestatairesData.map(p => {
-        // Chercher mission par prestataire_id ou par salarie_id si le prestataire est lié à un salarié
-        const mission = missionsData?.find(m => 
+      // Combiner les données - créer une ligne par mission de prestataire
+      const prestatairesMissions: PrestataireMission[] = [];
+      
+      prestatairesData.forEach(p => {
+        // Chercher toutes les missions pour ce prestataire
+        const missions = missionsData?.filter(m => 
           m.prestataire_id === p.id || (p.salarie_id && m.salarie_id === p.salarie_id)
-        );
+        ) || [];
         
-        // Chercher le CRA correspondant à cette mission spécifique
-        const cra = mission 
-          ? crasData?.find(c => c.prestataire_id === p.id && c.mission_id === mission.id)
-          : undefined;
-        
-        return {
-          ...p,
-          mission: mission || undefined,
-          cra_actuel: cra ? {
-            statut: cra.statut,
-            jours_travailles: cra.jours_travailles || 0,
-            ca_mensuel: cra.ca_mensuel || 0
-          } : undefined
-        };
+        if (missions.length > 0) {
+          // Créer une ligne pour chaque mission
+          missions.forEach(mission => {
+            const cra = crasData?.find(c => 
+              c.prestataire_id === p.id && c.mission_id === mission.id
+            );
+            
+            prestatairesMissions.push({
+              ...p,
+              mission: mission,
+              cra_actuel: cra ? {
+                statut: cra.statut,
+                jours_travailles: cra.jours_travailles || 0,
+                ca_mensuel: cra.ca_mensuel || 0
+              } : undefined
+            });
+          });
+        } else {
+          // Prestataire sans mission active
+          prestatairesMissions.push({
+            ...p,
+            mission: undefined,
+            cra_actuel: undefined
+          });
+        }
       });
 
       setPrestataires(prestatairesMissions);
@@ -291,7 +304,7 @@ export default function PrestatairesMissions() {
       id: "prestataire",
       header: "Prestataire",
       cell: ({ row }) => (
-        <span className="font-medium cursor-pointer" onClick={() => navigate(`/prestataire-mission/${row.original.id}`)}>
+        <span className="font-medium">
           {row.original.prenom} {row.original.nom}
         </span>
       ),
@@ -303,7 +316,7 @@ export default function PrestatairesMissions() {
     },
     {
       id: "poste",
-      header: "Poste",
+      header: "Mission",
       cell: ({ row }) => row.original.mission?.titre || '-',
     },
     {
