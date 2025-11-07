@@ -199,6 +199,50 @@ export default function PrestatairesMissions() {
     }
   };
 
+  const handleValidateCRA = async (prestataire: PrestataireMission) => {
+    if (!prestataire.mission) {
+      toast.error("Aucune mission associée");
+      return;
+    }
+
+    try {
+      // Trouver le CRA à valider
+      const { data: craData, error: craError } = await supabase
+        .from('cra')
+        .select('*')
+        .eq('mission_id', prestataire.mission.id)
+        .eq('prestataire_id', prestataire.id)
+        .eq('annee', selectedYear)
+        .eq('mois', selectedMonth)
+        .eq('statut', 'SOUMIS')
+        .single();
+
+      if (craError || !craData) {
+        toast.error("CRA non trouvé ou déjà validé");
+        return;
+      }
+
+      // Valider le CRA
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error: updateError } = await supabase
+        .from('cra')
+        .update({
+          statut: 'VALIDE',
+          date_validation: new Date().toISOString(),
+          valide_par: user?.id
+        })
+        .eq('id', craData.id);
+
+      if (updateError) throw updateError;
+
+      toast.success(`CRA de ${prestataire.prenom} ${prestataire.nom} validé avec succès`);
+      loadData();
+    } catch (error) {
+      console.error("Erreur lors de la validation:", error);
+      toast.error("Erreur lors de la validation du CRA");
+    }
+  };
+
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
   const months = [
@@ -301,16 +345,30 @@ export default function PrestatairesMissions() {
       id: "actions",
       header: "Actions",
       cell: ({ row }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/prestataire-mission/${row.original.id}`);
-          }}
-        >
-          Voir détail
-        </Button>
+        <div className="flex gap-2 justify-end">
+          {row.original.cra_actuel?.statut === 'SOUMIS' && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={async (e) => {
+                e.stopPropagation();
+                await handleValidateCRA(row.original);
+              }}
+            >
+              Valider CRA
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/prestataire-mission/${row.original.id}`);
+            }}
+          >
+            Voir détail
+          </Button>
+        </div>
       ),
       meta: { className: "text-right" },
     },

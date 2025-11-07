@@ -47,8 +47,8 @@ export default function PrestataireMissionDetail() {
       if (prestataireError) throw prestataireError;
       setPrestataire(prestataireData);
 
-      // Charger la mission active (vérifier prestataire_id ou salarie_id lié au prestataire)
-      const { data: missionData, error: missionError } = await supabase
+      // Charger la mission active (vérifier prestataire_id ou salarie_id)
+      let missionQuery = supabase
         .from('missions')
         .select(`
           *,
@@ -59,11 +59,33 @@ export default function PrestataireMissionDetail() {
           prestataire:prestataires(*),
           salarie:salaries(*)
         `)
-        .or(`prestataire_id.eq.${id},salarie.prestataire_id.eq.${id}`)
-        .eq('statut', 'EN_COURS')
-        .maybeSingle();
+        .eq('statut', 'EN_COURS');
 
-      if (missionError) throw missionError;
+      // Chercher par prestataire_id direct
+      const { data: missionDataDirect } = await missionQuery.eq('prestataire_id', id);
+      
+      // Si pas trouvé, chercher par salarie_id via la table prestataires
+      let missionData = missionDataDirect && missionDataDirect.length > 0 ? missionDataDirect[0] : null;
+      
+      if (!missionData && prestataireData.salarie_id) {
+        const { data: missionDataSalarie } = await supabase
+          .from('missions')
+          .select(`
+            *,
+            contrat:contrats(
+              *,
+              client:clients(*)
+            ),
+            prestataire:prestataires(*),
+            salarie:salaries(*)
+          `)
+          .eq('salarie_id', prestataireData.salarie_id)
+          .eq('statut', 'EN_COURS')
+          .maybeSingle();
+        
+        missionData = missionDataSalarie;
+      }
+
       setMission(missionData);
 
       // Charger les CRA de l'année en cours

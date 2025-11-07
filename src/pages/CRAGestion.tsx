@@ -92,7 +92,8 @@ export default function CRAGestion() {
 
   const loadMissions = async () => {
     try {
-      const { data, error } = await supabase
+      // Chercher les missions directement liées au prestataire
+      const { data: directMissions, error: directError } = await supabase
         .from('missions')
         .select(`
           *,
@@ -103,11 +104,39 @@ export default function CRAGestion() {
         .eq('prestataire_id', selectedPrestataire)
         .eq('statut', 'EN_COURS');
 
-      if (error) throw error;
-      setMissions(data || []);
+      if (directError) throw directError;
+
+      // Vérifier si le prestataire a un salarie_id
+      const { data: prestataireData } = await supabase
+        .from('prestataires')
+        .select('salarie_id')
+        .eq('id', selectedPrestataire)
+        .single();
+
+      let allMissions = directMissions || [];
+
+      // Si le prestataire a un salarie_id, chercher aussi par salarie_id
+      if (prestataireData?.salarie_id) {
+        const { data: salarieMissions, error: salarieError } = await supabase
+          .from('missions')
+          .select(`
+            *,
+            contrat:contrats(
+              client:clients(raison_sociale)
+            )
+          `)
+          .eq('salarie_id', prestataireData.salarie_id)
+          .eq('statut', 'EN_COURS');
+
+        if (!salarieError && salarieMissions) {
+          allMissions = [...allMissions, ...salarieMissions];
+        }
+      }
+
+      setMissions(allMissions);
       
-      if (data && data.length > 0 && !selectedMission) {
-        setSelectedMission(data[0].id);
+      if (allMissions.length > 0 && !selectedMission) {
+        setSelectedMission(allMissions[0].id);
       }
     } catch (error: any) {
       console.error("Erreur lors du chargement des missions:", error);
