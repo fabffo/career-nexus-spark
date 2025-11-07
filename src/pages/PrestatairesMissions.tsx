@@ -205,33 +205,49 @@ export default function PrestatairesMissions() {
       return;
     }
 
+    console.log("=== Validation CRA ===");
+    console.log("Prestataire:", prestataire);
+    console.log("Mission:", prestataire.mission);
+    console.log("Critères de recherche:", {
+      mission_id: prestataire.mission.id,
+      prestataire_id: prestataire.id,
+      annee: selectedYear,
+      mois: selectedMonth
+    });
+
     try {
-      // Trouver le CRA à valider
-      const { data: craData, error: craError } = await supabase
+      // D'abord, chercher tous les CRA pour cette mission et cette période
+      const { data: allCras, error: allError } = await supabase
         .from('cra')
         .select('*')
         .eq('mission_id', prestataire.mission.id)
-        .eq('prestataire_id', prestataire.id)
         .eq('annee', selectedYear)
-        .eq('mois', selectedMonth)
-        .maybeSingle();
+        .eq('mois', selectedMonth);
 
-      if (craError) {
-        console.error("Erreur lors de la recherche du CRA:", craError);
+      console.log("Tous les CRA trouvés pour cette mission/période:", allCras);
+
+      if (allError) {
+        console.error("Erreur lors de la recherche des CRA:", allError);
         toast.error("Erreur lors de la recherche du CRA");
         return;
       }
 
+      // Chercher le CRA spécifique
+      const craData = allCras?.find(c => c.prestataire_id === prestataire.id);
+
       if (!craData) {
-        toast.error(`Aucun CRA trouvé pour ${prestataire.prenom} ${prestataire.nom} en ${selectedMonth}/${selectedYear}`);
-        console.log("Recherche CRA avec:", {
+        console.error("CRA non trouvé avec les critères:", {
           mission_id: prestataire.mission.id,
           prestataire_id: prestataire.id,
           annee: selectedYear,
-          mois: selectedMonth
+          mois: selectedMonth,
+          cras_disponibles: allCras
         });
+        toast.error(`Aucun CRA trouvé pour ${prestataire.prenom} ${prestataire.nom} en ${selectedMonth}/${selectedYear}`);
         return;
       }
+
+      console.log("CRA trouvé:", craData);
 
       if (craData.statut !== 'SOUMIS') {
         toast.error(`Le CRA est en statut "${craData.statut}", seuls les CRA "SOUMIS" peuvent être validés`);
