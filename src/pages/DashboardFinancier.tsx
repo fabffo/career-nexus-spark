@@ -89,13 +89,7 @@ export default function DashboardFinancier() {
     // Toutes les factures d'achat
     const { data: toutesFacturesAchats } = await supabase
       .from("factures")
-      .select(`
-        total_ht, 
-        mission_id, 
-        fournisseur_id,
-        missions(prestataire_id, prestataires(fournisseur_services_id)),
-        prestataires(fournisseur_services_id)
-      `)
+      .select("total_ht, emetteur_type")
       .eq("type_facture", "ACHATS")
       .gte("date_emission", format(debut, "yyyy-MM-dd"))
       .lte("date_emission", format(fin, "yyyy-MM-dd"));
@@ -122,10 +116,10 @@ export default function DashboardFinancier() {
     toutesFacturesAchats?.forEach((f: any) => {
       const montant = Number(f.total_ht || 0);
       
-      // Vérifier si c'est un achat service via mission ou directement via fournisseur
+      // Vérifier si c'est un achat service via le type d'émetteur
       const isServiceAchat = 
-        f.missions?.prestataires?.fournisseur_services_id || 
-        f.prestataires?.fournisseur_services_id;
+        f.emetteur_type === 'FOURNISSEUR_SERVICE' || 
+        f.emetteur_type === 'PRESTATAIRE';
       
       if (isServiceAchat) {
         achatServices += montant;
@@ -239,7 +233,7 @@ export default function DashboardFinancier() {
 
     const { data: factures, error } = await supabase
       .from("factures")
-      .select("total_ht, mission_id, missions(type_mission)")
+      .select("total_ht, emetteur_type")
       .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
       .lte("date_emission", format(finAnnee, "yyyy-MM-dd"))
       .neq("type_facture", "ACHATS");
@@ -250,7 +244,7 @@ export default function DashboardFinancier() {
 
     const repartition: Record<string, number> = {};
     factures?.forEach((f: any) => {
-      const type = f.missions?.type_mission || "Ventes diverses";
+      const type = f.emetteur_type || "Ventes diverses";
       repartition[type] = (repartition[type] || 0) + Number(f.total_ht || 0);
     });
 
@@ -274,11 +268,11 @@ export default function DashboardFinancier() {
 
     const { data: factures, error } = await supabase
       .from("factures")
-      .select("client_id, total_ht, clients(raison_sociale)")
+      .select("destinataire_id, destinataire_nom, total_ht")
       .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
       .lte("date_emission", format(finAnnee, "yyyy-MM-dd"))
       .neq("type_facture", "ACHATS")
-      .not("client_id", "is", null);
+      .not("destinataire_id", "is", null);
 
     if (error) {
       console.error("Erreur loadTopClients:", error);
@@ -286,11 +280,11 @@ export default function DashboardFinancier() {
 
     const caParClient: Record<string, { raison_sociale: string; ca: number }> = {};
     factures?.forEach((f: any) => {
-      if (f.client_id && f.clients?.raison_sociale) {
-        if (!caParClient[f.client_id]) {
-          caParClient[f.client_id] = { raison_sociale: f.clients.raison_sociale, ca: 0 };
+      if (f.destinataire_id && f.destinataire_nom) {
+        if (!caParClient[f.destinataire_id]) {
+          caParClient[f.destinataire_id] = { raison_sociale: f.destinataire_nom, ca: 0 };
         }
-        caParClient[f.client_id].ca += Number(f.total_ht || 0);
+        caParClient[f.destinataire_id].ca += Number(f.total_ht || 0);
       }
     });
 
@@ -312,11 +306,11 @@ export default function DashboardFinancier() {
 
     const { data: achats, error } = await supabase
       .from("factures")
-      .select("fournisseur_id, total_ht, prestataires(nom, prenom)")
+      .select("emetteur_id, emetteur_nom, emetteur_type, total_ht")
       .eq("type_facture", "ACHATS")
       .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
       .lte("date_emission", format(finAnnee, "yyyy-MM-dd"))
-      .not("fournisseur_id", "is", null);
+      .not("emetteur_id", "is", null);
 
     if (error) {
       console.error("Erreur loadTopPrestataires:", error);
@@ -324,15 +318,17 @@ export default function DashboardFinancier() {
 
     const montantParPrestataire: Record<string, { nom: string; prenom: string; montant: number }> = {};
     achats?.forEach((a: any) => {
-      if (a.fournisseur_id && a.prestataires) {
-        if (!montantParPrestataire[a.fournisseur_id]) {
-          montantParPrestataire[a.fournisseur_id] = {
-            nom: a.prestataires.nom,
-            prenom: a.prestataires.prenom,
+      if (a.emetteur_id && a.emetteur_nom && (a.emetteur_type === 'PRESTATAIRE' || a.emetteur_type === 'FOURNISSEUR_SERVICE')) {
+        if (!montantParPrestataire[a.emetteur_id]) {
+          // Pour les prestataires, le nom est au format "Prenom Nom"
+          const parts = a.emetteur_nom.split(' ');
+          montantParPrestataire[a.emetteur_id] = {
+            prenom: parts[0] || '',
+            nom: parts.slice(1).join(' ') || a.emetteur_nom,
             montant: 0,
           };
         }
-        montantParPrestataire[a.fournisseur_id].montant += Number(a.total_ht || 0);
+        montantParPrestataire[a.emetteur_id].montant += Number(a.total_ht || 0);
       }
     });
 
