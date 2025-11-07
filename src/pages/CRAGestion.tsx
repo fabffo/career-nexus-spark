@@ -92,7 +92,7 @@ export default function CRAGestion() {
 
   const loadMissions = async () => {
     try {
-      // Chercher les missions directement liées au prestataire
+      // Chercher les missions directement liées au prestataire (missions CLIENTS uniquement)
       const { data: directMissions, error: directError } = await supabase
         .from('missions')
         .select(`
@@ -102,7 +102,8 @@ export default function CRAGestion() {
           )
         `)
         .eq('prestataire_id', selectedPrestataire)
-        .eq('statut', 'EN_COURS');
+        .eq('statut', 'EN_COURS')
+        .not('contrat_id', 'is', null);
 
       if (directError) throw directError;
 
@@ -126,17 +127,20 @@ export default function CRAGestion() {
             )
           `)
           .eq('salarie_id', prestataireData.salarie_id)
-          .eq('statut', 'EN_COURS');
+          .eq('statut', 'EN_COURS')
+          .not('contrat_id', 'is', null);
 
         if (!salarieError && salarieMissions) {
           allMissions = [...allMissions, ...salarieMissions];
         }
       }
 
-      // Dédupliquer les missions par ID
+      // Dédupliquer les missions par ID et filtrer celles sans client
       const uniqueMissions = Array.from(
         new Map(allMissions.map(m => [m.id, m])).values()
-      );
+      ).filter(m => m.contrat?.client?.raison_sociale);
+
+      console.log('Missions chargées après déduplication:', uniqueMissions.map(m => ({ id: m.id, titre: m.titre })));
 
       setMissions(uniqueMissions);
       
