@@ -122,31 +122,22 @@ export default function PrestatairesMissions() {
           m.prestataire_id === p.id || (p.salarie_id && m.salarie_id === p.salarie_id)
         ) || [];
         
-        if (missions.length > 0) {
-          // Créer une ligne pour chaque mission
-          missions.forEach(mission => {
-            const cra = crasData?.find(c => 
-              c.prestataire_id === p.id && c.mission_id === mission.id
-            );
-            
-            prestatairesMissions.push({
-              ...p,
-              mission: mission,
-              cra_actuel: cra ? {
-                statut: cra.statut,
-                jours_travailles: cra.jours_travailles || 0,
-                ca_mensuel: cra.ca_mensuel || 0
-              } : undefined
-            });
-          });
-        } else {
-          // Prestataire sans mission active
+        // Ne créer des lignes QUE pour les prestataires avec missions clients actives
+        missions.forEach(mission => {
+          const cra = crasData?.find(c => 
+            c.prestataire_id === p.id && c.mission_id === mission.id
+          );
+          
           prestatairesMissions.push({
             ...p,
-            mission: undefined,
-            cra_actuel: undefined
+            mission: mission,
+            cra_actuel: cra ? {
+              statut: cra.statut,
+              jours_travailles: cra.jours_travailles || 0,
+              ca_mensuel: cra.ca_mensuel || 0
+            } : undefined
           });
-        }
+        });
       });
 
       setPrestataires(prestatairesMissions);
