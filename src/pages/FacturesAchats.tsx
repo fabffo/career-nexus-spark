@@ -632,7 +632,8 @@ export default function FacturesAchats() {
   // Filtrer les factures par type de fournisseur
   const filteredFactures = factures.filter((facture) => {
     if (selectedTypeFournisseur === "all") return true;
-    const type = fournisseurTypesMap.get(facture.emetteur_nom?.toLowerCase().trim());
+    if (!facture.emetteur_nom) return false;
+    const type = fournisseurTypesMap.get(facture.emetteur_nom.toLowerCase().trim());
     return type === selectedTypeFournisseur;
   });
 
