@@ -95,6 +95,7 @@ export default function FacturesAchats() {
   const [globalFilter, setGlobalFilter] = useState("");
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [selectedTypeFournisseur, setSelectedTypeFournisseur] = useState<string>("all");
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [selectedFactureIds, setSelectedFactureIds] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
@@ -628,8 +629,15 @@ export default function FacturesAchats() {
     },
   ];
 
+  // Filtrer les factures par type de fournisseur
+  const filteredFactures = factures.filter((facture) => {
+    if (selectedTypeFournisseur === "all") return true;
+    const type = fournisseurTypesMap.get(facture.emetteur_nom?.toLowerCase().trim());
+    return type === selectedTypeFournisseur;
+  });
+
   const table = useReactTable({
-    data: factures,
+    data: filteredFactures,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -789,6 +797,18 @@ export default function FacturesAchats() {
             <SelectItem value="10">Octobre</SelectItem>
             <SelectItem value="11">Novembre</SelectItem>
             <SelectItem value="12">Décembre</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={selectedTypeFournisseur} onValueChange={setSelectedTypeFournisseur}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Type fournisseur" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les types</SelectItem>
+            <SelectItem value="SERVICES">Services</SelectItem>
+            <SelectItem value="GENERAUX">Généraux</SelectItem>
+            <SelectItem value="ETAT_ORGANISMES">État & Organismes</SelectItem>
           </SelectContent>
         </Select>
 
