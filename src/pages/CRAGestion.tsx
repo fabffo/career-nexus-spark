@@ -348,7 +348,9 @@ export default function CRAGestion() {
     });
 
     const mission = missions.find(m => m.id === selectedMission);
-    const tjm = mission?.tjm || 0;
+    // Pour les missions avec TJM, utiliser le TJM
+    // Pour les missions sans TJM (frais mission, etc.), utiliser le prix_ht comme équivalent journalier
+    const tjm = mission?.tjm || mission?.prix_ht || 0;
     const ca = travailles * tjm;
 
     return { travailles, conges, absences, heures, jours, ca, tjm };
