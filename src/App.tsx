@@ -57,6 +57,8 @@ import DeclarationsChargesSociales from "./pages/DeclarationsChargesSociales";
 import PrestatairesMissions from "./pages/PrestatairesMissions";
 import PrestataireMissionDetail from "./pages/PrestataireMissionDetail";
 import CRAGestion from "./pages/CRAGestion";
+import DashboardFinancier from "./pages/DashboardFinancier";
+import AnalyseFinanciere from "./pages/AnalyseFinanciere";
 
 const queryClient = new QueryClient();
 
@@ -144,6 +146,8 @@ const App = () => (
               <Route path="prestataires-missions" element={<PrestatairesMissions />} />
               <Route path="prestataire-mission/:id" element={<PrestataireMissionDetail />} />
               <Route path="cra-gestion" element={<CRAGestion />} />
+              <Route path="dashboard-financier" element={<DashboardFinancier />} />
+              <Route path="analyse-financiere" element={<AnalyseFinanciere />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />
