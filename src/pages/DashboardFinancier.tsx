@@ -89,7 +89,13 @@ export default function DashboardFinancier() {
     // Toutes les factures d'achat
     const { data: toutesFacturesAchats } = await supabase
       .from("factures")
-      .select("total_ht, mission_id, missions(prestataire_id, prestataires(fournisseur_services_id))")
+      .select(`
+        total_ht, 
+        mission_id, 
+        fournisseur_id,
+        missions(prestataire_id, prestataires(fournisseur_services_id)),
+        prestataires(fournisseur_services_id)
+      `)
       .eq("type_facture", "ACHATS")
       .gte("date_emission", format(debut, "yyyy-MM-dd"))
       .lte("date_emission", format(fin, "yyyy-MM-dd"));
@@ -115,8 +121,13 @@ export default function DashboardFinancier() {
     
     toutesFacturesAchats?.forEach((f: any) => {
       const montant = Number(f.total_ht || 0);
-      // Si lié à un prestataire de service, c'est un achat service
-      if (f.missions?.prestataires?.fournisseur_services_id) {
+      
+      // Vérifier si c'est un achat service via mission ou directement via fournisseur
+      const isServiceAchat = 
+        f.missions?.prestataires?.fournisseur_services_id || 
+        f.prestataires?.fournisseur_services_id;
+      
+      if (isServiceAchat) {
         achatServices += montant;
       } else {
         autresAchatsTotal += montant;
