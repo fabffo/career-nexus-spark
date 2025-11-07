@@ -118,11 +118,11 @@ export default function PrestataireMissionDetail() {
   };
 
   const calculateMetrics = () => {
-    const currentMonth = new Date().getMonth() + 1;
-    const currentCra = cras.find(c => c.mois === currentMonth);
+    // Utiliser le dernier CRA disponible au lieu du mois en cours
+    const dernierCra = cras.length > 0 ? cras[0] : null;
     
-    const joursConsommes = currentCra?.jours_travailles || 0;
-    const caMensuel = currentCra?.ca_mensuel || 0;
+    const joursConsommes = cras.reduce((sum, cra) => sum + (cra.jours_travailles || 0), 0);
+    const caMensuel = dernierCra?.ca_mensuel || 0;
     const caTotal = cras.reduce((sum, cra) => sum + (cra.ca_mensuel || 0), 0);
 
     return {
