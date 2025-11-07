@@ -180,9 +180,9 @@ export default function DashboardFinancier() {
     
     const abonnementsTotal = paiementsAbonnements?.reduce((sum, p) => sum + Number(p.montant || 0), 0) || 0;
     
-    // Total des charges sociales enregistrées
+    // Total des charges sociales enregistrées (valeur absolue des montants)
     const chargesTotal = chargesSocialesRapprochements?.reduce(
-      (sum, r) => sum + Number(r.transaction_montant || 0),
+      (sum, r) => sum + Math.abs(Number(r.transaction_montant || 0)),
       0
     ) || 0;
     
