@@ -30,6 +30,7 @@ interface TopPrestataire {
 export default function DashboardFinancier() {
   const [loading, setLoading] = useState(true);
   const [anneeSelectionnee, setAnneeSelectionnee] = useState(new Date().getFullYear());
+  const [moisSelectionne, setMoisSelectionne] = useState<number | null>(null);
   const [kpis, setKpis] = useState<KPI>({
     caMois: 0,
     margeMois: 0,
@@ -47,7 +48,7 @@ export default function DashboardFinancier() {
 
   useEffect(() => {
     loadData();
-  }, [anneeSelectionnee]);
+  }, [anneeSelectionnee, moisSelectionne]);
 
   const loadData = async () => {
     setLoading(true);
@@ -68,10 +69,18 @@ export default function DashboardFinancier() {
   };
 
   const loadKPIs = async () => {
-    const debutAnnee = startOfYear(new Date(anneeSelectionnee, 0, 1));
-    const finAnnee = endOfYear(new Date(anneeSelectionnee, 11, 31));
-    const debutMois = startOfMonth(new Date());
-    const finMois = endOfMonth(new Date());
+    const debutAnnee = moisSelectionne !== null 
+      ? startOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
+      : startOfYear(new Date(anneeSelectionnee, 0, 1));
+    const finAnnee = moisSelectionne !== null
+      ? endOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
+      : endOfYear(new Date(anneeSelectionnee, 11, 31));
+    const debutMois = moisSelectionne !== null
+      ? startOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
+      : startOfMonth(new Date());
+    const finMois = moisSelectionne !== null
+      ? endOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
+      : endOfMonth(new Date());
 
     // CA et ventes
     const { data: facturesAnnee } = await supabase
@@ -173,8 +182,12 @@ export default function DashboardFinancier() {
   };
 
   const loadRepartitionCA = async () => {
-    const debutAnnee = startOfYear(new Date(anneeSelectionnee, 0, 1));
-    const finAnnee = endOfYear(new Date(anneeSelectionnee, 11, 31));
+    const debutAnnee = moisSelectionne !== null 
+      ? startOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
+      : startOfYear(new Date(anneeSelectionnee, 0, 1));
+    const finAnnee = moisSelectionne !== null
+      ? endOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
+      : endOfYear(new Date(anneeSelectionnee, 11, 31));
 
     const { data: factures } = await supabase
       .from("factures")
@@ -197,8 +210,12 @@ export default function DashboardFinancier() {
   };
 
   const loadTopClients = async () => {
-    const debutAnnee = startOfYear(new Date(anneeSelectionnee, 0, 1));
-    const finAnnee = endOfYear(new Date(anneeSelectionnee, 11, 31));
+    const debutAnnee = moisSelectionne !== null 
+      ? startOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
+      : startOfYear(new Date(anneeSelectionnee, 0, 1));
+    const finAnnee = moisSelectionne !== null
+      ? endOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
+      : endOfYear(new Date(anneeSelectionnee, 11, 31));
 
     const { data: factures } = await supabase
       .from("factures")
@@ -225,8 +242,12 @@ export default function DashboardFinancier() {
   };
 
   const loadTopPrestataires = async () => {
-    const debutAnnee = startOfYear(new Date(anneeSelectionnee, 0, 1));
-    const finAnnee = endOfYear(new Date(anneeSelectionnee, 11, 31));
+    const debutAnnee = moisSelectionne !== null 
+      ? startOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
+      : startOfYear(new Date(anneeSelectionnee, 0, 1));
+    const finAnnee = moisSelectionne !== null
+      ? endOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
+      : endOfYear(new Date(anneeSelectionnee, 11, 31));
 
     const { data: achats } = await supabase
       .from("factures")
@@ -270,17 +291,44 @@ export default function DashboardFinancier() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Dashboard Financier</h1>
-        <select
-          value={anneeSelectionnee}
-          onChange={(e) => setAnneeSelectionnee(Number(e.target.value))}
-          className="border rounded-md px-4 py-2 bg-background"
-        >
-          {[2023, 2024, 2025].map((year) => (
-            <option key={year} value={year}>
-              {year}
-            </option>
-          ))}
-        </select>
+        <div className="flex gap-4">
+          <select
+            value={anneeSelectionnee}
+            onChange={(e) => setAnneeSelectionnee(Number(e.target.value))}
+            className="border rounded-md px-4 py-2 bg-background"
+          >
+            {[2023, 2024, 2025].map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+          <select
+            value={moisSelectionne ?? ""}
+            onChange={(e) => setMoisSelectionne(e.target.value ? Number(e.target.value) : null)}
+            className="border rounded-md px-4 py-2 bg-background"
+          >
+            <option value="">Toute l'année</option>
+            {[
+              { value: 0, label: "Janvier" },
+              { value: 1, label: "Février" },
+              { value: 2, label: "Mars" },
+              { value: 3, label: "Avril" },
+              { value: 4, label: "Mai" },
+              { value: 5, label: "Juin" },
+              { value: 6, label: "Juillet" },
+              { value: 7, label: "Août" },
+              { value: 8, label: "Septembre" },
+              { value: 9, label: "Octobre" },
+              { value: 10, label: "Novembre" },
+              { value: 11, label: "Décembre" },
+            ].map((mois) => (
+              <option key={mois.value} value={mois.value}>
+                {mois.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* KPIs */}
