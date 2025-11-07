@@ -27,6 +27,7 @@ export default function Prestataires() {
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [recommandationFile, setRecommandationFile] = useState<File | null>(null);
   const [fournisseursServices, setFournisseursServices] = useState<any[]>([]);
+  const [salaries, setSalaries] = useState<any[]>([]);
   const { uploadFile, deleteFile, isUploading } = useFileUpload();
 
   const [formData, setFormData] = useState({
@@ -37,13 +38,15 @@ export default function Prestataires() {
     detail_cv: '',
     cv_url: '',
     recommandation_url: '',
-    type_prestataire: 'INDEPENDANT' as 'INDEPENDANT' | 'SOCIETE',
-    fournisseur_services_id: ''
+    type_prestataire: 'INDEPENDANT' as 'INDEPENDANT' | 'SOCIETE' | 'SALARIE',
+    fournisseur_services_id: '',
+    salarie_id: ''
   });
 
   useEffect(() => {
     loadPrestataires();
     loadFournisseursServices();
+    loadSalaries();
   }, []);
 
   const loadPrestataires = async () => {
@@ -78,6 +81,20 @@ export default function Prestataires() {
       setFournisseursServices(data || []);
     } catch (error) {
       console.error('Erreur lors du chargement des fournisseurs:', error);
+    }
+  };
+
+  const loadSalaries = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('salaries')
+        .select('*')
+        .order('nom', { ascending: true });
+      
+      if (error) throw error;
+      setSalaries(data || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des salariés:', error);
     }
   };
 
@@ -195,12 +212,30 @@ export default function Prestataires() {
       cv_url: '',
       recommandation_url: '',
       type_prestataire: 'INDEPENDANT',
-      fournisseur_services_id: ''
+      fournisseur_services_id: '',
+      salarie_id: ''
     });
     setCvFile(null);
     setRecommandationFile(null);
     setSelectedPrestataire(null);
     setIsEditMode(false);
+  };
+
+  const handleSalarieChange = async (salarieId: string) => {
+    const salarie = salaries.find(s => s.id === salarieId);
+    if (salarie) {
+      setFormData({
+        ...formData,
+        salarie_id: salarieId,
+        nom: salarie.nom,
+        prenom: salarie.prenom,
+        email: salarie.email || '',
+        telephone: salarie.telephone || '',
+        detail_cv: salarie.detail_cv || '',
+        cv_url: salarie.cv_url || '',
+        recommandation_url: salarie.recommandation_url || ''
+      });
+    }
   };
 
   const openEditDialog = (prestataire: any) => {
@@ -214,7 +249,8 @@ export default function Prestataires() {
       cv_url: prestataire.cv_url || '',
       recommandation_url: prestataire.recommandation_url || '',
       type_prestataire: prestataire.type_prestataire || 'INDEPENDANT',
-      fournisseur_services_id: prestataire.fournisseur_services_id || ''
+      fournisseur_services_id: prestataire.fournisseur_services_id || '',
+      salarie_id: prestataire.salarie_id || ''
     });
     setIsEditMode(true);
     setIsDialogOpen(true);
@@ -244,11 +280,14 @@ export default function Prestataires() {
     {
       accessorKey: "type_prestataire",
       header: "Type",
-      cell: ({ row }) => (
-        <Badge variant={row.original.type_prestataire === 'SOCIETE' ? 'default' : 'secondary'}>
-          {row.original.type_prestataire === 'SOCIETE' ? 'Société' : 'Indépendant'}
-        </Badge>
-      ),
+      cell: ({ row }) => {
+        const type = row.original.type_prestataire;
+        return (
+          <Badge variant={type === 'SOCIETE' ? 'default' : type === 'SALARIE' ? 'outline' : 'secondary'}>
+            {type === 'SOCIETE' ? 'Société' : type === 'SALARIE' ? 'Salarié' : 'Indépendant'}
+          </Badge>
+        );
+      },
     },
     {
       id: "societe",
@@ -380,8 +419,8 @@ export default function Prestataires() {
                 <Label htmlFor="type_prestataire">Type de prestataire *</Label>
                 <Select
                   value={formData.type_prestataire}
-                  onValueChange={(value: 'INDEPENDANT' | 'SOCIETE') => 
-                    setFormData({ ...formData, type_prestataire: value, fournisseur_services_id: '' })
+                  onValueChange={(value: 'INDEPENDANT' | 'SOCIETE' | 'SALARIE') => 
+                    setFormData({ ...formData, type_prestataire: value, fournisseur_services_id: '', salarie_id: '' })
                   }
                 >
                   <SelectTrigger>
@@ -390,6 +429,7 @@ export default function Prestataires() {
                   <SelectContent>
                     <SelectItem value="INDEPENDANT">Indépendant</SelectItem>
                     <SelectItem value="SOCIETE">Société</SelectItem>
+                    <SelectItem value="SALARIE">Salarié</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -407,6 +447,26 @@ export default function Prestataires() {
                       {fournisseursServices.map((fournisseur) => (
                         <SelectItem key={fournisseur.id} value={fournisseur.id}>
                           {fournisseur.raison_sociale}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {formData.type_prestataire === 'SALARIE' && (
+                <div>
+                  <Label htmlFor="salarie">Salarié *</Label>
+                  <Select
+                    value={formData.salarie_id}
+                    onValueChange={handleSalarieChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner un salarié" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {salaries.map((salarie) => (
+                        <SelectItem key={salarie.id} value={salarie.id}>
+                          {salarie.prenom} {salarie.nom}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -509,8 +569,14 @@ export default function Prestataires() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-muted-foreground">Type</Label>
-                  <Badge variant={selectedPrestataire.type_prestataire === 'SOCIETE' ? 'default' : 'secondary'}>
-                    {selectedPrestataire.type_prestataire === 'SOCIETE' ? 'Société' : 'Indépendant'}
+                  <Badge variant={
+                    selectedPrestataire.type_prestataire === 'SOCIETE' ? 'default' : 
+                    selectedPrestataire.type_prestataire === 'SALARIE' ? 'outline' : 
+                    'secondary'
+                  }>
+                    {selectedPrestataire.type_prestataire === 'SOCIETE' ? 'Société' : 
+                     selectedPrestataire.type_prestataire === 'SALARIE' ? 'Salarié' : 
+                     'Indépendant'}
                   </Badge>
                 </div>
                 {selectedPrestataire.type_prestataire === 'SOCIETE' && selectedPrestataire.fournisseur_services && (

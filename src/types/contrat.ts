@@ -43,6 +43,9 @@ export interface Prestataire {
   user_id?: string;
   invitation_token?: string;
   invitation_sent_at?: string;
+  fournisseur_services_id?: string;
+  salarie_id?: string;
+  type_prestataire?: 'INDEPENDANT' | 'SOCIETE' | 'SALARIE';
   created_at?: string;
   updated_at?: string;
 }

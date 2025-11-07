@@ -1692,6 +1692,7 @@ export type Database = {
           nom: string
           prenom: string
           recommandation_url: string | null
+          salarie_id: string | null
           telephone: string | null
           type_prestataire: string | null
           updated_at: string | null
@@ -1711,6 +1712,7 @@ export type Database = {
           nom: string
           prenom: string
           recommandation_url?: string | null
+          salarie_id?: string | null
           telephone?: string | null
           type_prestataire?: string | null
           updated_at?: string | null
@@ -1730,6 +1732,7 @@ export type Database = {
           nom?: string
           prenom?: string
           recommandation_url?: string | null
+          salarie_id?: string | null
           telephone?: string | null
           type_prestataire?: string | null
           updated_at?: string | null
@@ -1741,6 +1744,13 @@ export type Database = {
             columns: ["fournisseur_services_id"]
             isOneToOne: false
             referencedRelation: "fournisseurs_services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prestataires_salarie_id_fkey"
+            columns: ["salarie_id"]
+            isOneToOne: false
+            referencedRelation: "salaries"
             referencedColumns: ["id"]
           },
         ]
