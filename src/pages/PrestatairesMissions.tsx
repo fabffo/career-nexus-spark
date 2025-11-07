@@ -21,6 +21,7 @@ interface PrestataireMission {
     id: string;
     titre: string;
     tjm?: number;
+    prix_ht?: number;
     date_debut?: string;
     date_fin?: string;
     statut?: string;
