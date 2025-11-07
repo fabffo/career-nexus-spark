@@ -69,14 +69,33 @@ export default function CRAGestion() {
     try {
       setLoading(true);
 
-      // Charger les prestataires
+      // Charger les prestataires de la table prestataires
       const { data: prestatairesData, error: prestataireError } = await supabase
         .from('prestataires')
         .select('*')
         .order('nom');
 
       if (prestataireError) throw prestataireError;
-      setPrestataires(prestatairesData || []);
+
+      // Charger les salariés de type PRESTATAIRE
+      const { data: salariesPrestataireData, error: salarieError } = await supabase
+        .from('salaries')
+        .select('id, nom, prenom, email, telephone')
+        .eq('role', 'PRESTATAIRE')
+        .order('nom');
+
+      if (salarieError) throw salarieError;
+
+      // Combiner les deux listes
+      const allPrestataires = [
+        ...(prestatairesData || []),
+        ...(salariesPrestataireData || []).map(s => ({
+          ...s,
+          isSalarie: true
+        }))
+      ];
+
+      setPrestataires(allPrestataires);
 
       // Charger les jours fériés
       const jours = await craService.getJoursFeries(selectedYear);
@@ -92,32 +111,13 @@ export default function CRAGestion() {
 
   const loadMissions = async () => {
     try {
-      // Chercher les missions directement liées au prestataire (missions CLIENTS uniquement)
-      const { data: directMissions, error: directError } = await supabase
-        .from('missions')
-        .select(`
-          *,
-          contrat:contrats(
-            client:clients(raison_sociale)
-          )
-        `)
-        .eq('prestataire_id', selectedPrestataire)
-        .eq('statut', 'EN_COURS')
-        .not('contrat_id', 'is', null);
+      const selectedPrestatairObj = prestataires.find(p => p.id === selectedPrestataire);
+      const isSalarie = selectedPrestatairObj?.isSalarie;
 
-      if (directError) throw directError;
+      let allMissions: any[] = [];
 
-      // Vérifier si le prestataire a un salarie_id
-      const { data: prestataireData } = await supabase
-        .from('prestataires')
-        .select('salarie_id')
-        .eq('id', selectedPrestataire)
-        .single();
-
-      let allMissions = directMissions || [];
-
-      // Si le prestataire a un salarie_id, chercher aussi par salarie_id
-      if (prestataireData?.salarie_id) {
+      if (isSalarie) {
+        // C'est un salarié prestataire, chercher par salarie_id
         const { data: salarieMissions, error: salarieError } = await supabase
           .from('missions')
           .select(`
@@ -126,12 +126,53 @@ export default function CRAGestion() {
               client:clients(raison_sociale)
             )
           `)
-          .eq('salarie_id', prestataireData.salarie_id)
+          .eq('salarie_id', selectedPrestataire)
           .eq('statut', 'EN_COURS')
           .not('contrat_id', 'is', null);
 
-        if (!salarieError && salarieMissions) {
-          allMissions = [...allMissions, ...salarieMissions];
+        if (salarieError) throw salarieError;
+        allMissions = salarieMissions || [];
+      } else {
+        // C'est un prestataire de la table prestataires
+        const { data: directMissions, error: directError } = await supabase
+          .from('missions')
+          .select(`
+            *,
+            contrat:contrats(
+              client:clients(raison_sociale)
+            )
+          `)
+          .eq('prestataire_id', selectedPrestataire)
+          .eq('statut', 'EN_COURS')
+          .not('contrat_id', 'is', null);
+
+        if (directError) throw directError;
+        allMissions = directMissions || [];
+
+        // Vérifier si le prestataire a un salarie_id
+        const { data: prestataireData } = await supabase
+          .from('prestataires')
+          .select('salarie_id')
+          .eq('id', selectedPrestataire)
+          .single();
+
+        // Si le prestataire a un salarie_id, chercher aussi par salarie_id
+        if (prestataireData?.salarie_id) {
+          const { data: salarieMissions, error: salarieError } = await supabase
+            .from('missions')
+            .select(`
+              *,
+              contrat:contrats(
+                client:clients(raison_sociale)
+              )
+            `)
+            .eq('salarie_id', prestataireData.salarie_id)
+            .eq('statut', 'EN_COURS')
+            .not('contrat_id', 'is', null);
+
+          if (!salarieError && salarieMissions) {
+            allMissions = [...allMissions, ...salarieMissions];
+          }
         }
       }
 
@@ -139,8 +180,6 @@ export default function CRAGestion() {
       const uniqueMissions = Array.from(
         new Map(allMissions.map(m => [m.id, m])).values()
       ).filter(m => m.contrat?.client?.raison_sociale);
-
-      console.log('Missions chargées après déduplication:', uniqueMissions.map(m => ({ id: m.id, titre: m.titre })));
 
       setMissions(uniqueMissions);
       
