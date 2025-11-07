@@ -86,13 +86,38 @@ export default function DashboardFinancier() {
       .gte("date_emission", format(debut, "yyyy-MM-dd"))
       .lte("date_emission", format(fin, "yyyy-MM-dd"));
 
-    // Toutes les factures d'achat
+    // Toutes les factures d'achat avec vérification fournisseurs de services et prestataires
     const { data: toutesFacturesAchats } = await supabase
       .from("factures")
-      .select("total_ht, emetteur_type")
+      .select(`
+        total_ht, 
+        emetteur_nom,
+        emetteur_id
+      `)
       .eq("type_facture", "ACHATS")
       .gte("date_emission", format(debut, "yyyy-MM-dd"))
       .lte("date_emission", format(fin, "yyyy-MM-dd"));
+
+    // Récupérer tous les fournisseurs de services et prestataires pour identification
+    const { data: fournisseursServices } = await supabase
+      .from("fournisseurs_services")
+      .select("id, raison_sociale");
+    
+    const { data: prestataires } = await supabase
+      .from("prestataires")
+      .select("id, nom, prenom");
+
+    // Créer des maps pour recherche rapide (insensible à la casse)
+    const fournisseursServicesMap = new Map(
+      fournisseursServices?.map(fs => [fs.raison_sociale.toLowerCase().trim(), fs.id]) || []
+    );
+    
+    const prestatairesMap = new Map(
+      prestataires?.map(p => {
+        const nomComplet = `${p.prenom} ${p.nom}`.toLowerCase().trim();
+        return [nomComplet, p.id];
+      }) || []
+    );
 
     // Abonnements
     const { data: paiementsAbonnements } = await supabase
@@ -115,13 +140,13 @@ export default function DashboardFinancier() {
     
     toutesFacturesAchats?.forEach((f: any) => {
       const montant = Number(f.total_ht || 0);
+      const emetteurNom = (f.emetteur_nom || '').toLowerCase().trim();
       
-      // Vérifier si c'est un achat service via le type d'émetteur
-      const isServiceAchat = 
-        f.emetteur_type === 'FOURNISSEUR_SERVICE' || 
-        f.emetteur_type === 'PRESTATAIRE';
+      // Vérifier si c'est un achat service en cherchant dans les fournisseurs de services ou prestataires
+      const isFournisseurService = fournisseursServicesMap.has(emetteurNom);
+      const isPrestataire = prestatairesMap.has(emetteurNom);
       
-      if (isServiceAchat) {
+      if (isFournisseurService || isPrestataire) {
         achatServices += montant;
       } else {
         autresAchatsTotal += montant;
