@@ -306,21 +306,30 @@ export default function FacturesAchats() {
 
   // Filtrer les factures par type de fournisseur
   const filteredFactures = useMemo(() => {
-    console.log("Calcul des factures filtrées...");
     return factures.filter((facture) => {
       if (selectedTypeFournisseur === "all") return true;
-      if (!facture.emetteur_nom) {
-        console.log("Facture sans emetteur_nom:", facture);
-        return false;
-      }
+      if (!facture.emetteur_nom) return false;
       const emetteurKey = facture.emetteur_nom.toLowerCase().trim();
       const type = fournisseurTypesMap.get(emetteurKey);
-      console.log(`Facture ${facture.numero_facture}, emetteur: "${facture.emetteur_nom}", type trouvé: "${type}", filtre: "${selectedTypeFournisseur}"`);
       return type === selectedTypeFournisseur;
     });
   }, [factures, selectedTypeFournisseur, fournisseurTypesMap]);
 
-  console.log(`Nombre total de factures: ${factures.length}, après filtrage: ${filteredFactures.length}`);
+  // Recalculer les statistiques basées sur les factures filtrées
+  useEffect(() => {
+    const totalHT = filteredFactures.reduce((sum, f) => sum + (f.total_ht || 0), 0);
+    const totalTTC = filteredFactures.reduce((sum, f) => sum + (f.total_ttc || 0), 0);
+    const totalPayees = filteredFactures.filter((f) => f.statut === "PAYEE").length;
+    const totalEnAttente = filteredFactures.filter((f) => f.statut === "VALIDEE").length;
+
+    setStats({
+      totalFactures: filteredFactures.length,
+      totalHT,
+      totalTTC,
+      totalPayees,
+      totalEnAttente,
+    });
+  }, [filteredFactures]);
 
   const downloadSelectedFactures = async () => {
     if (selectedFactureIds.size === 0) {
