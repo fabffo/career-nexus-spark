@@ -151,13 +151,9 @@ export default function DashboardFinancier() {
     let achatServices = 0;
     let autresAchatsTotal = 0;
     
-    console.log("=== DASHBOARD - Calcul Achat Services ===");
-    console.log("Map des types de fournisseurs:", Array.from(fournisseurTypesMap.entries()));
-    
     toutesFacturesAchats?.forEach((f: any) => {
       const montant = Number(f.total_ht || 0);
       if (!f.emetteur_nom) {
-        console.log(`Facture sans emetteur_nom, montant ${montant} -> autres achats`);
         autresAchatsTotal += montant;
         return;
       }
@@ -165,20 +161,14 @@ export default function DashboardFinancier() {
       const emetteurKey = f.emetteur_nom.toLowerCase().trim();
       const typeFournisseur = fournisseurTypesMap.get(emetteurKey);
       
-      console.log(`Facture ${f.emetteur_nom} (${emetteurKey}), montant ${montant}, type: ${typeFournisseur || 'NON IDENTIFIÉ'}`);
-      
       // Les achats SERVICES sont comptés séparément
       if (typeFournisseur === "SERVICES") {
         achatServices += montant;
-        console.log(`  -> Achat Services (total actuel: ${achatServices})`);
       } else {
         // GENERAUX, ETAT_ORGANISMES et non identifiés vont dans autres achats
         autresAchatsTotal += montant;
-        console.log(`  -> Autres achats (total actuel: ${autresAchatsTotal})`);
       }
     });
-    
-    console.log(`=== FINAL === Achat Services: ${achatServices}, Autres achats: ${autresAchatsTotal}`);
     
     const abonnementsTotal = paiementsAbonnements?.reduce((sum, p) => sum + Number(p.montant || 0), 0) || 0;
     
