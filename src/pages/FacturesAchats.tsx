@@ -308,9 +308,25 @@ export default function FacturesAchats() {
   const filteredFactures = useMemo(() => {
     return factures.filter((facture) => {
       if (selectedTypeFournisseur === "all") return true;
-      if (!facture.emetteur_nom) return false;
+      
+      // Pour les Services, on filtre exactement
+      if (selectedTypeFournisseur === "SERVICES") {
+        if (!facture.emetteur_nom) return false;
+        const emetteurKey = facture.emetteur_nom.toLowerCase().trim();
+        const type = fournisseurTypesMap.get(emetteurKey);
+        return type === "SERVICES";
+      }
+      
+      // Pour Généraux et État/Organismes : exclure uniquement les Services
+      // (même logique que le Dashboard)
+      if (!facture.emetteur_nom) return true; // Inclure les non identifiés
       const emetteurKey = facture.emetteur_nom.toLowerCase().trim();
       const type = fournisseurTypesMap.get(emetteurKey);
+      
+      if (selectedTypeFournisseur === "GENERAUX") {
+        return type !== "SERVICES"; // Tout sauf Services
+      }
+      
       return type === selectedTypeFournisseur;
     });
   }, [factures, selectedTypeFournisseur, fournisseurTypesMap]);
