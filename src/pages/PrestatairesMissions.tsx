@@ -104,12 +104,11 @@ export default function PrestatairesMissions() {
 
       if (missionError) throw missionError;
 
-      // Charger les CRA du mois sélectionné
+      // Charger TOUS les CRA de l'année pour pouvoir afficher le dernier disponible
       const { data: crasData, error: craError } = await supabase
         .from('cra')
         .select('*')
-        .eq('annee', selectedYear)
-        .eq('mois', selectedMonth);
+        .eq('annee', selectedYear);
 
       if (craError) throw craError;
 
@@ -124,9 +123,12 @@ export default function PrestatairesMissions() {
         
         // Ne créer des lignes QUE pour les prestataires avec missions clients actives
         missions.forEach(mission => {
-          const cra = crasData?.find(c => 
+          // Trouver le dernier CRA disponible pour cette mission (le plus récent)
+          const missionCras = crasData?.filter(c => 
             c.prestataire_id === p.id && c.mission_id === mission.id
-          );
+          ).sort((a, b) => b.mois - a.mois) || [];
+          
+          const cra = missionCras[0]; // Prendre le plus récent
           
           prestatairesMissions.push({
             ...p,
