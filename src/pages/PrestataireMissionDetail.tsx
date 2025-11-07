@@ -18,7 +18,7 @@ import { craService } from "@/services/craService";
 import { CRA, CRAJour } from "@/types/cra";
 
 export default function PrestataireMissionDetail() {
-  const { id } = useParams();
+  const { id, missionId } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [prestataire, setPrestataire] = useState<any>(null);
@@ -28,10 +28,10 @@ export default function PrestataireMissionDetail() {
   const [craJours, setCraJours] = useState<CRAJour[]>([]);
 
   useEffect(() => {
-    if (id) {
+    if (id && missionId) {
       loadData();
     }
-  }, [id]);
+  }, [id, missionId]);
 
   const loadData = async () => {
     try {
@@ -47,8 +47,8 @@ export default function PrestataireMissionDetail() {
       if (prestataireError) throw prestataireError;
       setPrestataire(prestataireData);
 
-      // Charger les missions CLIENTS actives pour ce prestataire
-      const { data: missionsData } = await supabase
+      // Charger la mission spécifique par son ID
+      const { data: missionData, error: missionError } = await supabase
         .from('missions')
         .select(`
           *,
@@ -59,37 +59,12 @@ export default function PrestataireMissionDetail() {
           prestataire:prestataires(*),
           salarie:salaries(*)
         `)
-        .eq('prestataire_id', id)
-        .eq('statut', 'EN_COURS')
-        .not('contrat_id', 'is', null)
-        .order('created_at', { ascending: false });
+        .eq('id', missionId)
+        .single();
 
-      console.log('Missions trouvées:', missionsData);
+      if (missionError) throw missionError;
       
-      // Prendre la première mission OU celle qui a un TJM défini
-      let missionData = missionsData?.find(m => m.tjm != null) || missionsData?.[0] || null;
-      
-      console.log('Mission sélectionnée:', missionData?.numero_mission, 'TJM:', missionData?.tjm);
-      
-      if (!missionData && prestataireData.salarie_id) {
-        const { data: missionDataSalarie } = await supabase
-          .from('missions')
-          .select(`
-            *,
-            contrat:contrats(
-              *,
-              client:clients(*)
-            ),
-            prestataire:prestataires(*),
-            salarie:salaries(*)
-          `)
-          .eq('salarie_id', prestataireData.salarie_id)
-          .eq('statut', 'EN_COURS')
-          .not('contrat_id', 'is', null)
-          .maybeSingle();
-        
-        missionData = missionDataSalarie;
-      }
+      console.log('Mission chargée:', missionData?.numero_mission, 'TJM:', missionData?.tjm, 'Prix HT:', missionData?.prix_ht);
 
       setMission(missionData);
 
@@ -138,7 +113,7 @@ export default function PrestataireMissionDetail() {
       joursConsommes,
       caMensuel,
       caTotal,
-      tjm: mission?.tjm || 0
+      tjm: mission?.tjm || mission?.prix_ht || 0
     };
   };
 

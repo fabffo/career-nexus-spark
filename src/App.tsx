@@ -144,7 +144,7 @@ const App = () => (
               <Route path="admin" element={<Admin />} />
               <Route path="parametres" element={<Parametres />} />
               <Route path="prestataires-missions" element={<PrestatairesMissions />} />
-              <Route path="prestataire-mission/:id" element={<PrestataireMissionDetail />} />
+              <Route path="prestataire-mission/:id/:missionId" element={<PrestataireMissionDetail />} />
               <Route path="cra-gestion" element={<CRAGestion />} />
               <Route path="dashboard-financier" element={<DashboardFinancier />} />
               <Route path="analyse-financiere" element={<AnalyseFinanciere />} />

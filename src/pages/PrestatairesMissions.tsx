@@ -407,7 +407,7 @@ export default function PrestatairesMissions() {
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/prestataire-mission/${row.original.id}`);
+              navigate(`/prestataire-mission/${row.original.id}/${row.original.mission?.id || ''}`);
             }}
           >
             Voir détail
