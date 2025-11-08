@@ -52,6 +52,8 @@ interface EditRapprochementEnCoursDialogProps {
   onStatusChange: (status: "matched" | "unmatched" | "uncertain") => void;
   onFactureSelect: (factureIds: string[]) => void;
   onNotesChange: (notes: string) => void;
+  onAbonnementSelect?: (abonnementId: string | null) => void;
+  onDeclarationSelect?: (declarationId: string | null) => void;
 }
 
 export default function EditRapprochementEnCoursDialog({
@@ -62,6 +64,8 @@ export default function EditRapprochementEnCoursDialog({
   onStatusChange,
   onFactureSelect,
   onNotesChange,
+  onAbonnementSelect,
+  onDeclarationSelect,
 }: EditRapprochementEnCoursDialogProps) {
   const [status, setStatus] = useState<"matched" | "unmatched" | "uncertain">("unmatched");
   const [selectedFactureIds, setSelectedFactureIds] = useState<string[]>([]);
@@ -69,6 +73,10 @@ export default function EditRapprochementEnCoursDialog({
   const [searchTerm, setSearchTerm] = useState("");
   const [associatedFactures, setAssociatedFactures] = useState<any[]>([]);
   const [loadingAssociated, setLoadingAssociated] = useState(false);
+  const [abonnements, setAbonnements] = useState<any[]>([]);
+  const [declarations, setDeclarations] = useState<any[]>([]);
+  const [selectedAbonnementId, setSelectedAbonnementId] = useState<string | null>(null);
+  const [selectedDeclarationId, setSelectedDeclarationId] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Réinitialiser les états quand le dialogue se ferme
@@ -78,6 +86,14 @@ export default function EditRapprochementEnCoursDialog({
       setSelectedFactureIds([]);
       setNotes("");
       setSearchTerm("");
+    }
+  }, [open]);
+
+  // Charger les abonnements et déclarations
+  useEffect(() => {
+    if (open) {
+      loadAbonnements();
+      loadDeclarations();
     }
   }, [open]);
 
@@ -96,6 +112,36 @@ export default function EditRapprochementEnCoursDialog({
       }
     }
   }, [rapprochement, open]);
+
+  const loadAbonnements = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('abonnements_partenaires')
+        .select('*')
+        .eq('actif', true)
+        .order('nom');
+      
+      if (error) throw error;
+      setAbonnements(data || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des abonnements:', error);
+    }
+  };
+
+  const loadDeclarations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('declarations_charges_sociales')
+        .select('*')
+        .eq('actif', true)
+        .order('nom');
+      
+      if (error) throw error;
+      setDeclarations(data || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des déclarations:', error);
+    }
+  };
 
   const loadAssociatedFactures = async (numeroLigne: string) => {
     setLoadingAssociated(true);
@@ -173,6 +219,12 @@ export default function EditRapprochementEnCoursDialog({
     onStatusChange(status);
     onFactureSelect(selectedFactureIds);
     onNotesChange(notes);
+    if (onAbonnementSelect) {
+      onAbonnementSelect(selectedAbonnementId);
+    }
+    if (onDeclarationSelect) {
+      onDeclarationSelect(selectedDeclarationId);
+    }
     
     toast({
       title: "Modifications enregistrées",
@@ -414,11 +466,57 @@ export default function EditRapprochementEnCoursDialog({
             </>
           )}
 
+          {/* Abonnement partenaire */}
+          {!transaction.numero_ligne && (
+            <div className="space-y-2">
+              <Label>Abonnement partenaire</Label>
+              <Select 
+                value={selectedAbonnementId || "none"} 
+                onValueChange={(v) => setSelectedAbonnementId(v === "none" ? null : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un abonnement (optionnel)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucun</SelectItem>
+                  {abonnements.map((abo) => (
+                    <SelectItem key={abo.id} value={abo.id}>
+                      {abo.nom} - {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(abo.montant_mensuel || 0)}/mois
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Déclaration de charges sociales */}
+          {!transaction.numero_ligne && (
+            <div className="space-y-2">
+              <Label>Déclaration de charges sociales</Label>
+              <Select 
+                value={selectedDeclarationId || "none"} 
+                onValueChange={(v) => setSelectedDeclarationId(v === "none" ? null : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une déclaration (optionnel)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucune</SelectItem>
+                  {declarations.map((decl) => (
+                    <SelectItem key={decl.id} value={decl.id}>
+                      {decl.nom} ({decl.organisme}) - {decl.periodicite}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Notes */}
           <div className="space-y-2">
-            <Label>Notes</Label>
+            <Label>Notes (optionnel)</Label>
             <Textarea
-              placeholder="Ajouter des notes..."
+              placeholder="Ajouter des notes sur ce rapprochement..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}

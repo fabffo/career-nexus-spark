@@ -3322,6 +3322,38 @@ export default function RapprochementBancaire() {
             }));
           }
         }}
+        onAbonnementSelect={(abonnementId) => {
+          if (selectedEnCoursRapprochement) {
+            setRapprochements(prev => prev.map(r => {
+              const key = getTransactionKey(r.transaction);
+              const selectedKey = getTransactionKey(selectedEnCoursRapprochement.transaction);
+              if (key === selectedKey) {
+                return { 
+                  ...r, 
+                  abonnement_info: abonnementId ? { id: abonnementId, nom: "" } : undefined,
+                  status: abonnementId ? "matched" as const : r.status,
+                };
+              }
+              return r;
+            }));
+          }
+        }}
+        onDeclarationSelect={(declarationId) => {
+          if (selectedEnCoursRapprochement) {
+            setRapprochements(prev => prev.map(r => {
+              const key = getTransactionKey(r.transaction);
+              const selectedKey = getTransactionKey(selectedEnCoursRapprochement.transaction);
+              if (key === selectedKey) {
+                return { 
+                  ...r, 
+                  declaration_info: declarationId ? { id: declarationId, nom: "", organisme: "" } : undefined,
+                  status: declarationId ? "matched" as const : r.status,
+                };
+              }
+              return r;
+            }));
+          }
+        }}
       />
     </div>
   );
