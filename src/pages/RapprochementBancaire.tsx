@@ -2482,22 +2482,22 @@ export default function RapprochementBancaire() {
                   className="w-full overflow-x-auto overflow-y-auto" 
                   ref={scrollRef} 
                   onScroll={handleScroll}
-                  style={{ maxHeight: '600px' }}
+                  style={{ maxHeight: 'calc(100vh - 520px)', minHeight: '600px' }}
                 >
-                  <table className="w-full border-collapse" style={{ minWidth: '2200px' }}>
+                  <table className="w-full border-collapse" style={{ minWidth: '2600px' }}>
                     <thead className="bg-muted sticky top-0 z-10">
                       <tr className="border-b">
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '80px' }}>Statut</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '180px' }}>N° Ligne</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '140px' }}>Date</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '350px' }}>Libellé</th>
-                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '140px' }}>Débit</th>
-                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '140px' }}>Crédit</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '200px' }}>Facture</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '200px' }}>Partenaire</th>
-                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '180px' }}>Montant Facture</th>
-                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '120px' }}>Score</th>
-                        <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px' }}>Action</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '100px' }}>Statut</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '200px' }}>N° Ligne</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px' }}>Date</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '450px' }}>Libellé</th>
+                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px' }}>Débit</th>
+                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px' }}>Crédit</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '250px' }}>Facture</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '300px' }}>Partenaire</th>
+                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '200px' }}>Montant Facture</th>
+                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '130px' }}>Score</th>
+                        <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '180px' }}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2765,36 +2765,36 @@ export default function RapprochementBancaire() {
                                 </Button>
                               </div>
                             </div>
-                            <div className="rounded-md border overflow-auto max-h-[500px]">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead>Statut</TableHead>
-                                    <TableHead>N° Ligne</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Libellé</TableHead>
-                                    <TableHead className="text-right">Débit</TableHead>
-                                    <TableHead className="text-right">Crédit</TableHead>
-                                    <TableHead>Facture</TableHead>
-                                    <TableHead>Partenaire</TableHead>
-                                    <TableHead className="text-right">Score</TableHead>
-                                    <TableHead className="text-center">Actions</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
+                            <div className="rounded-md border overflow-auto" style={{ maxHeight: 'calc(100vh - 520px)', minHeight: '600px' }}>
+                              <table className="w-full border-collapse" style={{ minWidth: '2200px' }}>
+                                <thead className="bg-muted sticky top-0 z-10">
+                                  <tr className="border-b">
+                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '100px' }}>Statut</th>
+                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '200px' }}>N° Ligne</th>
+                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px' }}>Date</th>
+                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '400px' }}>Libellé</th>
+                                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px' }}>Débit</th>
+                                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px' }}>Crédit</th>
+                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '220px' }}>Facture</th>
+                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '280px' }}>Partenaire</th>
+                                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '130px' }}>Score</th>
+                                    <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px' }}>Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
                                    {fichier.fichier_data.rapprochements
                                     .filter(r => statusFilter === "all" || r.status === statusFilter)
                                     .map((rapprochement, index) => (
-                                      <TableRow 
+                                      <tr 
                                         key={index}
-                                        className="cursor-pointer hover:bg-muted/50"
+                                        className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
                                         onClick={() => {
                                           setSelectedHistoriqueRapprochement(rapprochement);
                                           setSelectedHistoriqueFichierId(fichier.id);
                                           setEditHistoriqueDialogOpen(true);
                                         }}
                                       >
-                                        <TableCell>
+                                        <td className="p-4 align-middle">
                                           <div
                                             onClick={(e) => {
                                               e.stopPropagation();
@@ -2813,35 +2813,35 @@ export default function RapprochementBancaire() {
                                             {rapprochement.status === "uncertain" && <AlertCircle className="h-5 w-5 text-orange-600" />}
                                             {rapprochement.status === "unmatched" && <XCircle className="h-5 w-5 text-red-600" />}
                                           </div>
-                                        </TableCell>
-                                        <TableCell>
+                                        </td>
+                                        <td className="p-4 align-middle">
                                           <Badge variant="outline" className="font-mono text-xs">
                                             {rapprochement.numero_ligne || rapprochement.transaction.numero_ligne || "N/A"}
                                           </Badge>
-                                        </TableCell>
-                                        <TableCell>
+                                        </td>
+                                        <td className="p-4 align-middle">
                                           {format(new Date(rapprochement.transaction.date), "dd/MM/yyyy")}
-                                        </TableCell>
-                                        <TableCell className="max-w-xs truncate">
+                                        </td>
+                                        <td className="p-4 align-middle max-w-md truncate" title={rapprochement.transaction.libelle}>
                                           {rapprochement.transaction.libelle}
-                                        </TableCell>
-                                        <TableCell className="text-right text-red-600">
+                                        </td>
+                                        <td className="p-4 align-middle text-right text-red-600">
                                           {rapprochement.transaction.debit > 0
                                             ? new Intl.NumberFormat("fr-FR", {
                                                 style: "currency",
                                                 currency: "EUR",
                                               }).format(rapprochement.transaction.debit)
                                             : ""}
-                                        </TableCell>
-                                        <TableCell className="text-right text-green-600">
+                                        </td>
+                                        <td className="p-4 align-middle text-right text-green-600">
                                           {rapprochement.transaction.credit > 0
                                             ? new Intl.NumberFormat("fr-FR", {
                                                 style: "currency",
                                                 currency: "EUR",
                                               }).format(rapprochement.transaction.credit)
                                             : ""}
-                                        </TableCell>
-                                        <TableCell>
+                                        </td>
+                                        <td className="p-4 align-middle">
                                           {rapprochement.facture ? (
                                             <div className="flex flex-col">
                                               <span className="font-medium">
@@ -2856,14 +2856,14 @@ export default function RapprochementBancaire() {
                                           ) : (
                                             "-"
                                           )}
-                                        </TableCell>
-                                        <TableCell>
+                                        </td>
+                                        <td className="p-4 align-middle">
                                           {rapprochement.facture?.partenaire_nom || 
                                            rapprochement.abonnement_info?.nom || 
                                            (rapprochement.declaration_info ? `${rapprochement.declaration_info.nom} (${rapprochement.declaration_info.organisme})` : "") ||
                                            "-"}
-                                        </TableCell>
-                                        <TableCell className="text-right">
+                                        </td>
+                                        <td className="p-4 align-middle text-right">
                                           {rapprochement.isManual ? (
                                             <Badge variant="outline" className="border-blue-600 text-blue-600">
                                               100% (Manuel)
@@ -2882,8 +2882,8 @@ export default function RapprochementBancaire() {
                                               {rapprochement.score}%
                                             </Badge>
                                           )}
-                                        </TableCell>
-                                        <TableCell className="text-center">
+                                        </td>
+                                        <td className="p-4 align-middle text-center">
                                           <div className="flex items-center justify-center gap-1">
                                             <Button
                                               variant="ghost"
@@ -2911,11 +2911,11 @@ export default function RapprochementBancaire() {
                                               <Trash2 className="h-4 w-4" />
                                             </Button>
                                           </div>
-                                        </TableCell>
-                                      </TableRow>
+                                        </td>
+                                      </tr>
                                     ))}
-                                </TableBody>
-                              </Table>
+                                </tbody>
+                              </table>
                             </div>
                           </div>
                         )}
