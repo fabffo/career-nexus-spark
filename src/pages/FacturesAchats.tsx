@@ -93,6 +93,7 @@ export default function FacturesAchats() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [globalFilter, setGlobalFilter] = useState("");
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [selectedTypeFournisseur, setSelectedTypeFournisseur] = useState<string>("all");
@@ -683,6 +684,7 @@ export default function FacturesAchats() {
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -700,6 +702,7 @@ export default function FacturesAchats() {
       columnFilters,
       columnVisibility,
       globalFilter,
+      pagination,
     },
   });
 
