@@ -54,6 +54,7 @@ interface EditRapprochementEnCoursDialogProps {
   onNotesChange: (notes: string) => void;
   onAbonnementSelect?: (abonnementId: string | null) => void;
   onDeclarationSelect?: (declarationId: string | null) => void;
+  isHistorique?: boolean; // Pour distinguer les transactions validées de celles en cours
 }
 
 export default function EditRapprochementEnCoursDialog({
@@ -66,6 +67,7 @@ export default function EditRapprochementEnCoursDialog({
   onNotesChange,
   onAbonnementSelect,
   onDeclarationSelect,
+  isHistorique = false,
 }: EditRapprochementEnCoursDialogProps) {
   const [status, setStatus] = useState<"matched" | "unmatched" | "uncertain">("unmatched");
   const [selectedFactureIds, setSelectedFactureIds] = useState<string[]>([]);
@@ -102,16 +104,30 @@ export default function EditRapprochementEnCoursDialog({
     if (rapprochement && open) {
       setStatus(rapprochement.status);
       setNotes(rapprochement.notes || "");
-      if (rapprochement.facture) {
-        setSelectedFactureIds([rapprochement.facture.id]);
-      }
       
-      // Charger les factures associées si la transaction a un numero_ligne
-      if (rapprochement.transaction.numero_ligne) {
-        loadAssociatedFactures(rapprochement.transaction.numero_ligne);
+      // Pour les transactions en cours, utiliser les données du prop
+      if (!isHistorique) {
+        if (rapprochement.facture) {
+          setSelectedFactureIds([rapprochement.facture.id]);
+        } else if ((rapprochement as any).factureIds) {
+          setSelectedFactureIds((rapprochement as any).factureIds);
+        }
+        
+        if ((rapprochement as any).abonnement_info) {
+          setSelectedAbonnementId((rapprochement as any).abonnement_info.id);
+        }
+        
+        if ((rapprochement as any).declaration_info) {
+          setSelectedDeclarationId((rapprochement as any).declaration_info.id);
+        }
+      } else {
+        // Pour l'historique, charger depuis la DB si numero_ligne existe
+        if (rapprochement.transaction.numero_ligne) {
+          loadAssociatedFactures(rapprochement.transaction.numero_ligne);
+        }
       }
     }
-  }, [rapprochement, open]);
+  }, [rapprochement, open, isHistorique]);
 
   const loadAbonnements = async () => {
     try {
@@ -311,7 +327,7 @@ export default function EditRapprochementEnCoursDialog({
           {/* Statut */}
           <div className="space-y-2">
             <Label>Statut du rapprochement</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as any)} disabled={transaction.numero_ligne !== undefined}>
+            <Select value={status} onValueChange={(v) => setStatus(v as any)} disabled={isHistorique}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -338,8 +354,8 @@ export default function EditRapprochementEnCoursDialog({
             </Select>
           </div>
 
-          {/* Afficher les données associées pour les transactions déjà validées */}
-          {transaction.numero_ligne && (
+          {/* Afficher les données associées pour les transactions validées (historique) */}
+          {isHistorique && transaction.numero_ligne && (
             loadingAssociated ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -418,8 +434,8 @@ export default function EditRapprochementEnCoursDialog({
             )
           )}
 
-          {/* Ne pas afficher la sélection de factures si la transaction est déjà rapprochée */}
-          {!transaction.numero_ligne && (
+          {/* Afficher la sélection pour les transactions en cours */}
+          {!isHistorique && (
             <>
               {/* Factures sélectionnées */}
               {selectedFactures.length > 0 && (
@@ -535,7 +551,7 @@ export default function EditRapprochementEnCoursDialog({
           )}
 
           {/* Abonnement partenaire */}
-          {!transaction.numero_ligne && (
+          {!isHistorique && (
             <div className="space-y-2">
               <Label>Abonnement partenaire</Label>
               <Select 
@@ -558,7 +574,7 @@ export default function EditRapprochementEnCoursDialog({
           )}
 
           {/* Déclaration de charges sociales */}
-          {!transaction.numero_ligne && (
+          {!isHistorique && (
             <div className="space-y-2">
               <Label>Déclaration de charges sociales</Label>
               <Select 
@@ -588,16 +604,16 @@ export default function EditRapprochementEnCoursDialog({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
-              disabled={transaction.numero_ligne !== undefined}
+              disabled={isHistorique}
             />
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {transaction.numero_ligne ? "Fermer" : "Annuler"}
+            {isHistorique ? "Fermer" : "Annuler"}
           </Button>
-          {!transaction.numero_ligne && (
+          {!isHistorique && (
             <Button onClick={handleSave}>
               Enregistrer
             </Button>

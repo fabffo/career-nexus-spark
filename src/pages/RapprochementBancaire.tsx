@@ -3255,6 +3255,7 @@ export default function RapprochementBancaire() {
         onOpenChange={setEditEnCoursDialogOpen}
         rapprochement={selectedEnCoursRapprochement}
         factures={factures}
+        isHistorique={false}
         onStatusChange={(newStatus) => {
           if (selectedEnCoursRapprochement) {
             const key = getTransactionKey(selectedEnCoursRapprochement.transaction);
