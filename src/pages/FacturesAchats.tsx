@@ -690,6 +690,7 @@ export default function FacturesAchats() {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
+    autoResetPageIndex: false,
     globalFilterFn: (row, columnId, filterValue) => {
       const search = filterValue.toLowerCase();
       return (
