@@ -2484,20 +2484,20 @@ export default function RapprochementBancaire() {
                   onScroll={handleScroll}
                   style={{ maxHeight: 'calc(100vh - 520px)', minHeight: '600px' }}
                 >
-                  <table className="w-full border-collapse" style={{ minWidth: '2600px' }}>
+                  <table className="w-full border-collapse" style={{ minWidth: '3200px' }}>
                     <thead className="bg-muted sticky top-0 z-10">
                       <tr className="border-b">
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '100px' }}>Statut</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '200px' }}>N° Ligne</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px' }}>Date</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '450px' }}>Libellé</th>
-                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px' }}>Débit</th>
-                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px' }}>Crédit</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '250px' }}>Facture</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '300px' }}>Partenaire</th>
-                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '200px' }}>Montant Facture</th>
-                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '130px' }}>Score</th>
-                        <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '180px' }}>Action</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '100px', width: '100px' }}>Statut</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '220px', width: '220px' }}>N° Ligne</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '120px', width: '120px' }}>Date</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '500px', width: '500px' }}>Libellé</th>
+                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px', width: '150px' }}>Débit</th>
+                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px', width: '150px' }}>Crédit</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '250px', width: '250px' }}>Facture</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '300px', width: '300px' }}>Partenaire</th>
+                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '200px', width: '200px' }}>Montant Facture</th>
+                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '140px', width: '140px' }}>Score</th>
+                        <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '170px', width: '170px' }}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2766,19 +2766,19 @@ export default function RapprochementBancaire() {
                               </div>
                             </div>
                             <div className="rounded-md border overflow-auto" style={{ maxHeight: 'calc(100vh - 520px)', minHeight: '600px' }}>
-                              <table className="w-full border-collapse" style={{ minWidth: '2200px' }}>
+                              <table className="w-full border-collapse" style={{ minWidth: '3000px' }}>
                                 <thead className="bg-muted sticky top-0 z-10">
                                   <tr className="border-b">
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '100px' }}>Statut</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '200px' }}>N° Ligne</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px' }}>Date</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '400px' }}>Libellé</th>
-                                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px' }}>Débit</th>
-                                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px' }}>Crédit</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '220px' }}>Facture</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '280px' }}>Partenaire</th>
-                                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '130px' }}>Score</th>
-                                    <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px' }}>Actions</th>
+                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '100px', width: '100px' }}>Statut</th>
+                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '220px', width: '220px' }}>N° Ligne</th>
+                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '120px', width: '120px' }}>Date</th>
+                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '450px', width: '450px' }}>Libellé</th>
+                                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px', width: '150px' }}>Débit</th>
+                                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px', width: '150px' }}>Crédit</th>
+                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '250px', width: '250px' }}>Facture</th>
+                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '300px', width: '300px' }}>Partenaire</th>
+                                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '140px', width: '140px' }}>Score</th>
+                                    <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '120px', width: '120px' }}>Actions</th>
                                   </tr>
                                 </thead>
                                 <tbody>
