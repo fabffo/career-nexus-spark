@@ -146,14 +146,44 @@ export default function EditRapprochementEnCoursDialog({
   const loadAssociatedFactures = async (numeroLigne: string) => {
     setLoadingAssociated(true);
     try {
-      // 1. Chercher le rapprochement bancaire
+      // 1. Chercher le rapprochement bancaire avec ses relations
       const { data: rapprochementData, error: rapprochementError } = await supabase
         .from('rapprochements_bancaires')
-        .select('id')
+        .select(`
+          id,
+          abonnement_id,
+          declaration_charge_id,
+          abonnements_partenaires (
+            id,
+            nom,
+            montant_mensuel
+          ),
+          declarations_charges_sociales (
+            id,
+            nom,
+            organisme,
+            periodicite
+          )
+        `)
         .eq('numero_ligne', numeroLigne)
-        .single();
+        .maybeSingle();
 
       if (rapprochementError) throw rapprochementError;
+      
+      if (!rapprochementData) {
+        setAssociatedFactures([]);
+        return;
+      }
+
+      // Charger l'abonnement associé si présent
+      if (rapprochementData.abonnement_id && rapprochementData.abonnements_partenaires) {
+        setSelectedAbonnementId(rapprochementData.abonnement_id);
+      }
+
+      // Charger la déclaration associée si présente
+      if (rapprochementData.declaration_charge_id && rapprochementData.declarations_charges_sociales) {
+        setSelectedDeclarationId(rapprochementData.declaration_charge_id);
+      }
 
       // 2. Chercher toutes les factures liées via rapprochements_factures
       const { data: liaisonsFactures, error: liaisonsError } = await supabase
@@ -308,46 +338,84 @@ export default function EditRapprochementEnCoursDialog({
             </Select>
           </div>
 
-          {/* Afficher les factures déjà associées (depuis la base de données) */}
+          {/* Afficher les données associées pour les transactions déjà validées */}
           {transaction.numero_ligne && (
             loadingAssociated ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : associatedFactures.length > 0 ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Facture(s) associée(s)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {associatedFactures.map((facture) => (
-                      <div key={facture.id} className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{facture.numero_facture}</span>
-                            <Badge variant={facture.type_facture === "VENTES" ? "default" : "secondary"}>
-                              {facture.type_facture}
-                            </Badge>
+            ) : (
+              <div className="space-y-4">
+                {/* Factures associées */}
+                {associatedFactures.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">Facture(s) associée(s)</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {associatedFactures.map((facture) => (
+                          <div key={facture.id} className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{facture.numero_facture}</span>
+                                <Badge variant={facture.type_facture === "VENTES" ? "default" : "secondary"}>
+                                  {facture.type_facture}
+                                </Badge>
+                              </div>
+                              <div className="text-sm text-muted-foreground mt-1">
+                                {facture.type_facture === "VENTES" ? facture.destinataire_nom : facture.emetteur_nom} • {format(new Date(facture.date_emission), "dd/MM/yyyy")} • {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(facture.total_ttc)}
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-sm text-muted-foreground mt-1">
-                            {facture.type_facture === "VENTES" ? facture.destinataire_nom : facture.emetteur_nom} • {format(new Date(facture.date_emission), "dd/MM/yyyy")} • {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(facture.total_ttc)}
-                          </div>
+                        ))}
+                        <div className="flex items-center justify-between p-2 bg-muted rounded">
+                          <span className="font-medium">Total factures :</span>
+                          <span className="font-bold">
+                            {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
+                              associatedFactures.reduce((sum, f) => sum + f.total_ttc, 0)
+                            )}
+                          </span>
                         </div>
                       </div>
-                    ))}
-                    <div className="flex items-center justify-between p-2 bg-muted rounded">
-                      <span className="font-medium">Total factures :</span>
-                      <span className="font-bold">
-                        {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
-                          associatedFactures.reduce((sum, f) => sum + f.total_ttc, 0)
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : null
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Abonnement associé */}
+                {selectedAbonnementId && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">Abonnement partenaire</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                        {abonnements.find(a => a.id === selectedAbonnementId)?.nom || "Abonnement"}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Déclaration associée */}
+                {selectedDeclarationId && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">Déclaration de charges sociales</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                        <div className="font-medium">
+                          {declarations.find(d => d.id === selectedDeclarationId)?.nom || "Déclaration"}
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          {declarations.find(d => d.id === selectedDeclarationId)?.organisme || ""} • {declarations.find(d => d.id === selectedDeclarationId)?.periodicite || ""}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )
           )}
 
           {/* Ne pas afficher la sélection de factures si la transaction est déjà rapprochée */}
