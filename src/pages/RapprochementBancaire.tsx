@@ -2484,20 +2484,20 @@ export default function RapprochementBancaire() {
                   onScroll={handleScroll}
                   style={{ maxHeight: 'calc(100vh - 520px)', minHeight: '600px' }}
                 >
-                  <table className="w-full border-collapse" style={{ minWidth: '3200px' }}>
+                  <table className="w-full border-collapse">
                     <thead className="bg-muted sticky top-0 z-10">
                       <tr className="border-b">
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '100px', width: '100px' }}>Statut</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '220px', width: '220px' }}>N° Ligne</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '120px', width: '120px' }}>Date</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '500px', width: '500px' }}>Libellé</th>
-                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px', width: '150px' }}>Débit</th>
-                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px', width: '150px' }}>Crédit</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '250px', width: '250px' }}>Facture</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '300px', width: '300px' }}>Partenaire</th>
-                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '200px', width: '200px' }}>Montant Facture</th>
-                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '140px', width: '140px' }}>Score</th>
-                        <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '170px', width: '170px' }}>Action</th>
+                        <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '60px' }}>Statut</th>
+                        <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '140px' }}>N° Ligne</th>
+                        <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '90px' }}>Date</th>
+                        <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '22%' }}>Libellé</th>
+                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '110px' }}>Débit</th>
+                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '110px' }}>Crédit</th>
+                        <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '13%' }}>Facture</th>
+                        <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '15%' }}>Partenaire</th>
+                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '110px' }}>Mnt Fact.</th>
+                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Score</th>
+                        <th className="h-12 px-2 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ width: '140px' }}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2510,154 +2510,154 @@ export default function RapprochementBancaire() {
                            setEditEnCoursDialogOpen(true);
                          }}
                        >
-                        <td className="p-4 align-middle">
-                          <div className="flex items-center gap-2">
-                            <div
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const nextStatus = rapprochement.status === "matched" ? "uncertain" : rapprochement.status === "uncertain" ? "unmatched" : "matched";
-                                handleStatusChange(
-                                  getTransactionKey(rapprochement.transaction),
-                                  nextStatus
-                                );
-                              }}
-                              className="cursor-pointer hover:scale-110 transition-transform"
-                              title={rapprochement.status === "matched" ? "Rapproché" : rapprochement.status === "uncertain" ? "Incertain" : "Non rapproché"}
-                            >
-                              {rapprochement.status === "matched" && <CheckCircle className="h-5 w-5 text-green-600" />}
-                              {rapprochement.status === "uncertain" && <AlertCircle className="h-5 w-5 text-orange-600" />}
-                              {rapprochement.status === "unmatched" && <XCircle className="h-5 w-5 text-red-600" />}
-                            </div>
-                            {rapprochement.isManual && (
-                              <div title="Rapprochement manuel">
-                                <LinkIcon className="h-3 w-3 text-blue-600" />
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-4 align-middle">
-                          <Badge variant="outline" className="font-mono text-xs">
-                            {rapprochement.numero_ligne || rapprochement.transaction.numero_ligne || "N/A"}
-                          </Badge>
-                        </td>
-                       <td className="p-4 align-middle">
-                         {format(new Date(rapprochement.transaction.date), "dd/MM/yyyy")}
-                       </td>
-                       <td className="p-4 align-middle max-w-xs truncate" title={rapprochement.transaction.libelle}>
-                         {rapprochement.transaction.libelle}
-                       </td>
-                       <td className="p-4 align-middle text-right text-red-600">
-                         {rapprochement.transaction.debit > 0
-                           ? new Intl.NumberFormat("fr-FR", {
-                               style: "currency",
-                               currency: "EUR",
-                             }).format(rapprochement.transaction.debit)
-                           : ""}
-                       </td>
-                       <td className="p-4 align-middle text-right text-green-600">
-                         {rapprochement.transaction.credit > 0
-                           ? new Intl.NumberFormat("fr-FR", {
-                               style: "currency",
-                               currency: "EUR",
-                             }).format(rapprochement.transaction.credit)
-                           : ""}
-                       </td>
-                       <td className="p-4 align-middle">
-                         {rapprochement.facture ? (
-                           <div className="flex flex-col">
-                             <span className="font-medium">{rapprochement.facture.numero_facture}</span>
-                             <span className="text-xs text-muted-foreground">
-                               {rapprochement.facture.type_facture}
-                             </span>
+                         <td className="p-2 align-middle">
+                           <div className="flex items-center gap-2">
+                             <div
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 const nextStatus = rapprochement.status === "matched" ? "uncertain" : rapprochement.status === "uncertain" ? "unmatched" : "matched";
+                                 handleStatusChange(
+                                   getTransactionKey(rapprochement.transaction),
+                                   nextStatus
+                                 );
+                               }}
+                               className="cursor-pointer hover:scale-110 transition-transform"
+                               title={rapprochement.status === "matched" ? "Rapproché" : rapprochement.status === "uncertain" ? "Incertain" : "Non rapproché"}
+                             >
+                               {rapprochement.status === "matched" && <CheckCircle className="h-5 w-5 text-green-600" />}
+                               {rapprochement.status === "uncertain" && <AlertCircle className="h-5 w-5 text-orange-600" />}
+                               {rapprochement.status === "unmatched" && <XCircle className="h-5 w-5 text-red-600" />}
+                             </div>
+                             {rapprochement.isManual && (
+                               <div title="Rapprochement manuel">
+                                 <LinkIcon className="h-3 w-3 text-blue-600" />
+                               </div>
+                             )}
                            </div>
-                         ) : rapprochement.factureIds && rapprochement.factureIds.length > 0 ? (
-                           <Badge variant="outline">{rapprochement.factureIds.length} factures</Badge>
-                         ) : (
-                           <span className="text-muted-foreground">-</span>
-                         )}
-                       </td>
-                        <td className="p-4 align-middle">
-                          {rapprochement.facture?.partenaire_nom || 
-                           rapprochement.abonnement_info?.nom || 
-                           (rapprochement.declaration_info ? `${rapprochement.declaration_info.nom} (${rapprochement.declaration_info.organisme})` : "") ||
-                           "-"}
+                         </td>
+                         <td className="p-2 align-middle">
+                           <Badge variant="outline" className="font-mono text-xs">
+                             {rapprochement.numero_ligne || rapprochement.transaction.numero_ligne || "N/A"}
+                           </Badge>
+                         </td>
+                        <td className="p-2 align-middle text-xs">
+                          {format(new Date(rapprochement.transaction.date), "dd/MM/yyyy")}
                         </td>
-                       <td className="p-4 align-middle text-right">
-                         {rapprochement.facture
-                           ? new Intl.NumberFormat("fr-FR", {
-                               style: "currency",
-                               currency: "EUR",
-                             }).format(rapprochement.facture.total_ttc)
-                           : "-"}
-                       </td>
-                       <td className="p-4 align-middle text-right">
-                         {rapprochement.isManual ? (
-                           <Badge variant="outline" className="border-blue-600 text-blue-600">
-                             100% (Manuel)
-                           </Badge>
-                         ) : (
-                           <Badge
-                             variant="outline"
-                             className={
-                               rapprochement.score >= 70
-                                 ? "border-green-600 text-green-600"
-                                 : rapprochement.score >= 40
-                                 ? "border-orange-600 text-orange-600"
-                                 : "border-red-600 text-red-600"
-                             }
-                           >
-                             {rapprochement.score}%
-                           </Badge>
-                         )}
-                       </td>
-                       <td className="p-4 align-middle text-center">
-                          <div className="flex items-center gap-2 justify-center" onClick={(e) => e.stopPropagation()}>
-                            <Button
+                        <td className="p-2 align-middle truncate max-w-0 text-sm" title={rapprochement.transaction.libelle}>
+                          {rapprochement.transaction.libelle}
+                        </td>
+                        <td className="p-2 align-middle text-right text-red-600 text-sm">
+                          {rapprochement.transaction.debit > 0
+                            ? new Intl.NumberFormat("fr-FR", {
+                                style: "currency",
+                                currency: "EUR",
+                              }).format(rapprochement.transaction.debit)
+                            : ""}
+                        </td>
+                        <td className="p-2 align-middle text-right text-green-600 text-sm">
+                          {rapprochement.transaction.credit > 0
+                            ? new Intl.NumberFormat("fr-FR", {
+                                style: "currency",
+                                currency: "EUR",
+                              }).format(rapprochement.transaction.credit)
+                            : ""}
+                        </td>
+                        <td className="p-2 align-middle truncate max-w-0">
+                          {rapprochement.facture ? (
+                            <div className="flex flex-col">
+                              <span className="font-medium text-sm truncate">{rapprochement.facture.numero_facture}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {rapprochement.facture.type_facture}
+                              </span>
+                            </div>
+                          ) : rapprochement.factureIds && rapprochement.factureIds.length > 0 ? (
+                            <Badge variant="outline" className="text-xs">{rapprochement.factureIds.length} fact.</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </td>
+                         <td className="p-2 align-middle truncate max-w-0 text-sm" title={rapprochement.facture?.partenaire_nom || rapprochement.abonnement_info?.nom || ""}>
+                           {rapprochement.facture?.partenaire_nom || 
+                            rapprochement.abonnement_info?.nom || 
+                            (rapprochement.declaration_info ? `${rapprochement.declaration_info.nom}` : "") ||
+                            "-"}
+                         </td>
+                        <td className="p-2 align-middle text-right text-sm">
+                          {rapprochement.facture
+                            ? new Intl.NumberFormat("fr-FR", {
+                                style: "currency",
+                                currency: "EUR",
+                              }).format(rapprochement.facture.total_ttc)
+                            : "-"}
+                        </td>
+                        <td className="p-2 align-middle text-right">
+                          {rapprochement.isManual ? (
+                            <Badge variant="outline" className="border-blue-600 text-blue-600 text-xs">
+                              100%
+                            </Badge>
+                          ) : (
+                            <Badge
                               variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleManualRapprochement(rapprochement.transaction);
-                              }}
-                              className="gap-2"
+                              className={`text-xs ${
+                                rapprochement.score >= 70
+                                  ? "border-green-600 text-green-600"
+                                  : rapprochement.score >= 40
+                                  ? "border-orange-600 text-orange-600"
+                                  : "border-red-600 text-red-600"
+                              }`}
                             >
-                              <LinkIcon className="h-4 w-4" />
-                              {rapprochement.isManual ? "Modifier" : "Rapprocher"}
-                            </Button>
-                            {(rapprochement.facture || rapprochement.factureIds || rapprochement.abonnement_info || rapprochement.declaration_info) && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Réinitialiser le rapprochement localement
-                                  setRapprochements(prev => prev.map(r => {
-                                    if (r.transaction.date === rapprochement.transaction.date &&
-                                        r.transaction.libelle === rapprochement.transaction.libelle &&
-                                        r.transaction.montant === rapprochement.transaction.montant) {
-                                      return {
-                                        ...r,
-                                        facture: null,
-                                        factureIds: undefined,
-                                        abonnement_info: undefined,
-                                        declaration_info: undefined,
-                                        status: "unmatched" as const,
-                                        score: 0,
-                                        isManual: false,
-                                        notes: null
-                                      };
-                                    }
-                                    return r;
+                              {rapprochement.score}%
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="p-2 align-middle text-center">
+                           <div className="flex items-center gap-1 justify-center" onClick={(e) => e.stopPropagation()}>
+                             <Button
+                               variant="outline"
+                               size="sm"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 handleManualRapprochement(rapprochement.transaction);
+                               }}
+                               className="gap-1 text-xs h-7 px-2"
+                             >
+                               <LinkIcon className="h-3 w-3" />
+                               {rapprochement.isManual ? "Mod." : "Rapp."}
+                             </Button>
+                             {(rapprochement.facture || rapprochement.factureIds || rapprochement.abonnement_info || rapprochement.declaration_info) && (
+                               <Button
+                                 variant="ghost"
+                                 size="sm"
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   // Réinitialiser le rapprochement localement
+                                   setRapprochements(prev => prev.map(r => {
+                                     if (r.transaction.date === rapprochement.transaction.date &&
+                                         r.transaction.libelle === rapprochement.transaction.libelle &&
+                                         r.transaction.montant === rapprochement.transaction.montant) {
+                                       return {
+                                         ...r,
+                                         facture: null,
+                                         factureIds: undefined,
+                                         abonnement_info: undefined,
+                                         declaration_info: undefined,
+                                         status: "unmatched" as const,
+                                         score: 0,
+                                         isManual: false,
+                                         notes: null
+                                       };
+                                     }
+                                     return r;
                                   }));
                                   toast({
                                     title: "Ligne dé-rapprochée",
                                     description: "La transaction a été dé-rapprochée localement",
                                   });
                                 }}
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                title="Dé-rapprocher"
-                              >
-                                <Trash2 className="h-4 w-4" />
+                                 className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7"
+                                 title="Dé-rapprocher"
+                               >
+                                 <Trash2 className="h-3 w-3" />
                               </Button>
                             )}
                           </div>
@@ -2766,19 +2766,19 @@ export default function RapprochementBancaire() {
                               </div>
                             </div>
                             <div className="rounded-md border overflow-auto" style={{ maxHeight: 'calc(100vh - 520px)', minHeight: '600px' }}>
-                              <table className="w-full border-collapse" style={{ minWidth: '3000px' }}>
+                              <table className="w-full border-collapse">
                                 <thead className="bg-muted sticky top-0 z-10">
                                   <tr className="border-b">
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '100px', width: '100px' }}>Statut</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '220px', width: '220px' }}>N° Ligne</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '120px', width: '120px' }}>Date</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '450px', width: '450px' }}>Libellé</th>
-                                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px', width: '150px' }}>Débit</th>
-                                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '150px', width: '150px' }}>Crédit</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '250px', width: '250px' }}>Facture</th>
-                                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '300px', width: '300px' }}>Partenaire</th>
-                                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '140px', width: '140px' }}>Score</th>
-                                    <th className="h-12 px-4 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ minWidth: '120px', width: '120px' }}>Actions</th>
+                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '60px' }}>Statut</th>
+                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '140px' }}>N° Ligne</th>
+                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '90px' }}>Date</th>
+                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '25%' }}>Libellé</th>
+                                    <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '110px' }}>Débit</th>
+                                    <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '110px' }}>Crédit</th>
+                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '13%' }}>Facture</th>
+                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '15%' }}>Partenaire</th>
+                                    <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Score</th>
+                                    <th className="h-12 px-2 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Actions</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -2794,124 +2794,125 @@ export default function RapprochementBancaire() {
                                           setEditHistoriqueDialogOpen(true);
                                         }}
                                       >
-                                        <td className="p-4 align-middle">
-                                          <div
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              const nextStatus = rapprochement.status === "matched" ? "uncertain" : rapprochement.status === "uncertain" ? "unmatched" : "matched";
-                                              const transactionKey = rapprochement.transaction.numero_ligne || `${rapprochement.transaction.date}-${rapprochement.transaction.libelle}-${rapprochement.transaction.montant}`;
-                                              handleHistoriqueStatusChange(
-                                                fichier.id,
-                                                transactionKey,
-                                                nextStatus
-                                              );
-                                            }}
-                                            className="cursor-pointer hover:scale-110 transition-transform inline-block"
-                                            title={rapprochement.status === "matched" ? "Rapproché" : rapprochement.status === "uncertain" ? "Incertain" : "Non rapproché"}
-                                          >
-                                            {rapprochement.status === "matched" && <CheckCircle className="h-5 w-5 text-green-600" />}
-                                            {rapprochement.status === "uncertain" && <AlertCircle className="h-5 w-5 text-orange-600" />}
-                                            {rapprochement.status === "unmatched" && <XCircle className="h-5 w-5 text-red-600" />}
-                                          </div>
-                                        </td>
-                                        <td className="p-4 align-middle">
-                                          <Badge variant="outline" className="font-mono text-xs">
-                                            {rapprochement.numero_ligne || rapprochement.transaction.numero_ligne || "N/A"}
-                                          </Badge>
-                                        </td>
-                                        <td className="p-4 align-middle">
-                                          {format(new Date(rapprochement.transaction.date), "dd/MM/yyyy")}
-                                        </td>
-                                        <td className="p-4 align-middle max-w-md truncate" title={rapprochement.transaction.libelle}>
-                                          {rapprochement.transaction.libelle}
-                                        </td>
-                                        <td className="p-4 align-middle text-right text-red-600">
-                                          {rapprochement.transaction.debit > 0
-                                            ? new Intl.NumberFormat("fr-FR", {
-                                                style: "currency",
-                                                currency: "EUR",
-                                              }).format(rapprochement.transaction.debit)
-                                            : ""}
-                                        </td>
-                                        <td className="p-4 align-middle text-right text-green-600">
-                                          {rapprochement.transaction.credit > 0
-                                            ? new Intl.NumberFormat("fr-FR", {
-                                                style: "currency",
-                                                currency: "EUR",
-                                              }).format(rapprochement.transaction.credit)
-                                            : ""}
-                                        </td>
-                                        <td className="p-4 align-middle">
-                                          {rapprochement.facture ? (
-                                            <div className="flex flex-col">
-                                              <span className="font-medium">
-                                                {rapprochement.facture.numero_facture}
-                                              </span>
-                                              <span className="text-xs text-muted-foreground">
-                                                {rapprochement.facture.type_facture}
-                                              </span>
-                                            </div>
-                                          ) : rapprochement.factureIds && rapprochement.factureIds.length > 0 ? (
-                                            <Badge variant="outline">{rapprochement.factureIds.length} factures</Badge>
-                                          ) : (
-                                            "-"
-                                          )}
-                                        </td>
-                                        <td className="p-4 align-middle">
-                                          {rapprochement.facture?.partenaire_nom || 
-                                           rapprochement.abonnement_info?.nom || 
-                                           (rapprochement.declaration_info ? `${rapprochement.declaration_info.nom} (${rapprochement.declaration_info.organisme})` : "") ||
-                                           "-"}
-                                        </td>
-                                        <td className="p-4 align-middle text-right">
-                                          {rapprochement.isManual ? (
-                                            <Badge variant="outline" className="border-blue-600 text-blue-600">
-                                              100% (Manuel)
-                                            </Badge>
-                                          ) : (
-                                            <Badge
-                                              variant="outline"
-                                              className={
-                                                rapprochement.score >= 70
-                                                  ? "border-green-600 text-green-600"
-                                                  : rapprochement.score >= 40
-                                                  ? "border-orange-600 text-orange-600"
-                                                  : "border-red-600 text-red-600"
-                                              }
-                                            >
-                                              {rapprochement.score}%
-                                            </Badge>
-                                          )}
-                                        </td>
-                                        <td className="p-4 align-middle text-center">
-                                          <div className="flex items-center justify-center gap-1">
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedHistoriqueRapprochement(rapprochement);
-                                                setSelectedHistoriqueFichierId(fichier.id);
-                                                setEditHistoriqueDialogOpen(true);
-                                              }}
-                                              title="Modifier"
-                                            >
-                                              <Pencil className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDeleteRapprochement(fichier.id, rapprochement);
-                                              }}
-                                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                              title="Dé-rapprocher"
-                                            >
-                                              <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                          </div>
-                                        </td>
+                                         <td className="p-2 align-middle">
+                                           <div
+                                             onClick={(e) => {
+                                               e.stopPropagation();
+                                               const nextStatus = rapprochement.status === "matched" ? "uncertain" : rapprochement.status === "uncertain" ? "unmatched" : "matched";
+                                               const transactionKey = rapprochement.transaction.numero_ligne || `${rapprochement.transaction.date}-${rapprochement.transaction.libelle}-${rapprochement.transaction.montant}`;
+                                               handleHistoriqueStatusChange(
+                                                 fichier.id,
+                                                 transactionKey,
+                                                 nextStatus
+                                               );
+                                             }}
+                                             className="cursor-pointer hover:scale-110 transition-transform inline-block"
+                                             title={rapprochement.status === "matched" ? "Rapproché" : rapprochement.status === "uncertain" ? "Incertain" : "Non rapproché"}
+                                           >
+                                             {rapprochement.status === "matched" && <CheckCircle className="h-5 w-5 text-green-600" />}
+                                             {rapprochement.status === "uncertain" && <AlertCircle className="h-5 w-5 text-orange-600" />}
+                                             {rapprochement.status === "unmatched" && <XCircle className="h-5 w-5 text-red-600" />}
+                                           </div>
+                                         </td>
+                                         <td className="p-2 align-middle">
+                                           <Badge variant="outline" className="font-mono text-xs">
+                                             {rapprochement.numero_ligne || rapprochement.transaction.numero_ligne || "N/A"}
+                                           </Badge>
+                                         </td>
+                                         <td className="p-2 align-middle text-xs">
+                                           {format(new Date(rapprochement.transaction.date), "dd/MM/yyyy")}
+                                         </td>
+                                         <td className="p-2 align-middle truncate max-w-0 text-sm" title={rapprochement.transaction.libelle}>
+                                           {rapprochement.transaction.libelle}
+                                         </td>
+                                         <td className="p-2 align-middle text-right text-red-600 text-sm">
+                                           {rapprochement.transaction.debit > 0
+                                             ? new Intl.NumberFormat("fr-FR", {
+                                                 style: "currency",
+                                                 currency: "EUR",
+                                               }).format(rapprochement.transaction.debit)
+                                             : ""}
+                                         </td>
+                                         <td className="p-2 align-middle text-right text-green-600 text-sm">
+                                           {rapprochement.transaction.credit > 0
+                                             ? new Intl.NumberFormat("fr-FR", {
+                                                 style: "currency",
+                                                 currency: "EUR",
+                                               }).format(rapprochement.transaction.credit)
+                                             : ""}
+                                         </td>
+                                         <td className="p-2 align-middle truncate max-w-0">
+                                           {rapprochement.facture ? (
+                                             <div className="flex flex-col">
+                                               <span className="font-medium text-sm truncate">
+                                                 {rapprochement.facture.numero_facture}
+                                               </span>
+                                               <span className="text-xs text-muted-foreground">
+                                                 {rapprochement.facture.type_facture}
+                                               </span>
+                                             </div>
+                                           ) : rapprochement.factureIds && rapprochement.factureIds.length > 0 ? (
+                                             <Badge variant="outline" className="text-xs">{rapprochement.factureIds.length} fact.</Badge>
+                                           ) : (
+                                             "-"
+                                           )}
+                                         </td>
+                                         <td className="p-2 align-middle truncate max-w-0 text-sm" title={rapprochement.facture?.partenaire_nom || ""}>
+                                           {rapprochement.facture?.partenaire_nom || 
+                                            rapprochement.abonnement_info?.nom || 
+                                            (rapprochement.declaration_info ? `${rapprochement.declaration_info.nom}` : "") ||
+                                            "-"}
+                                         </td>
+                                         <td className="p-2 align-middle text-right">
+                                           {rapprochement.isManual ? (
+                                             <Badge variant="outline" className="border-blue-600 text-blue-600 text-xs">
+                                               100%
+                                             </Badge>
+                                           ) : (
+                                             <Badge
+                                               variant="outline"
+                                               className={`text-xs ${
+                                                 rapprochement.score >= 70
+                                                   ? "border-green-600 text-green-600"
+                                                   : rapprochement.score >= 40
+                                                   ? "border-orange-600 text-orange-600"
+                                                   : "border-red-600 text-red-600"
+                                               }`}
+                                             >
+                                               {rapprochement.score}%
+                                             </Badge>
+                                           )}
+                                         </td>
+                                         <td className="p-2 align-middle text-center">
+                                           <div className="flex items-center justify-center gap-1">
+                                             <Button
+                                               variant="ghost"
+                                               size="sm"
+                                               onClick={(e) => {
+                                                 e.stopPropagation();
+                                                 setSelectedHistoriqueRapprochement(rapprochement);
+                                                 setSelectedHistoriqueFichierId(fichier.id);
+                                                 setEditHistoriqueDialogOpen(true);
+                                               }}
+                                               title="Modifier"
+                                               className="h-7 w-7 p-0"
+                                             >
+                                               <Pencil className="h-3 w-3" />
+                                             </Button>
+                                             <Button
+                                               variant="ghost"
+                                               size="sm"
+                                               onClick={(e) => {
+                                                 e.stopPropagation();
+                                                 handleDeleteRapprochement(fichier.id, rapprochement);
+                                               }}
+                                               className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7 p-0"
+                                               title="Dé-rapprocher"
+                                             >
+                                               <Trash2 className="h-3 w-3" />
+                                             </Button>
+                                           </div>
+                                         </td>
                                       </tr>
                                     ))}
                                 </tbody>
