@@ -73,6 +73,7 @@ export interface Facture {
   informations_paiement?: string;
   reference_societe?: string;
   statut: 'BROUILLON' | 'VALIDEE' | 'PAYEE' | 'ANNULEE';
+  activite?: string;
   created_at: string;
   updated_at: string;
   created_by?: string;
@@ -114,6 +115,8 @@ export default function FacturesVentes() {
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [selectedFactureIds, setSelectedFactureIds] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
+  const [selectedActivite, setSelectedActivite] = useState<string>("all");
+  const [typesMission, setTypesMission] = useState<Array<{ code: string; libelle: string }>>([]);
   const [stats, setStats] = useState({
     totalFactures: 0,
     totalHT: 0,
@@ -125,11 +128,22 @@ export default function FacturesVentes() {
 
   useEffect(() => {
     fetchFactures();
-  }, [selectedYear, selectedMonth]);
+  }, [selectedYear, selectedMonth, selectedActivite]);
 
   const fetchFactures = async () => {
     setLoading(true);
     try {
+      // Charger les types de mission pour le filtre
+      const { data: typesData } = await supabase
+        .from('param_type_mission')
+        .select('code, libelle')
+        .eq('is_active', true)
+        .order('ordre');
+      
+      if (typesData) {
+        setTypesMission(typesData);
+      }
+
       let query = supabase
         .from('factures')
         .select('*')
@@ -152,6 +166,11 @@ export default function FacturesVentes() {
           const endDate = `${yearNum}-12-31`;
           query = query.gte('date_emission', startDate).lte('date_emission', endDate);
         }
+      }
+
+      // Filtrer par activité si sélectionné
+      if (selectedActivite !== "all") {
+        query = query.eq('activite', selectedActivite);
       }
 
       const { data, error } = await query.order('date_emission', { ascending: false });
@@ -402,6 +421,19 @@ export default function FacturesVentes() {
       header: "Client",
     },
     {
+      accessorKey: "activite",
+      header: "Activité",
+      cell: ({ row }) => {
+        const activite = row.getValue("activite") as string;
+        const typeMission = typesMission.find(t => t.code === activite);
+        return (
+          <span className="text-sm">
+            {typeMission?.libelle || activite || '-'}
+          </span>
+        );
+      },
+    },
+    {
       accessorKey: "total_ht",
       header: "Total HT",
       cell: ({ row }) => (
@@ -542,7 +574,8 @@ export default function FacturesVentes() {
       const search = filterValue.toLowerCase();
       return (
         row.original.numero_facture?.toLowerCase().includes(search) ||
-        row.original.destinataire_nom?.toLowerCase().includes(search)
+        row.original.destinataire_nom?.toLowerCase().includes(search) ||
+        row.original.activite?.toLowerCase().includes(search)
       );
     },
     state: {
@@ -698,6 +731,20 @@ export default function FacturesVentes() {
             <SelectItem value="10">Octobre</SelectItem>
             <SelectItem value="11">Novembre</SelectItem>
             <SelectItem value="12">Décembre</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={selectedActivite} onValueChange={setSelectedActivite}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Activité" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toutes les activités</SelectItem>
+            {typesMission.map(type => (
+              <SelectItem key={type.code} value={type.code}>
+                {type.libelle}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         
