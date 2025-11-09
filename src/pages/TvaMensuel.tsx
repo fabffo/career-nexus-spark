@@ -51,6 +51,8 @@ export default function TvaMensuel() {
   const [stats, setStats] = useState<PeriodeStat>({ tva_collectee: 0, tva_deductible: 0, tva_a_payer: 0 });
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
+  const [filterStatut, setFilterStatut] = useState<string>("all");
+  const [filterTypeTva, setFilterTypeTva] = useState<string>("all");
   const { toast } = useToast();
 
   const toggleLineSelection = (lineId: string) => {
@@ -218,6 +220,48 @@ export default function TvaMensuel() {
           ? 0 
           : (rowB.original.total_tva ?? rowB.original.facture?.total_tva ?? 0);
         return tvaA - tvaB;
+      },
+      enableSorting: true,
+    },
+    {
+      id: "type_tva",
+      header: "Type TVA",
+      cell: ({ row }) => {
+        // Pas de TVA pour les abonnements et déclarations
+        if (row.original.abonnementId || row.original.declarationId) {
+          return "—";
+        }
+        // Déterminer le type TVA selon le type de facture
+        if (row.original.factures && row.original.factures.length > 0) {
+          const typeTva = row.original.factures[0].type_facture === "VENTES" ? "Collectée" : "Déductible";
+          return (
+            <Badge variant={typeTva === "Collectée" ? "default" : "secondary"}>
+              {typeTva}
+            </Badge>
+          );
+        }
+        if (row.original.facture) {
+          const typeTva = row.original.facture.type_facture === "VENTES" ? "Collectée" : "Déductible";
+          return (
+            <Badge variant={typeTva === "Collectée" ? "default" : "secondary"}>
+              {typeTva}
+            </Badge>
+          );
+        }
+        return "—";
+      },
+      sortingFn: (rowA, rowB) => {
+        const getTypeTva = (row: any) => {
+          if (row.original.abonnementId || row.original.declarationId) return "";
+          if (row.original.factures && row.original.factures.length > 0) {
+            return row.original.factures[0].type_facture === "VENTES" ? "Collectée" : "Déductible";
+          }
+          if (row.original.facture) {
+            return row.original.facture.type_facture === "VENTES" ? "Collectée" : "Déductible";
+          }
+          return "";
+        };
+        return getTypeTva(rowA).localeCompare(getTypeTva(rowB));
       },
       enableSorting: true,
     },
@@ -761,6 +805,45 @@ export default function TvaMensuel() {
         </CardContent>
       </Card>
 
+      {/* Filtres supplémentaires */}
+      {selectedMonth && selectedYear && lignes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Filtres</CardTitle>
+          </CardHeader>
+          <CardContent className="flex gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Statut</label>
+              <Select value={filterStatut} onValueChange={setFilterStatut}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Tous les statuts" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les statuts</SelectItem>
+                  <SelectItem value="RAPPROCHE">Rapprochées</SelectItem>
+                  <SelectItem value="NON_RAPPROCHE">Non rapprochées</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Type TVA</label>
+              <Select value={filterTypeTva} onValueChange={setFilterTypeTva}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Tous les types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les types</SelectItem>
+                  <SelectItem value="COLLECTEE">TVA Collectée</SelectItem>
+                  <SelectItem value="DEDUCTIBLE">TVA Déductible</SelectItem>
+                  <SelectItem value="NONE">Sans TVA</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Statistiques des lignes */}
       {selectedMonth && selectedYear && lignes.length > 0 && (
         <Card>
@@ -855,7 +938,29 @@ export default function TvaMensuel() {
             <CardContent>
               <DataTable
                 columns={columns}
-                data={lignes}
+                data={lignes.filter(ligne => {
+                  // Filtre par statut
+                  if (filterStatut !== "all" && ligne.statut !== filterStatut) {
+                    return false;
+                  }
+
+                  // Filtre par type TVA
+                  if (filterTypeTva !== "all") {
+                    // Déterminer le type TVA de la ligne
+                    let typeTvaLigne = "NONE";
+                    if (ligne.factures && ligne.factures.length > 0) {
+                      typeTvaLigne = ligne.factures[0].type_facture === "VENTES" ? "COLLECTEE" : "DEDUCTIBLE";
+                    } else if (ligne.facture) {
+                      typeTvaLigne = ligne.facture.type_facture === "VENTES" ? "COLLECTEE" : "DEDUCTIBLE";
+                    }
+
+                    if (typeTvaLigne !== filterTypeTva) {
+                      return false;
+                    }
+                  }
+
+                  return true;
+                })}
                 searchPlaceholder="Rechercher une transaction..."
               />
             </CardContent>
