@@ -1905,6 +1905,13 @@ export default function RapprochementBancaire() {
           
           if (insertError) {
             console.error("❌ Erreur insertion rapprochement_bancaire:", insertError);
+            console.error("❌ Données:", rapprochementData);
+            toast({
+              title: "Erreur d'enregistrement",
+              description: `Impossible d'enregistrer la transaction ${numeroLigne}: ${insertError.message}`,
+              variant: "destructive",
+            });
+            throw insertError; // Arrêter la validation si une erreur survient
           } else {
             rapprochementId = newRapprochement.id;
             console.log(`✅ Rapprochement bancaire créé: ${numeroLigne} (${r.status})`);
