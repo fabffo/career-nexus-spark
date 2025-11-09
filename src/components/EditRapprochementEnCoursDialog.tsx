@@ -88,6 +88,8 @@ export default function EditRapprochementEnCoursDialog({
       setSelectedFactureIds([]);
       setNotes("");
       setSearchTerm("");
+      setSelectedAbonnementId(null);
+      setSelectedDeclarationId(null);
     }
   }, [open]);
 
