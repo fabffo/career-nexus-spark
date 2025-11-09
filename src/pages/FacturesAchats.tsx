@@ -69,11 +69,6 @@ export interface Facture {
   numero_rapprochement?: string;
   date_rapprochement?: string;
   numero_ligne_rapprochement?: string;
-  type_frais?: string;
-  salarie_id?: string;
-  fournisseur_id?: string;
-  salarie?: { nom: string; prenom: string };
-  fournisseur?: { raison_sociale: string };
 }
 
 export default function FacturesAchats() {
@@ -175,14 +170,7 @@ export default function FacturesAchats() {
   const fetchFactures = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from("factures")
-        .select(`
-          *,
-          salarie:salaries(nom, prenom),
-          fournisseur:fournisseurs_services(raison_sociale)
-        `)
-        .eq("type_facture", "ACHATS");
+      let query = supabase.from("factures").select("*").eq("type_facture", "ACHATS");
 
       // Filtrer par année et mois si sélectionné
       if (selectedYear !== "all") {
@@ -535,34 +523,6 @@ export default function FacturesAchats() {
             {config.label}
           </Badge>
         );
-      },
-    },
-    {
-      accessorKey: "rattache_a",
-      header: "Rattaché à",
-      cell: ({ row }) => {
-        const facture = row.original;
-        if (facture.type_frais !== 'frais de mission') {
-          return <span className="text-muted-foreground text-xs">-</span>;
-        }
-        
-        if (facture.salarie) {
-          return (
-            <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
-              {facture.salarie.prenom} {facture.salarie.nom}
-            </Badge>
-          );
-        }
-        
-        if (facture.fournisseur) {
-          return (
-            <Badge variant="outline" className="bg-cyan-50 text-cyan-700 border-cyan-200">
-              {facture.fournisseur.raison_sociale}
-            </Badge>
-          );
-        }
-        
-        return <span className="text-muted-foreground text-xs">Non rattaché</span>;
       },
     },
     {

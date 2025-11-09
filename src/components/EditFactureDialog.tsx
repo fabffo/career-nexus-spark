@@ -36,8 +36,6 @@ export default function EditFactureDialog({
   const [lignes, setLignes] = useState<FactureLigne[]>([]);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [typesMission, setTypesMission] = useState<any[]>([]);
-  const [salaries, setSalaries] = useState<any[]>([]);
-  const [fournisseurs, setFournisseurs] = useState<any[]>([]);
 
   useEffect(() => {
     if (open && facture) {
@@ -45,8 +43,6 @@ export default function EditFactureDialog({
       fetchLignes();
       fetchMissions();
       fetchTypesMission();
-      fetchSalaries();
-      fetchFournisseurs();
     }
   }, [open, facture]);
 
@@ -102,30 +98,6 @@ export default function EditFactureDialog({
       setTypesMission(typesData || []);
     } catch (error) {
       console.error('Erreur lors du chargement des types de mission:', error);
-    }
-  };
-
-  const fetchSalaries = async () => {
-    try {
-      const { data } = await supabase
-        .from('salaries')
-        .select('id, nom, prenom')
-        .order('nom, prenom');
-      setSalaries(data || []);
-    } catch (error) {
-      console.error('Erreur lors du chargement des salariés:', error);
-    }
-  };
-
-  const fetchFournisseurs = async () => {
-    try {
-      const { data } = await supabase
-        .from('fournisseurs_services')
-        .select('id, raison_sociale')
-        .order('raison_sociale');
-      setFournisseurs(data || []);
-    } catch (error) {
-      console.error('Erreur lors du chargement des fournisseurs:', error);
     }
   };
 
@@ -259,14 +231,11 @@ export default function EditFactureDialog({
         reference_societe: formData.reference_societe,
       };
 
-      // Pour les factures d'achat, permettre la modification de date_emission, emetteur_nom, destinataire_nom, type_frais, salarie_id, fournisseur_id
+      // Pour les factures d'achat, permettre la modification de date_emission, emetteur_nom, destinataire_nom
       if (facture.type_facture === 'ACHATS') {
         updateData.date_emission = format(new Date(formData.date_emission), 'yyyy-MM-dd');
         updateData.emetteur_nom = formData.emetteur_nom;
         updateData.destinataire_nom = formData.destinataire_nom;
-        updateData.type_frais = (formData as any).type_frais || null;
-        updateData.salarie_id = (formData as any).salarie_id || null;
-        updateData.fournisseur_id = (formData as any).fournisseur_id || null;
       }
 
       // Mettre à jour la facture
@@ -342,136 +311,58 @@ export default function EditFactureDialog({
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Informations - modifiables pour ACHATS */}
           {facture.type_facture === 'ACHATS' ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Type</p>
-                  <p className="font-medium">{facture.type_facture}</p>
-                </div>
-                <div>
-                  <Label>Date d'émission</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !formData.date_emission && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.date_emission ? (
-                          format(new Date(formData.date_emission), "dd/MM/yyyy", { locale: fr })
-                        ) : (
-                          <span>Sélectionner une date</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={new Date(formData.date_emission)}
-                        onSelect={(date) => date && setFormData(prev => ({ ...prev, date_emission: format(date, 'yyyy-MM-dd') }))}
-                        locale={fr}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div>
-                  <Label htmlFor="emetteur_nom">Émetteur</Label>
-                  <Input
-                    id="emetteur_nom"
-                    value={formData.emetteur_nom}
-                    onChange={(e) => setFormData(prev => ({ ...prev, emetteur_nom: e.target.value }))}
-                    placeholder="Nom de l'émetteur"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="destinataire_nom">Destinataire</Label>
-                  <Input
-                    id="destinataire_nom"
-                    value={formData.destinataire_nom}
-                    onChange={(e) => setFormData(prev => ({ ...prev, destinataire_nom: e.target.value }))}
-                    placeholder="Nom du destinataire"
-                  />
-                </div>
+            <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Type</p>
+                <p className="font-medium">{facture.type_facture}</p>
               </div>
-
-              {/* Type de frais et rattachement */}
-              <div className="grid grid-cols-3 gap-4 p-4 border rounded-lg">
-                <div>
-                  <Label>Type de frais</Label>
-                  <Select 
-                    value={(formData as any).type_frais || ''} 
-                    onValueChange={(value) => setFormData(prev => ({ 
-                      ...prev, 
-                      type_frais: value,
-                      salarie_id: null,
-                      fournisseur_id: null
-                    } as any))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner un type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Aucun</SelectItem>
-                      <SelectItem value="frais de mission">Frais de mission</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {(formData as any).type_frais === 'frais de mission' && (
-                  <>
-                    <div>
-                      <Label>Salarié</Label>
-                      <Select 
-                        value={(formData as any).salarie_id || ''} 
-                        onValueChange={(value) => setFormData(prev => ({ 
-                          ...prev, 
-                          salarie_id: value || null,
-                          fournisseur_id: null
-                        } as any))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner un salarié" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">Aucun</SelectItem>
-                          {salaries.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              {s.prenom} {s.nom}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label>Fournisseur</Label>
-                      <Select 
-                        value={(formData as any).fournisseur_id || ''} 
-                        onValueChange={(value) => setFormData(prev => ({ 
-                          ...prev, 
-                          fournisseur_id: value || null,
-                          salarie_id: null
-                        } as any))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner un fournisseur" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">Aucun</SelectItem>
-                          {fournisseurs.map((f) => (
-                            <SelectItem key={f.id} value={f.id}>
-                              {f.raison_sociale}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )}
+              <div>
+                <Label>Date d'émission</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.date_emission && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.date_emission ? (
+                        format(new Date(formData.date_emission), "dd/MM/yyyy", { locale: fr })
+                      ) : (
+                        <span>Sélectionner une date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={new Date(formData.date_emission)}
+                      onSelect={(date) => date && setFormData(prev => ({ ...prev, date_emission: format(date, 'yyyy-MM-dd') }))}
+                      locale={fr}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label htmlFor="emetteur_nom">Émetteur</Label>
+                <Input
+                  id="emetteur_nom"
+                  value={formData.emetteur_nom}
+                  onChange={(e) => setFormData(prev => ({ ...prev, emetteur_nom: e.target.value }))}
+                  placeholder="Nom de l'émetteur"
+                />
+              </div>
+              <div>
+                <Label htmlFor="destinataire_nom">Destinataire</Label>
+                <Input
+                  id="destinataire_nom"
+                  value={formData.destinataire_nom}
+                  onChange={(e) => setFormData(prev => ({ ...prev, destinataire_nom: e.target.value }))}
+                  placeholder="Nom du destinataire"
+                />
               </div>
             </div>
           ) : (
