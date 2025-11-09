@@ -165,6 +165,42 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
         }
       }
 
+      // Détecter si c'est un salarié (frais de mission)
+      let typeFrais = null;
+      let salarieId = null;
+      
+      const { data: salaries } = await supabase
+        .from('salaries')
+        .select('id, nom, prenom');
+      
+      if (salaries) {
+        const normalizeText = (text: string) => 
+          text.toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9\s]/g, "");
+        
+        const searchText = normalizeText(emetteurNom);
+
+        for (const salarie of salaries) {
+          const nomComplet = normalizeText(`${salarie.prenom} ${salarie.nom}`);
+          const nomInverse = normalizeText(`${salarie.nom} ${salarie.prenom}`);
+          const nom = normalizeText(salarie.nom);
+          const prenom = normalizeText(salarie.prenom);
+          
+          if (
+            searchText.includes(nomComplet) ||
+            searchText.includes(nomInverse) ||
+            (searchText.includes(nom) && searchText.includes(prenom))
+          ) {
+            typeFrais = 'frais de mission';
+            salarieId = salarie.id;
+            console.log(`✅ Salarié détecté dans formulaire manuel: ${salarie.prenom} ${salarie.nom}`);
+            break;
+          }
+        }
+      }
+
       // Upload du fichier si présent
       let factureUrl = null;
       if (selectedFile) {
@@ -216,6 +252,8 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
           total_ttc: montantTTC,
           statut: formData.statut,
           reference_societe: factureUrl,
+          type_frais: typeFrais,
+          salarie_id: salarieId,
         });
 
       if (factureError) throw factureError;
