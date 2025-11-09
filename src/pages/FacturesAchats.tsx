@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AddFactureAchatDialog from "@/components/AddFactureAchatDialog";
 import ExtractionFactureDialog from "@/components/ExtractionFactureDialog";
-import EditFactureDialog from "@/components/EditFactureDialog";
+import EditFactureAchatDialog from "@/components/EditFactureAchatDialog";
 import ViewFactureDialog from "@/components/ViewFactureDialog";
 import CreateFournisseurQuickDialog from "@/components/CreateFournisseurQuickDialog";
 import FactureRapprochementDialog from "@/components/FactureRapprochementDialog";
@@ -938,7 +938,7 @@ export default function FacturesAchats() {
 
       {selectedFacture && (
         <>
-          <EditFactureDialog
+          <EditFactureAchatDialog
             open={openEditDialog}
             onOpenChange={setOpenEditDialog}
             onSuccess={() => {
