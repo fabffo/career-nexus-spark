@@ -7,10 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, ChevronsUpDown, Check } from "lucide-react";
+import { Plus, Trash2, ChevronsUpDown, Check, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import type { Facture, FactureLigne } from "@/pages/Factures";
 import type { Mission } from "@/types/mission";
 
@@ -220,15 +223,25 @@ export default function EditFactureDialog({
     setLoading(true);
 
     try {
+      // Préparer les données de mise à jour
+      const updateData: any = {
+        date_echeance: formData.date_echeance,
+        statut: formData.statut,
+        informations_paiement: formData.informations_paiement,
+        reference_societe: formData.reference_societe,
+      };
+
+      // Pour les factures d'achat, permettre la modification de date_emission, emetteur_nom, destinataire_nom
+      if (facture.type_facture === 'ACHATS') {
+        updateData.date_emission = format(new Date(formData.date_emission), 'yyyy-MM-dd');
+        updateData.emetteur_nom = formData.emetteur_nom;
+        updateData.destinataire_nom = formData.destinataire_nom;
+      }
+
       // Mettre à jour la facture
       const { error: factureError } = await supabase
         .from('factures')
-        .update({
-          date_echeance: formData.date_echeance,
-          statut: formData.statut,
-          informations_paiement: formData.informations_paiement,
-          reference_societe: formData.reference_societe,
-        })
+        .update(updateData)
         .eq('id', facture.id);
 
       if (factureError) throw factureError;
@@ -296,25 +309,82 @@ export default function EditFactureDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Informations non modifiables */}
-          <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
-            <div>
-              <p className="text-sm text-muted-foreground">Type</p>
-              <p className="font-medium">{facture.type_facture}</p>
+          {/* Informations - modifiables pour ACHATS */}
+          {facture.type_facture === 'ACHATS' ? (
+            <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Type</p>
+                <p className="font-medium">{facture.type_facture}</p>
+              </div>
+              <div>
+                <Label>Date d'émission</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.date_emission && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.date_emission ? (
+                        format(new Date(formData.date_emission), "dd/MM/yyyy", { locale: fr })
+                      ) : (
+                        <span>Sélectionner une date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={new Date(formData.date_emission)}
+                      onSelect={(date) => date && setFormData(prev => ({ ...prev, date_emission: format(date, 'yyyy-MM-dd') }))}
+                      locale={fr}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label htmlFor="emetteur_nom">Émetteur</Label>
+                <Input
+                  id="emetteur_nom"
+                  value={formData.emetteur_nom}
+                  onChange={(e) => setFormData(prev => ({ ...prev, emetteur_nom: e.target.value }))}
+                  placeholder="Nom de l'émetteur"
+                />
+              </div>
+              <div>
+                <Label htmlFor="destinataire_nom">Destinataire</Label>
+                <Input
+                  id="destinataire_nom"
+                  value={formData.destinataire_nom}
+                  onChange={(e) => setFormData(prev => ({ ...prev, destinataire_nom: e.target.value }))}
+                  placeholder="Nom du destinataire"
+                />
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Date d'émission</p>
-              <p className="font-medium">{new Date(facture.date_emission).toLocaleDateString('fr-FR')}</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+              <div>
+                <p className="text-sm text-muted-foreground">Type</p>
+                <p className="font-medium">{facture.type_facture}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Date d'émission</p>
+                <p className="font-medium">{new Date(facture.date_emission).toLocaleDateString('fr-FR')}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Émetteur</p>
+                <p className="font-medium">{facture.emetteur_nom}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Destinataire</p>
+                <p className="font-medium">{facture.destinataire_nom}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Émetteur</p>
-              <p className="font-medium">{facture.emetteur_nom}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Destinataire</p>
-              <p className="font-medium">{facture.destinataire_nom}</p>
-            </div>
-          </div>
+          )}
 
           {/* Champs modifiables */}
           <div className="grid grid-cols-3 gap-4">
