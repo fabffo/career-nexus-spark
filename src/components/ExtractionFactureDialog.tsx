@@ -317,6 +317,11 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
     let successCount = 0;
     let errorCount = 0;
 
+    // Récupérer la liste des salariés pour la détection automatique
+    const { data: salaries } = await supabase
+      .from('salaries')
+      .select('id, nom, prenom');
+
     for (const facture of facturesValides) {
       try {
         // 1. Upload le fichier PDF dans Supabase Storage
@@ -354,7 +359,44 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           numeroFacture = `FACHAT_${dateStr}_${timeStr}`;
         }
 
-        // 5. Insérer la facture dans la base de données
+        // 5. Détecter si la facture concerne un salarié (frais de mission)
+        let typeFrais = null;
+        let salarieId = null;
+        
+        if (salaries) {
+          // Normaliser le texte pour la recherche (enlever accents, mettre en minuscule)
+          const normalizeText = (text: string) => 
+            text.toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .replace(/[^a-z0-9\s]/g, "");
+          
+          const searchTexts = [
+            facture.donnees.fournisseur || '',
+            facture.donnees.libelle || '',
+          ].map(normalizeText).join(' ');
+
+          // Chercher un salarié dans le texte
+          for (const salarie of salaries) {
+            const nomComplet = normalizeText(`${salarie.prenom} ${salarie.nom}`);
+            const nomInverse = normalizeText(`${salarie.nom} ${salarie.prenom}`);
+            const nom = normalizeText(salarie.nom);
+            const prenom = normalizeText(salarie.prenom);
+            
+            if (
+              searchTexts.includes(nomComplet) ||
+              searchTexts.includes(nomInverse) ||
+              (searchTexts.includes(nom) && searchTexts.includes(prenom))
+            ) {
+              typeFrais = 'frais de mission';
+              salarieId = salarie.id;
+              console.log(`✅ Salarié détecté: ${salarie.prenom} ${salarie.nom} pour facture ${numeroFacture}`);
+              break;
+            }
+          }
+        }
+
+        // 6. Insérer la facture dans la base de données
         const { error: insertError } = await supabase.from("factures").insert({
           numero_facture: numeroFacture,
           type_facture: "ACHATS",
@@ -371,6 +413,8 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           reference_societe: filePath,
           statut: "VALIDEE",
           created_by: user?.id,
+          type_frais: typeFrais,
+          salarie_id: salarieId,
         });
 
         if (insertError) throw insertError;
