@@ -892,6 +892,7 @@ export type Database = {
           total_tva: number | null
           type_facture: string
           updated_at: string | null
+          zone_activite: string | null
         }
         Insert: {
           created_at?: string | null
@@ -923,6 +924,7 @@ export type Database = {
           total_tva?: number | null
           type_facture: string
           updated_at?: string | null
+          zone_activite?: string | null
         }
         Update: {
           created_at?: string | null
@@ -954,6 +956,7 @@ export type Database = {
           total_tva?: number | null
           type_facture?: string
           updated_at?: string | null
+          zone_activite?: string | null
         }
         Relationships: []
       }

@@ -32,12 +32,14 @@ export default function EditFactureDialog({
   const [formData, setFormData] = useState(facture);
   const [lignes, setLignes] = useState<FactureLigne[]>([]);
   const [missions, setMissions] = useState<Mission[]>([]);
+  const [typesMission, setTypesMission] = useState<any[]>([]);
 
   useEffect(() => {
     if (open && facture) {
       setFormData(facture);
       fetchLignes();
       fetchMissions();
+      fetchTypesMission();
     }
   }, [open, facture]);
 
@@ -80,6 +82,19 @@ export default function EditFactureDialog({
       setMissions((missionsData as Mission[]) || []);
     } catch (error) {
       console.error('Erreur lors du chargement des missions:', error);
+    }
+  };
+
+  const fetchTypesMission = async () => {
+    try {
+      const { data: typesData } = await supabase
+        .from('param_type_mission')
+        .select('*')
+        .eq('is_active', true)
+        .order('ordre, libelle');
+      setTypesMission(typesData || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des types de mission:', error);
     }
   };
 
@@ -302,7 +317,7 @@ export default function EditFactureDialog({
           </div>
 
           {/* Champs modifiables */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <Label>Date d'échéance</Label>
               <Input
@@ -323,6 +338,21 @@ export default function EditFactureDialog({
                   <SelectItem value="VALIDEE">Validée</SelectItem>
                   <SelectItem value="PAYEE">Payée</SelectItem>
                   <SelectItem value="ANNULEE">Annulée</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Zone d'activité</Label>
+              <Select value={(formData as any).zone_activite || 'Prestation'} onValueChange={(value: string) => setFormData(prev => ({ ...prev, zone_activite: value } as any))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {typesMission.map((type) => (
+                    <SelectItem key={type.id} value={type.libelle}>
+                      {type.libelle}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

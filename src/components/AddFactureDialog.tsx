@@ -34,6 +34,7 @@ export default function AddFactureDialog({
   const [fournisseursGeneraux, setFournisseursGeneraux] = useState<any[]>([]);
   const [fournisseursServices, setFournisseursServices] = useState<any[]>([]);
   const [missions, setMissions] = useState<Mission[]>([]);
+  const [typesMission, setTypesMission] = useState<any[]>([]);
   
   const [formData, setFormData] = useState({
     type_facture: 'VENTES' as 'VENTES' | 'ACHATS',
@@ -55,6 +56,7 @@ export default function AddFactureDialog({
     informations_paiement: '',
     reference_societe: '',
     statut: 'BROUILLON' as 'BROUILLON' | 'VALIDEE' | 'PAYEE' | 'ANNULEE',
+    zone_activite: 'Prestation',
   });
 
   const [lignes, setLignes] = useState<FactureLigne[]>([
@@ -86,6 +88,7 @@ export default function AddFactureDialog({
         informations_paiement: '',
         reference_societe: '',
         statut: 'BROUILLON',
+        zone_activite: 'Prestation',
       });
       setLignes([{ ordre: 1, description: '', quantite: 1, prix_unitaire_ht: 0, prix_ht: 0, taux_tva: 20, montant_tva: 0, prix_ttc: 0 }]);
     }
@@ -111,6 +114,7 @@ export default function AddFactureDialog({
       informations_paiement: '',
       reference_societe: '',
       statut: 'BROUILLON',
+      zone_activite: 'Prestation',
     };
     
     // Si on a la société interne, pré-remplir pour les ventes
@@ -186,6 +190,7 @@ export default function AddFactureDialog({
             destinataire_email: dataToUse.destinataire_email || '',
             informations_paiement: dataToUse.informations_paiement || '',
             reference_societe: dataToUse.reference_societe || '',
+            zone_activite: (dataToUse as any).zone_activite || 'Prestation',
           });
           
           if (initialData.lignes && initialData.lignes.length > 0) {
@@ -224,6 +229,7 @@ export default function AddFactureDialog({
             informations_paiement: infoPaiement.trim() || '',
             reference_societe: societe.siren || '',
             statut: 'BROUILLON' as const,
+            zone_activite: 'Prestation',
           };
           
           console.log('Initialisation du formulaire avec:', newFormData);
@@ -268,6 +274,14 @@ export default function AddFactureDialog({
         .eq('statut', 'EN_COURS')
         .order('titre');
       setMissions((missionsData as Mission[]) || []);
+      
+      // Récupérer les types de mission
+      const { data: typesData } = await supabase
+        .from('param_type_mission')
+        .select('*')
+        .eq('is_active', true)
+        .order('ordre, libelle');
+      setTypesMission(typesData || []);
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
     }
@@ -603,7 +617,7 @@ export default function AddFactureDialog({
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Type de facture */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <Label>Type de facture</Label>
               <Select value={formData.type_facture} onValueChange={(value: 'VENTES' | 'ACHATS') => handleTypeChange(value)}>
@@ -628,6 +642,22 @@ export default function AddFactureDialog({
                   <SelectItem value="VALIDEE">Validée</SelectItem>
                   <SelectItem value="PAYEE">Payée</SelectItem>
                   <SelectItem value="ANNULEE">Annulée</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label>Zone d'activité</Label>
+              <Select value={formData.zone_activite} onValueChange={(value: string) => setFormData(prev => ({ ...prev, zone_activite: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {typesMission.map((type) => (
+                    <SelectItem key={type.id} value={type.libelle}>
+                      {type.libelle}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
