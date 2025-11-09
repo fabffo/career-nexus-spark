@@ -806,7 +806,7 @@ export default function TvaMensuel() {
       </Card>
 
       {/* Filtres supplémentaires */}
-      {selectedMonth && selectedYear && lignes.length > 0 && (
+      {selectedMonth && selectedYear && (
         <Card>
           <CardHeader>
             <CardTitle>Filtres</CardTitle>
