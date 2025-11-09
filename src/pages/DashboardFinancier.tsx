@@ -216,6 +216,7 @@ export default function DashboardFinancier() {
       const { data: factures } = await supabase
         .from("factures")
         .select("total_ht")
+        .neq("type_facture", "ACHATS")
         .gte("date_emission", format(debut, "yyyy-MM-dd"))
         .lte("date_emission", format(fin, "yyyy-MM-dd"));
 
