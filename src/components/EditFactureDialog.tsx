@@ -342,8 +342,8 @@ export default function EditFactureDialog({
               </Select>
             </div>
             <div>
-              <Label>Zone d'activité</Label>
-              <Select value={(formData as any).zone_activite || 'Prestation'} onValueChange={(value: string) => setFormData(prev => ({ ...prev, zone_activite: value } as any))}>
+              <Label>Activité</Label>
+              <Select value={(formData as any).activite || 'Prestation'} onValueChange={(value: string) => setFormData(prev => ({ ...prev, activite: value } as any))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

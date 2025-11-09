@@ -863,6 +863,7 @@ export type Database = {
       }
       factures: {
         Row: {
+          activite: string | null
           created_at: string | null
           created_by: string | null
           date_echeance: string
@@ -892,9 +893,9 @@ export type Database = {
           total_tva: number | null
           type_facture: string
           updated_at: string | null
-          zone_activite: string | null
         }
         Insert: {
+          activite?: string | null
           created_at?: string | null
           created_by?: string | null
           date_echeance: string
@@ -924,9 +925,9 @@ export type Database = {
           total_tva?: number | null
           type_facture: string
           updated_at?: string | null
-          zone_activite?: string | null
         }
         Update: {
+          activite?: string | null
           created_at?: string | null
           created_by?: string | null
           date_echeance?: string
@@ -956,7 +957,6 @@ export type Database = {
           total_tva?: number | null
           type_facture?: string
           updated_at?: string | null
-          zone_activite?: string | null
         }
         Relationships: []
       }
