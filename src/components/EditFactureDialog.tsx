@@ -403,10 +403,10 @@ export default function EditFactureDialog({
                 <div>
                   <Label>Type de frais</Label>
                   <Select 
-                    value={(formData as any).type_frais || 'none'} 
+                    value={(formData as any).type_frais || ''} 
                     onValueChange={(value) => setFormData(prev => ({ 
                       ...prev, 
-                      type_frais: value === 'none' ? null : value,
+                      type_frais: value,
                       salarie_id: null,
                       fournisseur_id: null
                     } as any))}
@@ -415,7 +415,7 @@ export default function EditFactureDialog({
                       <SelectValue placeholder="Sélectionner un type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Aucun</SelectItem>
+                      <SelectItem value="">Aucun</SelectItem>
                       <SelectItem value="frais de mission">Frais de mission</SelectItem>
                     </SelectContent>
                   </Select>
@@ -426,10 +426,10 @@ export default function EditFactureDialog({
                     <div>
                       <Label>Salarié</Label>
                       <Select 
-                        value={(formData as any).salarie_id || 'none'} 
+                        value={(formData as any).salarie_id || ''} 
                         onValueChange={(value) => setFormData(prev => ({ 
                           ...prev, 
-                          salarie_id: value === 'none' ? null : value,
+                          salarie_id: value || null,
                           fournisseur_id: null
                         } as any))}
                       >
@@ -437,7 +437,7 @@ export default function EditFactureDialog({
                           <SelectValue placeholder="Sélectionner un salarié" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">Aucun</SelectItem>
+                          <SelectItem value="">Aucun</SelectItem>
                           {salaries.map((s) => (
                             <SelectItem key={s.id} value={s.id}>
                               {s.prenom} {s.nom}
@@ -450,10 +450,10 @@ export default function EditFactureDialog({
                     <div>
                       <Label>Fournisseur</Label>
                       <Select 
-                        value={(formData as any).fournisseur_id || 'none'} 
+                        value={(formData as any).fournisseur_id || ''} 
                         onValueChange={(value) => setFormData(prev => ({ 
                           ...prev, 
-                          fournisseur_id: value === 'none' ? null : value,
+                          fournisseur_id: value || null,
                           salarie_id: null
                         } as any))}
                       >
@@ -461,7 +461,7 @@ export default function EditFactureDialog({
                           <SelectValue placeholder="Sélectionner un fournisseur" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">Aucun</SelectItem>
+                          <SelectItem value="">Aucun</SelectItem>
                           {fournisseurs.map((f) => (
                             <SelectItem key={f.id} value={f.id}>
                               {f.raison_sociale}
