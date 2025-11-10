@@ -97,8 +97,13 @@ export const bulletinSalaireService = {
       .single();
 
     if (bulletin?.fichier_url) {
-      const path = bulletin.fichier_url.split('/').slice(-1)[0];
-      await supabase.storage.from('bulletins-salaire').remove([path]);
+      // Si fichier_url contient une URL complète, extraire le nom du fichier
+      // Sinon c'est déjà le chemin du fichier
+      let filePath = bulletin.fichier_url;
+      if (filePath.includes('/storage/v1/object/')) {
+        filePath = filePath.split('/').slice(-1)[0];
+      }
+      await supabase.storage.from('bulletins-salaire').remove([filePath]);
     }
 
     // Puis supprimer l'enregistrement
@@ -127,17 +132,26 @@ export const bulletinSalaireService = {
       throw uploadError;
     }
 
-    // Créer une URL signée avec une longue durée de validité (1 an)
-    const { data, error: urlError } = await supabase.storage
-      .from('bulletins-salaire')
-      .createSignedUrl(filePath, 31536000); // 1 an en secondes
+    // Retourner uniquement le chemin du fichier, pas l'URL
+    return filePath;
+  },
 
-    if (urlError || !data) {
-      console.error('Error creating signed URL:', urlError);
-      throw urlError;
+  async getSignedUrl(filePath: string): Promise<string> {
+    // Si fichier_url contient une URL complète (anciens bulletins), extraire le nom du fichier
+    let actualFilePath = filePath;
+    if (filePath.includes('/storage/v1/object/')) {
+      actualFilePath = filePath.split('/').slice(-1)[0];
     }
 
-    // createSignedUrl retourne déjà l'URL complète
+    const { data, error } = await supabase.storage
+      .from('bulletins-salaire')
+      .createSignedUrl(actualFilePath, 3600); // URL valide 1 heure
+
+    if (error || !data) {
+      console.error('Error creating signed URL:', error);
+      throw error || new Error('Impossible de générer l\'URL du fichier');
+    }
+
     return data.signedUrl;
   },
 

@@ -70,6 +70,25 @@ export default function BulletinsSalaire() {
     }
   });
 
+  const handleViewBulletin = async (filePath: string) => {
+    try {
+      toast({
+        title: 'Chargement...',
+        description: 'Génération de l\'URL sécurisée'
+      });
+      
+      const signedUrl = await bulletinSalaireService.getSignedUrl(filePath);
+      window.open(signedUrl, '_blank');
+    } catch (error) {
+      console.error('Error getting signed URL:', error);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible d\'accéder au fichier. Il a peut-être été supprimé.',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleFilesSelected = async (files: File[]) => {
     setIsProcessing(true);
     
@@ -216,7 +235,8 @@ export default function BulletinsSalaire() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => window.open(row.original.fichier_url, '_blank')}
+            onClick={() => handleViewBulletin(row.original.fichier_url)}
+            title="Visualiser le bulletin"
           >
             <Eye className="w-4 h-4" />
           </Button>
@@ -224,6 +244,7 @@ export default function BulletinsSalaire() {
             variant="ghost"
             size="icon"
             onClick={() => deleteMutation.mutate(row.original.id)}
+            title="Supprimer le bulletin"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
