@@ -152,7 +152,9 @@ export const bulletinSalaireService = {
       throw error || new Error('Impossible de générer l\'URL du fichier');
     }
 
-    return data.signedUrl;
+    // createSignedUrl retourne un chemin relatif, construire l'URL complète
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+    return `${baseUrl}/storage/v1${data.signedUrl}`;
   },
 
   async analyserBulletin(pdfBase64: string): Promise<any> {
