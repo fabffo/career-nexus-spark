@@ -137,12 +137,8 @@ export const bulletinSalaireService = {
       throw urlError;
     }
 
-    // Construire l'URL complète: createSignedUrl retourne un chemin relatif
-    // qui commence par /object/sign/...
-    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const fullUrl = `${baseUrl}/storage/v1${data.signedUrl}`;
-
-    return fullUrl;
+    // createSignedUrl retourne déjà l'URL complète
+    return data.signedUrl;
   },
 
   async analyserBulletin(pdfBase64: string): Promise<any> {
