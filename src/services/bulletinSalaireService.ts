@@ -127,21 +127,12 @@ export const bulletinSalaireService = {
       throw uploadError;
     }
 
-    // Retourner l'URL signée complète pour accès sécurisé
-    const { data: { signedUrl }, error: urlError } = await supabase.storage
+    // Obtenir l'URL publique du fichier
+    const { data } = supabase.storage
       .from('bulletins-salaire')
-      .createSignedUrl(filePath, 31536000); // 1 an
+      .getPublicUrl(filePath);
 
-    if (urlError) {
-      console.error('Error getting signed URL:', urlError);
-      throw urlError;
-    }
-
-    // Construire l'URL complète en ajoutant le domaine Supabase
-    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const fullUrl = `${baseUrl}/storage/v1${signedUrl}`;
-
-    return fullUrl;
+    return data.publicUrl;
   },
 
   async analyserBulletin(pdfBase64: string): Promise<any> {
