@@ -127,12 +127,22 @@ export const bulletinSalaireService = {
       throw uploadError;
     }
 
-    // Obtenir l'URL publique du fichier
-    const { data } = supabase.storage
+    // Créer une URL signée avec une longue durée de validité (1 an)
+    const { data, error: urlError } = await supabase.storage
       .from('bulletins-salaire')
-      .getPublicUrl(filePath);
+      .createSignedUrl(filePath, 31536000); // 1 an en secondes
 
-    return data.publicUrl;
+    if (urlError || !data) {
+      console.error('Error creating signed URL:', urlError);
+      throw urlError;
+    }
+
+    // Construire l'URL complète: createSignedUrl retourne un chemin relatif
+    // qui commence par /object/sign/...
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const fullUrl = `${baseUrl}/storage/v1${data.signedUrl}`;
+
+    return fullUrl;
   },
 
   async analyserBulletin(pdfBase64: string): Promise<any> {
