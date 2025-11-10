@@ -42,7 +42,7 @@ export default function BulletinsSalaire() {
   
   const [showUpload, setShowUpload] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [filterSalarie, setFilterSalarie] = useState<string>('');
+  const [filterSalarie, setFilterSalarie] = useState<string>('all');
   const [filterPeriode, setFilterPeriode] = useState<string>('');
 
   const { data: bulletins = [], isLoading } = useQuery({
@@ -233,7 +233,7 @@ export default function BulletinsSalaire() {
   ];
 
   const filteredBulletins = bulletins.filter(b => {
-    if (filterSalarie && b.salarie_id !== filterSalarie) return false;
+    if (filterSalarie && filterSalarie !== 'all' && b.salarie_id !== filterSalarie) return false;
     if (filterPeriode) {
       const [mois, annee] = filterPeriode.split('-').map(Number);
       if (b.periode_mois !== mois || b.periode_annee !== annee) return false;
@@ -282,7 +282,7 @@ export default function BulletinsSalaire() {
               <SelectValue placeholder="Filtrer par salarié" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Tous les salariés</SelectItem>
+              <SelectItem value="all">Tous les salariés</SelectItem>
               {salaries.map(s => (
                 <SelectItem key={s.id} value={s.id}>
                   {s.prenom} {s.nom}
