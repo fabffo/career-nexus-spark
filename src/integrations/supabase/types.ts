@@ -190,6 +190,74 @@ export type Database = {
         }
         Relationships: []
       }
+      bulletins_salaire: {
+        Row: {
+          charges_sociales_patronales: number | null
+          charges_sociales_salariales: number | null
+          created_at: string | null
+          created_by: string | null
+          donnees_brutes: Json | null
+          erreur_analyse: string | null
+          fichier_url: string
+          id: string
+          impot_source: number | null
+          net_a_payer: number | null
+          nom_fichier: string
+          periode_annee: number
+          periode_mois: number
+          salaire_brut: number | null
+          salarie_id: string | null
+          statut: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          charges_sociales_patronales?: number | null
+          charges_sociales_salariales?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          donnees_brutes?: Json | null
+          erreur_analyse?: string | null
+          fichier_url: string
+          id?: string
+          impot_source?: number | null
+          net_a_payer?: number | null
+          nom_fichier: string
+          periode_annee: number
+          periode_mois: number
+          salaire_brut?: number | null
+          salarie_id?: string | null
+          statut?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          charges_sociales_patronales?: number | null
+          charges_sociales_salariales?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          donnees_brutes?: Json | null
+          erreur_analyse?: string | null
+          fichier_url?: string
+          id?: string
+          impot_source?: number | null
+          net_a_payer?: number | null
+          nom_fichier?: string
+          periode_annee?: number
+          periode_mois?: number
+          salaire_brut?: number | null
+          salarie_id?: string | null
+          statut?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bulletins_salaire_salarie_id_fkey"
+            columns: ["salarie_id"]
+            isOneToOne: false
+            referencedRelation: "salaries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidats: {
         Row: {
           created_at: string | null
@@ -881,17 +949,20 @@ export type Database = {
           emetteur_nom: string
           emetteur_telephone: string | null
           emetteur_type: string
+          fournisseur_id: string | null
           id: string
           informations_paiement: string | null
           numero_facture: string
           numero_ligne_rapprochement: string | null
           numero_rapprochement: string | null
           reference_societe: string | null
+          salarie_id: string | null
           statut: string | null
           total_ht: number | null
           total_ttc: number | null
           total_tva: number | null
           type_facture: string
+          type_frais: string | null
           updated_at: string | null
         }
         Insert: {
@@ -913,17 +984,20 @@ export type Database = {
           emetteur_nom: string
           emetteur_telephone?: string | null
           emetteur_type: string
+          fournisseur_id?: string | null
           id?: string
           informations_paiement?: string | null
           numero_facture: string
           numero_ligne_rapprochement?: string | null
           numero_rapprochement?: string | null
           reference_societe?: string | null
+          salarie_id?: string | null
           statut?: string | null
           total_ht?: number | null
           total_ttc?: number | null
           total_tva?: number | null
           type_facture: string
+          type_frais?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -945,20 +1019,38 @@ export type Database = {
           emetteur_nom?: string
           emetteur_telephone?: string | null
           emetteur_type?: string
+          fournisseur_id?: string | null
           id?: string
           informations_paiement?: string | null
           numero_facture?: string
           numero_ligne_rapprochement?: string | null
           numero_rapprochement?: string | null
           reference_societe?: string | null
+          salarie_id?: string | null
           statut?: string | null
           total_ht?: number | null
           total_ttc?: number | null
           total_tva?: number | null
           type_facture?: string
+          type_frais?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "factures_fournisseur_id_fkey"
+            columns: ["fournisseur_id"]
+            isOneToOne: false
+            referencedRelation: "fournisseurs_services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "factures_salarie_id_fkey"
+            columns: ["salarie_id"]
+            isOneToOne: false
+            referencedRelation: "salaries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fichiers_rapprochement: {
         Row: {

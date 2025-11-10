@@ -105,6 +105,7 @@ export function Sidebar() {
         { path: '/declarations-charges-sociales', label: 'Déclarations Charges Sociales', icon: FileText },
         { path: '/tva-mensuel', label: 'TVA Mensuel', icon: FileText },
         { path: '/fiscalite', label: 'Gestion Fiscale SASU', icon: FileText },
+        { path: '/bulletins-salaire', label: 'Bulletins de Salaire', icon: FileText },
       ]
     },
     {

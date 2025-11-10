@@ -49,6 +49,7 @@ import Parametres from "./pages/Parametres";
 import RapprochementBancaire from "./pages/RapprochementBancaire";
 import TvaMensuel from "./pages/TvaMensuel";
 import Fiscalite from "./pages/Fiscalite";
+import BulletinsSalaire from "./pages/BulletinsSalaire";
 import SignatureContrats from "./pages/SignatureContrats";
 import AbonnementsPartenaires from "./pages/AbonnementsPartenaires";
 import PaiementsAbonnements from "./pages/PaiementsAbonnements";
@@ -137,6 +138,7 @@ const App = () => (
               <Route path="declarations-charges-sociales" element={<DeclarationsChargesSociales />} />
               <Route path="tva-mensuel" element={<TvaMensuel />} />
               <Route path="fiscalite" element={<Fiscalite />} />
+              <Route path="bulletins-salaire" element={<BulletinsSalaire />} />
               <Route path="signature-contrats" element={<SignatureContrats />} />
               <Route path="rdv" element={<RendezVous />} />
               <Route path="matching" element={<Matching />} />
