@@ -352,7 +352,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
         }
         console.log('👤 Utilisateur:', user?.email);
 
-        // 3. Générer un numéro de facture unique
+        // 3. Générer un numéro de facture si manquant
         let numeroFacture = facture.donnees.numero_facture;
         if (!numeroFacture) {
           const now = new Date();
@@ -361,17 +361,16 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           numeroFacture = `FACHAT_${dateStr}_${timeStr}`;
         }
         
-        // Vérifier si le numéro existe déjà et ajouter un suffixe si nécessaire
+        // Vérifier si le numéro existe déjà
         const { data: existingFacture } = await supabase
           .from("factures")
           .select("numero_facture")
           .eq("numero_facture", numeroFacture)
-          .single();
+          .maybeSingle();
         
         if (existingFacture) {
-          const timestamp = Date.now();
-          numeroFacture = `${numeroFacture}-${timestamp}`;
-          console.log('⚠️ Numéro existant, nouveau numéro généré:', numeroFacture);
+          console.error('❌ Numéro de facture déjà existant:', numeroFacture);
+          throw new Error(`Impossible de sauvegarder car la facture "${numeroFacture}" existe déjà`);
         }
 
         // 4. Préparer les données de la facture
