@@ -319,6 +319,8 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
 
     for (const facture of facturesValides) {
       try {
+        console.log('🔄 Traitement de:', facture.fichier, facture.donnees);
+        
         // 1. Upload le fichier PDF dans Supabase Storage
         const timestamp = Date.now();
         // Nettoyer le nom du fichier : supprimer espaces et caractères spéciaux
@@ -329,23 +331,28 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
         const fileName = `${timestamp}_${cleanFileName}`;
         const filePath = `factures-achats/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage.from("factures").upload(filePath, facture.fileObject, {
-          contentType: "application/pdf",
-        });
+        console.log('📤 Upload du fichier vers:', filePath);
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("factures")
+          .upload(filePath, facture.fileObject, {
+            contentType: "application/pdf",
+          });
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('❌ Erreur upload:', uploadError);
+          throw new Error(`Erreur upload: ${uploadError.message}`);
+        }
+        console.log('✅ Fichier uploadé:', uploadData);
 
-        // 2. Obtenir l'URL publique
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("factures").getPublicUrl(filePath);
+        // 2. Récupérer l'utilisateur connecté
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError) {
+          console.error('❌ Erreur récupération utilisateur:', userError);
+          throw new Error(`Erreur utilisateur: ${userError.message}`);
+        }
+        console.log('👤 Utilisateur:', user?.email);
 
-        // 3. Récupérer l'utilisateur connecté
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        // 4. Générer un numéro de facture si manquant
+        // 3. Générer un numéro de facture si manquant
         let numeroFacture = facture.donnees.numero_facture;
         if (!numeroFacture) {
           const now = new Date();
@@ -354,8 +361,8 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           numeroFacture = `FACHAT_${dateStr}_${timeStr}`;
         }
 
-        // 5. Insérer la facture dans la base de données
-        const { error: insertError } = await supabase.from("factures").insert({
+        // 4. Préparer les données de la facture
+        const factureData = {
           numero_facture: numeroFacture,
           type_facture: "ACHATS",
           date_emission: facture.donnees.date_facture || new Date().toISOString().split("T")[0],
@@ -363,7 +370,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           emetteur_type: "Fournisseur",
           emetteur_nom: facture.donnees.fournisseur || "Fournisseur inconnu",
           destinataire_type: "Entreprise",
-          destinataire_nom: "Votre Entreprise", // À adapter selon votre contexte
+          destinataire_nom: "Votre Entreprise",
           total_ht: facture.donnees.montant_ht || 0,
           total_tva: facture.donnees.montant_tva || 0,
           total_ttc: facture.donnees.montant_ttc || 0,
@@ -371,13 +378,30 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           reference_societe: filePath,
           statut: "VALIDEE",
           created_by: user?.id,
-        });
+        };
 
-        if (insertError) throw insertError;
+        console.log('💾 Insertion de la facture:', factureData);
+        
+        // 5. Insérer la facture dans la base de données
+        const { data: insertData, error: insertError } = await supabase
+          .from("factures")
+          .insert(factureData)
+          .select();
 
+        if (insertError) {
+          console.error('❌ Erreur insertion:', insertError);
+          throw new Error(`Erreur insertion: ${insertError.message} (${insertError.code})`);
+        }
+        
+        console.log('✅ Facture insérée:', insertData);
         successCount++;
-      } catch (error) {
-        console.error(`Erreur pour ${facture.fichier}:`, error);
+      } catch (error: any) {
+        console.error(`❌ Erreur complète pour ${facture.fichier}:`, error);
+        toast({
+          title: `Erreur: ${facture.fichier}`,
+          description: error.message || "Erreur inconnue",
+          variant: "destructive",
+        });
         errorCount++;
       }
     }
