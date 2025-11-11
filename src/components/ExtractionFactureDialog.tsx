@@ -430,13 +430,9 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
       setFactures([]);
       onSuccess();
       onOpenChange(false);
-    } else {
-      toast({
-        title: "Erreur",
-        description: "Impossible de sauvegarder les factures",
-        variant: "destructive",
-      });
     }
+    // Ne pas afficher de toast global en cas d'erreur car les messages détaillés 
+    // ont déjà été affichés pour chaque facture individuellement
   };
 
   const handleEditFacture = (facture: FactureExtraite) => {
