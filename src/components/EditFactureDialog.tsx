@@ -411,21 +411,34 @@ export default function EditFactureDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Activité</Label>
-              <Select value={(formData as any).activite || 'Prestation'} onValueChange={(value: string) => setFormData(prev => ({ ...prev, activite: value } as any))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {typesMission.map((type) => (
-                    <SelectItem key={type.id} value={type.libelle}>
-                      {type.libelle}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {facture.type_facture === 'ACHATS' && facture.emetteur_type === 'SALARIE' && (
+              <div>
+                <Label htmlFor="type_activite">Type d'activité</Label>
+                <Input
+                  id="type_activite"
+                  value={(formData as any).type_activite || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, type_activite: e.target.value } as any))}
+                  placeholder="Type d'activité"
+                />
+              </div>
+            )}
+            {facture.type_facture === 'VENTES' && (
+              <div>
+                <Label>Activité</Label>
+                <Select value={(formData as any).activite || 'Prestation'} onValueChange={(value: string) => setFormData(prev => ({ ...prev, activite: value } as any))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {typesMission.map((type) => (
+                      <SelectItem key={type.id} value={type.libelle}>
+                        {type.libelle}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           {/* Lignes de facture */}

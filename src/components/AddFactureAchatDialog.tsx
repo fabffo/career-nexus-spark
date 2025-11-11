@@ -33,10 +33,18 @@ interface Prestataire {
   prenom: string;
 }
 
+interface Salarie {
+  id: string;
+  nom: string;
+  prenom: string;
+  metier?: string;
+}
+
 export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }: AddFactureAchatDialogProps) {
   const [loading, setLoading] = useState(false);
   const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
   const [prestataires, setPrestataires] = useState<Prestataire[]>([]);
+  const [salaries, setSalaries] = useState<Salarie[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showCreateFournisseur, setShowCreateFournisseur] = useState(false);
   const { uploadFile, isUploading } = useFileUpload();
@@ -47,6 +55,7 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
     date_emission: new Date(),
     fournisseur_type: '',
     fournisseur_id: '',
+    type_activite: '',
     montant_ht: '',
     montant_tva: '',
     statut: 'BROUILLON' as const,
@@ -85,6 +94,14 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
 
       if (prestError) throw prestError;
 
+      // Récupérer les salariés
+      const { data: sal, error: salError } = await supabase
+        .from('salaries')
+        .select('id, nom, prenom, metier')
+        .order('nom');
+
+      if (salError) throw salError;
+
       // Combiner les fournisseurs
       const allFournisseurs = [
         ...(fg || []).map(f => ({ ...f, type: 'GENERAL' as const })),
@@ -93,6 +110,7 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
 
       setFournisseurs(allFournisseurs);
       setPrestataires(prest || []);
+      setSalaries(sal || []);
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
       toast({
@@ -109,6 +127,7 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
       date_emission: new Date(),
       fournisseur_type: '',
       fournisseur_id: '',
+      type_activite: '',
       montant_ht: '',
       montant_tva: '',
       statut: 'BROUILLON',
@@ -155,6 +174,13 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
           emetteurNom = `${prestataire.prenom} ${prestataire.nom}`;
           emetteurType = 'PRESTATAIRE';
           emetteurId = prestataire.id;
+        }
+      } else if (formData.fournisseur_type === 'SALARIE') {
+        const salarie = salaries.find(s => s.id === formData.fournisseur_id);
+        if (salarie) {
+          emetteurNom = `${salarie.prenom} ${salarie.nom}${formData.type_activite ? ' - ' + formData.type_activite : ''}`;
+          emetteurType = 'SALARIE';
+          emetteurId = salarie.id;
         }
       } else {
         const fournisseur = fournisseurs.find(f => f.id === formData.fournisseur_id);
@@ -323,52 +349,90 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
               <SelectContent>
                 <SelectItem value="FOURNISSEUR">Fournisseur</SelectItem>
                 <SelectItem value="PRESTATAIRE">Prestataire</SelectItem>
+                <SelectItem value="SALARIE">Salarié</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           {/* Sélection du fournisseur ou prestataire */}
           {formData.fournisseur_type && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>
-                  {formData.fournisseur_type === 'PRESTATAIRE' ? 'Prestataire' : 'Fournisseur'}{' '}
-                  <span className="text-destructive">*</span>
-                </Label>
-                {formData.fournisseur_type === 'FOURNISSEUR' && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowCreateFournisseur(true)}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Nouveau
-                  </Button>
-                )}
+            <>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>
+                    {formData.fournisseur_type === 'PRESTATAIRE' 
+                      ? 'Prestataire' 
+                      : formData.fournisseur_type === 'SALARIE'
+                      ? 'Salarié'
+                      : 'Fournisseur'}{' '}
+                    <span className="text-destructive">*</span>
+                  </Label>
+                  {formData.fournisseur_type === 'FOURNISSEUR' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowCreateFournisseur(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Nouveau
+                    </Button>
+                  )}
+                </div>
+                <Select
+                  value={formData.fournisseur_id}
+                  onValueChange={(value) => {
+                    setFormData({ ...formData, fournisseur_id: value });
+                    // Auto-remplir le type d'activité si c'est un salarié
+                    if (formData.fournisseur_type === 'SALARIE') {
+                      const salarie = salaries.find(s => s.id === value);
+                      if (salarie?.metier) {
+                        setFormData({ ...formData, fournisseur_id: value, type_activite: salarie.metier });
+                      }
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {formData.fournisseur_type === 'PRESTATAIRE'
+                      ? prestataires.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.prenom} {p.nom}
+                          </SelectItem>
+                        ))
+                      : formData.fournisseur_type === 'SALARIE'
+                      ? salaries.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.prenom} {s.nom} {s.metier ? `- ${s.metier}` : ''}
+                          </SelectItem>
+                        ))
+                      : fournisseurs.map((f) => (
+                          <SelectItem key={f.id} value={f.id}>
+                            {f.raison_sociale}
+                          </SelectItem>
+                        ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <Select
-                value={formData.fournisseur_id}
-                onValueChange={(value) => setFormData({ ...formData, fournisseur_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner" />
-                </SelectTrigger>
-                <SelectContent>
-                  {formData.fournisseur_type === 'PRESTATAIRE'
-                    ? prestataires.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.prenom} {p.nom}
-                        </SelectItem>
-                      ))
-                    : fournisseurs.map((f) => (
-                        <SelectItem key={f.id} value={f.id}>
-                          {f.raison_sociale}
-                        </SelectItem>
-                      ))}
-                </SelectContent>
-              </Select>
-            </div>
+
+              {/* Type d'activité pour les salariés */}
+              {formData.fournisseur_type === 'SALARIE' && (
+                <div className="space-y-2">
+                  <Label htmlFor="type_activite">
+                    Type d'activité <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="type_activite"
+                    value={formData.type_activite}
+                    onChange={(e) => setFormData({ ...formData, type_activite: e.target.value })}
+                    placeholder="Ex: Consultant, Formateur..."
+                    required
+                  />
+                </div>
+              )}
+            </>
           )}
 
           {/* Montant HT */}
