@@ -126,11 +126,12 @@ export default function PrestatairesMissions() {
 
       if (missionError) throw missionError;
 
-      // Charger TOUS les CRA de l'année pour pouvoir afficher le dernier disponible
+      // Charger les CRA du mois et année sélectionnés
       const { data: crasData, error: craError } = await supabase
         .from('cra')
         .select('*')
-        .eq('annee', selectedYear);
+        .eq('annee', selectedYear)
+        .eq('mois', selectedMonth);
 
       if (craError) throw craError;
 
@@ -146,7 +147,7 @@ export default function PrestatairesMissions() {
         missions.forEach(mission => {
           const missionCras = crasData?.filter(c => 
             c.prestataire_id === p.id && c.mission_id === mission.id
-          ).sort((a, b) => b.mois - a.mois) || [];
+          ) || [];
           
           const cra = missionCras[0];
           
@@ -173,7 +174,7 @@ export default function PrestatairesMissions() {
           // Chercher dans les CRA avec salarie_id pour les salariés
           const missionCras = crasData?.filter(c => 
             c.mission_id === mission.id && c.salarie_id === s.id
-          ).sort((a, b) => b.mois - a.mois) || [];
+          ) || [];
           
           const cra = missionCras[0];
           
