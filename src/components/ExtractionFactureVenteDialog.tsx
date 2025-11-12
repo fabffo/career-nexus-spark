@@ -310,6 +310,7 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
           informations_paiement: facture.donnees.libelle,
           reference_societe: filePath,
           statut: "VALIDEE",
+          activite: "Prestation",
           created_by: user?.id,
         });
 

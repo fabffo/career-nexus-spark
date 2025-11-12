@@ -45,6 +45,7 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
   const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
   const [prestataires, setPrestataires] = useState<Prestataire[]>([]);
   const [salaries, setSalaries] = useState<Salarie[]>([]);
+  const [typesMission, setTypesMission] = useState<any[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showCreateFournisseur, setShowCreateFournisseur] = useState(false);
   const { uploadFile, isUploading } = useFileUpload();
@@ -55,7 +56,7 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
     date_emission: new Date(),
     fournisseur_type: '',
     fournisseur_id: '',
-    type_activite: '',
+    activite: 'Prestation',
     montant_ht: '',
     montant_tva: '',
     statut: 'BROUILLON' as const,
@@ -102,6 +103,15 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
 
       if (salError) throw salError;
 
+      // Récupérer les types de mission pour le champ Activité
+      const { data: typesData, error: typesError } = await supabase
+        .from('param_type_mission')
+        .select('*')
+        .eq('is_active', true)
+        .order('ordre, libelle');
+
+      if (typesError) throw typesError;
+
       // Combiner les fournisseurs
       const allFournisseurs = [
         ...(fg || []).map(f => ({ ...f, type: 'GENERAL' as const })),
@@ -111,6 +121,7 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
       setFournisseurs(allFournisseurs);
       setPrestataires(prest || []);
       setSalaries(sal || []);
+      setTypesMission(typesData || []);
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
       toast({
@@ -127,7 +138,7 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
       date_emission: new Date(),
       fournisseur_type: '',
       fournisseur_id: '',
-      type_activite: '',
+      activite: 'Prestation',
       montant_ht: '',
       montant_tva: '',
       statut: 'BROUILLON',
@@ -178,7 +189,7 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
       } else if (formData.fournisseur_type === 'SALARIE') {
         const salarie = salaries.find(s => s.id === formData.fournisseur_id);
         if (salarie) {
-          emetteurNom = `${salarie.prenom} ${salarie.nom}${formData.type_activite ? ' - ' + formData.type_activite : ''}`;
+          emetteurNom = `${salarie.prenom} ${salarie.nom}`;
           emetteurType = 'SALARIE';
           emetteurId = salarie.id;
         }
@@ -241,6 +252,7 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
           total_tva: montantTVA,
           total_ttc: montantTTC,
           statut: formData.statut,
+          activite: formData.activite,
           reference_societe: factureUrl,
         });
 
@@ -383,13 +395,6 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
                   value={formData.fournisseur_id}
                   onValueChange={(value) => {
                     setFormData({ ...formData, fournisseur_id: value });
-                    // Auto-remplir le type d'activité si c'est un salarié
-                    if (formData.fournisseur_type === 'SALARIE') {
-                      const salarie = salaries.find(s => s.id === value);
-                      if (salarie?.metier) {
-                        setFormData({ ...formData, fournisseur_id: value, type_activite: salarie.metier });
-                      }
-                    }
                   }}
                 >
                   <SelectTrigger>
@@ -417,21 +422,24 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
                 </Select>
               </div>
 
-              {/* Type d'activité pour les salariés */}
-              {formData.fournisseur_type === 'SALARIE' && (
-                <div className="space-y-2">
-                  <Label htmlFor="type_activite">
-                    Type d'activité <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="type_activite"
-                    value={formData.type_activite}
-                    onChange={(e) => setFormData({ ...formData, type_activite: e.target.value })}
-                    placeholder="Ex: Consultant, Formateur..."
-                    required
-                  />
-                </div>
-              )}
+              {/* Champ Activité pour toutes les factures d'achat */}
+              <div className="space-y-2">
+                <Label htmlFor="activite">
+                  Activité <span className="text-destructive">*</span>
+                </Label>
+                <Select value={formData.activite} onValueChange={(value: string) => setFormData(prev => ({ ...prev, activite: value }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {typesMission.map((type) => (
+                      <SelectItem key={type.id} value={type.libelle}>
+                        {type.libelle}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </>
           )}
 
