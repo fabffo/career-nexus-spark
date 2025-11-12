@@ -39,7 +39,10 @@ export default function Clients() {
   const [formData, setFormData] = useState({
     raisonSociale: '',
     secteurActivite: '',
-    adresse: '',
+    adresse_ligne1: '',
+    code_postal: '',
+    ville: '',
+    pays: 'France',
     telephone: '',
     email: '',
     siteWeb: '',
@@ -61,7 +64,10 @@ export default function Clients() {
       setFormData({
         raisonSociale: client.raisonSociale,
         secteurActivite: client.secteurActivite,
-        adresse: client.adresse,
+        adresse_ligne1: client.adresse_ligne1 || '',
+        code_postal: client.code_postal || '',
+        ville: client.ville,
+        pays: client.pays,
         telephone: client.telephone,
         email: client.email,
         siteWeb: client.siteWeb || '',
@@ -72,7 +78,10 @@ export default function Clients() {
       setFormData({
         raisonSociale: '',
         secteurActivite: '',
-        adresse: '',
+        adresse_ligne1: '',
+        code_postal: '',
+        ville: '',
+        pays: 'France',
         telephone: '',
         email: '',
         siteWeb: '',
@@ -116,7 +125,10 @@ export default function Clients() {
       const newClient = {
         raisonSociale: client.raisonSociale + ' (Copie)',
         secteurActivite: client.secteurActivite,
-        adresse: client.adresse,
+        adresse_ligne1: client.adresse_ligne1 || '',
+        code_postal: client.code_postal || '',
+        ville: client.ville,
+        pays: client.pays,
         telephone: client.telephone,
         email: client.email,
         siteWeb: client.siteWeb || '',
@@ -295,12 +307,44 @@ export default function Clients() {
               />
             </div>
             <div>
-              <Label htmlFor="adresse">Adresse</Label>
+              <Label htmlFor="adresse_ligne1">Adresse</Label>
               <Input
-                id="adresse"
-                value={formData.adresse}
-                onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
+                id="adresse_ligne1"
+                value={formData.adresse_ligne1}
+                onChange={(e) => setFormData({ ...formData, adresse_ligne1: e.target.value })}
+                placeholder="Numéro et rue"
               />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="code_postal">Code postal</Label>
+                <Input
+                  id="code_postal"
+                  value={formData.code_postal}
+                  onChange={(e) => setFormData({ ...formData, code_postal: e.target.value })}
+                  placeholder="75001"
+                />
+              </div>
+              <div>
+                <Label htmlFor="ville">Ville</Label>
+                <Input
+                  id="ville"
+                  value={formData.ville}
+                  onChange={(e) => setFormData({ ...formData, ville: e.target.value })}
+                  placeholder="Paris"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="pays">Pays</Label>
+                <Input
+                  id="pays"
+                  value={formData.pays}
+                  onChange={(e) => setFormData({ ...formData, pays: e.target.value })}
+                  placeholder="France"
+                  required
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>

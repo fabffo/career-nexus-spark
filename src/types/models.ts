@@ -24,7 +24,10 @@ export interface Candidat extends AuditFields {
 export interface Client extends AuditFields {
   raisonSociale: string;
   secteurActivite: string;
-  adresse: string;
+  adresse_ligne1?: string;
+  code_postal?: string;
+  ville: string;
+  pays: string;
   telephone: string;
   email: string;
   siteWeb?: string;

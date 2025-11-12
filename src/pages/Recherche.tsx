@@ -76,7 +76,9 @@ export default function Recherche() {
         c.raisonSociale?.toLowerCase().includes(query) ||
         c.email?.toLowerCase().includes(query) ||
         c.telephone?.toLowerCase().includes(query) ||
-        c.adresse?.toLowerCase().includes(query)
+        c.adresse_ligne1?.toLowerCase().includes(query) ||
+        c.ville?.toLowerCase().includes(query) ||
+        c.pays?.toLowerCase().includes(query)
       );
 
       // Recherche dans les postes

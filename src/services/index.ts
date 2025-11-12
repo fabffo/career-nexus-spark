@@ -165,7 +165,10 @@ class ClientService implements CrudOperations<Client> {
     return (data || []).map(item => ({
       id: item.id,
       raisonSociale: item.raison_sociale,
-      adresse: item.adresse || '',
+      adresse_ligne1: item.adresse_ligne1 || '',
+      code_postal: item.code_postal || '',
+      ville: item.ville,
+      pays: item.pays,
       telephone: item.telephone || '',
       email: item.email || '',
       secteurActivite: '',
@@ -190,7 +193,10 @@ class ClientService implements CrudOperations<Client> {
     return {
       id: data.id,
       raisonSociale: data.raison_sociale,
-      adresse: data.adresse || '',
+      adresse_ligne1: data.adresse_ligne1 || '',
+      code_postal: data.code_postal || '',
+      ville: data.ville,
+      pays: data.pays,
       telephone: data.telephone || '',
       email: data.email || '',
       secteurActivite: '',
@@ -205,7 +211,10 @@ class ClientService implements CrudOperations<Client> {
   async create(item: Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'>): Promise<Client> {
     const clientData = {
       raison_sociale: item.raisonSociale,
-      adresse: item.adresse,
+      adresse_ligne1: item.adresse_ligne1,
+      code_postal: item.code_postal,
+      ville: item.ville,
+      pays: item.pays,
       telephone: item.telephone,
       email: item.email,
       delai_paiement_jours: (item as any).delaiPaiementJours || 30
@@ -222,7 +231,10 @@ class ClientService implements CrudOperations<Client> {
     return {
       id: data.id,
       raisonSociale: data.raison_sociale,
-      adresse: data.adresse || '',
+      adresse_ligne1: data.adresse_ligne1 || '',
+      code_postal: data.code_postal || '',
+      ville: data.ville,
+      pays: data.pays,
       telephone: data.telephone || '',
       email: data.email || '',
       secteurActivite: item.secteurActivite || '',
@@ -237,7 +249,10 @@ class ClientService implements CrudOperations<Client> {
   async update(id: string, item: Partial<Client>): Promise<Client> {
     const updateData: any = {};
     if (item.raisonSociale !== undefined) updateData.raison_sociale = item.raisonSociale;
-    if (item.adresse !== undefined) updateData.adresse = item.adresse;
+    if (item.adresse_ligne1 !== undefined) updateData.adresse_ligne1 = item.adresse_ligne1;
+    if (item.code_postal !== undefined) updateData.code_postal = item.code_postal;
+    if (item.ville !== undefined) updateData.ville = item.ville;
+    if (item.pays !== undefined) updateData.pays = item.pays;
     if (item.telephone !== undefined) updateData.telephone = item.telephone;
     if (item.email !== undefined) updateData.email = item.email;
     if ((item as any).delaiPaiementJours !== undefined) updateData.delai_paiement_jours = (item as any).delaiPaiementJours;
@@ -254,7 +269,10 @@ class ClientService implements CrudOperations<Client> {
     return {
       id: data.id,
       raisonSociale: data.raison_sociale,
-      adresse: data.adresse || '',
+      adresse_ligne1: data.adresse_ligne1 || '',
+      code_postal: data.code_postal || '',
+      ville: data.ville,
+      pays: data.pays,
       telephone: data.telephone || '',
       email: data.email || '',
       secteurActivite: item.secteurActivite || '',

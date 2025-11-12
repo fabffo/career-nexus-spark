@@ -84,12 +84,18 @@ export function EditMissionDialog({ open, onOpenChange, mission, onSuccess }: Ed
     } else {
       const poste = postes.find(p => p.id === posteId);
       if (poste) {
+        const localisation = [
+          poste.client?.adresse_ligne1,
+          [poste.client?.code_postal, poste.client?.ville].filter(Boolean).join(' '),
+          poste.client?.pays
+        ].filter(Boolean).join(', ');
+        
         setFormData(prev => ({
           ...prev,
           poste_id: posteId,
           titre: poste.nomPoste,
           description: poste.detail,
-          localisation: poste.client?.adresse
+          localisation: localisation || undefined
         }));
       }
     }

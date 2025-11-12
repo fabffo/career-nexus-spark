@@ -15,7 +15,11 @@ class RdvService implements CrudOperations<Rdv> {
         ),
         clients (
           id,
-          raison_sociale
+          raison_sociale,
+          adresse_ligne1,
+          code_postal,
+          ville,
+          pays
         )
       `)
       .order('date', { ascending: false });
@@ -45,7 +49,10 @@ class RdvService implements CrudOperations<Rdv> {
       client: item.clients ? {
         id: item.clients.id,
         raisonSociale: item.clients.raison_sociale,
-        adresse: '',
+        adresse_ligne1: item.clients.adresse_ligne1 || '',
+        code_postal: item.clients.code_postal || '',
+        ville: item.clients.ville || '',
+        pays: item.clients.pays || 'France',
         telephone: '',
         email: '',
         secteurActivite: '',
@@ -70,7 +77,11 @@ class RdvService implements CrudOperations<Rdv> {
         ),
         clients (
           id,
-          raison_sociale
+          raison_sociale,
+          adresse_ligne1,
+          code_postal,
+          ville,
+          pays
         )
       `)
       .eq('id', id)
@@ -102,7 +113,10 @@ class RdvService implements CrudOperations<Rdv> {
       client: data.clients ? {
         id: data.clients.id,
         raisonSociale: data.clients.raison_sociale,
-        adresse: '',
+        adresse_ligne1: data.clients.adresse_ligne1 || '',
+        code_postal: data.clients.code_postal || '',
+        ville: data.clients.ville || '',
+        pays: data.clients.pays || 'France',
         telephone: '',
         email: '',
         secteurActivite: '',

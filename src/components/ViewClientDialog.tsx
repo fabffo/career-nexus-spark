@@ -63,10 +63,17 @@ export function ViewClientDialog({ client, open, onOpenChange }: ViewClientDialo
               </div>
             )}
 
-            {client.adresse && (
+            {(client.adresse_ligne1 || client.ville) && (
               <div className="flex items-start gap-2 ml-2">
                 <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <p className="text-sm">{client.adresse}</p>
+                <div className="text-sm">
+                  {client.adresse_ligne1 && <p>{client.adresse_ligne1}</p>}
+                  <p>
+                    {client.code_postal && `${client.code_postal} `}
+                    {client.ville}
+                  </p>
+                  {client.pays && <p>{client.pays}</p>}
+                </div>
               </div>
             )}
 

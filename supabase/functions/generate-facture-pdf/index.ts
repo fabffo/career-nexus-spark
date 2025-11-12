@@ -228,10 +228,46 @@ serve(async (req) => {
     });
     destY -= 15;
 
-    // Utiliser l'adresse du client si disponible, sinon celle de la facture
-    const destinataireAdresse = clientData?.adresse || facture.destinataire_adresse;
-    if (destinataireAdresse) {
-      const lines = destinataireAdresse.split('\n');
+    // Utiliser l'adresse du client si disponible (nouveau format structuré)
+    if (clientData?.adresse_ligne1) {
+      page.drawText(clientData.adresse_ligne1, {
+        x: 350,
+        y: destY,
+        size: 10,
+        font,
+        color: rgb(0, 0, 0),
+      });
+      destY -= 15;
+    }
+    
+    // Ligne 2: code postal + ville
+    const codePostalVille = [clientData?.code_postal, clientData?.ville].filter(Boolean).join(' ');
+    if (codePostalVille) {
+      page.drawText(codePostalVille, {
+        x: 350,
+        y: destY,
+        size: 10,
+        font,
+        color: rgb(0, 0, 0),
+      });
+      destY -= 15;
+    }
+    
+    // Ligne 3: pays
+    if (clientData?.pays) {
+      page.drawText(clientData.pays, {
+        x: 350,
+        y: destY,
+        size: 10,
+        font,
+        color: rgb(0, 0, 0),
+      });
+      destY -= 15;
+    }
+    
+    // Fallback sur l'ancien format si pas de nouveau format
+    if (!clientData?.adresse_ligne1 && facture.destinataire_adresse) {
+      const lines = facture.destinataire_adresse.split('\n');
       for (const line of lines) {
         page.drawText(line, {
           x: 350,

@@ -407,34 +407,43 @@ export type Database = {
       }
       clients: {
         Row: {
-          adresse: string | null
+          adresse_ligne1: string | null
+          code_postal: string | null
           created_at: string | null
           delai_paiement_jours: number | null
           email: string | null
           id: string
+          pays: string
           raison_sociale: string
           telephone: string | null
           updated_at: string | null
+          ville: string
         }
         Insert: {
-          adresse?: string | null
+          adresse_ligne1?: string | null
+          code_postal?: string | null
           created_at?: string | null
           delai_paiement_jours?: number | null
           email?: string | null
           id?: string
+          pays?: string
           raison_sociale: string
           telephone?: string | null
           updated_at?: string | null
+          ville: string
         }
         Update: {
-          adresse?: string | null
+          adresse_ligne1?: string | null
+          code_postal?: string | null
           created_at?: string | null
           delai_paiement_jours?: number | null
           email?: string | null
           id?: string
+          pays?: string
           raison_sociale?: string
           telephone?: string | null
           updated_at?: string | null
+          ville?: string
         }
         Relationships: []
       }
