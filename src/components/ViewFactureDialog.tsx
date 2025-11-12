@@ -261,6 +261,12 @@ export default function ViewFactureDialog({
                 {facture.destinataire_email && (
                   <p className="text-sm">Email: {facture.destinataire_email}</p>
                 )}
+                {facture.type_facture === 'ACHATS' && societeInterne?.siren && (
+                  <p className="text-sm">SIREN: {societeInterne.siren}</p>
+                )}
+                {facture.type_facture === 'ACHATS' && societeInterne?.tva && (
+                  <p className="text-sm">N° TVA: {societeInterne.tva}</p>
+                )}
               </div>
             </div>
           </div>
