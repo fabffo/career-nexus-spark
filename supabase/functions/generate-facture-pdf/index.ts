@@ -429,30 +429,6 @@ serve(async (req) => {
       color: rgb(0, 0, 0),
     });
 
-    // Informations de paiement
-    if (facture.informations_paiement) {
-      page.drawText("Informations de paiement:", {
-        x: leftMargin,
-        y: totalsY - 80,
-        size: 10,
-        font: boldFont,
-        color: rgb(0, 0, 0),
-      });
-
-      const paymentLines = facture.informations_paiement.split('\n');
-      let paymentY = totalsY - 100;
-      for (const line of paymentLines) {
-        page.drawText(line, {
-          x: leftMargin,
-          y: paymentY,
-          size: 9,
-          font,
-          color: rgb(0, 0, 0),
-        });
-        paymentY -= 15;
-      }
-    }
-
     // Informations bancaires (si disponibles)
     if (societe && (societe.iban || societe.bic)) {
       let bankY = 100;
@@ -464,6 +440,17 @@ serve(async (req) => {
         color: rgb(0, 0, 0),
       });
       bankY -= 20;
+
+      if (societe.etablissement_bancaire) {
+        page.drawText(`Banque: ${societe.etablissement_bancaire}`, {
+          x: leftMargin,
+          y: bankY,
+          size: 9,
+          font,
+          color: rgb(0, 0, 0),
+        });
+        bankY -= 15;
+      }
 
       if (societe.iban) {
         page.drawText(`IBAN: ${societe.iban}`, {

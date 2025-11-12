@@ -239,6 +239,12 @@ export default function ViewFactureDialog({
                 {facture.emetteur_email && (
                   <p className="text-sm">Email: {facture.emetteur_email}</p>
                 )}
+                {societeInterne?.siren && (
+                  <p className="text-sm">SIREN: {societeInterne.siren}</p>
+                )}
+                {societeInterne?.tva && (
+                  <p className="text-sm">N° TVA: {societeInterne.tva}</p>
+                )}
               </div>
             </div>
 
@@ -315,24 +321,6 @@ export default function ViewFactureDialog({
             </div>
           </div>
 
-          {/* Informations complémentaires */}
-          {(facture.informations_paiement || facture.reference_societe) && (
-            <div className="border-t pt-4 space-y-3">
-              {facture.reference_societe && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Référence société</p>
-                  <p>{facture.reference_societe}</p>
-                </div>
-              )}
-              {facture.informations_paiement && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Informations de paiement</p>
-                  <p className="whitespace-pre-wrap">{facture.informations_paiement}</p>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Informations bancaires de la société (pour factures de vente) */}
           {facture.type_facture === 'VENTES' && societeInterne && (societeInterne.iban || societeInterne.bic) && (
             <div className="border-t pt-4">
@@ -340,7 +328,7 @@ export default function ViewFactureDialog({
               <div className="grid grid-cols-2 gap-4 text-sm">
                 {societeInterne.etablissement_bancaire && (
                   <div>
-                    <span className="text-muted-foreground">Établissement: </span>
+                    <span className="text-muted-foreground">Banque: </span>
                     <span>{societeInterne.etablissement_bancaire}</span>
                   </div>
                 )}
