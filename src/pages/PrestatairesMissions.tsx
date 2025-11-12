@@ -427,8 +427,14 @@ export default function PrestatairesMissions() {
               onClick={(e) => {
                 e.stopPropagation();
                 setSelectedCRAForFacture({
-                  ...row.original.cra_actuel,
-                  mission: row.original.mission
+                  cra: {
+                    ...row.original.cra_actuel,
+                    mission: row.original.mission
+                  },
+                  prestataire: {
+                    nom: row.original.nom,
+                    prenom: row.original.prenom
+                  }
                 });
                 setFactureDialogOpen(true);
               }}
@@ -594,7 +600,8 @@ export default function PrestatairesMissions() {
         <CreateFactureFromCRADialog
           open={factureDialogOpen}
           onOpenChange={setFactureDialogOpen}
-          craData={selectedCRAForFacture}
+          craData={selectedCRAForFacture.cra}
+          prestataire={selectedCRAForFacture.prestataire}
           onSuccess={() => {
             toast.success("Facture créée avec succès");
             loadData();

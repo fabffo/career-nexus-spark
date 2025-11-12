@@ -25,6 +25,10 @@ interface CreateFactureFromCRADialogProps {
     jours_travailles: number;
     mission?: any;
   };
+  prestataire?: {
+    nom: string;
+    prenom: string;
+  };
   onSuccess: () => void;
 }
 
@@ -32,17 +36,23 @@ export default function CreateFactureFromCRADialog({
   open,
   onOpenChange,
   craData,
+  prestataire,
   onSuccess
 }: CreateFactureFromCRADialogProps) {
   const [loading, setLoading] = useState(false);
   const [tvaRates, setTvaRates] = useState<any[]>([]);
+  
+  const prestataireNom = prestataire ? `${prestataire.prenom} ${prestataire.nom}` : '';
+  
   const [formData, setFormData] = useState({
     date_emission: format(new Date(), 'yyyy-MM-dd'),
     date_echeance: format(new Date(new Date().setDate(new Date().getDate() + 30)), 'yyyy-MM-dd'),
     tva_id: '',
     taux_tva: 20,
     notes: `Facture pour le mois de ${format(new Date(craData.annee, craData.mois - 1), 'MMMM yyyy', { locale: fr })}`,
-    description: `Prestation ${craData.mission?.titre || ''} - ${format(new Date(craData.annee, craData.mois - 1), 'MMMM yyyy', { locale: fr })}`
+    description: prestataireNom 
+      ? `Prestation ${craData.mission?.titre || ''} - ${prestataireNom} - ${format(new Date(craData.annee, craData.mois - 1), 'MMMM yyyy', { locale: fr })}`
+      : `Prestation ${craData.mission?.titre || ''} - ${format(new Date(craData.annee, craData.mois - 1), 'MMMM yyyy', { locale: fr })}`
   });
 
   useEffect(() => {

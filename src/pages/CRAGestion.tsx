@@ -791,13 +791,17 @@ export default function CRAGestion() {
       )}
 
       {/* Dialog création facture */}
-      {cra && cra.statut === 'VALIDE' && mission && (
+      {cra && cra.statut === 'VALIDE' && mission && prestataire && (
         <CreateFactureFromCRADialog
           open={factureDialogOpen}
           onOpenChange={setFactureDialogOpen}
           craData={{
             ...cra,
             mission
+          }}
+          prestataire={{
+            nom: prestataire.nom,
+            prenom: prestataire.prenom
           }}
           onSuccess={() => {
             toast.success("Facture créée avec succès");
