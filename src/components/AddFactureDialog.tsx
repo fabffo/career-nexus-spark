@@ -706,6 +706,8 @@ export default function AddFactureDialog({
                 {formData.emetteur_adresse && <p className="text-sm text-muted-foreground">{formData.emetteur_adresse}</p>}
                 {formData.emetteur_telephone && <p className="text-sm text-muted-foreground">Tél: {formData.emetteur_telephone}</p>}
                 {formData.emetteur_email && <p className="text-sm text-muted-foreground">Email: {formData.emetteur_email}</p>}
+                {societeInterne?.siren && <p className="text-sm text-muted-foreground">SIREN: {societeInterne.siren}</p>}
+                {societeInterne?.tva && <p className="text-sm text-muted-foreground">N° TVA: {societeInterne.tva}</p>}
               </div>
             ) : (
               <div className="space-y-2">

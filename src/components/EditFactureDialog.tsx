@@ -32,6 +32,7 @@ export default function EditFactureDialog({
 }: EditFactureDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [societeInterne, setSocieteInterne] = useState<any>(null);
   const [formData, setFormData] = useState(facture);
   const [lignes, setLignes] = useState<FactureLigne[]>([]);
   const [missions, setMissions] = useState<Mission[]>([]);
@@ -43,6 +44,7 @@ export default function EditFactureDialog({
       fetchLignes();
       fetchMissions();
       fetchTypesMission();
+      fetchSocieteInterne();
     }
   }, [open, facture]);
 
@@ -98,6 +100,18 @@ export default function EditFactureDialog({
       setTypesMission(typesData || []);
     } catch (error) {
       console.error('Erreur lors du chargement des types de mission:', error);
+    }
+  };
+
+  const fetchSocieteInterne = async () => {
+    try {
+      const { data } = await supabase
+        .from('societe_interne')
+        .select('*')
+        .single();
+      setSocieteInterne(data);
+    } catch (error) {
+      console.error('Erreur lors du chargement de la société:', error);
     }
   };
 
@@ -366,22 +380,30 @@ export default function EditFactureDialog({
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
-              <div>
-                <p className="text-sm text-muted-foreground">Type</p>
-                <p className="font-medium">{facture.type_facture}</p>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                <div>
+                  <p className="text-sm text-muted-foreground">Type</p>
+                  <p className="font-medium">{facture.type_facture}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Date d'émission</p>
+                  <p className="font-medium">{new Date(facture.date_emission).toLocaleDateString('fr-FR')}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Date d'émission</p>
-                <p className="font-medium">{new Date(facture.date_emission).toLocaleDateString('fr-FR')}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Émetteur</p>
+              
+              <div className="p-4 border rounded-lg bg-muted/50">
+                <p className="text-sm text-muted-foreground mb-1">Émetteur</p>
                 <p className="font-medium">{facture.emetteur_nom}</p>
+                {facture.emetteur_adresse && <p className="text-sm text-muted-foreground">{facture.emetteur_adresse}</p>}
+                {societeInterne?.siren && <p className="text-sm text-muted-foreground">SIREN: {societeInterne.siren}</p>}
+                {societeInterne?.tva && <p className="text-sm text-muted-foreground">N° TVA: {societeInterne.tva}</p>}
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Destinataire</p>
+              
+              <div className="p-4 border rounded-lg bg-muted/50">
+                <p className="text-sm text-muted-foreground mb-1">Destinataire</p>
                 <p className="font-medium">{facture.destinataire_nom}</p>
+                {facture.destinataire_adresse && <p className="text-sm text-muted-foreground">{facture.destinataire_adresse}</p>}
               </div>
             </div>
           )}
