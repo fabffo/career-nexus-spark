@@ -117,7 +117,6 @@ export default function FacturesVentes() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [selectedActivite, setSelectedActivite] = useState<string>("all");
   const [typesMission, setTypesMission] = useState<Array<{ code: string; libelle: string }>>([]);
-  const [societeInterne, setSocieteInterne] = useState<any>(null);
   const [stats, setStats] = useState({
     totalFactures: 0,
     totalHT: 0,
@@ -134,16 +133,6 @@ export default function FacturesVentes() {
   const fetchFactures = async () => {
     setLoading(true);
     try {
-      // Charger la société interne
-      const { data: societe } = await supabase
-        .from('societe_interne')
-        .select('*')
-        .single();
-      
-      if (societe) {
-        setSocieteInterne(societe);
-      }
-
       // Charger les types de mission pour le filtre
       const { data: typesData } = await supabase
         .from('param_type_mission')
@@ -425,24 +414,6 @@ export default function FacturesVentes() {
         } catch {
           return <span>-</span>;
         }
-      },
-    },
-    {
-      accessorKey: "emetteur_nom",
-      header: "Émetteur",
-      cell: ({ row }) => {
-        const emetteurNom = row.getValue("emetteur_nom") as string;
-        return (
-          <div className="space-y-1">
-            <div className="font-medium">{emetteurNom}</div>
-            {societeInterne && (
-              <div className="text-xs text-muted-foreground">
-                {societeInterne.siren && <div>SIREN: {societeInterne.siren}</div>}
-                {societeInterne.tva && <div>N° TVA: {societeInterne.tva}</div>}
-              </div>
-            )}
-          </div>
-        );
       },
     },
     {
