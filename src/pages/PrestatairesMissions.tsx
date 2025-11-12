@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Users, DollarSign, Clock, FileText, TrendingUp } from "lucide-react";
+import { Calendar, Users, DollarSign, Clock, FileText, TrendingUp, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { format, getDaysInMonth, startOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import { DataTable } from "@/components/ui/data-table";
+import CreateFactureFromCRADialog from "@/components/CreateFactureFromCRADialog";
 import { ColumnDef } from "@tanstack/react-table";
 
 interface PrestataireMission {
@@ -52,6 +53,8 @@ export default function PrestatairesMissions() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [statusFilter, setStatusFilter] = useState<string>("tous");
+  const [factureDialogOpen, setFactureDialogOpen] = useState(false);
+  const [selectedCRAForFacture, setSelectedCRAForFacture] = useState<any>(null);
   
   const [stats, setStats] = useState({
     prestatairesMission: 0,
@@ -417,6 +420,23 @@ export default function PrestatairesMissions() {
       header: "Actions",
       cell: ({ row }) => (
         <div className="flex gap-2 justify-end">
+          {row.original.cra_actuel?.statut === 'VALIDE' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedCRAForFacture({
+                  ...row.original.cra_actuel,
+                  mission: row.original.mission
+                });
+                setFactureDialogOpen(true);
+              }}
+            >
+              <Receipt className="h-4 w-4 mr-1" />
+              Créer facture
+            </Button>
+          )}
           {row.original.cra_actuel?.statut === 'SOUMIS' && (
             <Button
               variant="default"
@@ -568,6 +588,19 @@ export default function PrestatairesMissions() {
         data={filteredPrestataires}
         searchPlaceholder="Rechercher un prestataire, client ou poste..."
       />
+
+      {/* Dialog création facture */}
+      {selectedCRAForFacture && (
+        <CreateFactureFromCRADialog
+          open={factureDialogOpen}
+          onOpenChange={setFactureDialogOpen}
+          craData={selectedCRAForFacture}
+          onSuccess={() => {
+            toast.success("Facture créée avec succès");
+            loadData();
+          }}
+        />
+      )}
     </div>
   );
 }

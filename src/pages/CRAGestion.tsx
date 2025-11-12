@@ -11,13 +11,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { 
   ArrowLeft, Save, Send, Download, Calendar, CheckCircle, 
-  XCircle, Clock, User, Building, Briefcase, FileText 
+  XCircle, Clock, User, Building, Briefcase, FileText, Receipt 
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, getDaysInMonth, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, getDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { craService } from "@/services/craService";
 import { CRA, CRAJour, TypeJour } from "@/types/cra";
+import CreateFactureFromCRADialog from "@/components/CreateFactureFromCRADialog";
 
 export default function CRAGestion() {
   const navigate = useNavigate();
@@ -40,6 +41,7 @@ export default function CRAGestion() {
   const [cra, setCra] = useState<CRA | null>(null);
   const [craJours, setCraJours] = useState<Map<string, CRAJour>>(new Map());
   const [commentaires, setCommentaires] = useState("");
+  const [factureDialogOpen, setFactureDialogOpen] = useState(false);
 
   useEffect(() => {
     loadInitialData();
@@ -733,15 +735,25 @@ export default function CRAGestion() {
                     </div>
                   )}
                   {cra?.statut === 'VALIDE' ? (
-                    <Button 
-                      className="w-full" 
-                      variant="destructive"
-                      onClick={devaliderCRA}
-                      disabled={saving}
-                    >
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Dévalider pour modification
-                    </Button>
+                    <>
+                      <Button 
+                        className="w-full"
+                        variant="secondary"
+                        onClick={() => setFactureDialogOpen(true)}
+                      >
+                        <Receipt className="h-4 w-4 mr-2" />
+                        Créer facture
+                      </Button>
+                      <Button 
+                        className="w-full" 
+                        variant="destructive"
+                        onClick={devaliderCRA}
+                        disabled={saving}
+                      >
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Dévalider pour modification
+                      </Button>
+                    </>
                   ) : (
                     <>
                       <Button 
@@ -776,6 +788,22 @@ export default function CRAGestion() {
             </Card>
           </div>
         </>
+      )}
+
+      {/* Dialog création facture */}
+      {cra && cra.statut === 'VALIDE' && mission && (
+        <CreateFactureFromCRADialog
+          open={factureDialogOpen}
+          onOpenChange={setFactureDialogOpen}
+          craData={{
+            ...cra,
+            mission
+          }}
+          onSuccess={() => {
+            toast.success("Facture créée avec succès");
+            navigate('/factures-ventes');
+          }}
+        />
       )}
     </div>
   );
