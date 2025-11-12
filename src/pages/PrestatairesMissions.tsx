@@ -104,7 +104,12 @@ export default function PrestatairesMissions() {
 
       if (salarieError) throw salarieError;
 
-      // Charger les missions actives de type CLIENT uniquement
+      // Calculer le début et la fin du mois sélectionné
+      const debutMois = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+      const dernierJour = new Date(selectedYear, selectedMonth, 0).getDate();
+      const finMois = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(dernierJour).padStart(2, '0')}`;
+
+      // Charger les missions actives durant le mois sélectionné
       const { data: missionsData, error: missionError } = await supabase
         .from('missions')
         .select(`
@@ -122,7 +127,9 @@ export default function PrestatairesMissions() {
           )
         `)
         .eq('statut', 'EN_COURS')
-        .not('contrat_id', 'is', null);
+        .not('contrat_id', 'is', null)
+        .lte('date_debut', finMois)
+        .or(`date_fin.gte.${debutMois},date_fin.is.null`);
 
       if (missionError) throw missionError;
 
