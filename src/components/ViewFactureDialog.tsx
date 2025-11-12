@@ -239,10 +239,10 @@ export default function ViewFactureDialog({
                 {facture.emetteur_email && (
                   <p className="text-sm">Email: {facture.emetteur_email}</p>
                 )}
-                {societeInterne?.siren && (
+                {facture.type_facture === 'VENTES' && societeInterne?.siren && (
                   <p className="text-sm">SIREN: {societeInterne.siren}</p>
                 )}
-                {societeInterne?.tva && (
+                {facture.type_facture === 'VENTES' && societeInterne?.tva && (
                   <p className="text-sm">N° TVA: {societeInterne.tva}</p>
                 )}
               </div>
@@ -260,6 +260,12 @@ export default function ViewFactureDialog({
                 )}
                 {facture.destinataire_email && (
                   <p className="text-sm">Email: {facture.destinataire_email}</p>
+                )}
+                {facture.type_facture === 'ACHATS' && societeInterne?.siren && (
+                  <p className="text-sm">SIREN: {societeInterne.siren}</p>
+                )}
+                {facture.type_facture === 'ACHATS' && societeInterne?.tva && (
+                  <p className="text-sm">N° TVA: {societeInterne.tva}</p>
                 )}
               </div>
             </div>

@@ -746,6 +746,8 @@ export default function AddFactureDialog({
                 {formData.destinataire_adresse && <p className="text-sm">{formData.destinataire_adresse}</p>}
                 {formData.destinataire_telephone && <p className="text-sm">Tél: {formData.destinataire_telephone}</p>}
                 {formData.destinataire_email && <p className="text-sm">Email: {formData.destinataire_email}</p>}
+                {societeInterne?.siren && <p className="text-sm text-muted-foreground">SIREN: {societeInterne.siren}</p>}
+                {societeInterne?.tva && <p className="text-sm text-muted-foreground">N° TVA: {societeInterne.tva}</p>}
               </div>
             ) : (
               <Select onValueChange={handleDestinataireClientChange}>

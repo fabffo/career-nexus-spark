@@ -369,7 +369,7 @@ export default function EditFactureDialog({
                   placeholder="Nom de l'émetteur"
                 />
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="destinataire_nom">Destinataire</Label>
                 <Input
                   id="destinataire_nom"
@@ -377,6 +377,8 @@ export default function EditFactureDialog({
                   onChange={(e) => setFormData(prev => ({ ...prev, destinataire_nom: e.target.value }))}
                   placeholder="Nom du destinataire"
                 />
+                {societeInterne?.siren && <p className="text-sm text-muted-foreground">SIREN: {societeInterne.siren}</p>}
+                {societeInterne?.tva && <p className="text-sm text-muted-foreground">N° TVA: {societeInterne.tva}</p>}
               </div>
             </div>
           ) : (
