@@ -150,9 +150,7 @@ export default function CreateFactureFromCRADialog({
           quantite: craData.jours_travailles,
           prix_unitaire_ht: craData.mission?.tjm || craData.mission?.prix_ht || 0,
           taux_tva: formData.taux_tva,
-          montant_tva: montant_tva,
           prix_ht: montant_ht,
-          prix_ttc: montant_ttc,
           ordre: 1
         });
 
