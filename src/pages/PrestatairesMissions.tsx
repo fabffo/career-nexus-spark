@@ -372,6 +372,51 @@ export default function PrestatairesMissions() {
     }
   };
 
+  const handleDeleteCRA = async (prestataire: PrestataireMission) => {
+    if (!prestataire.cra_actuel) {
+      toast.error("Aucun CRA à annuler");
+      return;
+    }
+
+    if (prestataire.cra_actuel.statut === 'VALIDE') {
+      toast.error("Impossible d'annuler un CRA validé");
+      return;
+    }
+
+    if (prestataire.cra_actuel.hasFacture) {
+      toast.error("Impossible d'annuler un CRA qui a une facture associée");
+      return;
+    }
+
+    if (!confirm(`Êtes-vous sûr de vouloir annuler le CRA de ${prestataire.prenom} ${prestataire.nom} pour ${format(new Date(prestataire.cra_actuel.annee, prestataire.cra_actuel.mois - 1), 'MMMM yyyy', { locale: fr })} ?`)) {
+      return;
+    }
+
+    try {
+      // Supprimer d'abord les jours du CRA
+      const { error: joursError } = await supabase
+        .from('cra_jours')
+        .delete()
+        .eq('cra_id', prestataire.cra_actuel.id);
+
+      if (joursError) throw joursError;
+
+      // Supprimer le CRA
+      const { error: craError } = await supabase
+        .from('cra')
+        .delete()
+        .eq('id', prestataire.cra_actuel.id);
+
+      if (craError) throw craError;
+
+      toast.success(`CRA de ${prestataire.prenom} ${prestataire.nom} annulé avec succès`);
+      loadData();
+    } catch (error) {
+      console.error("Erreur lors de l'annulation:", error);
+      toast.error("Erreur lors de l'annulation du CRA");
+    }
+  };
+
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
   const months = [
@@ -477,57 +522,87 @@ export default function PrestatairesMissions() {
     {
       id: "actions",
       header: "Actions",
-      cell: ({ row }) => (
-        <div className="flex gap-2 justify-end">
-          {row.original.cra_actuel?.statut === 'VALIDE' && (
+      cell: ({ row }) => {
+        const canModify = row.original.cra_actuel && 
+                         ['BROUILLON', 'SOUMIS', 'REJETE'].includes(row.original.cra_actuel.statut) &&
+                         !row.original.cra_actuel.hasFacture;
+        
+        return (
+          <div className="flex gap-2 justify-end flex-wrap">
+            {row.original.cra_actuel?.statut === 'VALIDE' && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={row.original.cra_actuel?.hasFacture}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedCRAForFacture({
+                    cra: {
+                      ...row.original.cra_actuel,
+                      mission: row.original.mission
+                    },
+                    prestataire: {
+                      nom: row.original.nom,
+                      prenom: row.original.prenom
+                    }
+                  });
+                  setFactureDialogOpen(true);
+                }}
+                className={row.original.cra_actuel?.hasFacture ? "opacity-50 cursor-not-allowed" : ""}
+              >
+                <Receipt className="h-4 w-4 mr-1" />
+                {row.original.cra_actuel?.hasFacture ? 'Facture créée' : 'Créer facture'}
+              </Button>
+            )}
+            {row.original.cra_actuel?.statut === 'SOUMIS' && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  await handleValidateCRA(row.original);
+                }}
+              >
+                Valider CRA
+              </Button>
+            )}
+            {canModify && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/cra-gestion?prestataire=${row.original.id}&mission=${row.original.mission?.id}&annee=${row.original.cra_actuel?.annee}&mois=${row.original.cra_actuel?.mois}`);
+                  }}
+                >
+                  Modifier CRA
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    await handleDeleteCRA(row.original);
+                  }}
+                >
+                  Annuler CRA
+                </Button>
+              </>
+            )}
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              disabled={row.original.cra_actuel?.hasFacture}
               onClick={(e) => {
                 e.stopPropagation();
-                setSelectedCRAForFacture({
-                  cra: {
-                    ...row.original.cra_actuel,
-                    mission: row.original.mission
-                  },
-                  prestataire: {
-                    nom: row.original.nom,
-                    prenom: row.original.prenom
-                  }
-                });
-                setFactureDialogOpen(true);
-              }}
-              className={row.original.cra_actuel?.hasFacture ? "opacity-50 cursor-not-allowed" : ""}
-            >
-              <Receipt className="h-4 w-4 mr-1" />
-              {row.original.cra_actuel?.hasFacture ? 'Facture créée' : 'Créer facture'}
-            </Button>
-          )}
-          {row.original.cra_actuel?.statut === 'SOUMIS' && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={async (e) => {
-                e.stopPropagation();
-                await handleValidateCRA(row.original);
+                navigate(`/prestataire-mission/${row.original.id}/${row.original.mission?.id || ''}`);
               }}
             >
-              Valider CRA
+              Voir détail
             </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/prestataire-mission/${row.original.id}/${row.original.mission?.id || ''}`);
-            }}
-          >
-            Voir détail
-          </Button>
-        </div>
-      ),
+          </div>
+        );
+      },
       meta: { className: "text-right" },
     },
   ];

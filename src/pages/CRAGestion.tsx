@@ -49,10 +49,13 @@ export default function CRAGestion() {
     // Pré-remplir depuis les paramètres URL
     const prestataireParam = searchParams.get('prestataire');
     const missionParam = searchParams.get('mission');
-    const craParam = searchParams.get('cra');
+    const anneeParam = searchParams.get('annee');
+    const moisParam = searchParams.get('mois');
     
     if (prestataireParam) setSelectedPrestataire(prestataireParam);
     if (missionParam) setSelectedMission(missionParam);
+    if (anneeParam) setSelectedYear(parseInt(anneeParam));
+    if (moisParam) setSelectedMonth(parseInt(moisParam));
   }, []);
 
   useEffect(() => {
