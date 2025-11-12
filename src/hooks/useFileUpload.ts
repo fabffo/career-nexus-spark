@@ -29,7 +29,7 @@ export const useFileUpload = () => {
       }
 
       // Pour les buckets publics, retourner l'URL publique
-      if (bucket === 'candidats-files') {
+      if (bucket === 'candidats-files' || bucket === 'prestataires-files') {
         const { data: { publicUrl } } = supabase.storage
           .from(bucket)
           .getPublicUrl(filePath);
@@ -51,11 +51,11 @@ export const useFileUpload = () => {
     }
   };
 
-  const deleteFile = async (url: string) => {
+  const deleteFile = async (url: string, bucket: string = 'candidats-files') => {
     try {
       const path = url.split('/').slice(-2).join('/');
       const { error } = await supabase.storage
-        .from('candidats-files')
+        .from(bucket)
         .remove([path]);
 
       if (error) throw error;

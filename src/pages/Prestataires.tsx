@@ -108,10 +108,10 @@ export default function Prestataires() {
 
       // Upload des fichiers si nécessaire
       if (cvFile) {
-        cvUrl = await uploadFile(cvFile, 'prestataires/cv');
+        cvUrl = await uploadFile(cvFile, 'prestataires-files');
       }
       if (recommandationFile) {
-        recommandationUrl = await uploadFile(recommandationFile, 'prestataires/recommandations');
+        recommandationUrl = await uploadFile(recommandationFile, 'prestataires-files');
       }
 
       const dataToSubmit = {
@@ -129,10 +129,10 @@ export default function Prestataires() {
       if (isEditMode && selectedPrestataire) {
         // Supprimer les anciens fichiers si de nouveaux sont uploadés
         if (cvFile && selectedPrestataire.cv_url) {
-          await deleteFile(selectedPrestataire.cv_url);
+          await deleteFile(selectedPrestataire.cv_url, 'prestataires-files');
         }
         if (recommandationFile && selectedPrestataire.recommandation_url) {
-          await deleteFile(selectedPrestataire.recommandation_url);
+          await deleteFile(selectedPrestataire.recommandation_url, 'prestataires-files');
         }
 
         await prestataireService.update(selectedPrestataire.id, dataToSubmit);
