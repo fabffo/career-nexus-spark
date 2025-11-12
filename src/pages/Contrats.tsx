@@ -251,7 +251,7 @@ export default function Contrats() {
       } else if (isEditMode && selectedContrat) {
         // Supprimer l'ancien fichier si un nouveau est uploadé
         if (pieceJointeFile && selectedContrat.piece_jointe_url) {
-          await deleteFile(selectedContrat.piece_jointe_url);
+          await deleteFile(selectedContrat.piece_jointe_url, 'contrats');
         }
 
         await contratService.update(selectedContrat.id, dataToSubmit);
@@ -324,6 +324,23 @@ export default function Contrats() {
     } catch (error) {
       console.error(`Erreur lors de ${action}:`, error);
       toast.error(`Erreur lors de l'action`);
+    }
+  };
+
+  const handleDownloadContrat = async (filePath: string) => {
+    try {
+      // Générer une URL signée valide 1 heure
+      const { data, error } = await supabase.storage
+        .from('contrats')
+        .createSignedUrl(filePath, 3600);
+
+      if (error) throw error;
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, '_blank');
+      }
+    } catch (error) {
+      console.error('Erreur lors du téléchargement:', error);
+      toast.error('Erreur lors du téléchargement du fichier');
     }
   };
 
@@ -578,7 +595,7 @@ export default function Contrats() {
               {contrat.piece_jointe_url && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button size="sm" variant="ghost" onClick={() => window.open(contrat.piece_jointe_url, '_blank')}>
+                    <Button size="sm" variant="ghost" onClick={() => handleDownloadContrat(contrat.piece_jointe_url)}>
                       <Download className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
@@ -968,7 +985,7 @@ export default function Contrats() {
                 <div>
                   <Button
                     variant="outline"
-                    onClick={() => window.open(selectedContrat.piece_jointe_url, '_blank')}
+                    onClick={() => handleDownloadContrat(selectedContrat.piece_jointe_url)}
                   >
                     <FileText className="h-4 w-4 mr-2" />
                     Voir la pièce jointe
