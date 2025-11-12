@@ -31,6 +31,7 @@ interface PrestataireMission {
     contrat?: {
       client?: {
         raison_sociale: string;
+        id: string;
       };
     };
   };
@@ -41,6 +42,7 @@ interface PrestataireMission {
     ca_mensuel: number;
     annee: number;
     mois: number;
+    hasFacture?: boolean;
   };
 }
 
@@ -123,7 +125,10 @@ export default function PrestatairesMissions() {
           prestataire_id,
           salarie_id,
           contrat:contrats(
-            client:clients(raison_sociale)
+            client:clients(
+              id,
+              raison_sociale
+            )
           )
         `)
         .eq('statut', 'EN_COURS')
@@ -142,6 +147,20 @@ export default function PrestatairesMissions() {
 
       if (craError) throw craError;
 
+      // Charger toutes les factures de vente pour vérifier les CRA déjà facturés
+      const { data: facturesData, error: facturesError } = await supabase
+        .from('factures')
+        .select(`
+          id,
+          destinataire_id,
+          facture_lignes(
+            description
+          )
+        `)
+        .eq('type_facture', 'VENTES');
+
+      if (facturesError) throw facturesError;
+
       // Combiner les données - créer une ligne par mission de prestataire
       const prestatairesMissions: PrestataireMission[] = [];
       
@@ -158,6 +177,21 @@ export default function PrestatairesMissions() {
           
           const cra = missionCras[0];
           
+          // Vérifier si une facture existe déjà pour ce CRA
+          let hasFacture = false;
+          if (cra && mission.contrat?.client?.id) {
+            const prestataireNom = `${p.prenom} ${p.nom}`;
+            const periodeText = format(new Date(cra.annee, cra.mois - 1), 'MMMM yyyy', { locale: fr });
+            
+            hasFacture = facturesData?.some(facture => 
+              facture.destinataire_id === mission.contrat?.client?.id &&
+              facture.facture_lignes?.some((ligne: any) => 
+                ligne.description?.includes(prestataireNom) && 
+                ligne.description?.includes(periodeText)
+              )
+            ) || false;
+          }
+          
           prestatairesMissions.push({
             ...p,
             mission: mission,
@@ -167,7 +201,8 @@ export default function PrestatairesMissions() {
               jours_travailles: cra.jours_travailles || 0,
               ca_mensuel: cra.ca_mensuel || 0,
               annee: cra.annee,
-              mois: cra.mois
+              mois: cra.mois,
+              hasFacture
             } : undefined
           });
         });
@@ -185,6 +220,21 @@ export default function PrestatairesMissions() {
           
           const cra = missionCras[0];
           
+          // Vérifier si une facture existe déjà pour ce CRA
+          let hasFacture = false;
+          if (cra && mission.contrat?.client?.id) {
+            const prestataireNom = `${s.prenom} ${s.nom}`;
+            const periodeText = format(new Date(cra.annee, cra.mois - 1), 'MMMM yyyy', { locale: fr });
+            
+            hasFacture = facturesData?.some(facture => 
+              facture.destinataire_id === mission.contrat?.client?.id &&
+              facture.facture_lignes?.some((ligne: any) => 
+                ligne.description?.includes(prestataireNom) && 
+                ligne.description?.includes(periodeText)
+              )
+            ) || false;
+          }
+          
           prestatairesMissions.push({
             id: s.id,
             nom: s.nom,
@@ -197,7 +247,8 @@ export default function PrestatairesMissions() {
               jours_travailles: cra.jours_travailles || 0,
               ca_mensuel: cra.ca_mensuel || 0,
               annee: cra.annee,
-              mois: cra.mois
+              mois: cra.mois,
+              hasFacture
             } : undefined
           });
         });
@@ -432,6 +483,7 @@ export default function PrestatairesMissions() {
             <Button
               variant="outline"
               size="sm"
+              disabled={row.original.cra_actuel?.hasFacture}
               onClick={(e) => {
                 e.stopPropagation();
                 setSelectedCRAForFacture({
@@ -446,9 +498,10 @@ export default function PrestatairesMissions() {
                 });
                 setFactureDialogOpen(true);
               }}
+              className={row.original.cra_actuel?.hasFacture ? "opacity-50 cursor-not-allowed" : ""}
             >
               <Receipt className="h-4 w-4 mr-1" />
-              Créer facture
+              {row.original.cra_actuel?.hasFacture ? 'Facture créée' : 'Créer facture'}
             </Button>
           )}
           {row.original.cra_actuel?.statut === 'SOUMIS' && (
