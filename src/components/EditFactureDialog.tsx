@@ -325,68 +325,58 @@ export default function EditFactureDialog({
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Informations - modifiables pour ACHATS */}
           {facture.type_facture === 'ACHATS' ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Type</p>
-                  <p className="font-medium">{facture.type_facture}</p>
-                </div>
-                <div>
-                  <Label>Date d'émission</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !formData.date_emission && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.date_emission ? (
-                          format(new Date(formData.date_emission), "dd/MM/yyyy", { locale: fr })
-                        ) : (
-                          <span>Sélectionner une date</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={new Date(formData.date_emission)}
-                        onSelect={(date) => date && setFormData(prev => ({ ...prev, date_emission: format(date, 'yyyy-MM-dd') }))}
-                        locale={fr}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+            <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Type</p>
+                <p className="font-medium">{facture.type_facture}</p>
               </div>
-              
-              <div className="p-4 border rounded-lg bg-muted/50">
-                <p className="text-sm text-muted-foreground mb-1">Émetteur</p>
-                <Label htmlFor="emetteur_nom">Nom de l'émetteur</Label>
+              <div>
+                <Label>Date d'émission</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.date_emission && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.date_emission ? (
+                        format(new Date(formData.date_emission), "dd/MM/yyyy", { locale: fr })
+                      ) : (
+                        <span>Sélectionner une date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={new Date(formData.date_emission)}
+                      onSelect={(date) => date && setFormData(prev => ({ ...prev, date_emission: format(date, 'yyyy-MM-dd') }))}
+                      locale={fr}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label htmlFor="emetteur_nom">Émetteur</Label>
                 <Input
                   id="emetteur_nom"
                   value={formData.emetteur_nom}
                   onChange={(e) => setFormData(prev => ({ ...prev, emetteur_nom: e.target.value }))}
                   placeholder="Nom de l'émetteur"
-                  className="mt-1"
                 />
               </div>
-              
-              <div className="p-4 border rounded-lg bg-muted/50">
-                <p className="text-sm text-muted-foreground mb-1">Destinataire</p>
-                <Label htmlFor="destinataire_nom">Nom du destinataire</Label>
+              <div>
+                <Label htmlFor="destinataire_nom">Destinataire</Label>
                 <Input
                   id="destinataire_nom"
                   value={formData.destinataire_nom}
                   onChange={(e) => setFormData(prev => ({ ...prev, destinataire_nom: e.target.value }))}
                   placeholder="Nom du destinataire"
-                  className="mt-1 mb-2"
                 />
-                {societeInterne?.siren && <p className="text-sm text-muted-foreground">SIREN: {societeInterne.siren}</p>}
-                {societeInterne?.tva && <p className="text-sm text-muted-foreground">N° TVA: {societeInterne.tva}</p>}
               </div>
             </div>
           ) : (

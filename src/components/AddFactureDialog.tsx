@@ -733,14 +733,6 @@ export default function AddFactureDialog({
                     ))}
                   </SelectContent>
                 </Select>
-                {formData.emetteur_nom && (
-                  <div className="p-4 border rounded-lg bg-muted/50 mt-2">
-                    <p className="font-medium">{formData.emetteur_nom}</p>
-                    {formData.emetteur_adresse && <p className="text-sm text-muted-foreground">{formData.emetteur_adresse}</p>}
-                    {formData.emetteur_telephone && <p className="text-sm text-muted-foreground">Tél: {formData.emetteur_telephone}</p>}
-                    {formData.emetteur_email && <p className="text-sm text-muted-foreground">Email: {formData.emetteur_email}</p>}
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -751,11 +743,9 @@ export default function AddFactureDialog({
             {formData.type_facture === 'ACHATS' ? (
               <div className="p-4 border rounded-lg bg-muted/50">
                 <p className="font-medium">{formData.destinataire_nom}</p>
-                {formData.destinataire_adresse && <p className="text-sm text-muted-foreground">{formData.destinataire_adresse}</p>}
-                {formData.destinataire_telephone && <p className="text-sm text-muted-foreground">Tél: {formData.destinataire_telephone}</p>}
-                {formData.destinataire_email && <p className="text-sm text-muted-foreground">Email: {formData.destinataire_email}</p>}
-                {societeInterne?.siren && <p className="text-sm text-muted-foreground">SIREN: {societeInterne.siren}</p>}
-                {societeInterne?.tva && <p className="text-sm text-muted-foreground">N° TVA: {societeInterne.tva}</p>}
+                {formData.destinataire_adresse && <p className="text-sm">{formData.destinataire_adresse}</p>}
+                {formData.destinataire_telephone && <p className="text-sm">Tél: {formData.destinataire_telephone}</p>}
+                {formData.destinataire_email && <p className="text-sm">Email: {formData.destinataire_email}</p>}
               </div>
             ) : (
               <Select onValueChange={handleDestinataireClientChange}>
