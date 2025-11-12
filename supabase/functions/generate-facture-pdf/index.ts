@@ -54,16 +54,48 @@ serve(async (req) => {
       .select("*")
       .single();
 
-    // Récupérer les informations du client si destinataire_id est présent
+    // Récupérer les informations du client
     let clientData = null;
-    if (facture.destinataire_id && facture.destinataire_type === 'CLIENT') {
-      const { data: client } = await supabase
-        .from("clients")
-        .select("*")
-        .eq("id", facture.destinataire_id)
-        .single();
-      clientData = client;
-      console.log("Client data fetched:", clientData);
+    console.log("Facture destinataire info:", {
+      destinataire_id: facture.destinataire_id,
+      destinataire_type: facture.destinataire_type,
+      destinataire_nom: facture.destinataire_nom
+    });
+    
+    if (facture.destinataire_type === 'CLIENT') {
+      if (facture.destinataire_id) {
+        // Récupérer par ID si disponible
+        console.log("Fetching client data by ID:", facture.destinataire_id);
+        const { data: client, error: clientError } = await supabase
+          .from("clients")
+          .select("*")
+          .eq("id", facture.destinataire_id)
+          .single();
+        
+        if (clientError) {
+          console.error("Error fetching client by ID:", clientError);
+        } else {
+          clientData = client;
+          console.log("Client data fetched by ID:", clientData);
+        }
+      } else if (facture.destinataire_nom) {
+        // Fallback: rechercher par nom si pas d'ID
+        console.log("Fetching client data by name:", facture.destinataire_nom);
+        const { data: client, error: clientError } = await supabase
+          .from("clients")
+          .select("*")
+          .ilike("raison_sociale", facture.destinataire_nom)
+          .single();
+        
+        if (clientError) {
+          console.error("Error fetching client by name:", clientError);
+        } else {
+          clientData = client;
+          console.log("Client data fetched by name:", clientData);
+        }
+      }
+    } else {
+      console.log("Destinataire is not a CLIENT, skipping client fetch");
     }
 
     // Créer le document PDF
