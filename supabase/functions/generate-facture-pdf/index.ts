@@ -54,6 +54,18 @@ serve(async (req) => {
       .select("*")
       .single();
 
+    // Récupérer les informations du client si destinataire_id est présent
+    let clientData = null;
+    if (facture.destinataire_id && facture.destinataire_type === 'CLIENT') {
+      const { data: client } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("id", facture.destinataire_id)
+        .single();
+      clientData = client;
+      console.log("Client data fetched:", clientData);
+    }
+
     // Créer le document PDF
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage([595, 842]); // A4
@@ -184,8 +196,10 @@ serve(async (req) => {
     });
     destY -= 15;
 
-    if (facture.destinataire_adresse) {
-      const lines = facture.destinataire_adresse.split('\n');
+    // Utiliser l'adresse du client si disponible, sinon celle de la facture
+    const destinataireAdresse = clientData?.adresse || facture.destinataire_adresse;
+    if (destinataireAdresse) {
+      const lines = destinataireAdresse.split('\n');
       for (const line of lines) {
         page.drawText(line, {
           x: 350,
@@ -198,8 +212,10 @@ serve(async (req) => {
       }
     }
 
-    if (facture.destinataire_telephone) {
-      page.drawText(`Tél: ${facture.destinataire_telephone}`, {
+    // Utiliser le téléphone du client si disponible
+    const destinataireTel = clientData?.telephone || facture.destinataire_telephone;
+    if (destinataireTel) {
+      page.drawText(`Tél: ${destinataireTel}`, {
         x: 350,
         y: destY,
         size: 10,
@@ -209,8 +225,10 @@ serve(async (req) => {
       destY -= 15;
     }
 
-    if (facture.destinataire_email) {
-      page.drawText(`Email: ${facture.destinataire_email}`, {
+    // Utiliser l'email du client si disponible
+    const destinataireEmail = clientData?.email || facture.destinataire_email;
+    if (destinataireEmail) {
+      page.drawText(`Email: ${destinataireEmail}`, {
         x: 350,
         y: destY,
         size: 10,
