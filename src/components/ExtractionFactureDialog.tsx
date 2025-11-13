@@ -10,6 +10,8 @@ import {
   Trash2,
   Eye,
   Sparkles,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -166,6 +168,8 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
   const [progress, setProgress] = useState(0);
   const [selectedFacture, setSelectedFacture] = useState<FactureExtraite | null>(null);
   const [editedData, setEditedData] = useState<FactureData | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 3;
   const { toast } = useToast();
 
   const extraireFacture = async (file: File): Promise<FactureExtraite> => {
@@ -294,6 +298,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
     setIsProcessing(false);
     setCurrentFile("");
     setProgress(0);
+    setCurrentPage(1); // Réinitialiser la pagination
 
     toast({
       title: "Extraction terminée",
@@ -597,9 +602,12 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
 
             {/* Liste des factures */}
             {factures.length > 0 && (
-              <ScrollArea className="h-[500px]">
-                <div className="space-y-3 pr-4">
-                  {factures.map((facture) => (
+              <>
+                <ScrollArea className="h-[650px]">
+                  <div className="space-y-3 pr-4">
+                    {factures
+                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                      .map((facture) => (
                     <Card
                       key={facture.id}
                       className={`${
@@ -720,7 +728,15 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => setFactures((prev) => prev.filter((f) => f.id !== facture.id))}
+                              onClick={() => {
+                                const newFactures = factures.filter((f) => f.id !== facture.id);
+                                setFactures(newFactures);
+                                // Ajuster la page si nécessaire
+                                const maxPage = Math.max(1, Math.ceil(newFactures.length / itemsPerPage));
+                                if (currentPage > maxPage) {
+                                  setCurrentPage(maxPage);
+                                }
+                              }}
                               title="Supprimer"
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
@@ -729,9 +745,39 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
-                </div>
-              </ScrollArea>
+                    ))}
+                  </div>
+                </ScrollArea>
+                
+                {/* Pagination */}
+                {factures.length > itemsPerPage && (
+                  <div className="flex items-center justify-between px-2 py-4 border-t">
+                    <div className="text-sm text-muted-foreground">
+                      Page {currentPage} sur {Math.ceil(factures.length / itemsPerPage)} • {factures.length} facture{factures.length > 1 ? 's' : ''} au total
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4 mr-1" />
+                        Précédent
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage((prev) => Math.min(Math.ceil(factures.length / itemsPerPage), prev + 1))}
+                        disabled={currentPage === Math.ceil(factures.length / itemsPerPage)}
+                      >
+                        Suivant
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </TabsContent>
 
