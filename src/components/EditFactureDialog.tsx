@@ -37,6 +37,11 @@ export default function EditFactureDialog({
   const [lignes, setLignes] = useState<FactureLigne[]>([]);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [typesMission, setTypesMission] = useState<any[]>([]);
+  const [fournisseurs, setFournisseurs] = useState<any[]>([]);
+  const [prestataires, setPrestataires] = useState<any[]>([]);
+  const [salaries, setSalaries] = useState<any[]>([]);
+  const [selectedFournisseurType, setSelectedFournisseurType] = useState<string>('');
+  const [selectedFournisseurId, setSelectedFournisseurId] = useState<string>('');
 
   useEffect(() => {
     if (open && facture) {
@@ -45,6 +50,20 @@ export default function EditFactureDialog({
       fetchMissions();
       fetchTypesMission();
       fetchSocieteInterne();
+      if (facture.type_facture === 'ACHATS') {
+        fetchFournisseurs();
+        // Détecter le type de fournisseur initial
+        if (facture.emetteur_type === 'PRESTATAIRE') {
+          setSelectedFournisseurType('PRESTATAIRE');
+          setSelectedFournisseurId(facture.emetteur_id || '');
+        } else if (facture.emetteur_type === 'SALARIE') {
+          setSelectedFournisseurType('SALARIE');
+          setSelectedFournisseurId(facture.emetteur_id || '');
+        } else if (facture.emetteur_type === 'FOURNISSEUR_GENERAL' || facture.emetteur_type === 'FOURNISSEUR_SERVICE') {
+          setSelectedFournisseurType('FOURNISSEUR');
+          setSelectedFournisseurId(facture.emetteur_id || '');
+        }
+      }
     }
   }, [open, facture]);
 
@@ -112,6 +131,28 @@ export default function EditFactureDialog({
       setSocieteInterne(data);
     } catch (error) {
       console.error('Erreur lors du chargement de la société:', error);
+    }
+  };
+
+  const fetchFournisseurs = async () => {
+    try {
+      const [generaux, services, prestatairesList, salariesList] = await Promise.all([
+        supabase.from('fournisseurs_generaux').select('*').order('raison_sociale'),
+        supabase.from('fournisseurs_services').select('*').order('raison_sociale'),
+        supabase.from('prestataires').select('*').order('nom'),
+        supabase.from('salaries').select('*').order('nom')
+      ]);
+
+      const allFournisseurs = [
+        ...(generaux.data || []).map(f => ({ ...f, type: 'GENERAL' })),
+        ...(services.data || []).map(f => ({ ...f, type: 'SERVICE' }))
+      ];
+
+      setFournisseurs(allFournisseurs);
+      setPrestataires(prestatairesList.data || []);
+      setSalaries(salariesList.data || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des fournisseurs:', error);
     }
   };
 
@@ -245,10 +286,43 @@ export default function EditFactureDialog({
         reference_societe: formData.reference_societe,
       };
 
-      // Pour les factures d'achat, permettre la modification de date_emission, emetteur_nom, destinataire_nom
+      // Pour les factures d'achat, permettre la modification complète du fournisseur
       if (facture.type_facture === 'ACHATS') {
         updateData.date_emission = format(new Date(formData.date_emission), 'yyyy-MM-dd');
-        updateData.emetteur_nom = formData.emetteur_nom;
+        
+        // Récupérer les informations du fournisseur sélectionné
+        if (selectedFournisseurId && selectedFournisseurType) {
+          let emetteurNom = '';
+          let emetteurType = '';
+          
+          if (selectedFournisseurType === 'PRESTATAIRE') {
+            const prestataire = prestataires.find(p => p.id === selectedFournisseurId);
+            if (prestataire) {
+              emetteurNom = `${prestataire.prenom} ${prestataire.nom}`;
+              emetteurType = 'PRESTATAIRE';
+            }
+          } else if (selectedFournisseurType === 'SALARIE') {
+            const salarie = salaries.find(s => s.id === selectedFournisseurId);
+            if (salarie) {
+              emetteurNom = `${salarie.prenom} ${salarie.nom}`;
+              emetteurType = 'SALARIE';
+            }
+          } else if (selectedFournisseurType === 'FOURNISSEUR') {
+            const fournisseur = fournisseurs.find(f => f.id === selectedFournisseurId);
+            if (fournisseur) {
+              emetteurNom = fournisseur.raison_sociale;
+              emetteurType = fournisseur.type === 'GENERAL' ? 'FOURNISSEUR_GENERAL' : 'FOURNISSEUR_SERVICE';
+            }
+          }
+          
+          updateData.emetteur_nom = emetteurNom;
+          updateData.emetteur_type = emetteurType;
+          updateData.emetteur_id = selectedFournisseurId;
+        } else {
+          // Si pas de sélection, garder les valeurs du formulaire
+          updateData.emetteur_nom = formData.emetteur_nom;
+        }
+        
         updateData.destinataire_nom = formData.destinataire_nom;
       }
 
@@ -325,50 +399,103 @@ export default function EditFactureDialog({
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Informations - modifiables pour ACHATS */}
           {facture.type_facture === 'ACHATS' ? (
-            <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Type</p>
-                <p className="font-medium">{facture.type_facture}</p>
+            <div className="space-y-4 p-4 border rounded-lg">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Type</p>
+                  <p className="font-medium">{facture.type_facture}</p>
+                </div>
+                <div>
+                  <Label>Date d'émission</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.date_emission && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.date_emission ? (
+                          format(new Date(formData.date_emission), "dd/MM/yyyy", { locale: fr })
+                        ) : (
+                          <span>Sélectionner une date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={new Date(formData.date_emission)}
+                        onSelect={(date) => date && setFormData(prev => ({ ...prev, date_emission: format(date, 'yyyy-MM-dd') }))}
+                        locale={fr}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
-              <div>
-                <Label>Date d'émission</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !formData.date_emission && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.date_emission ? (
-                        format(new Date(formData.date_emission), "dd/MM/yyyy", { locale: fr })
-                      ) : (
-                        <span>Sélectionner une date</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={new Date(formData.date_emission)}
-                      onSelect={(date) => date && setFormData(prev => ({ ...prev, date_emission: format(date, 'yyyy-MM-dd') }))}
-                      locale={fr}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+
+              {/* Type de fournisseur */}
+              <div className="space-y-2">
+                <Label>Type de fournisseur</Label>
+                <Select
+                  value={selectedFournisseurType}
+                  onValueChange={(value) => {
+                    setSelectedFournisseurType(value);
+                    setSelectedFournisseurId('');
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FOURNISSEUR">Fournisseur</SelectItem>
+                    <SelectItem value="PRESTATAIRE">Prestataire</SelectItem>
+                    <SelectItem value="SALARIE">Salarié</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <Label htmlFor="emetteur_nom">Émetteur</Label>
-                <Input
-                  id="emetteur_nom"
-                  value={formData.emetteur_nom}
-                  onChange={(e) => setFormData(prev => ({ ...prev, emetteur_nom: e.target.value }))}
-                  placeholder="Nom de l'émetteur"
-                />
-              </div>
+
+              {/* Sélection du fournisseur */}
+              {selectedFournisseurType && (
+                <div className="space-y-2">
+                  <Label>
+                    {selectedFournisseurType === 'PRESTATAIRE' 
+                      ? 'Prestataire' 
+                      : selectedFournisseurType === 'SALARIE'
+                      ? 'Salarié'
+                      : 'Fournisseur'}
+                  </Label>
+                  <Select
+                    value={selectedFournisseurId}
+                    onValueChange={(value) => setSelectedFournisseurId(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectedFournisseurType === 'PRESTATAIRE' && prestataires.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.prenom} {p.nom}
+                        </SelectItem>
+                      ))}
+                      {selectedFournisseurType === 'SALARIE' && salaries.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.prenom} {s.nom}
+                        </SelectItem>
+                      ))}
+                      {selectedFournisseurType === 'FOURNISSEUR' && fournisseurs.map((f) => (
+                        <SelectItem key={f.id} value={f.id}>
+                          {f.raison_sociale}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="destinataire_nom">Destinataire</Label>
                 <Input
@@ -376,6 +503,7 @@ export default function EditFactureDialog({
                   value={formData.destinataire_nom}
                   onChange={(e) => setFormData(prev => ({ ...prev, destinataire_nom: e.target.value }))}
                   placeholder="Nom du destinataire"
+                  disabled
                 />
                 {societeInterne?.siren && <p className="text-sm text-muted-foreground">SIREN: {societeInterne.siren}</p>}
                 {societeInterne?.tva && <p className="text-sm text-muted-foreground">N° TVA: {societeInterne.tva}</p>}
