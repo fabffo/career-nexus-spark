@@ -600,114 +600,110 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
               </div>
             )}
 
-            {/* Liste des factures */}
+            {/* Liste des factures - Format tableau compact */}
             {factures.length > 0 && (
               <>
-                <ScrollArea className="h-[650px]">
-                  <div className="space-y-3 pr-4">
-                    {factures
-                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                      .map((facture) => (
-                    <Card
-                      key={facture.id}
-                      className={`${
-                        facture.valide
-                          ? "border-green-300 bg-green-50/50"
-                          : facture.erreur
-                            ? "border-red-300 bg-red-50/50"
-                            : "border-yellow-300 bg-yellow-50/50"
-                      }`}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3 flex-1">
+                <div className="border rounded-lg overflow-hidden">
+                  {/* En-tête de table */}
+                  <div className="grid grid-cols-12 gap-2 p-3 bg-muted/50 font-semibold text-sm border-b">
+                    <div className="col-span-1 flex items-center justify-center">Statut</div>
+                    <div className="col-span-3">Fichier</div>
+                    <div className="col-span-2">Fournisseur</div>
+                    <div className="col-span-2">N° Facture</div>
+                    <div className="col-span-1">Montant TTC</div>
+                    <div className="col-span-1">Date</div>
+                    <div className="col-span-2 text-center">Actions</div>
+                  </div>
+
+                  {/* Liste scrollable */}
+                  <ScrollArea className="h-[500px]">
+                    <div className="divide-y">
+                      {factures
+                        .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                        .map((facture) => (
+                        <div
+                          key={facture.id}
+                          className={`grid grid-cols-12 gap-2 p-3 hover:bg-muted/30 transition-colors ${
+                            facture.valide
+                              ? "bg-green-50/30"
+                              : facture.erreur
+                                ? "bg-red-50/30"
+                                : "bg-yellow-50/30"
+                          }`}
+                        >
+                          {/* Statut */}
+                          <div className="col-span-1 flex items-center justify-center">
                             {facture.valide ? (
-                              <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0" />
+                              <CheckCircle className="h-5 w-5 text-green-600" />
                             ) : facture.erreur ? (
-                              <XCircle className="h-6 w-6 text-red-600 flex-shrink-0" />
+                              <XCircle className="h-5 w-5 text-red-600" />
                             ) : (
-                              <XCircle className="h-6 w-6 text-yellow-600 flex-shrink-0" />
+                              <XCircle className="h-5 w-5 text-yellow-600" />
                             )}
-
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <FileText className="h-4 w-4" />
-                                <h3 className="font-semibold">{facture.fichier}</h3>
-                                {facture.valide && <Badge variant="default">Prête</Badge>}
-                              </div>
-
-                              {facture.erreur ? (
-                                <div className="space-y-2">
-                                  <p className={`text-sm font-semibold ${facture.valide ? "text-amber-600" : "text-red-600"}`}>
-                                    {facture.valide ? "⚠ Attention:" : "❌ Erreur de validation:"}
-                                  </p>
-                                  <p className={`text-sm ${facture.valide ? "text-amber-600" : "text-red-600"}`}>{facture.erreur}</p>
-                                  {!facture.donnees.fournisseur && !facture.donnees.numero_facture && !facture.donnees.montant_ttc ? (
-                                    <p className="text-xs text-muted-foreground">L'IA n'a pas pu extraire les données de ce PDF.</p>
-                                  ) : (
-                                    <div className="grid grid-cols-4 gap-3 text-sm pt-2 border-t">
-                                      <div>
-                                        <span className="text-muted-foreground">Fournisseur:</span>
-                                        <p className={!facture.donnees.fournisseur ? "text-red-600 font-medium" : "font-medium"}>
-                                          {facture.donnees.fournisseur || "⚠ Manquant"}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <span className="text-muted-foreground">N° Facture:</span>
-                                        <p className={!facture.donnees.numero_facture ? "text-amber-600 font-medium italic" : "font-medium"}>
-                                          {facture.donnees.numero_facture || "🔄 Sera généré"}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <span className="text-muted-foreground">Montant TTC:</span>
-                                        <p className={!facture.donnees.montant_ttc ? "text-red-600 font-medium" : "font-semibold text-green-600"}>
-                                          {facture.donnees.montant_ttc
-                                            ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
-                                                facture.donnees.montant_ttc,
-                                              )
-                                            : "⚠ Manquant"}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <span className="text-muted-foreground">Date:</span>
-                                        <p className="font-medium">{facture.donnees.date_facture || "-"}</p>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="grid grid-cols-4 gap-3 text-sm">
-                                  <div>
-                                    <span className="text-muted-foreground">Fournisseur:</span>
-                                    <p className="font-medium">{facture.donnees.fournisseur || "-"}</p>
-                                  </div>
-                                  <div>
-                                    <span className="text-muted-foreground">N° Facture:</span>
-                                    <p className="font-medium">{facture.donnees.numero_facture || "-"}</p>
-                                  </div>
-                                  <div>
-                                    <span className="text-muted-foreground">Montant TTC:</span>
-                                    <p className="font-semibold text-green-600">
-                                      {facture.donnees.montant_ttc
-                                        ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
-                                            facture.donnees.montant_ttc,
-                                          )
-                                        : "-"}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <span className="text-muted-foreground">Date:</span>
-                                    <p className="font-medium">{facture.donnees.date_facture || "-"}</p>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
                           </div>
 
-                          <div className="flex gap-1 ml-4">
+                          {/* Fichier */}
+                          <div className="col-span-3 flex items-center gap-2 min-w-0">
+                            <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                            <span className="text-sm font-medium truncate" title={facture.fichier}>
+                              {facture.fichier}
+                            </span>
+                          </div>
+
+                          {/* Fournisseur */}
+                          <div className="col-span-2 flex items-center min-w-0">
+                            <span 
+                              className={`text-sm truncate ${!facture.donnees.fournisseur ? "text-red-600 font-semibold" : ""}`}
+                              title={facture.donnees.fournisseur || "Fournisseur manquant"}
+                            >
+                              {facture.donnees.fournisseur || "⚠ Manquant"}
+                            </span>
+                          </div>
+
+                          {/* N° Facture */}
+                          <div className="col-span-2 flex items-center min-w-0">
+                            <span 
+                              className={`text-sm truncate ${!facture.donnees.numero_facture ? "text-amber-600 italic" : ""}`}
+                              title={facture.donnees.numero_facture || "Sera généré automatiquement"}
+                            >
+                              {facture.donnees.numero_facture || "🔄 Auto"}
+                            </span>
+                          </div>
+
+                          {/* Montant TTC */}
+                          <div className="col-span-1 flex items-center">
+                            <span 
+                              className={`text-sm font-semibold ${
+                                !facture.donnees.montant_ttc 
+                                  ? "text-red-600" 
+                                  : "text-green-600"
+                              }`}
+                              title={facture.donnees.montant_ttc ? undefined : "Montant manquant"}
+                            >
+                              {facture.donnees.montant_ttc
+                                ? new Intl.NumberFormat("fr-FR", { 
+                                    style: "currency", 
+                                    currency: "EUR",
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 0
+                                  }).format(facture.donnees.montant_ttc)
+                                : "⚠"}
+                            </span>
+                          </div>
+
+                          {/* Date */}
+                          <div className="col-span-1 flex items-center">
+                            <span className="text-sm" title={facture.donnees.date_facture || undefined}>
+                              {facture.donnees.date_facture || "-"}
+                            </span>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="col-span-2 flex items-center justify-center gap-1">
                             <Button 
                               variant="ghost" 
-                              size="icon" 
+                              size="icon"
+                              className="h-8 w-8"
                               onClick={() => {
                                 const url = URL.createObjectURL(facture.fileObject);
                                 const a = document.createElement('a');
@@ -722,12 +718,31 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                             >
                               <Download className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleEditFacture(facture)} title="Éditer les données">
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                const url = URL.createObjectURL(facture.fileObject);
+                                window.open(url, '_blank');
+                              }}
+                              title="Voir le PDF"
+                            >
                               <Eye className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleEditFacture(facture)}
+                              title="Modifier"
+                            >
+                              <Settings className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-100"
                               onClick={() => {
                                 const newFactures = factures.filter((f) => f.id !== facture.id);
                                 setFactures(newFactures);
@@ -739,15 +754,14 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                               }}
                               title="Supprimer"
                             >
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                    ))}
-                  </div>
-                </ScrollArea>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
                 
                 {/* Pagination */}
                 {factures.length > itemsPerPage && (
