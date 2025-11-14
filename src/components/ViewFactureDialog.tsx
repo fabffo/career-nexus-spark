@@ -119,20 +119,28 @@ export default function ViewFactureDialog({
         // Pour les factures de vente, générer le PDF via l'edge function
         console.log('Génération PDF pour facture vente ID:', facture.id);
         
-        const { data, error } = await supabase.functions.invoke('generate-facture-pdf', {
-          body: { facture_id: facture.id },
-          headers: {
-            'Content-Type': 'application/json',
+        const { data: { session } } = await supabase.auth.getSession();
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        
+        const response = await fetch(
+          `${supabaseUrl}/functions/v1/generate-facture-pdf`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.access_token}`,
+            },
+            body: JSON.stringify({ facture_id: facture.id }),
           }
-        });
+        );
 
-        if (error) {
-          console.error('Erreur lors de la génération du PDF:', error);
-          throw error;
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Erreur lors de la génération du PDF:', errorText);
+          throw new Error('Erreur lors de la génération du PDF');
         }
 
-        // La réponse est déjà un blob
-        const blob = new Blob([data], { type: 'application/pdf' });
+        const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
