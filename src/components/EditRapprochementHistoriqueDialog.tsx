@@ -318,6 +318,108 @@ export default function EditRapprochementHistoriqueDialog({
         console.log(`✅ Numéro de ligne généré: ${numeroLigne}`);
       }
 
+      // ⭐ Si le statut est "unmatched", supprimer complètement le rapprochement
+      if (status === "unmatched") {
+        // 1. Rechercher le rapprochement existant par numero_ligne
+        const { data: existing } = await supabase
+          .from("rapprochements_bancaires")
+          .select("id")
+          .eq("numero_ligne", numeroLigne || "")
+          .maybeSingle();
+
+        if (existing) {
+          const rapprochementId = existing.id;
+
+          // 2. Dé-rapprocher TOUTES les factures qui ont ce numero_ligne
+          await supabase
+            .from("factures")
+            .update({ 
+              numero_ligne_rapprochement: null,
+              numero_rapprochement: null,
+              date_rapprochement: null,
+            })
+            .eq("numero_ligne_rapprochement", numeroLigne);
+
+          // 3. Supprimer les associations de factures
+          await supabase
+            .from("rapprochements_factures")
+            .delete()
+            .eq("rapprochement_id", rapprochementId);
+
+          // 4. Supprimer les paiements d'abonnements
+          await supabase
+            .from("paiements_abonnements")
+            .delete()
+            .eq("rapprochement_id", rapprochementId);
+
+          // 5. Supprimer les paiements de déclarations de charges
+          await supabase
+            .from("paiements_declarations_charges")
+            .delete()
+            .eq("rapprochement_id", rapprochementId);
+
+          // 6. Supprimer le rapprochement bancaire lui-même
+          await supabase
+            .from("rapprochements_bancaires")
+            .delete()
+            .eq("id", rapprochementId);
+
+          console.log(`✅ Rapprochement ${numeroLigne} complètement supprimé`);
+        }
+
+        // 7. Mettre à jour le statut dans le fichier de rapprochement
+        const { data: fichierData } = await supabase
+          .from("fichiers_rapprochement")
+          .select("fichier_data")
+          .eq("id", fichierId)
+          .single();
+
+        if (fichierData && fichierData.fichier_data && typeof fichierData.fichier_data === 'object') {
+          const fichierDataObj = fichierData.fichier_data as any;
+          const rapprochements = fichierDataObj?.rapprochements || [];
+          const rapprochementIndex = rapprochements.findIndex(
+            (r: any) =>
+              r.transaction.date === transaction.date &&
+              r.transaction.libelle === transaction.libelle &&
+              r.transaction.montant === transaction.montant
+          );
+
+          if (rapprochementIndex >= 0) {
+            rapprochements[rapprochementIndex] = {
+              ...rapprochements[rapprochementIndex],
+              status: "unmatched",
+              notes,
+              numero_ligne: numeroLigne,
+            };
+          }
+
+          // Recalculer lignes_rapprochees
+          const lignesRapprochees = rapprochements.filter((r: any) => r.status === "matched").length;
+
+          await supabase
+            .from("fichiers_rapprochement")
+            .update({
+              fichier_data: {
+                ...fichierDataObj,
+                rapprochements,
+              } as any,
+              lignes_rapprochees: lignesRapprochees,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", fichierId);
+        }
+
+        toast({
+          title: "Succès",
+          description: "Rapprochement annulé avec succès",
+        });
+
+        onSuccess();
+        onOpenChange(false);
+        return;
+      }
+
+      // ⭐ Si le statut est "matched" ou "uncertain", gérer normalement
       // 1. Mettre à jour ou créer le rapprochement manuel - RECHERCHER PAR numero_ligne
       const { data: existing } = await supabase
         .from("rapprochements_bancaires")
@@ -406,7 +508,7 @@ export default function EditRapprochementHistoriqueDialog({
           for (const factureId of selectedFactureIds) {
             await supabase
               .from("factures")
-              .update({ 
+              .update({
                 numero_ligne_rapprochement: numeroLigne,
                 numero_rapprochement: numeroRapprochement,
                 date_rapprochement: new Date().toISOString(),
