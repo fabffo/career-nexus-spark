@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, FileText, Eye, Pencil, Copy, Trash2, TrendingUp, Download, Sparkles } from "lucide-react";
+import { Plus, FileText, Eye, Pencil, Copy, Trash2, TrendingUp, Download, Sparkles, ArrowUpDown } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -398,14 +398,32 @@ export default function FacturesVentes() {
     },
     {
       accessorKey: "numero_facture",
-      header: "N° Facture",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="hover:bg-accent"
+        >
+          N° Facture
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => (
         <span className="font-medium">{row.getValue("numero_facture")}</span>
       ),
     },
     {
       accessorKey: "date_emission",
-      header: "Date émission",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="hover:bg-accent"
+        >
+          Date émission
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => {
         const dateValue = row.getValue("date_emission");
         if (!dateValue) return <span>-</span>;
@@ -418,11 +436,29 @@ export default function FacturesVentes() {
     },
     {
       accessorKey: "destinataire_nom",
-      header: "Client",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="hover:bg-accent"
+        >
+          Client
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
     },
     {
       accessorKey: "activite",
-      header: "Activité",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="hover:bg-accent"
+        >
+          Activité
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => {
         const activite = row.getValue("activite") as string;
         const typeMission = typesMission.find(t => t.code === activite);
@@ -435,7 +471,16 @@ export default function FacturesVentes() {
     },
     {
       accessorKey: "total_ht",
-      header: "Total HT",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="hover:bg-accent"
+        >
+          Total HT
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => (
         <span>
           {new Intl.NumberFormat('fr-FR', { 
@@ -447,7 +492,16 @@ export default function FacturesVentes() {
     },
     {
       accessorKey: "total_ttc",
-      header: "Total TTC",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="hover:bg-accent"
+        >
+          Total TTC
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => (
         <span className="font-medium">
           {new Intl.NumberFormat('fr-FR', { 
@@ -459,7 +513,16 @@ export default function FacturesVentes() {
     },
     {
       accessorKey: "statut",
-      header: "Statut",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="hover:bg-accent"
+        >
+          Statut
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => {
         const statut = row.getValue("statut") as string;
         const colors = {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, TrendingDown, Eye, Pencil, Trash2, Download, Sparkles, UserPlus, CheckCircle2, AlertCircle, Link } from "lucide-react";
+import { Plus, TrendingDown, Eye, Pencil, Trash2, Download, Sparkles, UserPlus, CheckCircle2, AlertCircle, Link, ArrowUpDown } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -451,12 +451,30 @@ export default function FacturesAchats() {
     },
     {
       accessorKey: "numero_facture",
-      header: "N° Facture",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="hover:bg-accent"
+        >
+          N° Facture
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => <span className="font-medium">{row.getValue("numero_facture")}</span>,
     },
     {
       accessorKey: "date_emission",
-      header: "Date émission",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="hover:bg-accent"
+        >
+          Date émission
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => {
         const dateValue = row.getValue("date_emission");
         if (!dateValue) return <span>-</span>;
@@ -469,7 +487,16 @@ export default function FacturesAchats() {
     },
     {
       accessorKey: "emetteur_nom",
-      header: "Fournisseur",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="hover:bg-accent"
+        >
+          Fournisseur
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => {
         const emetteurNom = row.getValue("emetteur_nom") as string;
         const exists = existingFournisseurs.has(emetteurNom?.toLowerCase().trim());
@@ -492,7 +519,16 @@ export default function FacturesAchats() {
     },
     {
       accessorKey: "type_fournisseur",
-      header: "Type",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="hover:bg-accent"
+        >
+          Type
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => {
         const emetteurNom = row.getValue("emetteur_nom") as string;
         const type = fournisseurTypesMap.get(emetteurNom?.toLowerCase().trim());
@@ -527,7 +563,16 @@ export default function FacturesAchats() {
     },
     {
       accessorKey: "total_ht",
-      header: "Total HT",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="hover:bg-accent"
+        >
+          Total HT
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => (
         <span>
           {new Intl.NumberFormat("fr-FR", {
@@ -539,7 +584,16 @@ export default function FacturesAchats() {
     },
     {
       accessorKey: "total_ttc",
-      header: "Total TTC",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="hover:bg-accent"
+        >
+          Total TTC
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => (
         <span className="font-medium">
           {new Intl.NumberFormat("fr-FR", {
@@ -551,7 +605,16 @@ export default function FacturesAchats() {
     },
     {
       accessorKey: "statut",
-      header: "Statut",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="hover:bg-accent"
+        >
+          Statut
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => {
         const statut = row.getValue("statut") as string;
         const colors = {
