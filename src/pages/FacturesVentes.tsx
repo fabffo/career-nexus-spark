@@ -111,7 +111,7 @@ export default function FacturesVentes() {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [globalFilter, setGlobalFilter] = useState("");
   const [selectedYear, setSelectedYear] = useState<string>("all");
-  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [selectedFactureIds, setSelectedFactureIds] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
@@ -128,7 +128,7 @@ export default function FacturesVentes() {
 
   useEffect(() => {
     fetchFactures();
-  }, [selectedYear, selectedMonth, selectedActivite]);
+  }, [selectedYear, selectedMonths, selectedActivite]);
 
   const fetchFactures = async () => {
     setLoading(true);
@@ -152,20 +152,10 @@ export default function FacturesVentes() {
       // Filtrer par année et mois si sélectionné
       if (selectedYear !== "all") {
         const yearNum = parseInt(selectedYear);
-        
-        if (selectedMonth !== "all") {
-          // Filtrer par année ET mois
-          const monthNum = parseInt(selectedMonth);
-          const startDate = `${yearNum}-${monthNum.toString().padStart(2, '0')}-01`;
-          const lastDay = new Date(yearNum, monthNum, 0).getDate();
-          const endDate = `${yearNum}-${monthNum.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
-          query = query.gte('date_emission', startDate).lte('date_emission', endDate);
-        } else {
-          // Filtrer par année uniquement
-          const startDate = `${yearNum}-01-01`;
-          const endDate = `${yearNum}-12-31`;
-          query = query.gte('date_emission', startDate).lte('date_emission', endDate);
-        }
+        // Toujours fetcher toute l'année quand une année est sélectionnée
+        const startDate = `${yearNum}-01-01`;
+        const endDate = `${yearNum}-12-31`;
+        query = query.gte('date_emission', startDate).lte('date_emission', endDate);
       }
 
       // Filtrer par activité si sélectionné
@@ -177,11 +167,20 @@ export default function FacturesVentes() {
 
       if (error) throw error;
       
-      const facturesData = (data || []).map(f => ({
+      let facturesData = (data || []).map(f => ({
         ...f,
         type_facture: f.type_facture as 'VENTES' | 'ACHATS',
         statut: f.statut as 'BROUILLON' | 'VALIDEE' | 'PAYEE' | 'ANNULEE',
       }));
+      
+      // Filtrer côté client par mois sélectionnés si nécessaire
+      if (selectedYear !== "all" && selectedMonths.length > 0) {
+        facturesData = facturesData.filter(f => {
+          if (!f.date_emission) return false;
+          const month = (new Date(f.date_emission).getMonth() + 1).toString();
+          return selectedMonths.includes(month);
+        });
+      }
       
       // Extraire les années disponibles
       const years = new Set<string>();
@@ -760,7 +759,13 @@ export default function FacturesVentes() {
           className="max-w-sm"
         />
         
-        <Select value={selectedYear} onValueChange={setSelectedYear}>
+        <Select 
+          value={selectedYear} 
+          onValueChange={(value) => {
+            setSelectedYear(value);
+            setSelectedMonths([]);
+          }}
+        >
           <SelectTrigger className="w-[140px]">
             <SelectValue placeholder="Année" />
           </SelectTrigger>
@@ -772,30 +777,63 @@ export default function FacturesVentes() {
           </SelectContent>
         </Select>
 
-        <Select 
-          value={selectedMonth} 
-          onValueChange={setSelectedMonth}
-          disabled={selectedYear === "all"}
-        >
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Mois" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous les mois</SelectItem>
-            <SelectItem value="1">Janvier</SelectItem>
-            <SelectItem value="2">Février</SelectItem>
-            <SelectItem value="3">Mars</SelectItem>
-            <SelectItem value="4">Avril</SelectItem>
-            <SelectItem value="5">Mai</SelectItem>
-            <SelectItem value="6">Juin</SelectItem>
-            <SelectItem value="7">Juillet</SelectItem>
-            <SelectItem value="8">Août</SelectItem>
-            <SelectItem value="9">Septembre</SelectItem>
-            <SelectItem value="10">Octobre</SelectItem>
-            <SelectItem value="11">Novembre</SelectItem>
-            <SelectItem value="12">Décembre</SelectItem>
-          </SelectContent>
-        </Select>
+        {selectedYear !== "all" && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-[200px] justify-between">
+                {selectedMonths.length === 0 
+                  ? "Tous les mois" 
+                  : selectedMonths.length === 12
+                  ? "Tous les mois"
+                  : `${selectedMonths.length} mois sélectionné${selectedMonths.length > 1 ? 's' : ''}`
+                }
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-[200px]" align="start">
+              <div className="p-2 border-b">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    const allMonths = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+                    setSelectedMonths(selectedMonths.length === 12 ? [] : allMonths);
+                  }}
+                >
+                  {selectedMonths.length === 12 ? 'Désélectionner tous' : 'Sélectionner tous les mois'}
+                </Button>
+              </div>
+              {[
+                { value: '1', label: 'Janvier' },
+                { value: '2', label: 'Février' },
+                { value: '3', label: 'Mars' },
+                { value: '4', label: 'Avril' },
+                { value: '5', label: 'Mai' },
+                { value: '6', label: 'Juin' },
+                { value: '7', label: 'Juillet' },
+                { value: '8', label: 'Août' },
+                { value: '9', label: 'Septembre' },
+                { value: '10', label: 'Octobre' },
+                { value: '11', label: 'Novembre' },
+                { value: '12', label: 'Décembre' },
+              ].map((month) => (
+                <DropdownMenuCheckboxItem
+                  key={month.value}
+                  checked={selectedMonths.includes(month.value)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedMonths([...selectedMonths, month.value].sort((a, b) => parseInt(a) - parseInt(b)));
+                    } else {
+                      setSelectedMonths(selectedMonths.filter(m => m !== month.value));
+                    }
+                  }}
+                >
+                  {month.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
         <Select value={selectedActivite} onValueChange={setSelectedActivite}>
           <SelectTrigger className="w-[180px]">
