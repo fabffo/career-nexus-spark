@@ -51,14 +51,8 @@ interface ExtractionFactureDialogProps {
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
 }
-interface ExtractionFactureDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSuccess: () => void;
-}
 
-// ========== AJOUTEZ CE BLOC ICI ==========
-// SYSTÈME DE NORMALISATION DES FOURNISSEURS
+// ========== SYSTÈME DE NORMALISATION DES FOURNISSEURS ==========
 const FOURNISSEURS_REGLES = {
   // SNCF et variantes
   SNCF: ["SNCF CONNECT", "SNCF TGV", "SNCF VOYAGES", "SNCF RESEAU", "SNCF Voyageurs"],
@@ -83,8 +77,8 @@ const FOURNISSEURS_REGLES = {
   ],
 
   // Fournisseurs
+  BENOME: ["BENOME", "SASU BENOME", "BENOME SASU"],
   RHSOLUTIONS: ["RHSOLUTIONS PORTAGE SALARIAL", "RH SOLUTIONS", "PORTAGE 92"],
-  BENOME: ["SASU BENOME"],
 
   // Uber
   Uber: ["Uber B.V.", "Uber BV", "Uber France", "UBER EATS"],
@@ -138,7 +132,7 @@ const normaliserFournisseur = (nom: string): string => {
 
   return nomNettoye.trim();
 };
-// ========== FIN DU BLOC À AJOUTER ==========
+// ========== FIN DU SYSTÈME DE NORMALISATION ==========
 
 const DEFAULT_PROMPT = `Extrais ces données de la facture en JSON strict :
 {
@@ -151,7 +145,26 @@ const DEFAULT_PROMPT = `Extrais ces données de la facture en JSON strict :
   "date_facture": "YYYY-MM-DD"
 }
 
-Règles importantes :
+⚠️ RÈGLES CRITIQUES POUR IDENTIFIER LE FOURNISSEUR :
+
+1. Le FOURNISSEUR est celui qui ÉMET la facture (en haut à GAUCHE généralement)
+2. Le CLIENT/DESTINATAIRE est celui qui REÇOIT la facture (en haut à DROITE généralement)
+
+EXEMPLES CONCRETS :
+- ✅ Si tu vois "SASU BENOME" en haut à gauche → FOURNISSEUR = "SASU BENOME"
+- ❌ Si tu vois "WAVY SERVICES" en haut à droite → C'EST LE CLIENT, PAS LE FOURNISSEUR
+
+3. Indices que c'est le FOURNISSEUR :
+   - Adresse de l'émetteur en haut à gauche
+   - SIREN, SIRET, TVA intracommunautaire en bas de page
+   - IBAN/RIB (coordonnées bancaires pour recevoir le paiement)
+   - Mentions "SASU au capital de...", "RCS", "NAF"
+
+4. Indices que c'est le CLIENT (NE PAS mettre comme fournisseur) :
+   - Adresse en haut à droite
+   - Précédé de "Destinataire:", "Facturé à:", "Client:"
+
+AUTRES RÈGLES :
 - Si une valeur est absente, mettre null
 - Montants en nombre décimal (pas de string)
 - Date au format ISO (YYYY-MM-DD)
@@ -212,21 +225,22 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
 
           const donnees = data.donnees;
 
-          // ========== AJOUTEZ CES 4 LIGNES ==========
-          // Normaliser le nom du fournisseur
+          // ========== NORMALISATION DU FOURNISSEUR ==========
           if (donnees.fournisseur) {
+            const fournisseurOriginal = donnees.fournisseur;
             donnees.fournisseur = normaliserFournisseur(donnees.fournisseur);
+            console.log(`📝 Fournisseur: "${fournisseurOriginal}" → "${donnees.fournisseur}"`);
           }
-          // ==========================================
+          // ==================================================
 
           // Validation détaillée avec génération de messages d'erreur
           const errors: string[] = [];
           const warnings: string[] = [];
-          
+
           if (!donnees.fournisseur) errors.push("Fournisseur manquant");
           if (!donnees.montant_ttc) errors.push("Montant TTC manquant");
           if (!donnees.numero_facture) warnings.push("Numéro de facture sera généré automatiquement");
-          
+
           const valide = errors.length === 0; // Valide si fournisseur + montant présents
           const erreur = errors.length > 0 ? errors.join(", ") : warnings.length > 0 ? warnings.join(", ") : undefined;
 
@@ -298,7 +312,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
     setIsProcessing(false);
     setCurrentFile("");
     setProgress(0);
-    setCurrentPage(1); // Réinitialiser la pagination
+    setCurrentPage(1);
 
     toast({
       title: "Extraction terminée",
@@ -324,19 +338,17 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
 
     for (const facture of facturesValides) {
       try {
-        console.log('🔄 Traitement de:', facture.fichier, facture.donnees);
-        
-        // 1. Upload le fichier PDF dans Supabase Storage
+        console.log("🔄 Traitement de:", facture.fichier, facture.donnees);
+
         const timestamp = Date.now();
-        // Nettoyer le nom du fichier : supprimer espaces et caractères spéciaux
         const cleanFileName = facture.fichier
-          .replace(/\s+/g, '_')
-          .replace(/[^a-zA-Z0-9._-]/g, '')
+          .replace(/\s+/g, "_")
+          .replace(/[^a-zA-Z0-9._-]/g, "")
           .substring(0, 100);
         const fileName = `${timestamp}_${cleanFileName}`;
         const filePath = `factures-achats/${fileName}`;
 
-        console.log('📤 Upload du fichier vers:', filePath);
+        console.log("📤 Upload du fichier vers:", filePath);
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from("factures")
           .upload(filePath, facture.fileObject, {
@@ -344,41 +356,40 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           });
 
         if (uploadError) {
-          console.error('❌ Erreur upload:', uploadError);
+          console.error("❌ Erreur upload:", uploadError);
           throw new Error(`Erreur upload: ${uploadError.message}`);
         }
-        console.log('✅ Fichier uploadé:', uploadData);
+        console.log("✅ Fichier uploadé:", uploadData);
 
-        // 2. Récupérer l'utilisateur connecté
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
         if (userError) {
-          console.error('❌ Erreur récupération utilisateur:', userError);
+          console.error("❌ Erreur récupération utilisateur:", userError);
           throw new Error(`Erreur utilisateur: ${userError.message}`);
         }
-        console.log('👤 Utilisateur:', user?.email);
+        console.log("👤 Utilisateur:", user?.email);
 
-        // 3. Générer un numéro de facture si manquant
         let numeroFacture = facture.donnees.numero_facture;
         if (!numeroFacture) {
           const now = new Date();
-          const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
-          const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+          const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
+          const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, "");
           numeroFacture = `FACHAT_${dateStr}_${timeStr}`;
         }
-        
-        // Vérifier si le numéro existe déjà
+
         const { data: existingFacture } = await supabase
           .from("factures")
           .select("numero_facture")
           .eq("numero_facture", numeroFacture)
           .maybeSingle();
-        
+
         if (existingFacture) {
-          console.error('❌ Numéro de facture déjà existant:', numeroFacture);
+          console.error("❌ Numéro de facture déjà existant:", numeroFacture);
           throw new Error(`Impossible de sauvegarder car la facture "${numeroFacture}" existe déjà`);
         }
 
-        // 4. Préparer les données de la facture
         const factureData = {
           numero_facture: numeroFacture,
           type_facture: "ACHATS",
@@ -397,20 +408,16 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           created_by: user?.id,
         };
 
-        console.log('💾 Insertion de la facture:', factureData);
-        
-        // 5. Insérer la facture dans la base de données
-        const { data: insertData, error: insertError } = await supabase
-          .from("factures")
-          .insert(factureData)
-          .select();
+        console.log("💾 Insertion de la facture:", factureData);
+
+        const { data: insertData, error: insertError } = await supabase.from("factures").insert(factureData).select();
 
         if (insertError) {
-          console.error('❌ Erreur insertion:', insertError);
+          console.error("❌ Erreur insertion:", insertError);
           throw new Error(`Erreur insertion: ${insertError.message} (${insertError.code})`);
         }
-        
-        console.log('✅ Facture insérée:', insertData);
+
+        console.log("✅ Facture insérée:", insertData);
         successCount++;
       } catch (error: any) {
         console.error(`❌ Erreur complète pour ${facture.fichier}:`, error);
@@ -431,13 +438,10 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
         description: `${successCount} facture(s) ajoutée(s) avec succès${errorCount > 0 ? `, ${errorCount} erreur(s)` : ""}`,
       });
 
-      // Réinitialiser et fermer
       setFactures([]);
       onSuccess();
       onOpenChange(false);
     }
-    // Ne pas afficher de toast global en cas d'erreur car les messages détaillés 
-    // ont déjà été affichés pour chaque facture individuellement
   };
 
   const handleEditFacture = (facture: FactureExtraite) => {
@@ -448,24 +452,18 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
   const handleSaveEdit = () => {
     if (!selectedFacture || !editedData) return;
 
-    // Revalider avec les nouvelles données
     const errors: string[] = [];
     const warnings: string[] = [];
-    
+
     if (!editedData.fournisseur) errors.push("Fournisseur manquant");
     if (!editedData.montant_ttc) errors.push("Montant TTC manquant");
     if (!editedData.numero_facture) warnings.push("Numéro de facture sera généré automatiquement");
-    
+
     const valide = errors.length === 0;
     const erreur = errors.length > 0 ? errors.join(", ") : warnings.length > 0 ? warnings.join(", ") : undefined;
 
-    // Mettre à jour la facture dans la liste
     setFactures((prev) =>
-      prev.map((f) =>
-        f.id === selectedFacture.id
-          ? { ...f, donnees: editedData, valide, erreur }
-          : f
-      )
+      prev.map((f) => (f.id === selectedFacture.id ? { ...f, donnees: editedData, valide, erreur } : f)),
     );
 
     toast({
@@ -511,7 +509,6 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           </TabsList>
 
           <TabsContent value="extraction" className="flex-1 overflow-y-auto space-y-4">
-            {/* Zone d'upload */}
             <Card>
               <CardContent className="pt-6">
                 <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary hover:bg-accent transition-colors">
@@ -548,7 +545,6 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
               </CardContent>
             </Card>
 
-            {/* Statistiques */}
             {factures.length > 0 && (
               <div className="grid grid-cols-5 gap-4">
                 <Card>
@@ -600,11 +596,9 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
               </div>
             )}
 
-            {/* Liste des factures - Format tableau compact */}
             {factures.length > 0 && (
               <>
                 <div className="border rounded-lg overflow-hidden">
-                  {/* En-tête de table */}
                   <div className="grid grid-cols-12 gap-2 p-3 bg-muted/50 font-semibold text-sm border-b">
                     <div className="col-span-1 flex items-center justify-center">Statut</div>
                     <div className="col-span-3">Fichier</div>
@@ -615,23 +609,15 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                     <div className="col-span-2 text-center">Actions</div>
                   </div>
 
-                  {/* Liste scrollable */}
                   <ScrollArea className="h-[500px]">
                     <div className="divide-y">
-                      {factures
-                        .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                        .map((facture) => (
+                      {factures.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((facture) => (
                         <div
                           key={facture.id}
                           className={`grid grid-cols-12 gap-2 p-3 hover:bg-muted/30 transition-colors ${
-                            facture.valide
-                              ? "bg-green-50/30"
-                              : facture.erreur
-                                ? "bg-red-50/30"
-                                : "bg-yellow-50/30"
+                            facture.valide ? "bg-green-50/30" : facture.erreur ? "bg-red-50/30" : "bg-yellow-50/30"
                           }`}
                         >
-                          {/* Statut */}
                           <div className="col-span-1 flex items-center justify-center">
                             {facture.valide ? (
                               <CheckCircle className="h-5 w-5 text-green-600" />
@@ -642,7 +628,6 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                             )}
                           </div>
 
-                          {/* Fichier */}
                           <div className="col-span-3 flex items-center gap-2 min-w-0">
                             <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                             <span className="text-sm font-medium truncate" title={facture.fichier}>
@@ -650,9 +635,8 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                             </span>
                           </div>
 
-                          {/* Fournisseur */}
                           <div className="col-span-2 flex items-center min-w-0">
-                            <span 
+                            <span
                               className={`text-sm truncate ${!facture.donnees.fournisseur ? "text-red-600 font-semibold" : ""}`}
                               title={facture.donnees.fournisseur || "Fournisseur manquant"}
                             >
@@ -660,9 +644,8 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                             </span>
                           </div>
 
-                          {/* N° Facture */}
                           <div className="col-span-2 flex items-center min-w-0">
-                            <span 
+                            <span
                               className={`text-sm truncate ${!facture.donnees.numero_facture ? "text-amber-600 italic" : ""}`}
                               title={facture.donnees.numero_facture || "Sera généré automatiquement"}
                             >
@@ -670,43 +653,38 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                             </span>
                           </div>
 
-                          {/* Montant TTC */}
                           <div className="col-span-1 flex items-center">
-                            <span 
+                            <span
                               className={`text-sm font-semibold ${
-                                !facture.donnees.montant_ttc 
-                                  ? "text-red-600" 
-                                  : "text-green-600"
+                                !facture.donnees.montant_ttc ? "text-red-600" : "text-green-600"
                               }`}
                               title={facture.donnees.montant_ttc ? undefined : "Montant manquant"}
                             >
                               {facture.donnees.montant_ttc
-                                ? new Intl.NumberFormat("fr-FR", { 
-                                    style: "currency", 
+                                ? new Intl.NumberFormat("fr-FR", {
+                                    style: "currency",
                                     currency: "EUR",
                                     minimumFractionDigits: 0,
-                                    maximumFractionDigits: 0
+                                    maximumFractionDigits: 0,
                                   }).format(facture.donnees.montant_ttc)
                                 : "⚠"}
                             </span>
                           </div>
 
-                          {/* Date */}
                           <div className="col-span-1 flex items-center">
                             <span className="text-sm" title={facture.donnees.date_facture || undefined}>
                               {facture.donnees.date_facture || "-"}
                             </span>
                           </div>
 
-                          {/* Actions */}
                           <div className="col-span-2 flex items-center justify-center gap-1">
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="icon"
                               className="h-8 w-8"
                               onClick={() => {
                                 const url = URL.createObjectURL(facture.fileObject);
-                                const a = document.createElement('a');
+                                const a = document.createElement("a");
                                 a.href = url;
                                 a.download = facture.fichier;
                                 document.body.appendChild(a);
@@ -718,13 +696,13 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                             >
                               <Download className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="icon"
                               className="h-8 w-8"
                               onClick={() => {
                                 const url = URL.createObjectURL(facture.fileObject);
-                                window.open(url, '_blank');
+                                window.open(url, "_blank");
                               }}
                               title="Voir le PDF"
                             >
@@ -746,7 +724,6 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                               onClick={() => {
                                 const newFactures = factures.filter((f) => f.id !== facture.id);
                                 setFactures(newFactures);
-                                // Ajuster la page si nécessaire
                                 const maxPage = Math.max(1, Math.ceil(newFactures.length / itemsPerPage));
                                 if (currentPage > maxPage) {
                                   setCurrentPage(maxPage);
@@ -762,12 +739,12 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                     </div>
                   </ScrollArea>
                 </div>
-                
-                {/* Pagination */}
+
                 {factures.length > itemsPerPage && (
                   <div className="flex items-center justify-between px-2 py-4 border-t">
                     <div className="text-sm text-muted-foreground">
-                      Page {currentPage} sur {Math.ceil(factures.length / itemsPerPage)} • {factures.length} facture{factures.length > 1 ? 's' : ''} au total
+                      Page {currentPage} sur {Math.ceil(factures.length / itemsPerPage)} • {factures.length} facture
+                      {factures.length > 1 ? "s" : ""} au total
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
@@ -782,7 +759,9 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setCurrentPage((prev) => Math.min(Math.ceil(factures.length / itemsPerPage), prev + 1))}
+                        onClick={() =>
+                          setCurrentPage((prev) => Math.min(Math.ceil(factures.length / itemsPerPage), prev + 1))
+                        }
                         disabled={currentPage === Math.ceil(factures.length / itemsPerPage)}
                       >
                         Suivant
@@ -807,7 +786,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                     id="prompt"
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
-                    rows={12}
+                    rows={18}
                     className="font-mono text-sm"
                   />
                   <Button variant="outline" size="sm" onClick={() => setPrompt(DEFAULT_PROMPT)} className="mt-2">
@@ -848,18 +827,18 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           </div>
         </div>
 
-        {/* Modal détails facture */}
         {selectedFacture && editedData && (
-          <Dialog open={!!selectedFacture} onOpenChange={() => {
-            setSelectedFacture(null);
-            setEditedData(null);
-          }}>
+          <Dialog
+            open={!!selectedFacture}
+            onOpenChange={() => {
+              setSelectedFacture(null);
+              setEditedData(null);
+            }}
+          >
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Éditer la facture</DialogTitle>
-                <DialogDescription>
-                  Modifiez les données extraites avant sauvegarde
-                </DialogDescription>
+                <DialogDescription>Modifiez les données extraites avant sauvegarde</DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
@@ -868,8 +847,12 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                 </div>
 
                 {selectedFacture.erreur && (
-                  <div className={`p-3 rounded-lg ${selectedFacture.valide ? "bg-amber-50 border border-amber-200" : "bg-red-50 border border-red-200"}`}>
-                    <p className={`text-sm font-semibold mb-1 ${selectedFacture.valide ? "text-amber-700" : "text-red-700"}`}>
+                  <div
+                    className={`p-3 rounded-lg ${selectedFacture.valide ? "bg-amber-50 border border-amber-200" : "bg-red-50 border border-red-200"}`}
+                  >
+                    <p
+                      className={`text-sm font-semibold mb-1 ${selectedFacture.valide ? "text-amber-700" : "text-red-700"}`}
+                    >
                       {selectedFacture.valide ? "⚠ Attention" : "❌ Erreurs à corriger"}
                     </p>
                     <p className={`text-sm ${selectedFacture.valide ? "text-amber-600" : "text-red-600"}`}>
@@ -931,7 +914,9 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                       type="number"
                       step="0.01"
                       value={editedData.montant_tva || ""}
-                      onChange={(e) => setEditedData({ ...editedData, montant_tva: parseFloat(e.target.value) || null })}
+                      onChange={(e) =>
+                        setEditedData({ ...editedData, montant_tva: parseFloat(e.target.value) || null })
+                      }
                       placeholder="0.00"
                     />
                   </div>
@@ -945,7 +930,9 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                       type="number"
                       step="0.01"
                       value={editedData.montant_ttc || ""}
-                      onChange={(e) => setEditedData({ ...editedData, montant_ttc: parseFloat(e.target.value) || null })}
+                      onChange={(e) =>
+                        setEditedData({ ...editedData, montant_ttc: parseFloat(e.target.value) || null })
+                      }
                       placeholder="0.00"
                       className={!editedData.montant_ttc ? "border-red-300" : ""}
                     />
@@ -972,8 +959,8 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => {
                     setSelectedFacture(null);
                     setEditedData(null);
@@ -981,9 +968,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                 >
                   Annuler
                 </Button>
-                <Button onClick={handleSaveEdit}>
-                  Enregistrer les modifications
-                </Button>
+                <Button onClick={handleSaveEdit}>Enregistrer les modifications</Button>
               </div>
             </DialogContent>
           </Dialog>
