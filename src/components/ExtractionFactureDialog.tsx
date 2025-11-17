@@ -199,6 +199,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
   const [currentFile, setCurrentFile] = useState("");
   const [progress, setProgress] = useState(0);
   const [selectedFacture, setSelectedFacture] = useState<FactureExtraite | null>(null);
+  const [selectedFactureIndex, setSelectedFactureIndex] = useState<number>(-1);
   const [editedData, setEditedData] = useState<FactureData | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 3;
@@ -463,9 +464,27 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
     }
   };
 
-  const handleEditFacture = (facture: FactureExtraite) => {
+  const handleEditFacture = (facture: FactureExtraite, index?: number) => {
     setSelectedFacture(facture);
+    const factureIndex = index !== undefined ? index : factures.findIndex(f => f.id === facture.id);
+    setSelectedFactureIndex(factureIndex);
     setEditedData({ ...facture.donnees, lignes: facture.donnees.lignes || [] });
+  };
+
+  const handleNavigatePrevious = () => {
+    if (selectedFactureIndex > 0) {
+      const prevIndex = selectedFactureIndex - 1;
+      const prevFacture = factures[prevIndex];
+      handleEditFacture(prevFacture, prevIndex);
+    }
+  };
+
+  const handleNavigateNext = () => {
+    if (selectedFactureIndex < factures.length - 1) {
+      const nextIndex = selectedFactureIndex + 1;
+      const nextFacture = factures[nextIndex];
+      handleEditFacture(nextFacture, nextIndex);
+    }
   };
 
   const handleSaveEdit = () => {
@@ -692,7 +711,9 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
 
                   <ScrollArea className="h-[500px]">
                     <div className="divide-y">
-                      {factures.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((facture) => (
+                      {factures.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((facture, indexInSlice) => {
+                        const actualIndex = (currentPage - 1) * itemsPerPage + indexInSlice;
+                        return (
                         <div
                           key={facture.id}
                           className={`grid grid-cols-12 gap-2 p-3 hover:bg-muted/30 transition-colors ${
@@ -793,7 +814,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
-                              onClick={() => handleEditFacture(facture)}
+                              onClick={() => handleEditFacture(facture, actualIndex)}
                               title="Modifier"
                             >
                               <Settings className="h-4 w-4" />
@@ -816,7 +837,8 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                             </Button>
                           </div>
                         </div>
-                      ))}
+                      );
+                    })}
                     </div>
                   </ScrollArea>
                 </div>
@@ -918,8 +940,35 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           >
             <DialogContent className="max-w-6xl max-h-[90vh]">
               <DialogHeader>
-                <DialogTitle>Éditer la facture et les lignes</DialogTitle>
-                <DialogDescription>{selectedFacture.fichier}</DialogDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <DialogTitle>Éditer la facture et les lignes</DialogTitle>
+                    <DialogDescription>{selectedFacture.fichier}</DialogDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNavigatePrevious}
+                      disabled={selectedFactureIndex <= 0}
+                      title="Facture précédente"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      {selectedFactureIndex + 1} / {factures.length}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNavigateNext}
+                      disabled={selectedFactureIndex >= factures.length - 1}
+                      title="Facture suivante"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
               </DialogHeader>
 
               <ScrollArea className="h-[calc(90vh-180px)] pr-4">
