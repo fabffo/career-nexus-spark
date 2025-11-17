@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -42,30 +41,35 @@ serve(async (req) => {
     console.log('✓ PDF base64 size:', pdfBase64.length, 'bytes');
     console.log('✓ Prompt length:', prompt.length, 'chars');
 
-    // Utiliser Lovable AI avec le PDF comme image
-    console.log('Checking LOVABLE_API_KEY...');
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    console.log('Checking ANTHROPIC_API_KEY...');
+    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
     
-    if (!lovableApiKey) {
-      console.error('❌ LOVABLE_API_KEY non trouvée');
+    if (!anthropicApiKey) {
+      console.error('❌ ANTHROPIC_API_KEY non trouvée');
       return new Response(
-        JSON.stringify({ error: 'Configuration manquante' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          error: 'La clé API Anthropic n\'est pas configurée. Cette fonctionnalité nécessite des crédits Anthropic pour analyser les PDFs.',
+          action_required: 'Veuillez ajouter des crédits à votre compte Anthropic sur https://console.anthropic.com/settings/billing'
+        }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('✓ LOVABLE_API_KEY trouvée');
+    console.log('✓ ANTHROPIC_API_KEY trouvée (longueur:', anthropicApiKey.length, ')');
 
-    console.log('📡 Appel Lovable AI en cours...');
-    const aiPayload = {
-      model: 'google/gemini-2.5-flash',
+    console.log('📡 Appel API Anthropic en cours...');
+    const anthropicPayload = {
+      model: 'claude-sonnet-4-5-20250929',
+      max_tokens: 1024,
       messages: [{
         role: 'user',
         content: [
           {
-            type: 'image_url',
-            image_url: {
-              url: `data:application/pdf;base64,${pdfBase64}`
+            type: 'document',
+            source: {
+              type: 'base64',
+              media_type: 'application/pdf',
+              data: pdfBase64
             }
           },
           {
@@ -73,47 +77,69 @@ serve(async (req) => {
             text: prompt
           }
         ]
-      }],
-      max_tokens: 2048
+      }]
     };
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    console.log('Payload Anthropic préparé:', {
+      model: anthropicPayload.model,
+      max_tokens: anthropicPayload.max_tokens
+    });
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${lovableApiKey}`
+        'x-api-key': anthropicApiKey,
+        'anthropic-version': '2023-06-01'
       },
-      body: JSON.stringify(aiPayload)
+      body: JSON.stringify(anthropicPayload)
     });
 
-    console.log('📥 Réponse Lovable AI status:', response.status, response.statusText);
+    console.log('📥 Réponse Anthropic status:', response.status, response.statusText);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Erreur Lovable AI - Status:', response.status);
+      console.error('❌ Erreur API Anthropic - Status:', response.status);
       console.error('❌ Erreur détails:', errorText);
+      
+      let errorMessage = 'Erreur API Anthropic';
+      let userMessage = errorMessage;
+      
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.error?.message || errorMessage;
+        console.error('❌ Erreur parsée:', errorJson);
+        
+        // Message spécifique pour le manque de crédits
+        if (errorMessage.includes('credit balance') || errorMessage.includes('billing')) {
+          userMessage = 'Votre compte Anthropic n\'a plus de crédits. Veuillez ajouter des crédits sur https://console.anthropic.com/settings/billing';
+        }
+      } catch (e) {
+        console.error('❌ Impossible de parser l\'erreur JSON');
+      }
       
       return new Response(
         JSON.stringify({
-          error: 'Erreur lors de l\'extraction des données',
+          error: userMessage,
           status: response.status,
           details: errorText.substring(0, 200)
         }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: response.status === 400 ? 402 : response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log('✓ Réponse OK, parsing JSON...');
     const data = await response.json();
+    console.log('✓ Tokens utilisés:', data.usage);
 
-    // Extraire le contenu (format OpenAI)
+    // Extraire et nettoyer le texte (format Anthropic)
     console.log('Extraction du contenu...');
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+    if (!data.content || !data.content[0]) {
       console.error('❌ Pas de contenu dans la réponse');
-      throw new Error('Pas de contenu dans la réponse');
+      throw new Error('Pas de contenu dans la réponse Anthropic');
     }
 
-    let texteReponse = data.choices[0].message.content.trim();
+    let texteReponse = data.content[0].text.trim();
     console.log('Texte brut (100 premiers chars):', texteReponse.substring(0, 100));
     
     if (texteReponse.includes('```')) {
@@ -128,8 +154,8 @@ serve(async (req) => {
     const result = {
       donnees,
       tokens: {
-        input: data.usage?.prompt_tokens || 0,
-        output: data.usage?.completion_tokens || 0
+        input: data.usage?.input_tokens || 0,
+        output: data.usage?.output_tokens || 0
       }
     };
 
