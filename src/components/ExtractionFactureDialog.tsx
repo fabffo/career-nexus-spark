@@ -230,11 +230,23 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
 
           if (error) {
             console.error("❌ Erreur edge function:", error);
+            
+            // Message spécifique pour les problèmes de crédits
+            if (error.message?.includes('credit') || error.message?.includes('billing') || error.message?.includes('402')) {
+              throw new Error('Crédits Anthropic insuffisants. Veuillez ajouter des crédits sur https://console.anthropic.com/settings/billing pour utiliser cette fonctionnalité.');
+            }
+            
             throw new Error(`Erreur serveur: ${error.message}`);
           }
 
           if (data?.error) {
             console.error("❌ Erreur dans la réponse:", data.error);
+            
+            // Message spécifique pour les problèmes de crédits
+            if (typeof data.error === 'string' && (data.error.includes('credit') || data.error.includes('billing') || data.error.includes('Anthropic'))) {
+              throw new Error('⚠️ Crédits Anthropic requis : Cette fonctionnalité nécessite des crédits Anthropic pour analyser les documents PDF. Veuillez ajouter des crédits sur https://console.anthropic.com/settings/billing');
+            }
+            
             throw new Error(data.error);
           }
 
