@@ -183,7 +183,7 @@ export default function FactureRapprochementDialog({
         throw new Error("Pas de fichier_data trouvé");
       }
 
-      // Modifier le JSON pour mettre cette ligne en "partial" avec cast approprié
+      // Modifier le JSON pour mettre cette ligne en "unmatched" (complètement dé-rapprochée)
       const fichierDataTyped = fichierData.fichier_data as any;
       const updatedRapprochements = fichierDataTyped?.rapprochements?.map((item: any) => {
         if (item.numero_ligne === numeroLigne) {
@@ -192,7 +192,7 @@ export default function FactureRapprochementDialog({
             facture: undefined,
             factureIds: undefined,
             factures: undefined,
-            status: "partial"
+            status: "unmatched"
           };
         }
         return item;
@@ -205,7 +205,7 @@ export default function FactureRapprochementDialog({
             facture: undefined,
             factureIds: undefined,
             factures: undefined,
-            status: "partial"
+            status: "unmatched"
           };
         }
         return item;
