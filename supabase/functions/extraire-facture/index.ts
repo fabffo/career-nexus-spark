@@ -41,70 +41,65 @@ serve(async (req) => {
     console.log('✓ PDF base64 size:', pdfBase64.length, 'bytes');
     console.log('✓ Prompt length:', prompt.length, 'chars');
 
-    console.log('Checking ANTHROPIC_API_KEY...');
-    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+    console.log('Checking LOVABLE_API_KEY...');
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     
-    if (!anthropicApiKey) {
-      console.error('❌ ANTHROPIC_API_KEY non trouvée dans les variables d\'environnement');
-      console.error('Variables disponibles:', Object.keys(Deno.env.toObject()));
+    if (!lovableApiKey) {
+      console.error('❌ LOVABLE_API_KEY non trouvée dans les variables d\'environnement');
       return new Response(
         JSON.stringify({ 
-          error: 'Clé API Anthropic non configurée sur le serveur. Veuillez ajouter ANTHROPIC_API_KEY dans les secrets Supabase.' 
+          error: 'Clé API Lovable non configurée sur le serveur.' 
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('✓ ANTHROPIC_API_KEY trouvée (longueur:', anthropicApiKey.length, ')');
-    console.log('✓ API key commence par:', anthropicApiKey.substring(0, 10) + '...');
+    console.log('✓ LOVABLE_API_KEY trouvée (longueur:', lovableApiKey.length, ')');
 
-    console.log('📡 Appel API Anthropic en cours...');
-    const anthropicPayload = {
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 1024,
+    console.log('📡 Appel API Lovable AI en cours...');
+    const lovablePayload = {
+      model: 'google/gemini-2.5-flash',
       messages: [{
         role: 'user',
         content: [
           {
-            type: 'document',
-            source: {
-              type: 'base64',
-              media_type: 'application/pdf',
-              data: pdfBase64
-            }
-          },
-          {
             type: 'text',
             text: prompt
+          },
+          {
+            type: 'image_url',
+            image_url: {
+              url: `data:application/pdf;base64,${pdfBase64}`
+            }
           }
         ]
-      }]
+      }],
+      max_tokens: 4096
     };
 
-    console.log('Payload Anthropic préparé (sans PDF):', {
-      model: anthropicPayload.model,
-      max_tokens: anthropicPayload.max_tokens,
-      message_content_types: anthropicPayload.messages[0].content.map((c: any) => c.type)
+    console.log('Payload Lovable AI préparé:', {
+      model: lovablePayload.model,
+      max_tokens: lovablePayload.max_tokens,
+      message_content_types: lovablePayload.messages[0].content.map((c: any) => c.type)
     });
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01'
+        'Authorization': `Bearer ${lovableApiKey}`
       },
-      body: JSON.stringify(anthropicPayload)
+      body: JSON.stringify(lovablePayload)
     });
 
-    console.log('📥 Réponse Anthropic status:', response.status, response.statusText);
+    console.log('📥 Réponse Lovable AI status:', response.status, response.statusText);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Erreur API Anthropic - Status:', response.status);
+      console.error('❌ Erreur API Lovable AI - Status:', response.status);
       console.error('❌ Erreur détails:', errorText);
       
-      let errorMessage = 'Erreur API Anthropic';
+      let errorMessage = 'Erreur API Lovable AI';
       try {
         const errorJson = JSON.parse(errorText);
         errorMessage = errorJson.error?.message || errorMessage;
@@ -112,9 +107,9 @@ serve(async (req) => {
       } catch (e) {
         console.error('❌ Impossible de parser l\'erreur JSON');
       }
-
+      
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: errorMessage,
           status: response.status,
           details: errorText.substring(0, 200)
@@ -125,16 +120,16 @@ serve(async (req) => {
 
     console.log('✓ Réponse OK, parsing JSON...');
     const data = await response.json();
-    console.log('✓ Tokens utilisés:', data.usage);
+    console.log('✓ Réponse complète:', JSON.stringify(data, null, 2));
 
-    // Extraire et nettoyer le texte
+    // Extraire et nettoyer le texte (format OpenAI)
     console.log('Extraction du contenu...');
-    if (!data.content || !data.content[0]) {
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
       console.error('❌ Pas de contenu dans la réponse');
-      throw new Error('Pas de contenu dans la réponse Anthropic');
+      throw new Error('Pas de contenu dans la réponse Lovable AI');
     }
 
-    let texteReponse = data.content[0].text.trim();
+    let texteReponse = data.choices[0].message.content.trim();
     console.log('Texte brut (100 premiers chars):', texteReponse.substring(0, 100));
     
     if (texteReponse.includes('```')) {
@@ -146,22 +141,15 @@ serve(async (req) => {
     const donnees = JSON.parse(texteReponse);
     console.log('✓ JSON parsé avec succès:', Object.keys(donnees));
 
-    // Calculer les coûts
-    console.log('Calcul des coûts...');
-    const coutInput = (data.usage.input_tokens / 1_000_000) * 3;
-    const coutOutput = (data.usage.output_tokens / 1_000_000) * 15;
-    const coutTotal = coutInput + coutOutput;
-
     const result = {
       donnees,
       tokens: {
-        input: data.usage.input_tokens,
-        output: data.usage.output_tokens
-      },
-      cout_estime: coutTotal
+        input: data.usage?.prompt_tokens || 0,
+        output: data.usage?.completion_tokens || 0
+      }
     };
 
-    console.log('✅ Succès! Coût total:', coutTotal);
+    console.log('✅ Succès!');
     console.log('=== Fin traitement (succès) ===');
 
     return new Response(
