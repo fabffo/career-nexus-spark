@@ -25,6 +25,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+interface FactureLigne {
+  description: string;
+  quantite: number;
+  prix_unitaire_ht: number;
+  prix_ht: number;
+  taux_tva: number;
+  prix_ttc: number;
+}
+
+interface FactureLigne {
+  description: string;
+  quantite: number;
+  prix_unitaire_ht: number;
+  prix_ht: number;
+  taux_tva: number;
+  prix_ttc: number;
+}
+
 interface FactureData {
   fournisseur: string | null;
   numero_facture: string | null;
@@ -33,6 +51,7 @@ interface FactureData {
   montant_ttc: number | null;
   montant_tva: number | null;
   date_facture: string | null;
+  lignes?: FactureLigne[];
 }
 
 interface FactureExtraite {
@@ -446,7 +465,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
 
   const handleEditFacture = (facture: FactureExtraite) => {
     setSelectedFacture(facture);
-    setEditedData({ ...facture.donnees });
+    setEditedData({ ...facture.donnees, lignes: facture.donnees.lignes || [] });
   };
 
   const handleSaveEdit = () => {
@@ -473,6 +492,68 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
 
     setSelectedFacture(null);
     setEditedData(null);
+  };
+
+  const handleAddLigne = () => {
+    if (!editedData) return;
+    const nouvelleLigne: FactureLigne = {
+      description: "",
+      quantite: 1,
+      prix_unitaire_ht: 0,
+      prix_ht: 0,
+      taux_tva: 20,
+      prix_ttc: 0,
+    };
+    setEditedData({
+      ...editedData,
+      lignes: [...(editedData.lignes || []), nouvelleLigne],
+    });
+  };
+
+  const handleUpdateLigne = (index: number, field: keyof FactureLigne, value: any) => {
+    if (!editedData) return;
+    const lignes = [...(editedData.lignes || [])];
+    lignes[index] = { ...lignes[index], [field]: value };
+
+    // Recalcul automatique
+    if (field === "quantite" || field === "prix_unitaire_ht") {
+      lignes[index].prix_ht = lignes[index].quantite * lignes[index].prix_unitaire_ht;
+      lignes[index].prix_ttc = lignes[index].prix_ht * (1 + lignes[index].taux_tva / 100);
+    } else if (field === "taux_tva" || field === "prix_ht") {
+      lignes[index].prix_ttc = lignes[index].prix_ht * (1 + lignes[index].taux_tva / 100);
+    }
+
+    // Recalculer les totaux
+    const montant_ht = lignes.reduce((sum, l) => sum + l.prix_ht, 0);
+    const montant_ttc = lignes.reduce((sum, l) => sum + l.prix_ttc, 0);
+    const montant_tva = montant_ttc - montant_ht;
+
+    setEditedData({
+      ...editedData,
+      lignes,
+      montant_ht,
+      montant_ttc,
+      montant_tva,
+    });
+  };
+
+  const handleDeleteLigne = (index: number) => {
+    if (!editedData) return;
+    const lignes = [...(editedData.lignes || [])];
+    lignes.splice(index, 1);
+
+    // Recalculer les totaux
+    const montant_ht = lignes.reduce((sum, l) => sum + l.prix_ht, 0);
+    const montant_ttc = lignes.reduce((sum, l) => sum + l.prix_ttc, 0);
+    const montant_tva = montant_ttc - montant_ht;
+
+    setEditedData({
+      ...editedData,
+      lignes,
+      montant_ht,
+      montant_ttc,
+      montant_tva,
+    });
   };
 
   const stats = {
@@ -835,130 +916,232 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
               setEditedData(null);
             }}
           >
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-6xl max-h-[90vh]">
               <DialogHeader>
-                <DialogTitle>Éditer la facture</DialogTitle>
-                <DialogDescription>Modifiez les données extraites avant sauvegarde</DialogDescription>
+                <DialogTitle>Éditer la facture et les lignes</DialogTitle>
+                <DialogDescription>{selectedFacture.fichier}</DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>Fichier</Label>
-                  <p className="text-sm font-medium text-muted-foreground">{selectedFacture.fichier}</p>
-                </div>
 
-                {selectedFacture.erreur && (
-                  <div
-                    className={`p-3 rounded-lg ${selectedFacture.valide ? "bg-amber-50 border border-amber-200" : "bg-red-50 border border-red-200"}`}
-                  >
-                    <p
-                      className={`text-sm font-semibold mb-1 ${selectedFacture.valide ? "text-amber-700" : "text-red-700"}`}
+              <ScrollArea className="h-[calc(90vh-180px)] pr-4">
+                <div className="space-y-6">
+                  {/* Erreurs */}
+                  {selectedFacture.erreur && (
+                    <div
+                      className={`p-3 rounded-lg ${selectedFacture.valide ? "bg-amber-50 border border-amber-200" : "bg-red-50 border border-red-200"}`}
                     >
-                      {selectedFacture.valide ? "⚠ Attention" : "❌ Erreurs à corriger"}
-                    </p>
-                    <p className={`text-sm ${selectedFacture.valide ? "text-amber-600" : "text-red-600"}`}>
-                      {selectedFacture.erreur}
-                    </p>
-                  </div>
-                )}
+                      <p
+                        className={`text-sm font-semibold mb-1 ${selectedFacture.valide ? "text-amber-700" : "text-red-700"}`}
+                      >
+                        {selectedFacture.valide ? "⚠ Attention" : "❌ Erreurs à corriger"}
+                      </p>
+                      <p className={`text-sm ${selectedFacture.valide ? "text-amber-600" : "text-red-600"}`}>
+                        {selectedFacture.erreur}
+                      </p>
+                    </div>
+                  )}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <Label htmlFor="edit-fournisseur" className={!editedData.fournisseur ? "text-red-600" : ""}>
-                      Fournisseur {!editedData.fournisseur && <span className="text-red-600">*</span>}
-                    </Label>
-                    <Input
-                      id="edit-fournisseur"
-                      value={editedData.fournisseur || ""}
-                      onChange={(e) => setEditedData({ ...editedData, fournisseur: e.target.value })}
-                      placeholder="Nom du fournisseur"
-                      className={!editedData.fournisseur ? "border-red-300" : ""}
-                    />
-                  </div>
+                  {/* Informations générales */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-base">Informations générales</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="col-span-2">
+                        <Label htmlFor="edit-fournisseur" className={!editedData.fournisseur ? "text-red-600" : ""}>
+                          Fournisseur {!editedData.fournisseur && <span className="text-red-600">*</span>}
+                        </Label>
+                        <Input
+                          id="edit-fournisseur"
+                          value={editedData.fournisseur || ""}
+                          onChange={(e) => setEditedData({ ...editedData, fournisseur: e.target.value })}
+                          placeholder="Nom du fournisseur"
+                          className={!editedData.fournisseur ? "border-red-300" : ""}
+                        />
+                      </div>
 
-                  <div>
-                    <Label htmlFor="edit-numero">N° Facture</Label>
-                    <Input
-                      id="edit-numero"
-                      value={editedData.numero_facture || ""}
-                      onChange={(e) => setEditedData({ ...editedData, numero_facture: e.target.value })}
-                      placeholder="Auto-généré si vide"
-                    />
-                  </div>
+                      <div>
+                        <Label htmlFor="edit-numero">N° Facture</Label>
+                        <Input
+                          id="edit-numero"
+                          value={editedData.numero_facture || ""}
+                          onChange={(e) => setEditedData({ ...editedData, numero_facture: e.target.value })}
+                          placeholder="Numéro de facture"
+                        />
+                      </div>
 
-                  <div>
-                    <Label htmlFor="edit-date">Date</Label>
-                    <Input
-                      id="edit-date"
-                      type="date"
-                      value={editedData.date_facture || ""}
-                      onChange={(e) => setEditedData({ ...editedData, date_facture: e.target.value })}
-                    />
-                  </div>
+                      <div>
+                        <Label htmlFor="edit-date">Date</Label>
+                        <Input
+                          id="edit-date"
+                          type="date"
+                          value={editedData.date_facture || ""}
+                          onChange={(e) => setEditedData({ ...editedData, date_facture: e.target.value })}
+                        />
+                      </div>
 
-                  <div>
-                    <Label htmlFor="edit-ht">Montant HT (€)</Label>
-                    <Input
-                      id="edit-ht"
-                      type="number"
-                      step="0.01"
-                      value={editedData.montant_ht || ""}
-                      onChange={(e) => setEditedData({ ...editedData, montant_ht: parseFloat(e.target.value) || null })}
-                      placeholder="0.00"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="edit-tva">Montant TVA (€)</Label>
-                    <Input
-                      id="edit-tva"
-                      type="number"
-                      step="0.01"
-                      value={editedData.montant_tva || ""}
-                      onChange={(e) =>
-                        setEditedData({ ...editedData, montant_tva: parseFloat(e.target.value) || null })
-                      }
-                      placeholder="0.00"
-                    />
+                      <div className="col-span-2">
+                        <Label htmlFor="edit-libelle">Libellé</Label>
+                        <Input
+                          id="edit-libelle"
+                          value={editedData.libelle || ""}
+                          onChange={(e) => setEditedData({ ...editedData, libelle: e.target.value })}
+                          placeholder="Description de la facture"
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="col-span-2">
-                    <Label htmlFor="edit-ttc" className={!editedData.montant_ttc ? "text-red-600" : ""}>
-                      Montant TTC (€) {!editedData.montant_ttc && <span className="text-red-600">*</span>}
-                    </Label>
-                    <Input
-                      id="edit-ttc"
-                      type="number"
-                      step="0.01"
-                      value={editedData.montant_ttc || ""}
-                      onChange={(e) =>
-                        setEditedData({ ...editedData, montant_ttc: parseFloat(e.target.value) || null })
-                      }
-                      placeholder="0.00"
-                      className={!editedData.montant_ttc ? "border-red-300" : ""}
-                    />
+                  {/* Lignes de facture */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-base">Lignes de facture</h3>
+                      <Button onClick={handleAddLigne} size="sm" variant="outline">
+                        Ajouter une ligne
+                      </Button>
+                    </div>
+
+                    {(!editedData.lignes || editedData.lignes.length === 0) && (
+                      <div className="text-center py-6 text-muted-foreground border-2 border-dashed rounded-lg">
+                        Aucune ligne de facture. Cliquez sur "Ajouter une ligne" pour commencer.
+                      </div>
+                    )}
+
+                    {editedData.lignes && editedData.lignes.length > 0 && (
+                      <div className="space-y-3">
+                        {editedData.lignes.map((ligne, index) => (
+                          <Card key={index} className="bg-muted/30">
+                            <CardContent className="p-4">
+                              <div className="space-y-3">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1">
+                                    <Label className="text-xs mb-1">Description</Label>
+                                    <Input
+                                      value={ligne.description}
+                                      onChange={(e) => handleUpdateLigne(index, "description", e.target.value)}
+                                      placeholder="Description de la prestation"
+                                      className="text-sm"
+                                    />
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 mt-5"
+                                    onClick={() => handleDeleteLigne(index)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                                <div className="grid grid-cols-5 gap-2">
+                                  <div>
+                                    <Label className="text-xs mb-1">Qté</Label>
+                                    <Input
+                                      type="number"
+                                      value={ligne.quantite}
+                                      onChange={(e) =>
+                                        handleUpdateLigne(index, "quantite", parseFloat(e.target.value) || 0)
+                                      }
+                                      step="0.01"
+                                      className="text-sm"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs mb-1">P.U. HT</Label>
+                                    <Input
+                                      type="number"
+                                      value={ligne.prix_unitaire_ht}
+                                      onChange={(e) =>
+                                        handleUpdateLigne(index, "prix_unitaire_ht", parseFloat(e.target.value) || 0)
+                                      }
+                                      step="0.01"
+                                      className="text-sm"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs mb-1">Prix HT</Label>
+                                    <Input
+                                      type="number"
+                                      value={ligne.prix_ht.toFixed(2)}
+                                      disabled
+                                      className="text-sm bg-muted"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs mb-1">TVA %</Label>
+                                    <Input
+                                      type="number"
+                                      value={ligne.taux_tva}
+                                      onChange={(e) =>
+                                        handleUpdateLigne(index, "taux_tva", parseFloat(e.target.value) || 0)
+                                      }
+                                      step="0.01"
+                                      className="text-sm"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs mb-1">Prix TTC</Label>
+                                    <Input
+                                      type="number"
+                                      value={ligne.prix_ttc.toFixed(2)}
+                                      disabled
+                                      className="text-sm bg-muted font-semibold"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  <div className="col-span-2">
-                    <Label htmlFor="edit-libelle">Libellé / Description</Label>
-                    <Textarea
-                      id="edit-libelle"
-                      value={editedData.libelle || ""}
-                      onChange={(e) => setEditedData({ ...editedData, libelle: e.target.value })}
-                      placeholder="Description de la facture"
-                      rows={3}
-                    />
+                  {/* Totaux */}
+                  <div className="space-y-4 pt-4 border-t">
+                    <h3 className="font-semibold text-base">Totaux</h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="edit-ht">Montant HT</Label>
+                        <Input
+                          id="edit-ht"
+                          type="number"
+                          value={editedData.montant_ht || 0}
+                          onChange={(e) => setEditedData({ ...editedData, montant_ht: parseFloat(e.target.value) || 0 })}
+                          step="0.01"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="edit-tva">Montant TVA</Label>
+                        <Input
+                          id="edit-tva"
+                          type="number"
+                          value={editedData.montant_tva || 0}
+                          onChange={(e) =>
+                            setEditedData({ ...editedData, montant_tva: parseFloat(e.target.value) || 0 })
+                          }
+                          step="0.01"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="edit-ttc" className={!editedData.montant_ttc ? "text-red-600" : ""}>
+                          Montant TTC {!editedData.montant_ttc && <span className="text-red-600">*</span>}
+                        </Label>
+                        <Input
+                          id="edit-ttc"
+                          type="number"
+                          value={editedData.montant_ttc || 0}
+                          onChange={(e) =>
+                            setEditedData({ ...editedData, montant_ttc: parseFloat(e.target.value) || 0 })
+                          }
+                          step="0.01"
+                          className={`font-semibold ${!editedData.montant_ttc ? "border-red-300" : ""}`}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
+              </ScrollArea>
 
-                {selectedFacture.tokens && (
-                  <div className="text-xs text-muted-foreground">
-                    Tokens: {selectedFacture.tokens.input + selectedFacture.tokens.output} • Coût: $
-                    {(selectedFacture.cout_estime! * 100).toFixed(4)}¢
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4">
+              <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button
                   variant="outline"
                   onClick={() => {
