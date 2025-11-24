@@ -359,15 +359,19 @@ export default function CRAGestion() {
 
       // Sauvegarder les jours
       if (craId) {
-        const joursToSave = Array.from(craJours.values()).map(j => ({
-          cra_id: craId!,
-          date: j.date,
-          type_jour: j.type_jour,
-          heures: j.heures,
-          commentaire: j.commentaire
-        }));
+        const joursToSave = Array.from(craJours.values())
+          .filter(j => j.type_jour && j.date) // Ne sauvegarder que les jours avec un type défini
+          .map(j => ({
+            cra_id: craId!,
+            date: j.date,
+            type_jour: j.type_jour,
+            heures: j.heures || 0,
+            commentaire: j.commentaire || undefined
+          }));
 
-        await craService.upsertJours(joursToSave);
+        if (joursToSave.length > 0) {
+          await craService.upsertJours(joursToSave);
+        }
       }
 
       toast.success(submit ? "CRA soumis pour validation" : "CRA enregistré");
@@ -376,8 +380,9 @@ export default function CRAGestion() {
       await loadCRA();
 
     } catch (error: any) {
-      console.error("Erreur lors de la sauvegarde:", error);
-      toast.error("Erreur lors de la sauvegarde du CRA");
+      console.error("Erreur lors de la sauvegarde du CRA:", error);
+      const errorMessage = error?.message || "Erreur lors de la sauvegarde du CRA";
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
