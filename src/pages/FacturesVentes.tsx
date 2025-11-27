@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, FileText, Eye, Pencil, Copy, Trash2, TrendingUp, Download, Sparkles, ArrowUpDown } from "lucide-react";
+import { Plus, FileText, Eye, Pencil, Copy, Trash2, TrendingUp, Download, Sparkles, ArrowUpDown, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Search as SearchIcon } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -875,88 +875,116 @@ export default function FacturesVentes() {
         </DropdownMenu>
       </div>
 
-      <div className="rounded-md border">
-        <div className="relative overflow-auto" style={{ maxHeight: '600px' }}>
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-background border-b">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => {
-                    return (
-                      <TableHead key={header.id} className="bg-muted/80 backdrop-blur-sm">
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(header.column.columnDef.header, header.getContext())}
-                      </TableHead>
-                    );
-                  })}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
-                    {loading ? "Chargement..." : "Aucune facture de vente trouvée"}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <div className="relative flex-1 max-w-sm">
+          <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher une facture..."
+            value={globalFilter ?? ""}
+            onChange={(event) => setGlobalFilter(event.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground whitespace-nowrap">Lignes par page:</span>
+          <select
+            value={table.getState().pagination.pageSize}
+            onChange={(e) => table.setPageSize(Number(e.target.value))}
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
         </div>
       </div>
 
-      <div className="flex items-center justify-between space-x-2 py-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Lignes par page:</span>
-          <Select
-            value={table.getState().pagination.pageSize.toString()}
-            onValueChange={(value) => {
-              table.setPageSize(Number(value));
-            }}
-          >
-            <SelectTrigger className="h-8 w-[70px]">
-              <SelectValue placeholder={table.getState().pagination.pageSize} />
-            </SelectTrigger>
-            <SelectContent side="top">
-              {[10, 20, 30, 40, 50].map((pageSize) => (
-                <SelectItem key={pageSize} value={`${pageSize}`}>
-                  {pageSize}
-                </SelectItem>
+      <div className="rounded-lg border border-border">
+        <div className="overflow-auto max-h-[600px]">
+          <table className="w-full caption-bottom text-sm">
+            <thead className="[&_tr]:border-b sticky top-0 bg-background z-10">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id} className="border-b transition-colors hover:bg-muted/50">
+                  {headerGroup.headers.map((header) => (
+                    <th
+                      key={header.id}
+                      className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-background"
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  ))}
+                </tr>
               ))}
-            </SelectContent>
-          </Select>
+            </thead>
+            <tbody className="[&_tr:last-child]:border-0">
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                    className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="p-4 align-middle">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={columns.length} className="h-24 text-center">
+                    {loading ? "Chargement..." : "Aucune facture de vente trouvée"}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between py-4">
+        <div className="text-sm text-muted-foreground">
+          Affichage de {table.getFilteredRowModel().rows.length > 0 ? table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1 : 0} à {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, table.getFilteredRowModel().rows.length)} sur {table.getFilteredRowModel().rows.length} résultats
         </div>
         <div className="flex items-center gap-2">
-          <div className="text-sm text-muted-foreground">
-            Page {table.getState().pagination.pageIndex + 1} sur{" "}
-            {table.getPageCount()}
-          </div>
           <Button
             variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
+            size="icon"
+            onClick={() => table.setPageIndex(0)}
             disabled={!table.getCanPreviousPage()}
           >
-            Précédent
+            <ChevronsLeft className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
+            size="icon"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm text-muted-foreground px-2">
+            Page {table.getPageCount() > 0 ? table.getState().pagination.pageIndex + 1 : 0} sur {table.getPageCount()}
+          </span>
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={() => table.nextPage()} 
             disabled={!table.getCanNextPage()}
           >
-            Suivant
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+            disabled={!table.getCanNextPage()}
+          >
+            <ChevronsRight className="h-4 w-4" />
           </Button>
         </div>
       </div>
