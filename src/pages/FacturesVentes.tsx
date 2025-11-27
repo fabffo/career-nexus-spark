@@ -875,15 +875,15 @@ export default function FacturesVentes() {
         </DropdownMenu>
       </div>
 
-      <div className="rounded-md border overflow-hidden">
-        <div className="max-h-[600px] overflow-y-auto relative">
+      <div className="rounded-md border">
+        <div className="relative overflow-auto" style={{ maxHeight: '600px' }}>
           <Table>
-            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
+            <TableHeader className="sticky top-0 z-10 bg-background border-b">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => {
                     return (
-                      <TableHead key={header.id} className="bg-muted/50">
+                      <TableHead key={header.id} className="bg-muted/80 backdrop-blur-sm">
                         {header.isPlaceholder
                           ? null
                           : flexRender(header.column.columnDef.header, header.getContext())}
