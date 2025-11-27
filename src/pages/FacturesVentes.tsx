@@ -280,8 +280,6 @@ export default function FacturesVentes() {
         destinataire_email: facture.destinataire_email,
         destinataire_telephone: facture.destinataire_telephone,
         destinataire_id: facture.destinataire_id || null,
-        fournisseur_id: facture.fournisseur_id || null,
-        salarie_id: facture.salarie_id || null,
         reference_societe: facture.reference_societe,
         activite: facture.activite,
         statut: 'BROUILLON' as const,
