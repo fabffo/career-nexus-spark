@@ -326,10 +326,10 @@ serve(async (req) => {
 
     y -= 40;
 
-    // Tableau des lignes
+    // Tableau des lignes (7 colonnes comme dans la visualisation)
     const tableTop = y;
-    const columnWidths = [250, 60, 80, 60, 80];
-    const columnPositions = [leftMargin, 300, 360, 440, 500];
+    const columnWidths = [180, 50, 70, 70, 45, 65, 65];
+    const columnPositions = [leftMargin, 230, 280, 350, 420, 465, 530];
     
     // En-têtes du tableau
     page.drawRectangle({
@@ -343,7 +343,7 @@ serve(async (req) => {
     page.drawText("Description", {
       x: columnPositions[0],
       y: tableTop - 18,
-      size: 10,
+      size: 9,
       font: boldFont,
       color: rgb(0, 0, 0),
     });
@@ -351,31 +351,47 @@ serve(async (req) => {
     page.drawText("Quantité", {
       x: columnPositions[1],
       y: tableTop - 18,
-      size: 10,
+      size: 9,
       font: boldFont,
       color: rgb(0, 0, 0),
     });
 
-    page.drawText("Prix unitaire", {
+    page.drawText("Prix unit. HT", {
       x: columnPositions[2],
       y: tableTop - 18,
-      size: 10,
+      size: 8,
+      font: boldFont,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText("Mont. HT", {
+      x: columnPositions[3],
+      y: tableTop - 18,
+      size: 8,
       font: boldFont,
       color: rgb(0, 0, 0),
     });
 
     page.drawText("TVA %", {
-      x: columnPositions[3],
+      x: columnPositions[4],
       y: tableTop - 18,
-      size: 10,
+      size: 8,
       font: boldFont,
       color: rgb(0, 0, 0),
     });
 
-    page.drawText("Total HT", {
-      x: columnPositions[4],
+    page.drawText("Mont. TVA", {
+      x: columnPositions[5],
       y: tableTop - 18,
-      size: 10,
+      size: 8,
+      font: boldFont,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText("Mont. TTC", {
+      x: columnPositions[6],
+      y: tableTop - 18,
+      size: 8,
       font: boldFont,
       color: rgb(0, 0, 0),
     });
@@ -392,7 +408,7 @@ serve(async (req) => {
       
       for (const word of words) {
         const testLine = currentLine ? `${currentLine} ${word}` : word;
-        const width = font.widthOfTextAtSize(testLine, 9);
+        const width = font.widthOfTextAtSize(testLine, 8);
         if (width > maxWidth && currentLine) {
           descLines.push(currentLine);
           currentLine = word;
@@ -405,46 +421,68 @@ serve(async (req) => {
       for (let i = 0; i < descLines.length; i++) {
         page.drawText(descLines[i], {
           x: columnPositions[0],
-          y: lineY - (i * 12),
-          size: 9,
+          y: lineY - (i * 10),
+          size: 8,
           font,
           color: rgb(0, 0, 0),
         });
       }
 
-      page.drawText(ligne.quantite?.toString() || "1", {
+      // Quantité
+      page.drawText((ligne.quantite || 1).toFixed(2), {
         x: columnPositions[1],
         y: lineY,
-        size: 9,
+        size: 8,
         font,
         color: rgb(0, 0, 0),
       });
 
-      page.drawText(`${ligne.prix_unitaire_ht?.toFixed(2) || "0.00"} €`, {
+      // Prix unitaire HT
+      page.drawText(`${(ligne.prix_unitaire_ht || 0).toFixed(2)} €`, {
         x: columnPositions[2],
         y: lineY,
-        size: 9,
+        size: 8,
         font,
         color: rgb(0, 0, 0),
       });
 
-      page.drawText(`${ligne.taux_tva?.toFixed(1) || "0.0"}%`, {
+      // Montant HT
+      page.drawText(`${(ligne.prix_ht || 0).toFixed(2)} €`, {
         x: columnPositions[3],
         y: lineY,
-        size: 9,
+        size: 8,
         font,
         color: rgb(0, 0, 0),
       });
 
-      page.drawText(`${ligne.prix_ht?.toFixed(2) || "0.00"} €`, {
+      // TVA %
+      page.drawText(`${(ligne.taux_tva || 0).toFixed(1)}%`, {
         x: columnPositions[4],
         y: lineY,
-        size: 9,
+        size: 8,
         font,
         color: rgb(0, 0, 0),
       });
 
-      lineY -= Math.max(25, descLines.length * 12 + 10);
+      // Montant TVA
+      page.drawText(`${(ligne.montant_tva || 0).toFixed(2)} €`, {
+        x: columnPositions[5],
+        y: lineY,
+        size: 8,
+        font,
+        color: rgb(0, 0, 0),
+      });
+
+      // Montant TTC
+      page.drawText(`${(ligne.prix_ttc || 0).toFixed(2)} €`, {
+        x: columnPositions[6],
+        y: lineY,
+        size: 8,
+        font,
+        color: rgb(0, 0, 0),
+      });
+
+      lineY -= Math.max(25, descLines.length * 10 + 10);
     }
 
     // Totaux
