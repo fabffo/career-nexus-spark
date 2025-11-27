@@ -266,13 +266,24 @@ export default function FacturesVentes() {
 
       // Créer une facture d'avoir avec les montants négatifs
       const avoirFacture = {
-        ...facture,
-        id: undefined,
-        numero_facture: undefined, // Sera généré automatiquement
+        type_facture: facture.type_facture,
+        emetteur_type: facture.emetteur_type,
+        emetteur_nom: facture.emetteur_nom,
+        emetteur_adresse: facture.emetteur_adresse,
+        emetteur_email: facture.emetteur_email,
+        emetteur_telephone: facture.emetteur_telephone,
+        emetteur_id: facture.emetteur_id || null,
+        destinataire_type: facture.destinataire_type,
+        destinataire_nom: facture.destinataire_nom,
+        destinataire_adresse: facture.destinataire_adresse,
+        destinataire_email: facture.destinataire_email,
+        destinataire_telephone: facture.destinataire_telephone,
+        destinataire_id: facture.destinataire_id || null,
+        reference_societe: facture.reference_societe,
+        activite: facture.activite,
         statut: 'BROUILLON' as const,
         date_emission: new Date().toISOString().split('T')[0],
-        created_at: undefined,
-        updated_at: undefined,
+        date_echeance: facture.date_echeance,
         // Inverser les montants
         total_ht: -(facture.total_ht || 0),
         total_tva: -(facture.total_tva || 0),
@@ -280,9 +291,10 @@ export default function FacturesVentes() {
         // Ajouter une référence à la facture originale dans les informations de paiement
         informations_paiement: `AVOIR - Facture origine: ${facture.numero_facture}\n${facture.informations_paiement || ''}`,
         lignes: lignes?.map(l => ({
-          ...l,
-          id: undefined,
-          facture_id: undefined,
+          description: l.description,
+          quantite: l.quantite,
+          ordre: l.ordre,
+          taux_tva: l.taux_tva,
           // Inverser les montants des lignes
           prix_unitaire_ht: -l.prix_unitaire_ht,
           prix_ht: -l.prix_ht,
