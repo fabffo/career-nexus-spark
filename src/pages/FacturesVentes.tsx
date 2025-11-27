@@ -273,13 +273,13 @@ export default function FacturesVentes() {
         emetteur_adresse: facture.emetteur_adresse,
         emetteur_email: facture.emetteur_email,
         emetteur_telephone: facture.emetteur_telephone,
-        emetteur_id: facture.emetteur_id || null,
+        emetteur_id: facture.emetteur_id && facture.emetteur_id.trim() !== '' ? facture.emetteur_id : null,
         destinataire_type: facture.destinataire_type,
         destinataire_nom: facture.destinataire_nom,
         destinataire_adresse: facture.destinataire_adresse,
         destinataire_email: facture.destinataire_email,
         destinataire_telephone: facture.destinataire_telephone,
-        destinataire_id: facture.destinataire_id || null,
+        destinataire_id: facture.destinataire_id && facture.destinataire_id.trim() !== '' ? facture.destinataire_id : null,
         reference_societe: facture.reference_societe,
         activite: facture.activite,
         statut: 'BROUILLON' as const,
@@ -291,6 +291,10 @@ export default function FacturesVentes() {
         total_ttc: -(facture.total_ttc || 0),
         // Ajouter une référence à la facture originale dans les informations de paiement
         informations_paiement: `AVOIR - Facture origine: ${facture.numero_facture}\n${facture.informations_paiement || ''}`,
+        // Explicitement définir les champs UUID non utilisés à null
+        created_by: null,
+        salarie_id: null,
+        fournisseur_id: null,
         lignes: lignes?.map(l => ({
           description: l.description,
           quantite: l.quantite,
