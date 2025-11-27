@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, TrendingDown, Eye, Pencil, Trash2, Download, Sparkles, UserPlus, CheckCircle2, AlertCircle, Link, ArrowUpDown } from "lucide-react";
+import { Plus, TrendingDown, Eye, Pencil, Trash2, Download, Sparkles, UserPlus, CheckCircle2, AlertCircle, Link, ArrowUpDown, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -865,129 +865,191 @@ export default function FacturesAchats() {
         </Card>
       </div>
 
-      <div className="flex items-center py-4 gap-4">
-        <Input
-          placeholder="Rechercher par numéro ou fournisseur..."
-          value={globalFilter ?? ""}
-          onChange={(event) => setGlobalFilter(event.target.value)}
-          className="max-w-sm"
-        />
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher par numéro ou fournisseur..."
+            value={globalFilter ?? ""}
+            onChange={(event) => setGlobalFilter(event.target.value)}
+            className="pl-9"
+          />
+        </div>
 
-        <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Année" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Toutes les années</SelectItem>
-            {availableYears.map((year) => (
-              <SelectItem key={year} value={year}>
-                {year}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Année" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes les années</SelectItem>
+              {availableYears.map((year) => (
+                <SelectItem key={year} value={year}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={selectedYear === "all"}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Mois" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous les mois</SelectItem>
-            <SelectItem value="1">Janvier</SelectItem>
-            <SelectItem value="2">Février</SelectItem>
-            <SelectItem value="3">Mars</SelectItem>
-            <SelectItem value="4">Avril</SelectItem>
-            <SelectItem value="5">Mai</SelectItem>
-            <SelectItem value="6">Juin</SelectItem>
-            <SelectItem value="7">Juillet</SelectItem>
-            <SelectItem value="8">Août</SelectItem>
-            <SelectItem value="9">Septembre</SelectItem>
-            <SelectItem value="10">Octobre</SelectItem>
-            <SelectItem value="11">Novembre</SelectItem>
-            <SelectItem value="12">Décembre</SelectItem>
-          </SelectContent>
-        </Select>
+          <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={selectedYear === "all"}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Mois" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les mois</SelectItem>
+              <SelectItem value="1">Janvier</SelectItem>
+              <SelectItem value="2">Février</SelectItem>
+              <SelectItem value="3">Mars</SelectItem>
+              <SelectItem value="4">Avril</SelectItem>
+              <SelectItem value="5">Mai</SelectItem>
+              <SelectItem value="6">Juin</SelectItem>
+              <SelectItem value="7">Juillet</SelectItem>
+              <SelectItem value="8">Août</SelectItem>
+              <SelectItem value="9">Septembre</SelectItem>
+              <SelectItem value="10">Octobre</SelectItem>
+              <SelectItem value="11">Novembre</SelectItem>
+              <SelectItem value="12">Décembre</SelectItem>
+            </SelectContent>
+          </Select>
 
-        <Select value={selectedTypeFournisseur} onValueChange={setSelectedTypeFournisseur}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Type fournisseur" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous les types</SelectItem>
-            <SelectItem value="SERVICES">Services</SelectItem>
-            <SelectItem value="GENERAUX">Généraux</SelectItem>
-            <SelectItem value="ETAT_ORGANISMES">État & Organismes</SelectItem>
-          </SelectContent>
-        </Select>
+          <Select value={selectedTypeFournisseur} onValueChange={setSelectedTypeFournisseur}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Type fournisseur" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les types</SelectItem>
+              <SelectItem value="SERVICES">Services</SelectItem>
+              <SelectItem value="GENERAUX">Généraux</SelectItem>
+              <SelectItem value="ETAT_ORGANISMES">État & Organismes</SelectItem>
+            </SelectContent>
+          </Select>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto">
-              Colonnes
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => {
-                return (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    className="capitalize"
-                    checked={column.getIsVisible()}
-                    onCheckedChange={(value) => column.toggleVisibility(!!value)}
-                  >
-                    {column.id}
-                  </DropdownMenuCheckboxItem>
-                );
-              })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">Colonnes</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {table
+                .getAllColumns()
+                .filter((column) => column.getCanHide())
+                .map((column) => {
                   return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
+                    <DropdownMenuCheckboxItem
+                      key={column.id}
+                      className="capitalize"
+                      checked={column.getIsVisible()}
+                      onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                    >
+                      {column.id}
+                    </DropdownMenuCheckboxItem>
                   );
                 })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  {loading ? "Chargement..." : "Aucune facture d'achat trouvée"}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <span className="text-sm text-muted-foreground whitespace-nowrap">Lignes par page:</span>
+          <select
+            value={table.getState().pagination.pageSize}
+            onChange={(e) => table.setPageSize(Number(e.target.value))}
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+        </div>
       </div>
 
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
-          Précédent
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
-          Suivant
-        </Button>
+      <div className="rounded-lg border border-border">
+        <div className="overflow-auto max-h-[600px]">
+          <table className="w-full caption-bottom text-sm">
+            <thead className="[&_tr]:border-b sticky top-0 bg-background z-10">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id} className="border-b transition-colors hover:bg-muted/50">
+                  {headerGroup.headers.map((header) => (
+                    <th
+                      key={header.id}
+                      className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-background"
+                    >
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody className="[&_tr:last-child]:border-0">
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                    className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="p-4 align-middle">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={columns.length} className="h-24 text-center">
+                    {loading ? "Chargement..." : "Aucune facture d'achat trouvée"}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between py-4">
+        <div className="text-sm text-muted-foreground">
+          Affichage de{" "}
+          {table.getFilteredRowModel().rows.length > 0
+            ? table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1
+            : 0}{" "}
+          à{" "}
+          {Math.min(
+            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+            table.getFilteredRowModel().rows.length
+          )}{" "}
+          sur {table.getFilteredRowModel().rows.length} résultats
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => table.setPageIndex(0)}
+            disabled={!table.getCanPreviousPage()}
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm text-muted-foreground px-2">
+            Page {table.getPageCount() > 0 ? table.getState().pagination.pageIndex + 1 : 0} sur {table.getPageCount()}
+          </span>
+          <Button variant="outline" size="icon" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+            disabled={!table.getCanNextPage()}
+          >
+            <ChevronsRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <AddFactureAchatDialog
