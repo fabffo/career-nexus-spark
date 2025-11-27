@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, FileText, Eye, Pencil, Copy, Trash2, TrendingUp, Download, Sparkles, ArrowUpDown, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Search as SearchIcon } from "lucide-react";
+import { Plus, FileText, Eye, Pencil, Copy, Trash2, TrendingUp, Download, Sparkles, ArrowUpDown, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Search as SearchIcon, FileX } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -249,6 +249,60 @@ export default function FacturesVentes() {
       toast({
         title: "Erreur",
         description: "Impossible de copier la facture",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateAvoir = async (facture: Facture) => {
+    try {
+      const { data: lignes, error: lignesError } = await supabase
+        .from('facture_lignes')
+        .select('*')
+        .eq('facture_id', facture.id)
+        .order('ordre');
+
+      if (lignesError) throw lignesError;
+
+      // Créer une facture d'avoir avec les montants négatifs
+      const avoirFacture = {
+        ...facture,
+        id: undefined,
+        numero_facture: undefined, // Sera généré avec le préfixe FAC-A-
+        type_facture: 'ACHATS' as const, // Utiliser le type ACHATS pour différencier les avoirs
+        statut: 'BROUILLON' as const,
+        date_emission: new Date().toISOString().split('T')[0],
+        created_at: undefined,
+        updated_at: undefined,
+        // Inverser les montants
+        total_ht: -(facture.total_ht || 0),
+        total_tva: -(facture.total_tva || 0),
+        total_ttc: -(facture.total_ttc || 0),
+        // Ajouter une référence à la facture originale dans les informations de paiement
+        informations_paiement: `AVOIR - Facture origine: ${facture.numero_facture}\n${facture.informations_paiement || ''}`,
+        lignes: lignes?.map(l => ({
+          ...l,
+          id: undefined,
+          facture_id: undefined,
+          // Inverser les montants des lignes
+          prix_unitaire_ht: -l.prix_unitaire_ht,
+          prix_ht: -l.prix_ht,
+          prix_ttc: -(l.prix_ttc || 0),
+          montant_tva: -(l.montant_tva || 0),
+        }))
+      };
+
+      setSelectedFacture(avoirFacture as any);
+      setOpenAddDialog(true);
+      
+      toast({
+        title: "Facture d'avoir créée",
+        description: `Facture d'avoir créée à partir de ${facture.numero_facture}. Vérifiez les informations avant d'enregistrer.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de créer la facture d'avoir",
         variant: "destructive",
       });
     }
@@ -607,6 +661,15 @@ export default function FacturesVentes() {
             title="Copier"
           >
             <Copy className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleCreateAvoir(row.original)}
+            title="Créer une facture d'avoir"
+            className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+          >
+            <FileX className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
