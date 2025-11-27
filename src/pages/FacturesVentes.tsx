@@ -291,10 +291,6 @@ export default function FacturesVentes() {
         total_ttc: -(facture.total_ttc || 0),
         // Ajouter une référence à la facture originale dans les informations de paiement
         informations_paiement: `AVOIR - Facture origine: ${facture.numero_facture}\n${facture.informations_paiement || ''}`,
-        // Explicitement définir les champs UUID non utilisés à null
-        created_by: null,
-        salarie_id: null,
-        fournisseur_id: null,
         lignes: lignes?.map(l => ({
           description: l.description,
           quantite: l.quantite,
