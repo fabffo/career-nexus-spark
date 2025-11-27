@@ -513,13 +513,18 @@ export default function AddFactureDialog({
         return;
       }
 
+      // Nettoyer les champs UUID (convertir chaînes vides en null)
+      const cleanedFormData = {
+        ...formData,
+        numero_facture: numeroFacture,
+        emetteur_id: formData.emetteur_id && formData.emetteur_id.trim() !== '' ? formData.emetteur_id : null,
+        destinataire_id: formData.destinataire_id && formData.destinataire_id.trim() !== '' ? formData.destinataire_id : null,
+      };
+
       // Créer la facture
       const { data: facture, error: factureError } = await supabase
         .from('factures')
-        .insert({
-          ...formData,
-          numero_facture: numeroFacture,
-        })
+        .insert(cleanedFormData)
         .select()
         .single();
 
