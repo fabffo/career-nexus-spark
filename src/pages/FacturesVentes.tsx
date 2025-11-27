@@ -268,8 +268,7 @@ export default function FacturesVentes() {
       const avoirFacture = {
         ...facture,
         id: undefined,
-        numero_facture: undefined, // Sera généré avec le préfixe FAC-A-
-        type_facture: 'ACHATS' as const, // Utiliser le type ACHATS pour différencier les avoirs
+        numero_facture: undefined, // Sera généré automatiquement
         statut: 'BROUILLON' as const,
         date_emission: new Date().toISOString().split('T')[0],
         created_at: undefined,
