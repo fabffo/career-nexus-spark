@@ -266,6 +266,7 @@ export default function FacturesVentes() {
 
       // Créer une facture d'avoir avec les montants négatifs
       const avoirFacture = {
+        numero_facture: `AVOIR-TEMP-${Date.now()}`, // Temporaire, sera remplacé à la sauvegarde
         type_facture: facture.type_facture,
         emetteur_type: facture.emetteur_type,
         emetteur_nom: facture.emetteur_nom,
