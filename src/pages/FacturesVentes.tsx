@@ -265,26 +265,29 @@ export default function FacturesVentes() {
       if (lignesError) throw lignesError;
 
       // Créer une facture d'avoir avec les montants négatifs
-      const avoirFacture = {
+      const avoirFacture: Facture = {
+        id: crypto.randomUUID(), // ID temporaire
         numero_facture: `AVOIR-TEMP-${Date.now()}`, // Temporaire, sera remplacé à la sauvegarde
         type_facture: facture.type_facture,
         emetteur_type: facture.emetteur_type,
         emetteur_nom: facture.emetteur_nom,
-        emetteur_adresse: facture.emetteur_adresse,
-        emetteur_email: facture.emetteur_email,
-        emetteur_telephone: facture.emetteur_telephone,
-        emetteur_id: facture.emetteur_id && facture.emetteur_id.trim() !== '' ? facture.emetteur_id : null,
+        emetteur_adresse: facture.emetteur_adresse || '',
+        emetteur_email: facture.emetteur_email || '',
+        emetteur_telephone: facture.emetteur_telephone || '',
+        emetteur_id: facture.emetteur_id && facture.emetteur_id.trim() !== '' ? facture.emetteur_id : undefined,
         destinataire_type: facture.destinataire_type,
         destinataire_nom: facture.destinataire_nom,
-        destinataire_adresse: facture.destinataire_adresse,
-        destinataire_email: facture.destinataire_email,
-        destinataire_telephone: facture.destinataire_telephone,
-        destinataire_id: facture.destinataire_id && facture.destinataire_id.trim() !== '' ? facture.destinataire_id : null,
-        reference_societe: facture.reference_societe,
-        activite: facture.activite,
+        destinataire_adresse: facture.destinataire_adresse || '',
+        destinataire_email: facture.destinataire_email || '',
+        destinataire_telephone: facture.destinataire_telephone || '',
+        destinataire_id: facture.destinataire_id && facture.destinataire_id.trim() !== '' ? facture.destinataire_id : undefined,
+        reference_societe: facture.reference_societe || '',
+        activite: facture.activite || 'Prestation',
         statut: 'BROUILLON' as const,
         date_emission: new Date().toISOString().split('T')[0],
         date_echeance: facture.date_echeance,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
         // Inverser les montants
         total_ht: -(facture.total_ht || 0),
         total_tva: -(facture.total_tva || 0),
@@ -304,7 +307,7 @@ export default function FacturesVentes() {
         }))
       };
 
-      setSelectedFacture(avoirFacture as any);
+      setSelectedFacture(avoirFacture);
       setOpenAddDialog(true);
       
       toast({

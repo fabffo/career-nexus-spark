@@ -18,7 +18,7 @@ interface AddFactureDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  initialData?: Facture | null;
+  initialData?: (Facture & { lignes?: FactureLigne[] }) | null;
 }
 
 export default function AddFactureDialog({ 
@@ -193,8 +193,21 @@ export default function AddFactureDialog({
             activite: (dataToUse as any).activite || 'Prestation',
           });
           
-          if (initialData.lignes && initialData.lignes.length > 0) {
-            setLignes(initialData.lignes);
+          // Initialiser les lignes si elles existent
+          if (lignes && lignes.length > 0) {
+            setLignes(lignes.map((ligne, index) => ({
+              ordre: index + 1,
+              description: ligne.description,
+              quantite: ligne.quantite,
+              prix_unitaire_ht: ligne.prix_unitaire_ht,
+              prix_ht: ligne.prix_ht,
+              taux_tva: ligne.taux_tva,
+              montant_tva: ligne.montant_tva || 0,
+              prix_ttc: ligne.prix_ttc || 0,
+            })));
+          } else {
+            // Si pas de lignes, initialiser avec une ligne vide
+            setLignes([{ ordre: 1, description: '', quantite: 1, prix_unitaire_ht: 0, prix_ht: 0, taux_tva: 20, montant_tva: 0, prix_ttc: 0 }]);
           }
         } else {
           // Pour une nouvelle facture de vente, initialiser avec société interne
