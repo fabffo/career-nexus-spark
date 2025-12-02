@@ -268,7 +268,7 @@ export default function FacturesVentes() {
       const avoirFacture: Facture = {
         id: crypto.randomUUID(), // ID temporaire
         numero_facture: `AVOIR-TEMP-${Date.now()}`, // Temporaire, sera remplacé à la sauvegarde
-        type_facture: 'AVOIR',
+        type_facture: 'VENTES',
         emetteur_type: facture.emetteur_type,
         emetteur_nom: facture.emetteur_nom,
         emetteur_adresse: facture.emetteur_adresse || '',
