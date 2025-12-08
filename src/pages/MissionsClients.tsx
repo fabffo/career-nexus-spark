@@ -78,8 +78,14 @@ export default function MissionsClients() {
 
   const handleCopy = async (mission: Mission) => {
     try {
-      const { id, numero_mission, created_at, updated_at, created_by, ...missionData } = mission;
-      await missionService.create(missionData as any);
+      // Exclure les relations jointes et les champs auto-générés
+      const { 
+        id, numero_mission, created_at, updated_at, created_by,
+        contrat, prestataire, salarie, poste, tva, // Relations jointes à exclure
+        ...missionData 
+      } = mission as any;
+      
+      await missionService.create(missionData);
       toast({
         title: "Succès",
         description: "Mission dupliquée avec succès"
