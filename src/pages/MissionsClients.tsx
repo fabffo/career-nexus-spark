@@ -4,7 +4,7 @@ import { Mission } from '@/types/mission';
 import { missionService } from '@/services/missionService';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Copy } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { ColumnDef } from '@tanstack/react-table';
@@ -74,6 +74,25 @@ export default function MissionsClients() {
   const handleEdit = (mission: Mission) => {
     setSelectedMission(mission);
     setShowEditDialog(true);
+  };
+
+  const handleCopy = async (mission: Mission) => {
+    try {
+      const { id, numero_mission, created_at, updated_at, created_by, ...missionData } = mission;
+      await missionService.create(missionData as any);
+      toast({
+        title: "Succès",
+        description: "Mission dupliquée avec succès"
+      });
+      loadMissions();
+    } catch (error: any) {
+      console.error('Error copying mission:', error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de dupliquer la mission",
+        variant: "destructive"
+      });
+    }
   };
 
   const getStatutBadge = (statut?: string) => {
@@ -201,6 +220,14 @@ export default function MissionsClients() {
             title="Modifier la mission"
           >
             <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleCopy(row.original)}
+            title="Dupliquer la mission"
+          >
+            <Copy className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
