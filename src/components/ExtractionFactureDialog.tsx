@@ -661,7 +661,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-[95vw] w-[1400px] h-[95vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-purple-600" />
@@ -684,7 +684,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="extraction" className="flex-1 overflow-y-auto space-y-4">
+          <TabsContent value="extraction" className="flex-1 overflow-y-auto space-y-4 mt-2">
             <Card>
               <CardContent className="pt-6">
                 <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary hover:bg-accent transition-colors">
@@ -794,7 +794,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                     <div className="col-span-2 text-center">Actions</div>
                   </div>
 
-                  <ScrollArea className="h-[500px]">
+                  <ScrollArea className="h-[calc(95vh-420px)]">
                     <div className="divide-y">
                       {factures.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((facture, indexInSlice) => {
                         const actualIndex = (currentPage - 1) * itemsPerPage + indexInSlice;
