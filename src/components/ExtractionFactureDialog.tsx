@@ -9,6 +9,9 @@ import {
   Settings,
   Trash2,
   Eye,
+  AlertTriangle,
+  SkipBack,
+  SkipForward,
   Sparkles,
   ChevronLeft,
   ChevronRight,
@@ -499,6 +502,67 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
     }
   };
 
+  // Navigation vers l'erreur précédente
+  const handleNavigateToPreviousError = () => {
+    const errorsIndices = factures
+      .map((f, i) => ({ index: i, hasError: !f.valide }))
+      .filter((item) => item.hasError)
+      .map((item) => item.index);
+
+    if (errorsIndices.length === 0) return;
+
+    // Si on édite actuellement une facture
+    if (selectedFactureIndex >= 0) {
+      const currentErrIdx = errorsIndices.findIndex((i) => i >= selectedFactureIndex);
+      const prevErrIdx = currentErrIdx > 0 ? errorsIndices[currentErrIdx - 1] : errorsIndices[errorsIndices.length - 1];
+      const prevFacture = factures[prevErrIdx];
+      handleEditFacture(prevFacture, prevErrIdx);
+    } else {
+      // Aller à la dernière erreur
+      const lastErrIdx = errorsIndices[errorsIndices.length - 1];
+      const lastErrFacture = factures[lastErrIdx];
+      handleEditFacture(lastErrFacture, lastErrIdx);
+    }
+  };
+
+  // Navigation vers l'erreur suivante
+  const handleNavigateToNextError = () => {
+    const errorsIndices = factures
+      .map((f, i) => ({ index: i, hasError: !f.valide }))
+      .filter((item) => item.hasError)
+      .map((item) => item.index);
+
+    if (errorsIndices.length === 0) return;
+
+    // Si on édite actuellement une facture
+    if (selectedFactureIndex >= 0) {
+      const nextErrIdx = errorsIndices.find((i) => i > selectedFactureIndex);
+      if (nextErrIdx !== undefined) {
+        const nextFacture = factures[nextErrIdx];
+        handleEditFacture(nextFacture, nextErrIdx);
+      } else {
+        // Revenir à la première erreur
+        const firstErrIdx = errorsIndices[0];
+        const firstErrFacture = factures[firstErrIdx];
+        handleEditFacture(firstErrFacture, firstErrIdx);
+      }
+    } else {
+      // Aller à la première erreur
+      const firstErrIdx = errorsIndices[0];
+      const firstErrFacture = factures[firstErrIdx];
+      handleEditFacture(firstErrFacture, firstErrIdx);
+    }
+  };
+
+  // Navigation directe vers la première erreur (depuis la liste)
+  const handleGoToFirstError = () => {
+    const firstErrorIndex = factures.findIndex((f) => !f.valide);
+    if (firstErrorIndex >= 0) {
+      const errorFacture = factures[firstErrorIndex];
+      handleEditFacture(errorFacture, firstErrorIndex);
+    }
+  };
+
   const handleSaveEdit = () => {
     if (!selectedFacture || !editedData) return;
 
@@ -675,12 +739,21 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                     <div className="text-2xl font-bold text-green-600">{stats.valides}</div>
                   </CardContent>
                 </Card>
-                <Card>
+                <Card 
+                  className={stats.erreurs > 0 ? "cursor-pointer hover:border-red-400 transition-colors" : ""}
+                  onClick={stats.erreurs > 0 ? handleGoToFirstError : undefined}
+                >
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Erreurs</CardTitle>
+                    <CardTitle className="text-sm flex items-center gap-1">
+                      Erreurs
+                      {stats.erreurs > 0 && <AlertTriangle className="h-3 w-3 text-red-600" />}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-red-600">{stats.erreurs}</div>
+                    {stats.erreurs > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">Cliquez pour corriger</p>
+                    )}
                   </CardContent>
                 </Card>
                 <Card>
@@ -957,28 +1030,58 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                     <DialogTitle>Éditer la facture et les lignes</DialogTitle>
                     <DialogDescription>{selectedFacture.fichier}</DialogDescription>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleNavigatePrevious}
-                      disabled={selectedFactureIndex <= 0}
-                      title="Facture précédente"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <span className="text-sm text-muted-foreground">
-                      {selectedFactureIndex + 1} / {factures.length}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleNavigateNext}
-                      disabled={selectedFactureIndex >= factures.length - 1}
-                      title="Facture suivante"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
+                  <div className="flex items-center gap-4">
+                    {/* Navigation vers les erreurs */}
+                    {stats.erreurs > 0 && (
+                      <div className="flex items-center gap-1 border-r pr-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleNavigateToPreviousError}
+                          title="Erreur précédente"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <SkipBack className="h-4 w-4" />
+                        </Button>
+                        <span className="text-xs text-red-600 font-medium px-1">
+                          {stats.erreurs} erreur{stats.erreurs > 1 ? "s" : ""}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleNavigateToNextError}
+                          title="Erreur suivante"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <SkipForward className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {/* Navigation standard */}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNavigatePrevious}
+                        disabled={selectedFactureIndex <= 0}
+                        title="Facture précédente"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        {selectedFactureIndex + 1} / {factures.length}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNavigateNext}
+                        disabled={selectedFactureIndex >= factures.length - 1}
+                        title="Facture suivante"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </DialogHeader>
