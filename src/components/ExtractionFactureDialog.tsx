@@ -684,16 +684,15 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="extraction" className="flex-1 overflow-y-auto space-y-4 mt-2">
-            <Card>
-              <CardContent className="pt-6">
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary hover:bg-accent transition-colors">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Upload className="h-10 w-10 text-muted-foreground mb-2" />
-                    <p className="text-sm font-medium">
-                      {isProcessing ? `Traitement... ${progress}%` : "Cliquez ou glissez vos factures PDF"}
-                    </p>
-                  </div>
+          <TabsContent value="extraction" className="flex-1 overflow-hidden flex flex-col space-y-3 mt-2">
+            {/* Zone d'upload compacte quand il y a des factures */}
+            <Card className="flex-shrink-0">
+              <CardContent className={factures.length > 0 ? "py-2" : "pt-6"}>
+                <label className={`flex items-center justify-center w-full border-2 border-dashed rounded-lg cursor-pointer hover:border-primary hover:bg-accent transition-colors ${factures.length > 0 ? "h-12 flex-row gap-3" : "h-28 flex-col"}`}>
+                  <Upload className={factures.length > 0 ? "h-5 w-5 text-muted-foreground" : "h-8 w-8 text-muted-foreground"} />
+                  <p className="text-sm font-medium">
+                    {isProcessing ? `Traitement... ${progress}%` : factures.length > 0 ? "Ajouter des factures PDF" : "Cliquez ou glissez vos factures PDF"}
+                  </p>
                   <input
                     type="file"
                     multiple
@@ -705,7 +704,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                 </label>
 
                 {isProcessing && (
-                  <div className="mt-4 space-y-2">
+                  <div className="mt-2 space-y-1">
                     <div className="flex items-center justify-between text-sm">
                       <span className="flex items-center gap-2">
                         <Loader2 className="animate-spin h-4 w-4" />
@@ -713,8 +712,8 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                       </span>
                       <span className="text-muted-foreground">{progress}%</span>
                     </div>
-                    <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
-                      <div className="bg-primary h-2 transition-all duration-300" style={{ width: `${progress}%` }} />
+                    <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
+                      <div className="bg-primary h-1.5 transition-all duration-300" style={{ width: `${progress}%` }} />
                     </div>
                   </div>
                 )}
@@ -722,46 +721,35 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
             </Card>
 
             {factures.length > 0 && (
-              <div className="grid grid-cols-5 gap-4">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Total</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="grid grid-cols-5 gap-2 flex-shrink-0">
+                <Card className="py-2">
+                  <CardContent className="p-2 text-center">
+                    <div className="text-xs text-muted-foreground">Total</div>
+                    <div className="text-xl font-bold">{stats.total}</div>
                   </CardContent>
                 </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Validées</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{stats.valides}</div>
+                <Card className="py-2">
+                  <CardContent className="p-2 text-center">
+                    <div className="text-xs text-muted-foreground">Validées</div>
+                    <div className="text-xl font-bold text-green-600">{stats.valides}</div>
                   </CardContent>
                 </Card>
                 <Card 
-                  className={stats.erreurs > 0 ? "cursor-pointer hover:border-red-400 transition-colors" : ""}
+                  className={`py-2 ${stats.erreurs > 0 ? "cursor-pointer hover:border-red-400 transition-colors" : ""}`}
                   onClick={stats.erreurs > 0 ? handleGoToFirstError : undefined}
                 >
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-1">
+                  <CardContent className="p-2 text-center">
+                    <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
                       Erreurs
                       {stats.erreurs > 0 && <AlertTriangle className="h-3 w-3 text-red-600" />}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-red-600">{stats.erreurs}</div>
-                    {stats.erreurs > 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">Cliquez pour corriger</p>
-                    )}
+                    </div>
+                    <div className="text-xl font-bold text-red-600">{stats.erreurs}</div>
                   </CardContent>
                 </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Montant</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
+                <Card className="py-2">
+                  <CardContent className="p-2 text-center">
+                    <div className="text-xs text-muted-foreground">Montant</div>
+                    <div className="text-lg font-bold">
                       {new Intl.NumberFormat("fr-FR", {
                         style: "currency",
                         currency: "EUR",
@@ -770,31 +758,28 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                     </div>
                   </CardContent>
                 </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Coût IA</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-xl font-bold text-purple-600">${(stats.coutTotal * 100).toFixed(3)}¢</div>
+                <Card className="py-2">
+                  <CardContent className="p-2 text-center">
+                    <div className="text-xs text-muted-foreground">Coût IA</div>
+                    <div className="text-lg font-bold text-purple-600">${(stats.coutTotal * 100).toFixed(3)}¢</div>
                   </CardContent>
                 </Card>
               </div>
             )}
 
             {factures.length > 0 && (
-              <>
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="grid grid-cols-12 gap-2 p-3 bg-muted/50 font-semibold text-sm border-b">
-                    <div className="col-span-1 flex items-center justify-center">Statut</div>
-                    <div className="col-span-3">Fichier</div>
-                    <div className="col-span-2">Fournisseur</div>
-                    <div className="col-span-2">N° Facture</div>
-                    <div className="col-span-1">Montant TTC</div>
-                    <div className="col-span-1">Date</div>
-                    <div className="col-span-2 text-center">Actions</div>
-                  </div>
+              <div className="flex-1 flex flex-col min-h-0 border rounded-lg overflow-hidden">
+                <div className="grid grid-cols-12 gap-2 p-2 bg-muted/50 font-semibold text-xs border-b flex-shrink-0">
+                  <div className="col-span-1 flex items-center justify-center">Statut</div>
+                  <div className="col-span-3">Fichier</div>
+                  <div className="col-span-2">Fournisseur</div>
+                  <div className="col-span-2">N° Facture</div>
+                  <div className="col-span-1">Montant TTC</div>
+                  <div className="col-span-1">Date</div>
+                  <div className="col-span-2 text-center">Actions</div>
+                </div>
 
-                  <ScrollArea className="h-[calc(95vh-420px)]">
+                <ScrollArea className="flex-1">
                     <div className="divide-y">
                       {factures.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((facture, indexInSlice) => {
                         const actualIndex = (currentPage - 1) * itemsPerPage + indexInSlice;
@@ -926,39 +911,38 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                     })}
                     </div>
                   </ScrollArea>
-                </div>
 
-                {factures.length > itemsPerPage && (
-                  <div className="flex items-center justify-between px-2 py-4 border-t">
-                    <div className="text-sm text-muted-foreground">
-                      Page {currentPage} sur {Math.ceil(factures.length / itemsPerPage)} • {factures.length} facture
-                      {factures.length > 1 ? "s" : ""} au total
+                  {factures.length > itemsPerPage && (
+                    <div className="flex items-center justify-between px-2 py-2 border-t flex-shrink-0">
+                      <div className="text-xs text-muted-foreground">
+                        Page {currentPage} sur {Math.ceil(factures.length / itemsPerPage)} • {factures.length} facture
+                        {factures.length > 1 ? "s" : ""}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                          disabled={currentPage === 1}
+                        >
+                          <ChevronLeft className="h-4 w-4 mr-1" />
+                          Précédent
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setCurrentPage((prev) => Math.min(Math.ceil(factures.length / itemsPerPage), prev + 1))
+                          }
+                          disabled={currentPage === Math.ceil(factures.length / itemsPerPage)}
+                        >
+                          Suivant
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
-                      >
-                        <ChevronLeft className="h-4 w-4 mr-1" />
-                        Précédent
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          setCurrentPage((prev) => Math.min(Math.ceil(factures.length / itemsPerPage), prev + 1))
-                        }
-                        disabled={currentPage === Math.ceil(factures.length / itemsPerPage)}
-                      >
-                        Suivant
-                        <ChevronRight className="h-4 w-4 ml-1" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
+                  )}
+                </div>
             )}
           </TabsContent>
 
