@@ -1717,6 +1717,62 @@ export default function RapprochementBancaire() {
     }
   };
 
+  // Fonction pour supprimer le rapprochement en cours
+  const handleAnnulerFichierEnCours = async () => {
+    if (!fichierEnCoursId) {
+      toast({
+        title: "Erreur",
+        description: "Aucun rapprochement en cours à supprimer",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!confirm("Voulez-vous vraiment supprimer ce rapprochement en cours ? Toutes les données seront perdues.")) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      console.log("🗑️ Suppression du fichier EN_COURS:", fichierEnCoursId);
+
+      // Supprimer le fichier de rapprochement en cours
+      const { error: deleteFichierError } = await supabase
+        .from("fichiers_rapprochement")
+        .delete()
+        .eq("id", fichierEnCoursId);
+
+      if (deleteFichierError) throw deleteFichierError;
+
+      // Réinitialiser l'état local
+      setTransactions([]);
+      setRapprochements([]);
+      setRapprochementsManuels([]);
+      setFichierEnCoursId(null);
+      setManualStatusChanges({});
+      setCurrentPage(1);
+
+      toast({
+        title: "Succès",
+        description: "Le rapprochement en cours a été supprimé",
+      });
+
+      // Recharger les factures
+      await loadFactures();
+
+    } catch (error) {
+      console.error("Erreur lors de la suppression:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer le rapprochement en cours",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleValidateRapprochement = async () => {
     if (transactions.length === 0 || rapprochements.length === 0) {
       toast({
@@ -2406,6 +2462,15 @@ export default function RapprochementBancaire() {
               <div className="flex items-center justify-between">
                 <CardTitle>Résultats du rapprochement</CardTitle>
                 <div className="flex gap-2">
+                  <Button 
+                    onClick={handleAnnulerFichierEnCours} 
+                    variant="destructive" 
+                    size="sm"
+                    disabled={loading || !fichierEnCoursId}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Supprimer
+                  </Button>
                   <Button onClick={exportResults} variant="outline" size="sm">
                     <Download className="h-4 w-4 mr-2" />
                     Exporter
