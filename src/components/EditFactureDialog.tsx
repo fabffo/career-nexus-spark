@@ -252,6 +252,14 @@ export default function EditFactureDialog({
         updateData.destinataire_nom = formData.destinataire_nom;
       }
 
+      // Pour les factures de vente, permettre la modification du destinataire
+      if (facture.type_facture === 'VENTES') {
+        updateData.destinataire_nom = formData.destinataire_nom;
+        updateData.destinataire_adresse = formData.destinataire_adresse;
+        updateData.destinataire_email = formData.destinataire_email;
+        updateData.destinataire_telephone = formData.destinataire_telephone;
+      }
+
       // Mettre à jour la facture
       const { error: factureError } = await supabase
         .from('factures')
@@ -402,10 +410,48 @@ export default function EditFactureDialog({
                 {societeInterne?.tva && <p className="text-sm text-muted-foreground">N° TVA: {societeInterne.tva}</p>}
               </div>
               
-              <div className="p-4 border rounded-lg bg-muted/50">
-                <p className="text-sm text-muted-foreground mb-1">Destinataire</p>
-                <p className="font-medium">{facture.destinataire_nom}</p>
-                {facture.destinataire_adresse && <p className="text-sm text-muted-foreground">{facture.destinataire_adresse}</p>}
+              <div className="p-4 border rounded-lg space-y-3">
+                <p className="text-sm font-medium text-muted-foreground">Destinataire</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <Label htmlFor="destinataire_nom_vente">Nom</Label>
+                    <Input
+                      id="destinataire_nom_vente"
+                      value={formData.destinataire_nom}
+                      onChange={(e) => setFormData(prev => ({ ...prev, destinataire_nom: e.target.value }))}
+                      placeholder="Nom du destinataire"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="destinataire_adresse_vente">Adresse</Label>
+                    <Textarea
+                      id="destinataire_adresse_vente"
+                      value={formData.destinataire_adresse || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, destinataire_adresse: e.target.value }))}
+                      placeholder="Adresse du destinataire"
+                      rows={2}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="destinataire_email_vente">Email</Label>
+                    <Input
+                      id="destinataire_email_vente"
+                      type="email"
+                      value={formData.destinataire_email || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, destinataire_email: e.target.value }))}
+                      placeholder="email@exemple.com"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="destinataire_telephone_vente">Téléphone</Label>
+                    <Input
+                      id="destinataire_telephone_vente"
+                      value={formData.destinataire_telephone || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, destinataire_telephone: e.target.value }))}
+                      placeholder="Téléphone"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           )}
