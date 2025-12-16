@@ -37,6 +37,8 @@ export default function EditFactureDialog({
   const [lignes, setLignes] = useState<FactureLigne[]>([]);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [typesMission, setTypesMission] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [clientPopoverOpen, setClientPopoverOpen] = useState(false);
 
   useEffect(() => {
     if (open && facture) {
@@ -45,8 +47,40 @@ export default function EditFactureDialog({
       fetchMissions();
       fetchTypesMission();
       fetchSocieteInterne();
+      fetchClients();
     }
   }, [open, facture]);
+
+  const fetchClients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .order('raison_sociale');
+      if (error) throw error;
+      setClients(data || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des clients:', error);
+    }
+  };
+
+  const handleClientSelect = (client: any) => {
+    const adresseComplete = [
+      client.adresse_ligne1,
+      [client.code_postal, client.ville].filter(Boolean).join(' '),
+      client.pays
+    ].filter(Boolean).join('\n');
+
+    setFormData(prev => ({
+      ...prev,
+      destinataire_id: client.id,
+      destinataire_nom: client.raison_sociale,
+      destinataire_adresse: adresseComplete,
+      destinataire_email: client.email || '',
+      destinataire_telephone: client.telephone || '',
+    }));
+    setClientPopoverOpen(false);
+  };
 
   const fetchLignes = async () => {
     try {
@@ -413,6 +447,50 @@ export default function EditFactureDialog({
               <div className="p-4 border rounded-lg space-y-3">
                 <p className="text-sm font-medium text-muted-foreground">Destinataire</p>
                 <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <Label>Sélectionner un client</Label>
+                    <Popover open={clientPopoverOpen} onOpenChange={setClientPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={clientPopoverOpen}
+                          className="w-full justify-between"
+                        >
+                          {formData.destinataire_id 
+                            ? clients.find(c => c.id === formData.destinataire_id)?.raison_sociale || formData.destinataire_nom
+                            : "Choisir un client..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[400px] p-0">
+                        <Command>
+                          <CommandInput placeholder="Rechercher un client..." />
+                          <CommandEmpty>Aucun client trouvé.</CommandEmpty>
+                          <CommandGroup className="max-h-[300px] overflow-y-auto">
+                            {clients.map((client) => (
+                              <CommandItem
+                                key={client.id}
+                                value={client.raison_sociale}
+                                onSelect={() => handleClientSelect(client)}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.destinataire_id === client.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div>
+                                  <div>{client.raison_sociale}</div>
+                                  <div className="text-xs text-muted-foreground">{client.ville}</div>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                   <div className="col-span-2">
                     <Label htmlFor="destinataire_nom_vente">Nom</Label>
                     <Input
