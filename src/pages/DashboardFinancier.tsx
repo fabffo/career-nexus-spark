@@ -272,10 +272,10 @@ export default function DashboardFinancier() {
 
     const { data: factures, error } = await supabase
       .from("factures")
-      .select("total_ht, emetteur_type")
+      .select("total_ht, activite")
+      .eq("type_facture", "VENTES")
       .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
-      .lte("date_emission", format(finAnnee, "yyyy-MM-dd"))
-      .neq("type_facture", "ACHATS");
+      .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
 
     if (error) {
       console.error("Erreur loadRepartitionCA:", error);
@@ -283,8 +283,8 @@ export default function DashboardFinancier() {
 
     const repartition: Record<string, number> = {};
     factures?.forEach((f: any) => {
-      const type = f.emetteur_type || "Ventes diverses";
-      repartition[type] = (repartition[type] || 0) + Number(f.total_ht || 0);
+      const activite = f.activite || "Autres";
+      repartition[activite] = (repartition[activite] || 0) + Number(f.total_ht || 0);
     });
 
     const data = Object.entries(repartition)
