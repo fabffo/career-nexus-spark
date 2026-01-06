@@ -275,6 +275,7 @@ export default function EditFactureDialog({
       const updateData: any = {
         date_echeance: formData.date_echeance,
         statut: formData.statut,
+        activite: formData.activite,
         informations_paiement: formData.informations_paiement,
         reference_societe: formData.reference_societe,
       };
