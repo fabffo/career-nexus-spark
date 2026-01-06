@@ -308,22 +308,23 @@ export default function DashboardFinancier() {
     const { data: factures, error } = await supabase
       .from("factures")
       .select("destinataire_id, destinataire_nom, total_ht")
+      .eq("type_facture", "VENTES")
       .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
-      .lte("date_emission", format(finAnnee, "yyyy-MM-dd"))
-      .neq("type_facture", "ACHATS")
-      .not("destinataire_id", "is", null);
+      .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
 
     if (error) {
       console.error("Erreur loadTopClients:", error);
     }
 
+    // Grouper par nom du client (pas par ID car certaines factures n'ont pas de destinataire_id)
     const caParClient: Record<string, { raison_sociale: string; ca: number }> = {};
     factures?.forEach((f: any) => {
-      if (f.destinataire_id && f.destinataire_nom) {
-        if (!caParClient[f.destinataire_id]) {
-          caParClient[f.destinataire_id] = { raison_sociale: f.destinataire_nom, ca: 0 };
+      if (f.destinataire_nom) {
+        const nomNormalise = f.destinataire_nom.trim().toUpperCase();
+        if (!caParClient[nomNormalise]) {
+          caParClient[nomNormalise] = { raison_sociale: f.destinataire_nom, ca: 0 };
         }
-        caParClient[f.destinataire_id].ca += Number(f.total_ht || 0);
+        caParClient[nomNormalise].ca += Number(f.total_ht || 0);
       }
     });
 
