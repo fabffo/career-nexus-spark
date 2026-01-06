@@ -346,29 +346,28 @@ export default function DashboardFinancier() {
 
     const { data: achats, error } = await supabase
       .from("factures")
-      .select("emetteur_id, emetteur_nom, emetteur_type, total_ht")
+      .select("emetteur_nom, total_ht")
       .eq("type_facture", "ACHATS")
       .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
-      .lte("date_emission", format(finAnnee, "yyyy-MM-dd"))
-      .not("emetteur_id", "is", null);
+      .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
 
     if (error) {
       console.error("Erreur loadTopPrestataires:", error);
     }
 
+    // Grouper par nom du fournisseur
     const montantParPrestataire: Record<string, { nom: string; prenom: string; montant: number }> = {};
     achats?.forEach((a: any) => {
-      if (a.emetteur_id && a.emetteur_nom && (a.emetteur_type === 'PRESTATAIRE' || a.emetteur_type === 'FOURNISSEUR_SERVICE')) {
-        if (!montantParPrestataire[a.emetteur_id]) {
-          // Pour les prestataires, le nom est au format "Prenom Nom"
-          const parts = a.emetteur_nom.split(' ');
-          montantParPrestataire[a.emetteur_id] = {
-            prenom: parts[0] || '',
-            nom: parts.slice(1).join(' ') || a.emetteur_nom,
+      if (a.emetteur_nom) {
+        const nomNormalise = a.emetteur_nom.trim().toUpperCase();
+        if (!montantParPrestataire[nomNormalise]) {
+          montantParPrestataire[nomNormalise] = {
+            prenom: '',
+            nom: a.emetteur_nom,
             montant: 0,
           };
         }
-        montantParPrestataire[a.emetteur_id].montant += Number(a.total_ht || 0);
+        montantParPrestataire[nomNormalise].montant += Number(a.total_ht || 0);
       }
     });
 
