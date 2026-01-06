@@ -36,10 +36,16 @@ const NATURE_COLORS: Record<string, string> = {
   AUTRE: "bg-gray-500",
 };
 
+const TYPE_LABELS: Record<string, string> = {
+  CHARGE: "Charge",
+  AUTRE: "Autre",
+};
+
 type Abonnement = {
   id: string;
   nom: string;
   nature: string;
+  type: string;
   montant_mensuel: number;
   jour_prelevement: number;
   actif: boolean;
@@ -101,6 +107,15 @@ export default function AbonnementsPartenaires() {
       cell: ({ row }) => (
         <Badge className={NATURE_COLORS[row.original.nature]}>
           {NATURE_LABELS[row.original.nature]}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "type",
+      header: "Type",
+      cell: ({ row }) => (
+        <Badge variant="outline">
+          {TYPE_LABELS[row.original.type] || row.original.type}
         </Badge>
       ),
     },

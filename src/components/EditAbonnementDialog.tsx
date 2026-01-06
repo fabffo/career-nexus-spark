@@ -39,6 +39,11 @@ const NATURES = [
   { value: "AUTRE", label: "Autre" },
 ];
 
+const TYPES = [
+  { value: "CHARGE", label: "Charge" },
+  { value: "AUTRE", label: "Autre" },
+];
+
 export function EditAbonnementDialog({
   open,
   onOpenChange,
@@ -52,6 +57,7 @@ export function EditAbonnementDialog({
   const { register, handleSubmit, reset, setValue, watch } = useForm();
 
   const nature = watch("nature");
+  const type = watch("type");
   const actif = watch("actif");
 
   useEffect(() => {
@@ -59,6 +65,7 @@ export function EditAbonnementDialog({
       reset({
         nom: abonnement.nom,
         nature: abonnement.nature,
+        type: abonnement.type || "CHARGE",
         montant_mensuel: abonnement.montant_mensuel || "",
         jour_prelevement: abonnement.jour_prelevement || "",
         actif: abonnement.actif,
@@ -89,6 +96,7 @@ export function EditAbonnementDialog({
         .update({
           nom: data.nom,
           nature: data.nature,
+          type: data.type,
           montant_mensuel: data.montant_mensuel ? parseFloat(data.montant_mensuel) : null,
           jour_prelevement: data.jour_prelevement ? parseInt(data.jour_prelevement) : null,
           actif: data.actif,
@@ -151,6 +159,22 @@ export function EditAbonnementDialog({
                   {NATURES.map((n) => (
                     <SelectItem key={n.value} value={n.value}>
                       {n.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="type">Type *</Label>
+              <Select value={type} onValueChange={(value) => setValue("type", value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
