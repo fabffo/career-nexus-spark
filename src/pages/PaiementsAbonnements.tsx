@@ -15,12 +15,17 @@ const NATURE_LABELS: Record<string, string> = {
   AUTRE: "Autre",
 };
 
+const TYPE_LABELS: Record<string, string> = {
+  CHARGE: "Charge",
+  AUTRE: "Autre",
+};
+
 type Paiement = {
   id: string;
   date_paiement: string;
   montant: number;
   notes: string;
-  abonnement?: { id: string; nom: string; nature: string };
+  abonnement?: { id: string; nom: string; nature: string; type: string };
   rapprochement?: { id: string; transaction_libelle: string };
 };
 
@@ -32,7 +37,7 @@ export default function PaiementsAbonnements() {
         .from("paiements_abonnements")
         .select(`
           *,
-          abonnement:abonnements_partenaires(id, nom, nature),
+          abonnement:abonnements_partenaires(id, nom, nature, type),
           rapprochement:rapprochements_bancaires(id, transaction_libelle)
         `)
         .order("date_paiement", { ascending: false });
@@ -74,6 +79,16 @@ export default function PaiementsAbonnements() {
         const nature = row.original.abonnement?.nature;
         return nature ? (
           <Badge variant="outline">{NATURE_LABELS[nature]}</Badge>
+        ) : null;
+      },
+    },
+    {
+      id: "type",
+      header: "Type",
+      cell: ({ row }) => {
+        const type = row.original.abonnement?.type;
+        return type ? (
+          <Badge variant="secondary">{TYPE_LABELS[type] || type}</Badge>
         ) : null;
       },
     },
