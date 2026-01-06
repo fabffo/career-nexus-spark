@@ -768,7 +768,7 @@ export default function AddFactureDialog({
                 {societeInterne?.tva && <p className="text-sm text-muted-foreground">N° TVA: {societeInterne.tva}</p>}
               </div>
             ) : (
-              <Select onValueChange={handleDestinataireClientChange}>
+              <Select value={formData.destinataire_id || undefined} onValueChange={handleDestinataireClientChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner un client" />
                 </SelectTrigger>
