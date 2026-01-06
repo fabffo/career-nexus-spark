@@ -38,6 +38,11 @@ const NATURES = [
   { value: "AUTRE", label: "Autre" },
 ];
 
+const TYPES = [
+  { value: "CHARGE", label: "Charge" },
+  { value: "AUTRE", label: "Autre" },
+];
+
 export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogProps) {
   const queryClient = useQueryClient();
   const { uploadFile } = useFileUpload();
@@ -47,6 +52,7 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
     defaultValues: {
       nom: "",
       nature: "RELEVE_BANQUE",
+      type: "CHARGE",
       montant_mensuel: "",
       jour_prelevement: "",
       actif: true,
@@ -55,6 +61,7 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
   });
 
   const nature = watch("nature");
+  const type = watch("type");
   const actif = watch("actif");
 
   const createMutation = useMutation({
@@ -65,6 +72,7 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
         .insert({
           nom: data.nom,
           nature: data.nature,
+          type: data.type,
           montant_mensuel: data.montant_mensuel ? parseFloat(data.montant_mensuel) : null,
           jour_prelevement: data.jour_prelevement ? parseInt(data.jour_prelevement) : null,
           actif: data.actif,
@@ -131,6 +139,22 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
                   {NATURES.map((n) => (
                     <SelectItem key={n.value} value={n.value}>
                       {n.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="type">Type *</Label>
+              <Select value={type} onValueChange={(value) => setValue("type", value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
