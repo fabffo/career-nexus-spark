@@ -800,7 +800,28 @@ export default function FacturesVentes() {
           </Button>
           <Button 
             onClick={() => {
-              setSelectedFacture(null);
+              // Calculer la date d'émission basée sur le mois sélectionné
+              let initialData: Partial<Facture> | null = null;
+              
+              if (selectedYear !== "all" && selectedMonths.length === 1) {
+                const year = parseInt(selectedYear);
+                const month = parseInt(selectedMonths[0]);
+                // Dernier jour du mois sélectionné
+                const lastDayOfMonth = new Date(year, month, 0);
+                const dateEmission = lastDayOfMonth.toISOString().split('T')[0];
+                // Date d'échéance = 30 jours après
+                const dateEcheance = new Date(lastDayOfMonth);
+                dateEcheance.setDate(dateEcheance.getDate() + 30);
+                
+                initialData = {
+                  type_facture: 'VENTES',
+                  date_emission: dateEmission,
+                  date_echeance: dateEcheance.toISOString().split('T')[0],
+                  statut: 'VALIDEE',
+                } as Partial<Facture>;
+              }
+              
+              setSelectedFacture(initialData as Facture | null);
               setOpenAddDialog(true);
             }}
             className="bg-green-600 hover:bg-green-700"

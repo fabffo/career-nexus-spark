@@ -173,40 +173,82 @@ export default function AddFactureDialog({
         
         // Initialiser le formulaire immédiatement après avoir chargé la société interne
         if (initialData) {
-          // Si on a des données initiales (copie), les utiliser
-          const { id, numero_facture, created_at, updated_at, created_by, lignes, ...dataToUse } = initialData;
-          setFormData({
-            ...dataToUse,
-            numero_facture: '', // Pour une copie, on génère un nouveau numéro
-            emetteur_id: dataToUse.emetteur_id || '',
-            emetteur_nom: dataToUse.emetteur_nom || '',
-            emetteur_adresse: dataToUse.emetteur_adresse || '',
-            emetteur_telephone: dataToUse.emetteur_telephone || '',
-            emetteur_email: dataToUse.emetteur_email || '',
-            destinataire_id: dataToUse.destinataire_id || '',
-            destinataire_nom: dataToUse.destinataire_nom || '',
-            destinataire_adresse: dataToUse.destinataire_adresse || '',
-            destinataire_telephone: dataToUse.destinataire_telephone || '',
-            destinataire_email: dataToUse.destinataire_email || '',
-            informations_paiement: dataToUse.informations_paiement || '',
-            reference_societe: dataToUse.reference_societe || '',
-            activite: (dataToUse as any).activite || 'Prestation',
-          });
+          // Vérifier si c'est une copie complète (avec emetteur_nom) ou juste des paramètres initiaux
+          const isFullCopy = initialData.emetteur_nom && initialData.emetteur_nom.trim() !== '';
           
-          // Initialiser les lignes si elles existent
-          if (lignes && lignes.length > 0) {
-            setLignes(lignes.map((ligne, index) => ({
-              ordre: index + 1,
-              description: ligne.description,
-              quantite: ligne.quantite,
-              prix_unitaire_ht: ligne.prix_unitaire_ht,
-              prix_ht: ligne.prix_ht,
-              taux_tva: ligne.taux_tva,
-              montant_tva: ligne.montant_tva || 0,
-              prix_ttc: ligne.prix_ttc || 0,
-            })));
+          if (isFullCopy) {
+            // Si on a des données initiales complètes (copie/avoir), les utiliser
+            const { id, numero_facture, created_at, updated_at, created_by, lignes, ...dataToUse } = initialData;
+            setFormData({
+              ...dataToUse,
+              numero_facture: '', // Pour une copie, on génère un nouveau numéro
+              emetteur_id: dataToUse.emetteur_id || '',
+              emetteur_nom: dataToUse.emetteur_nom || '',
+              emetteur_adresse: dataToUse.emetteur_adresse || '',
+              emetteur_telephone: dataToUse.emetteur_telephone || '',
+              emetteur_email: dataToUse.emetteur_email || '',
+              destinataire_id: dataToUse.destinataire_id || '',
+              destinataire_nom: dataToUse.destinataire_nom || '',
+              destinataire_adresse: dataToUse.destinataire_adresse || '',
+              destinataire_telephone: dataToUse.destinataire_telephone || '',
+              destinataire_email: dataToUse.destinataire_email || '',
+              informations_paiement: dataToUse.informations_paiement || '',
+              reference_societe: dataToUse.reference_societe || '',
+              activite: (dataToUse as any).activite || 'Prestation',
+            });
+            
+            // Initialiser les lignes si elles existent
+            if (lignes && lignes.length > 0) {
+              setLignes(lignes.map((ligne, index) => ({
+                ordre: index + 1,
+                description: ligne.description,
+                quantite: ligne.quantite,
+                prix_unitaire_ht: ligne.prix_unitaire_ht,
+                prix_ht: ligne.prix_ht,
+                taux_tva: ligne.taux_tva,
+                montant_tva: ligne.montant_tva || 0,
+                prix_ttc: ligne.prix_ttc || 0,
+              })));
+            } else {
+              setLignes([{ ordre: 1, description: '', quantite: 1, prix_unitaire_ht: 0, prix_ht: 0, taux_tva: 20, montant_tva: 0, prix_ttc: 0 }]);
+            }
           } else {
-            // Si pas de lignes, initialiser avec une ligne vide
+            // Données initiales partielles (juste date/statut) - utiliser société interne + paramètres
+            let infoPaiement = '';
+            if (societe.etablissement_bancaire) {
+              infoPaiement += `Banque: ${societe.etablissement_bancaire}\n`;
+            }
+            if (societe.iban) {
+              infoPaiement += `IBAN: ${societe.iban}\n`;
+            }
+            if (societe.bic) {
+              infoPaiement += `BIC: ${societe.bic}`;
+            }
+            
+            const newFormData = {
+              type_facture: initialData.type_facture || 'VENTES' as const,
+              numero_facture: '',
+              date_emission: initialData.date_emission || new Date().toISOString().split('T')[0],
+              date_echeance: initialData.date_echeance || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              emetteur_type: 'SOCIETE_INTERNE',
+              emetteur_id: societe.id || '',
+              emetteur_nom: societe.raison_sociale || '',
+              emetteur_adresse: societe.adresse || '',
+              emetteur_telephone: societe.telephone || '',
+              emetteur_email: societe.email || '',
+              destinataire_type: 'CLIENT',
+              destinataire_id: '',
+              destinataire_nom: '',
+              destinataire_adresse: '',
+              destinataire_telephone: '',
+              destinataire_email: '',
+              informations_paiement: infoPaiement.trim() || '',
+              reference_societe: societe.siren || '',
+              statut: initialData.statut || 'BROUILLON' as const,
+              activite: (initialData as any).activite || 'Prestation',
+            };
+            
+            setFormData(newFormData);
             setLignes([{ ordre: 1, description: '', quantite: 1, prix_unitaire_ht: 0, prix_ht: 0, taux_tva: 20, montant_tva: 0, prix_ttc: 0 }]);
           }
         } else {
