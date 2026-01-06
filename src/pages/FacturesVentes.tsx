@@ -193,20 +193,6 @@ export default function FacturesVentes() {
       setAvailableYears(Array.from(years).sort((a, b) => parseInt(b) - parseInt(a)));
       
       setFactures(facturesData);
-      
-      // Calculer les statistiques
-      const totalHT = facturesData.reduce((sum, f) => sum + (f.total_ht || 0), 0);
-      const totalTTC = facturesData.reduce((sum, f) => sum + (f.total_ttc || 0), 0);
-      const totalPayees = facturesData.filter(f => f.statut === 'PAYEE').length;
-      const totalEnAttente = facturesData.filter(f => f.statut === 'VALIDEE').length;
-      
-      setStats({
-        totalFactures: facturesData.length,
-        totalHT,
-        totalTTC,
-        totalPayees,
-        totalEnAttente,
-      });
     } catch (error: any) {
       toast({
         title: "Erreur",
@@ -725,6 +711,25 @@ export default function FacturesVentes() {
       globalFilter,
     },
   });
+
+  // Recalculer les stats basées sur les données filtrées du tableau
+  useEffect(() => {
+    const filteredRows = table.getFilteredRowModel().rows;
+    const filteredData = filteredRows.map(row => row.original);
+    
+    const totalHT = filteredData.reduce((sum, f) => sum + (f.total_ht || 0), 0);
+    const totalTTC = filteredData.reduce((sum, f) => sum + (f.total_ttc || 0), 0);
+    const totalPayees = filteredData.filter(f => f.statut === 'PAYEE').length;
+    const totalEnAttente = filteredData.filter(f => f.statut === 'VALIDEE').length;
+    
+    setStats({
+      totalFactures: filteredData.length,
+      totalHT,
+      totalTTC,
+      totalPayees,
+      totalEnAttente,
+    });
+  }, [table.getFilteredRowModel().rows]);
 
   return (
     <div className="container mx-auto py-6">
