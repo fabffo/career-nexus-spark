@@ -60,6 +60,7 @@ export interface Facture {
   total_ttc: number;
   informations_paiement?: string;
   reference_societe?: string;
+  activite?: string;
   statut: 'BROUILLON' | 'VALIDEE' | 'PAYEE' | 'ANNULEE';
   created_at: string;
   updated_at: string;
