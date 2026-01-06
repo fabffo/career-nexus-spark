@@ -138,10 +138,11 @@ export default function DashboardFinancier() {
       }
     });
 
-    // Abonnements
+    // Abonnements - uniquement ceux de type CHARGE
     const { data: paiementsAbonnements } = await supabase
       .from("paiements_abonnements")
-      .select("montant")
+      .select("montant, abonnement:abonnements_partenaires!inner(type)")
+      .eq("abonnement.type", "CHARGE")
       .gte("date_paiement", format(debut, "yyyy-MM-dd"))
       .lte("date_paiement", format(fin, "yyyy-MM-dd"));
 
