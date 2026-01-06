@@ -250,10 +250,54 @@ export default function FacturesVentes() {
 
       if (lignesError) throw lignesError;
 
+      // Si le destinataire_id n'est pas disponible, rechercher le client par nom
+      let destinataireId = facture.destinataire_id;
+      if (!destinataireId || destinataireId.trim() === '') {
+        const { data: clientData } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('raison_sociale', facture.destinataire_nom)
+          .maybeSingle();
+        
+        if (clientData) {
+          destinataireId = clientData.id;
+        }
+      }
+
+      // Créer les lignes d'avoir
+      let avoirLignes: FactureLigne[];
+      
+      if (lignes && lignes.length > 0) {
+        // Si la facture a des lignes, les copier avec montants négatifs
+        avoirLignes = lignes.map(l => ({
+          description: l.description,
+          quantite: l.quantite,
+          ordre: l.ordre,
+          taux_tva: l.taux_tva,
+          prix_unitaire_ht: -Math.abs(l.prix_unitaire_ht),
+          prix_ht: -Math.abs(l.prix_ht),
+          prix_ttc: -Math.abs(l.prix_ttc || 0),
+          montant_tva: -Math.abs(l.montant_tva || 0),
+        }));
+      } else {
+        // Si la facture n'a pas de lignes, créer une ligne basée sur les totaux
+        const tauxTva = facture.total_ht > 0 ? ((facture.total_tva || 0) / facture.total_ht) * 100 : 20;
+        avoirLignes = [{
+          ordre: 1,
+          description: `Avoir sur facture ${facture.numero_facture}`,
+          quantite: 1,
+          prix_unitaire_ht: -Math.abs(facture.total_ht || 0),
+          prix_ht: -Math.abs(facture.total_ht || 0),
+          taux_tva: Math.round(tauxTva),
+          montant_tva: -Math.abs(facture.total_tva || 0),
+          prix_ttc: -Math.abs(facture.total_ttc || 0),
+        }];
+      }
+
       // Créer une facture d'avoir avec les montants négatifs
       const avoirFacture: Facture = {
-        id: crypto.randomUUID(), // ID temporaire
-        numero_facture: `AVOIR-TEMP-${Date.now()}`, // Temporaire, sera remplacé à la sauvegarde
+        id: crypto.randomUUID(),
+        numero_facture: `AVOIR-TEMP-${Date.now()}`,
         type_facture: 'VENTES',
         emetteur_type: facture.emetteur_type,
         emetteur_nom: facture.emetteur_nom,
@@ -261,12 +305,12 @@ export default function FacturesVentes() {
         emetteur_email: facture.emetteur_email || '',
         emetteur_telephone: facture.emetteur_telephone || '',
         emetteur_id: facture.emetteur_id && facture.emetteur_id.trim() !== '' ? facture.emetteur_id : undefined,
-        destinataire_type: facture.destinataire_type,
+        destinataire_type: facture.destinataire_type || 'CLIENT',
         destinataire_nom: facture.destinataire_nom,
         destinataire_adresse: facture.destinataire_adresse || '',
         destinataire_email: facture.destinataire_email || '',
         destinataire_telephone: facture.destinataire_telephone || '',
-        destinataire_id: facture.destinataire_id && facture.destinataire_id.trim() !== '' ? facture.destinataire_id : undefined,
+        destinataire_id: destinataireId || undefined,
         reference_societe: facture.reference_societe || '',
         activite: facture.activite || 'Prestation',
         statut: 'BROUILLON' as const,
@@ -274,23 +318,11 @@ export default function FacturesVentes() {
         date_echeance: facture.date_echeance,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        // Inverser les montants
-        total_ht: -(facture.total_ht || 0),
-        total_tva: -(facture.total_tva || 0),
-        total_ttc: -(facture.total_ttc || 0),
-        // Ajouter une référence à la facture originale dans les informations de paiement
+        total_ht: -Math.abs(facture.total_ht || 0),
+        total_tva: -Math.abs(facture.total_tva || 0),
+        total_ttc: -Math.abs(facture.total_ttc || 0),
         informations_paiement: `AVOIR - Facture origine: ${facture.numero_facture}\n${facture.informations_paiement || ''}`,
-        lignes: lignes?.map(l => ({
-          description: l.description,
-          quantite: l.quantite,
-          ordre: l.ordre,
-          taux_tva: l.taux_tva,
-          // Inverser les montants des lignes
-          prix_unitaire_ht: -l.prix_unitaire_ht,
-          prix_ht: -l.prix_ht,
-          prix_ttc: -(l.prix_ttc || 0),
-          montant_tva: -(l.montant_tva || 0),
-        }))
+        lignes: avoirLignes
       };
 
       setSelectedFacture(avoirFacture);
