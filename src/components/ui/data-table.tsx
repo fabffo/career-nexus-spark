@@ -105,19 +105,19 @@ export function DataTable<TData, TValue>({
       </div>
 
       <div className="rounded-lg border border-border">
-        <div className="overflow-auto max-h-[600px]">
-          <table className="w-full caption-bottom text-sm">
+        <div className="max-h-[600px] overflow-y-auto overflow-x-hidden">
+          <table className="w-full table-fixed caption-bottom text-sm">
             <thead className="[&_tr]:border-b sticky top-0 bg-background z-10">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id} className="border-b transition-colors hover:bg-muted/50">
                   {headerGroup.headers.map((header) => {
                     const canSort = header.column.getCanSort();
                     const isSorted = header.column.getIsSorted();
-                    
+
                     return (
                       <th
                         key={header.id}
-                        className={`h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-background ${(header.column.columnDef.meta as any)?.className || ""}`}
+                        className={`h-10 px-2 text-left align-middle text-xs font-medium text-muted-foreground bg-background truncate ${(header.column.columnDef.meta as any)?.className || ""}`}
                       >
                         {header.isPlaceholder ? null : (
                           <div
@@ -155,7 +155,7 @@ export function DataTable<TData, TValue>({
                     {row.getVisibleCells().map((cell) => (
                       <td
                         key={cell.id}
-                        className={`p-4 align-middle ${(cell.column.columnDef.meta as any)?.className || ""}`}
+                        className={`p-2 align-middle text-sm truncate ${(cell.column.columnDef.meta as any)?.className || ""}`}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
