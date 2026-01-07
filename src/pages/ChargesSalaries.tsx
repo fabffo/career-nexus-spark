@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, getDate } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -65,12 +65,35 @@ export default function ChargesSalaries() {
     }, {} as Record<string, number>),
   };
 
+  // Calcul de la date effective
+  const getDateEffective = (datePaiement: string, typeCharge?: string): Date => {
+    const date = new Date(datePaiement);
+    const jour = getDate(date);
+    
+    // Pour type SALAIRE: si jour entre 1 et 15, mois précédent
+    if (typeCharge === "SALAIRE" && jour >= 1 && jour <= 15) {
+      return subMonths(date, 1);
+    }
+    return date;
+  };
+
   const columns: ColumnDef<Charge>[] = [
     {
       accessorKey: "date_paiement",
-      header: "Date",
+      header: "Date paiement",
       cell: ({ row }) =>
         format(new Date(row.original.date_paiement), "dd MMM yyyy", { locale: fr }),
+    },
+    {
+      id: "date_effective",
+      header: "Date effective",
+      cell: ({ row }) => {
+        const dateEffective = getDateEffective(
+          row.original.date_paiement,
+          row.original.declaration?.type_charge
+        );
+        return format(dateEffective, "MMM yyyy", { locale: fr });
+      },
     },
     {
       id: "declaration",
