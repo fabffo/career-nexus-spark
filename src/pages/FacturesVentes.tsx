@@ -481,6 +481,7 @@ export default function FacturesVentes() {
       ),
       enableSorting: false,
       enableHiding: false,
+      meta: { className: "w-8" },
     },
     {
       accessorKey: "numero_facture",
@@ -1045,14 +1046,14 @@ export default function FacturesVentes() {
 
       <div className="rounded-lg border border-border">
         <div className="max-h-[600px] overflow-y-auto overflow-x-hidden">
-          <table className="w-full table-fixed caption-bottom text-sm">
+          <table className="w-full caption-bottom text-sm">
             <thead className="[&_tr]:border-b sticky top-0 bg-background z-10">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id} className="border-b transition-colors hover:bg-muted/50">
                   {headerGroup.headers.map((header) => (
                     <th
                       key={header.id}
-                      className="h-10 px-2 text-left align-middle text-xs font-medium text-muted-foreground bg-background truncate"
+                      className={`h-8 px-1 text-left align-middle text-xs font-medium text-muted-foreground bg-background whitespace-nowrap ${(header.column.columnDef.meta as any)?.className || ""}`}
                     >
                       {header.isPlaceholder
                         ? null
@@ -1071,7 +1072,7 @@ export default function FacturesVentes() {
                     className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="p-2 align-middle text-sm truncate">
+                      <td key={cell.id} className={`px-1 py-1 align-middle text-xs ${(cell.column.columnDef.meta as any)?.className || ""}`}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
