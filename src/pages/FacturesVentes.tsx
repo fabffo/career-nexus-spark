@@ -1037,15 +1037,15 @@ export default function FacturesVentes() {
       </div>
 
       <div className="rounded-lg border border-border">
-        <div className="overflow-auto max-h-[600px]">
-          <table className="w-full caption-bottom text-sm">
+        <div className="max-h-[600px] overflow-y-auto overflow-x-hidden">
+          <table className="w-full table-fixed caption-bottom text-sm">
             <thead className="[&_tr]:border-b sticky top-0 bg-background z-10">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id} className="border-b transition-colors hover:bg-muted/50">
                   {headerGroup.headers.map((header) => (
                     <th
                       key={header.id}
-                      className="h-12 px-4 text-left align-middle font-medium text-muted-foreground bg-background"
+                      className="h-10 px-2 text-left align-middle text-xs font-medium text-muted-foreground bg-background truncate"
                     >
                       {header.isPlaceholder
                         ? null
@@ -1064,7 +1064,7 @@ export default function FacturesVentes() {
                     className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="p-4 align-middle">
+                      <td key={cell.id} className="p-2 align-middle text-sm truncate">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
