@@ -488,15 +488,16 @@ export default function FacturesVentes() {
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="hover:bg-accent"
+          className="hover:bg-accent p-0 h-auto"
         >
           N° Facture
-          <ArrowUpDown className="ml-2 h-4 w-4" />
+          <ArrowUpDown className="ml-1 h-3 w-3" />
         </Button>
       ),
       cell: ({ row }) => (
-        <span className="font-medium">{row.getValue("numero_facture")}</span>
+        <span className="font-medium text-xs">{row.getValue("numero_facture")}</span>
       ),
+      size: 100,
     },
     {
       accessorKey: "date_emission",
@@ -526,12 +527,18 @@ export default function FacturesVentes() {
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="hover:bg-accent"
+          className="hover:bg-accent p-0 h-auto"
         >
           Client
-          <ArrowUpDown className="ml-2 h-4 w-4" />
+          <ArrowUpDown className="ml-1 h-3 w-3" />
         </Button>
       ),
+      cell: ({ row }) => (
+        <span className="truncate block max-w-[200px]" title={row.getValue("destinataire_nom") as string}>
+          {row.getValue("destinataire_nom")}
+        </span>
+      ),
+      size: 180,
     },
     {
       accessorKey: "activite",
