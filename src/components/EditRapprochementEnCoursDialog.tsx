@@ -29,7 +29,6 @@ interface FactureMatch {
   date_emission: string;
   partenaire_nom: string;
   total_ttc: number;
-  total_ht?: number;
   statut: string;
   numero_rapprochement?: string;
   date_rapprochement?: string;
@@ -241,8 +240,7 @@ export default function EditRapprochementEnCoursDialog({
     const search = searchTerm.toLowerCase();
     const matchesSearch = f.numero_facture.toLowerCase().includes(search) ||
       f.partenaire_nom.toLowerCase().includes(search) ||
-      f.total_ttc.toString().includes(search) ||
-      (f.total_ht && f.total_ht.toString().includes(search));
+      f.total_ttc.toString().includes(search);
     return f.type_facture === "VENTES" && matchesSearch;
   });
 
@@ -250,8 +248,7 @@ export default function EditRapprochementEnCoursDialog({
     const search = searchTerm.toLowerCase();
     const matchesSearch = f.numero_facture.toLowerCase().includes(search) ||
       f.partenaire_nom.toLowerCase().includes(search) ||
-      f.total_ttc.toString().includes(search) ||
-      (f.total_ht && f.total_ht.toString().includes(search));
+      f.total_ttc.toString().includes(search);
     return f.type_facture === "ACHATS" && matchesSearch;
   });
 

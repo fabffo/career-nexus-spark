@@ -35,7 +35,6 @@ interface FactureMatch {
   date_emission: string;
   partenaire_nom: string;
   total_ttc: number;
-  total_ht?: number;
   statut: string;
   numero_rapprochement?: string;
   date_rapprochement?: string;
@@ -206,7 +205,6 @@ export default function RapprochementBancaire() {
         date_emission: f.date_emission,
         partenaire_nom: f.type_facture === "VENTES" ? f.destinataire_nom : f.emetteur_nom,
         total_ttc: f.total_ttc || 0,
-        total_ht: f.total_ht || undefined,
         statut: f.statut,
         numero_rapprochement: f.numero_rapprochement,
         date_rapprochement: f.date_rapprochement,
