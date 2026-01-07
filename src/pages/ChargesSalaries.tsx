@@ -249,8 +249,8 @@ export default function ChargesSalaries() {
         </div>
       </div>
 
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      {/* Statistiques générales */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Total charges</div>
           <div className="text-2xl font-bold">{stats.count}</div>
@@ -265,6 +265,18 @@ export default function ChargesSalaries() {
             {stats.count > 0 ? (stats.total / stats.count).toFixed(2) : "0.00"} €
           </div>
         </Card>
+      </div>
+
+      {/* Statistiques par type de charge */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+        {Object.entries(stats.parType).map(([type, montant]) => (
+          <Card key={type} className="p-4">
+            <div className="text-sm text-muted-foreground">
+              {TYPE_CHARGE_LABELS[type] || type}
+            </div>
+            <div className="text-xl font-bold">{montant.toFixed(2)} €</div>
+          </Card>
+        ))}
       </div>
 
       <DataTable
