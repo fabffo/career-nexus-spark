@@ -33,13 +33,25 @@ export default function ChargesSalaries() {
   const [moisSelectionne, setMoisSelectionne] = useState<number | null>(null);
 
   // Calcul de la date effective
-  const getDateEffective = (datePaiement: string, typeCharge?: string): Date => {
-    const date = new Date(datePaiement);
-    const jour = getDate(date);
+  // Calculer le rang de la ligne RETRAITE pour une date donnée
+  const getRetraiteRang = (chargeId: string, datePaiement: string, allData: Charge[]): number => {
+    const retraitesSameDate = allData
+      .filter(c => c.declaration?.type_charge === "RETRAITE" && c.date_paiement === datePaiement)
+      .sort((a, b) => a.id.localeCompare(b.id));
     
-    // Pour RETRAITE: toujours mois précédent
+    const index = retraitesSameDate.findIndex(c => c.id === chargeId);
+    return index >= 0 ? index + 1 : 1; // rang 1, 2, 3...
+  };
+
+  const getDateEffective = (charge: Charge, allData: Charge[]): Date => {
+    const date = new Date(charge.date_paiement);
+    const jour = getDate(date);
+    const typeCharge = charge.declaration?.type_charge;
+    
+    // Pour RETRAITE: M-1 pour 1ère ligne, M-2 pour 2ème, M-3 pour 3ème
     if (typeCharge === "RETRAITE") {
-      return subMonths(date, 1);
+      const rang = getRetraiteRang(charge.id, charge.date_paiement, allData);
+      return subMonths(date, rang);
     }
     // Pour SALAIRE: si jour entre 1 et 15, mois précédent
     if (typeCharge === "SALAIRE" && jour >= 1 && jour <= 15) {
@@ -85,7 +97,7 @@ export default function ChargesSalaries() {
   // Filtrage par date effective (côté client) si mode effective
   const charges = modeFiltre === "effective" 
     ? allCharges.filter((c) => {
-        const dateEff = getDateEffective(c.date_paiement, c.declaration?.type_charge);
+        const dateEff = getDateEffective(c, allCharges);
         const annee = dateEff.getFullYear();
         const mois = dateEff.getMonth();
         
@@ -117,12 +129,9 @@ export default function ChargesSalaries() {
     {
       id: "date_effective",
       header: "Date effective",
-      accessorFn: (row) => getDateEffective(row.date_paiement, row.declaration?.type_charge),
+      accessorFn: (row) => getDateEffective(row, allCharges),
       cell: ({ row }) => {
-        const dateEffective = getDateEffective(
-          row.original.date_paiement,
-          row.original.declaration?.type_charge
-        );
+        const dateEffective = getDateEffective(row.original, allCharges);
         return format(dateEffective, "MMM yyyy", { locale: fr });
       },
       sortingFn: "datetime",
