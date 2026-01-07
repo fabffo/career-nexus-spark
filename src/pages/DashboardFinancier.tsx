@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, TrendingUp, DollarSign, Percent } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { format, startOfYear, endOfYear, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, subMonths, getDate } from "date-fns";
 import { fr } from "date-fns/locale";
 
 interface KPI {
@@ -146,13 +146,42 @@ export default function DashboardFinancier() {
       .gte("date_paiement", format(debut, "yyyy-MM-dd"))
       .lte("date_paiement", format(fin, "yyyy-MM-dd"));
 
-    // Charges sociales - montants réellement enregistrés/payés dans rapprochements bancaires
-    const { data: chargesSocialesRapprochements } = await supabase
-      .from("rapprochements_bancaires")
-      .select("transaction_montant")
-      .not("declaration_charge_id", "is", null)
-      .gte("transaction_date", format(debut, "yyyy-MM-dd"))
-      .lte("transaction_date", format(fin, "yyyy-MM-dd"));
+    // Charges sociales - basées sur la date effective (pas la date de paiement)
+    const { data: paiementsCharges } = await supabase
+      .from("paiements_declarations_charges")
+      .select(`
+        id,
+        date_paiement,
+        montant,
+        declaration:declarations_charges_sociales(type_charge)
+      `);
+
+    // Fonction pour calculer la date effective
+    const getDateEffective = (datePaiement: string, typeCharge?: string, chargeId?: string, allCharges?: any[]): Date => {
+      const date = new Date(datePaiement);
+      const jour = getDate(date);
+      
+      // Pour RETRAITE: M-1 pour 1ère ligne, M-2 pour 2ème, M-3 pour 3ème
+      if (typeCharge === "RETRAITE" && allCharges && chargeId) {
+        const retraitesSameDate = allCharges
+          .filter((c: any) => c.declaration?.type_charge === "RETRAITE" && c.date_paiement === datePaiement)
+          .sort((a: any, b: any) => a.id.localeCompare(b.id));
+        const index = retraitesSameDate.findIndex((c: any) => c.id === chargeId);
+        const rang = index >= 0 ? index + 1 : 1;
+        return subMonths(date, rang);
+      }
+      // Pour SALAIRE: si jour entre 1 et 15, mois précédent
+      if (typeCharge === "SALAIRE" && jour >= 1 && jour <= 15) {
+        return subMonths(date, 1);
+      }
+      return date;
+    };
+
+    // Filtrer les charges par date effective
+    const chargesFiltered = paiementsCharges?.filter((c: any) => {
+      const dateEff = getDateEffective(c.date_paiement, c.declaration?.type_charge, c.id, paiementsCharges);
+      return dateEff >= debut && dateEff <= fin;
+    }) || [];
 
     const ca = facturesVentes?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
     
@@ -181,11 +210,11 @@ export default function DashboardFinancier() {
     
     const abonnementsTotal = paiementsAbonnements?.reduce((sum, p) => sum + Number(p.montant || 0), 0) || 0;
     
-    // Total des charges sociales enregistrées (valeur absolue des montants)
-    const chargesTotal = chargesSocialesRapprochements?.reduce(
-      (sum, r) => sum + Math.abs(Number(r.transaction_montant || 0)),
+    // Total des charges sociales filtrées par date effective
+    const chargesTotal = chargesFiltered.reduce(
+      (sum, c: any) => sum + Math.abs(Number(c.montant || 0)),
       0
-    ) || 0;
+    );
     
     // Achat = uniquement les factures d'achat généraux (hors services)
     const achat = autresAchatsTotal;
