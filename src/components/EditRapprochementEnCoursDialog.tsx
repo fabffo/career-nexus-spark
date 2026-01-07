@@ -252,7 +252,14 @@ export default function EditRapprochementEnCoursDialog({
     return f.type_facture === "ACHATS" && matchesSearch;
   });
 
-  const selectedFactures = facturesDisponibles.filter((f) => selectedFactureIds.includes(f.id));
+  // Récupérer les factures sélectionnées depuis la liste disponible
+  const selectedFacturesFromList = facturesDisponibles.filter((f) => selectedFactureIds.includes(f.id));
+  
+  // Si la facture du rapprochement n'est pas dans la liste, l'ajouter directement depuis l'objet rapprochement
+  const selectedFactures = selectedFactureIds.length > 0 && selectedFacturesFromList.length === 0 && rapprochement?.facture
+    ? [rapprochement.facture]
+    : selectedFacturesFromList;
+  
   const totalFacturesSelectionnees = selectedFactures.reduce((sum, f) => sum + f.total_ttc, 0);
 
   const toggleFactureSelection = (factureId: string) => {
