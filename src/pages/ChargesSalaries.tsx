@@ -112,10 +112,12 @@ export default function ChargesSalaries() {
       header: "Date paiement",
       cell: ({ row }) =>
         format(new Date(row.original.date_paiement), "dd MMM yyyy", { locale: fr }),
+      sortingFn: "datetime",
     },
     {
       id: "date_effective",
       header: "Date effective",
+      accessorFn: (row) => getDateEffective(row.date_paiement, row.declaration?.type_charge),
       cell: ({ row }) => {
         const dateEffective = getDateEffective(
           row.original.date_paiement,
@@ -123,6 +125,7 @@ export default function ChargesSalaries() {
         );
         return format(dateEffective, "MMM yyyy", { locale: fr });
       },
+      sortingFn: "datetime",
     },
     {
       id: "declaration",
