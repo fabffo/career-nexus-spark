@@ -25,13 +25,12 @@ type Charge = {
 };
 
 export default function ChargesSalaries() {
-  // Filtres date paiement
-  const [anneePaiement, setAnneePaiement] = useState(new Date().getFullYear());
-  const [moisPaiement, setMoisPaiement] = useState<number | null>(null);
+  // Mode de filtre: "paiement" ou "effective"
+  const [modeFiltre, setModeFiltre] = useState<"paiement" | "effective">("paiement");
   
-  // Filtres date effective
-  const [anneeEffective, setAnneeEffective] = useState<number | null>(null);
-  const [moisEffective, setMoisEffective] = useState<number | null>(null);
+  // Filtres année/mois
+  const [anneeSelectionnee, setAnneeSelectionnee] = useState(new Date().getFullYear());
+  const [moisSelectionne, setMoisSelectionne] = useState<number | null>(null);
 
   // Calcul de la date effective
   const getDateEffective = (datePaiement: string, typeCharge?: string): Date => {
@@ -49,44 +48,52 @@ export default function ChargesSalaries() {
     return date;
   };
 
+  // Pour le mode paiement, on filtre côté serveur
+  // Pour le mode effective, on charge tout et filtre côté client
   const { data: allCharges = [], isLoading } = useQuery({
-    queryKey: ["paiements-declarations-charges", anneePaiement, moisPaiement],
+    queryKey: ["paiements-declarations-charges", modeFiltre === "paiement" ? anneeSelectionnee : null, modeFiltre === "paiement" ? moisSelectionne : null],
     queryFn: async () => {
-      const debut = moisPaiement !== null
-        ? startOfMonth(new Date(anneePaiement, moisPaiement, 1))
-        : startOfYear(new Date(anneePaiement, 0, 1));
-      const fin = moisPaiement !== null
-        ? endOfMonth(new Date(anneePaiement, moisPaiement, 1))
-        : endOfYear(new Date(anneePaiement, 11, 31));
-
-      const { data, error } = await supabase
+      let query = supabase
         .from("paiements_declarations_charges")
         .select(`
           *,
           declaration:declarations_charges_sociales(id, nom, organisme, type_charge),
           rapprochement:rapprochements_bancaires(id, transaction_libelle)
         `)
-        .gte("date_paiement", format(debut, "yyyy-MM-dd"))
-        .lte("date_paiement", format(fin, "yyyy-MM-dd"))
         .order("date_paiement", { ascending: false });
 
+      // Filtrer par date paiement côté serveur uniquement en mode paiement
+      if (modeFiltre === "paiement") {
+        const debut = moisSelectionne !== null
+          ? startOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
+          : startOfYear(new Date(anneeSelectionnee, 0, 1));
+        const fin = moisSelectionne !== null
+          ? endOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
+          : endOfYear(new Date(anneeSelectionnee, 11, 31));
+
+        query = query
+          .gte("date_paiement", format(debut, "yyyy-MM-dd"))
+          .lte("date_paiement", format(fin, "yyyy-MM-dd"));
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
   });
 
-  // Filtrage par date effective (côté client)
-  const charges = allCharges.filter((c) => {
-    if (anneeEffective === null) return true;
-    
-    const dateEff = getDateEffective(c.date_paiement, c.declaration?.type_charge);
-    const annee = dateEff.getFullYear();
-    const mois = dateEff.getMonth();
-    
-    if (annee !== anneeEffective) return false;
-    if (moisEffective !== null && mois !== moisEffective) return false;
-    return true;
-  });
+  // Filtrage par date effective (côté client) si mode effective
+  const charges = modeFiltre === "effective" 
+    ? allCharges.filter((c) => {
+        const dateEff = getDateEffective(c.date_paiement, c.declaration?.type_charge);
+        const annee = dateEff.getFullYear();
+        const mois = dateEff.getMonth();
+        
+        if (annee !== anneeSelectionnee) return false;
+        if (moisSelectionne !== null && mois !== moisSelectionne) return false;
+        return true;
+      })
+    : allCharges;
 
   // Calculs des statistiques
   const stats = {
@@ -177,91 +184,65 @@ export default function ChargesSalaries() {
             Historique des paiements de déclarations de charges sociales
           </p>
         </div>
-        <div className="flex gap-4">
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-muted-foreground">Date paiement</span>
-          <div className="flex gap-2">
-            <select
-              value={anneePaiement}
-              onChange={(e) => setAnneePaiement(Number(e.target.value))}
-              className="border rounded-md px-3 py-2 bg-background text-sm"
-            >
-              {[2023, 2024, 2025, 2026].map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-            <select
-              value={moisPaiement ?? ""}
-              onChange={(e) => setMoisPaiement(e.target.value ? Number(e.target.value) : null)}
-              className="border rounded-md px-3 py-2 bg-background text-sm"
-            >
-              <option value="">Tous</option>
-              {[
-                { value: 0, label: "Jan" },
-                { value: 1, label: "Fév" },
-                { value: 2, label: "Mar" },
-                { value: 3, label: "Avr" },
-                { value: 4, label: "Mai" },
-                { value: 5, label: "Juin" },
-                { value: 6, label: "Juil" },
-                { value: 7, label: "Août" },
-                { value: 8, label: "Sep" },
-                { value: 9, label: "Oct" },
-                { value: 10, label: "Nov" },
-                { value: 11, label: "Déc" },
-              ].map((mois) => (
-                <option key={mois.value} value={mois.value}>
-                  {mois.label}
-                </option>
-              ))}
-            </select>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="modeFiltre"
+                checked={modeFiltre === "paiement"}
+                onChange={() => setModeFiltre("paiement")}
+                className="w-4 h-4"
+              />
+              <span className="text-sm font-medium">Date paiement</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="modeFiltre"
+                checked={modeFiltre === "effective"}
+                onChange={() => setModeFiltre("effective")}
+                className="w-4 h-4"
+              />
+              <span className="text-sm font-medium">Date effective</span>
+            </label>
           </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-muted-foreground">Date effective</span>
-          <div className="flex gap-2">
-            <select
-              value={anneeEffective ?? ""}
-              onChange={(e) => setAnneeEffective(e.target.value ? Number(e.target.value) : null)}
-              className="border rounded-md px-3 py-2 bg-background text-sm"
-            >
-              <option value="">Toutes</option>
-              {[2023, 2024, 2025, 2026].map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-            <select
-              value={moisEffective ?? ""}
-              onChange={(e) => setMoisEffective(e.target.value ? Number(e.target.value) : null)}
-              className="border rounded-md px-3 py-2 bg-background text-sm"
-              disabled={anneeEffective === null}
-            >
-              <option value="">Tous</option>
-              {[
-                { value: 0, label: "Jan" },
-                { value: 1, label: "Fév" },
-                { value: 2, label: "Mar" },
-                { value: 3, label: "Avr" },
-                { value: 4, label: "Mai" },
-                { value: 5, label: "Juin" },
-                { value: 6, label: "Juil" },
-                { value: 7, label: "Août" },
-                { value: 8, label: "Sep" },
-                { value: 9, label: "Oct" },
-                { value: 10, label: "Nov" },
-                { value: 11, label: "Déc" },
-              ].map((mois) => (
-                <option key={mois.value} value={mois.value}>
-                  {mois.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+          <select
+            value={anneeSelectionnee}
+            onChange={(e) => setAnneeSelectionnee(Number(e.target.value))}
+            className="border rounded-md px-3 py-2 bg-background text-sm"
+          >
+            {[2023, 2024, 2025, 2026].map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+          <select
+            value={moisSelectionne ?? ""}
+            onChange={(e) => setMoisSelectionne(e.target.value ? Number(e.target.value) : null)}
+            className="border rounded-md px-3 py-2 bg-background text-sm"
+          >
+            <option value="">Tous les mois</option>
+            {[
+              { value: 0, label: "Janvier" },
+              { value: 1, label: "Février" },
+              { value: 2, label: "Mars" },
+              { value: 3, label: "Avril" },
+              { value: 4, label: "Mai" },
+              { value: 5, label: "Juin" },
+              { value: 6, label: "Juillet" },
+              { value: 7, label: "Août" },
+              { value: 8, label: "Septembre" },
+              { value: 9, label: "Octobre" },
+              { value: 10, label: "Novembre" },
+              { value: 11, label: "Décembre" },
+            ].map((mois) => (
+              <option key={mois.value} value={mois.value}>
+                {mois.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
