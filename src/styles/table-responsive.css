@@ -1,25 +1,32 @@
 /* Responsive table styles */
-@media (max-width: 1024px) {
-  .data-table-wrapper {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  
-  .data-table-wrapper table {
-    min-width: 800px;
-  }
+.data-table-wrapper {
+  width: 100%;
+}
+
+.data-table-wrapper table {
+  width: 100%;
+  table-layout: fixed;
 }
 
 /* Ensure text doesn't overflow in cells */
 .table-cell-truncate {
-  max-width: 200px;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-@media (max-width: 768px) {
-  .table-cell-truncate {
-    max-width: 120px;
+/* Compact table cells */
+.compact-table th,
+.compact-table td {
+  padding: 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* Allow horizontal scroll only on very small screens */
+@media (max-width: 640px) {
+  .data-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
