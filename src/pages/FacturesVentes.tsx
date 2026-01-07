@@ -1045,7 +1045,7 @@ export default function FacturesVentes() {
       </div>
 
       <div className="rounded-lg border border-border">
-        <div className="max-h-[600px] overflow-y-auto overflow-x-hidden">
+        <div className="max-h-[600px] overflow-y-auto overflow-x-auto">
           <table className="w-full caption-bottom text-sm">
             <thead className="[&_tr]:border-b sticky top-0 bg-background z-10">
               {table.getHeaderGroups().map((headerGroup) => (
