@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -24,8 +25,18 @@ type Charge = {
 };
 
 export default function ChargesSalaries() {
+  const [anneeSelectionnee, setAnneeSelectionnee] = useState(new Date().getFullYear());
+  const [moisSelectionne, setMoisSelectionne] = useState<number | null>(null);
+
+  const debut = moisSelectionne !== null
+    ? startOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
+    : startOfYear(new Date(anneeSelectionnee, 0, 1));
+  const fin = moisSelectionne !== null
+    ? endOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
+    : endOfYear(new Date(anneeSelectionnee, 11, 31));
+
   const { data: charges = [], isLoading } = useQuery({
-    queryKey: ["paiements-declarations-charges"],
+    queryKey: ["paiements-declarations-charges", anneeSelectionnee, moisSelectionne],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("paiements_declarations_charges")
@@ -34,6 +45,8 @@ export default function ChargesSalaries() {
           declaration:declarations_charges_sociales(id, nom, organisme, type_charge),
           rapprochement:rapprochements_bancaires(id, transaction_libelle)
         `)
+        .gte("date_paiement", format(debut, "yyyy-MM-dd"))
+        .lte("date_paiement", format(fin, "yyyy-MM-dd"))
         .order("date_paiement", { ascending: false });
 
       if (error) throw error;
@@ -112,15 +125,55 @@ export default function ChargesSalaries() {
 
   return (
     <div className="container mx-auto py-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Charges Salariales</h1>
-        <p className="text-muted-foreground mt-1">
-          Historique des paiements de déclarations de charges sociales
-        </p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">Charges Salariales</h1>
+          <p className="text-muted-foreground mt-1">
+            Historique des paiements de déclarations de charges sociales
+          </p>
+        </div>
+        <div className="flex gap-4">
+          <select
+            value={anneeSelectionnee}
+            onChange={(e) => setAnneeSelectionnee(Number(e.target.value))}
+            className="border rounded-md px-4 py-2 bg-background"
+          >
+            {[2023, 2024, 2025, 2026].map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+          <select
+            value={moisSelectionne ?? ""}
+            onChange={(e) => setMoisSelectionne(e.target.value ? Number(e.target.value) : null)}
+            className="border rounded-md px-4 py-2 bg-background"
+          >
+            <option value="">Toute l'année</option>
+            {[
+              { value: 0, label: "Janvier" },
+              { value: 1, label: "Février" },
+              { value: 2, label: "Mars" },
+              { value: 3, label: "Avril" },
+              { value: 4, label: "Mai" },
+              { value: 5, label: "Juin" },
+              { value: 6, label: "Juillet" },
+              { value: 7, label: "Août" },
+              { value: 8, label: "Septembre" },
+              { value: 9, label: "Octobre" },
+              { value: 10, label: "Novembre" },
+              { value: 11, label: "Décembre" },
+            ].map((mois) => (
+              <option key={mois.value} value={mois.value}>
+                {mois.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Total charges</div>
           <div className="text-2xl font-bold">{stats.count}</div>
@@ -128,19 +181,6 @@ export default function ChargesSalaries() {
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Montant total</div>
           <div className="text-2xl font-bold">{stats.total.toFixed(2)} €</div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-sm text-muted-foreground">Mois en cours</div>
-          <div className="text-2xl font-bold">
-            {charges
-              .filter(
-                (c) =>
-                  new Date(c.date_paiement).getMonth() === new Date().getMonth()
-              )
-              .reduce((sum, c) => sum + Number(c.montant), 0)
-              .toFixed(2)}{" "}
-            €
-          </div>
         </Card>
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Moyenne / charge</div>
