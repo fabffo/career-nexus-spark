@@ -70,7 +70,11 @@ export default function ChargesSalaries() {
     const date = new Date(datePaiement);
     const jour = getDate(date);
     
-    // Pour type SALAIRE: si jour entre 1 et 15, mois précédent
+    // Pour RETRAITE: toujours mois précédent
+    if (typeCharge === "RETRAITE") {
+      return subMonths(date, 1);
+    }
+    // Pour SALAIRE: si jour entre 1 et 15, mois précédent
     if (typeCharge === "SALAIRE" && jour >= 1 && jour <= 15) {
       return subMonths(date, 1);
     }
