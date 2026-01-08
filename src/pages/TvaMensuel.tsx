@@ -24,17 +24,23 @@ interface RapprochementLigne {
     numero_facture: string;
     total_tva: number;
     type_facture: string;
+    activite?: string;
+    type_frais?: string;
   };
   factures?: {
     numero_facture: string;
     total_tva: number;
     type_facture: string;
+    activite?: string;
+    type_frais?: string;
   }[];
   total_tva?: number;
   manualId?: string;
   abonnementId?: string;
   declarationId?: string;
   notes?: string;
+  abonnement_type?: string;
+  declaration_organisme?: string;
 }
 
 interface PeriodeStat {
@@ -191,6 +197,63 @@ export default function TvaMensuel() {
           return row.original.facture?.type_facture || "";
         };
         return getType(rowA).localeCompare(getType(rowB));
+      },
+      enableSorting: true,
+    },
+    {
+      id: "activite",
+      header: "Activité",
+      cell: ({ row }) => {
+        // Si la ligne n'est pas rapprochée, pas d'activité
+        if (row.original.statut !== "RAPPROCHE") {
+          return "—";
+        }
+        // Si c'est un abonnement, on affiche le type d'abonnement
+        if (row.original.abonnementId) {
+          return row.original.abonnement_type || "—";
+        }
+        // Si c'est une déclaration de charges, on affiche l'organisme
+        if (row.original.declarationId) {
+          return row.original.declaration_organisme || "—";
+        }
+        // Si c'est une ou plusieurs factures
+        if (row.original.factures && row.original.factures.length > 0) {
+          const firstFacture = row.original.factures[0];
+          // Pour les ventes: on utilise activite
+          if (firstFacture.type_facture === "VENTES") {
+            return firstFacture.activite || "—";
+          }
+          // Pour les achats: on utilise type_frais
+          if (firstFacture.type_facture === "ACHATS") {
+            return firstFacture.type_frais || "—";
+          }
+        }
+        if (row.original.facture) {
+          if (row.original.facture.type_facture === "VENTES") {
+            return row.original.facture.activite || "—";
+          }
+          if (row.original.facture.type_facture === "ACHATS") {
+            return row.original.facture.type_frais || "—";
+          }
+        }
+        return "—";
+      },
+      sortingFn: (rowA, rowB) => {
+        const getActivite = (row: any) => {
+          if (row.original.statut !== "RAPPROCHE") return "";
+          if (row.original.abonnementId) return row.original.abonnement_type || "";
+          if (row.original.declarationId) return row.original.declaration_organisme || "";
+          if (row.original.factures && row.original.factures.length > 0) {
+            const f = row.original.factures[0];
+            return f.type_facture === "VENTES" ? (f.activite || "") : (f.type_frais || "");
+          }
+          if (row.original.facture) {
+            const f = row.original.facture;
+            return f.type_facture === "VENTES" ? (f.activite || "") : (f.type_frais || "");
+          }
+          return "";
+        };
+        return getActivite(rowA).localeCompare(getActivite(rowB));
       },
       enableSorting: true,
     },
@@ -375,10 +438,28 @@ export default function TvaMensuel() {
             total_ttc,
             total_tva,
             destinataire_nom,
-            emetteur_nom
+            emetteur_nom,
+            activite,
+            type_frais
           )
         `)
         .in("rapprochement_id", rapprochementIds.length > 0 ? rapprochementIds : ["00000000-0000-0000-0000-000000000000"]);
+
+      // Récupérer les abonnements pour les lignes avec abonnement
+      const { data: abonnementsData } = await supabase
+        .from("abonnements_partenaires")
+        .select("id, type, nom");
+
+      const abonnementsMap = new Map<string, any>();
+      abonnementsData?.forEach(a => abonnementsMap.set(a.id, a));
+
+      // Récupérer les déclarations de charges pour les lignes avec déclaration
+      const { data: declarationsData } = await supabase
+        .from("declarations_charges_sociales")
+        .select("id, organisme, nom");
+
+      const declarationsMap = new Map<string, any>();
+      declarationsData?.forEach(d => declarationsMap.set(d.id, d));
 
       // Créer une Map des factures par rapprochement_id
       const facturesParRapprochement = new Map<string, any[]>();
@@ -484,7 +565,7 @@ export default function TvaMensuel() {
       if (factureIds.size > 0) {
         const { data: factures, error: facturesError } = await supabase
           .from("factures")
-          .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission")
+          .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission, activite, type_frais")
           .in("id", Array.from(factureIds));
 
         if (facturesError) {
@@ -544,6 +625,10 @@ export default function TvaMensuel() {
           }
         }
 
+        // Récupérer les infos d'abonnement et déclaration
+        const abonnementInfo = rapp.abonnement_info?.id ? abonnementsMap.get(rapp.abonnement_info.id) : null;
+        const declarationInfo = rapp.declaration_info?.id ? declarationsMap.get(rapp.declaration_info.id) : null;
+
         const ligne: RapprochementLigne = {
           id: `${rapp.transaction.date}_${rapp.transaction.libelle}_${index}`,
           transaction_date: rapp.transaction.date,
@@ -555,6 +640,8 @@ export default function TvaMensuel() {
           abonnementId: rapp.abonnement_info?.id,
           declarationId: rapp.declaration_info?.id,
           notes: rapp.notes,
+          abonnement_type: abonnementInfo?.type,
+          declaration_organisme: declarationInfo?.organisme,
         };
 
         if (facturesData.length > 0) {
@@ -562,6 +649,8 @@ export default function TvaMensuel() {
             numero_facture: f.numero_facture,
             total_tva: f.total_tva || 0,
             type_facture: f.type_facture,
+            activite: f.activite,
+            type_frais: f.type_frais,
           }));
           ligne.total_tva = tvaLigne;
         }
