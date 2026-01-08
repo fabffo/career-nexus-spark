@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,6 +43,11 @@ const TYPES = [
   { value: "AUTRE", label: "Autre" },
 ];
 
+const TVAS = [
+  { value: "normal", label: "Normal" },
+  { value: "exonere", label: "Exonéré" },
+];
+
 export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogProps) {
   const queryClient = useQueryClient();
   const { uploadFile } = useFileUpload();
@@ -53,6 +58,7 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
       nom: "",
       nature: "RELEVE_BANQUE",
       type: "CHARGE",
+      tva: "normal",
       montant_mensuel: "",
       jour_prelevement: "",
       actif: true,
@@ -62,7 +68,17 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
 
   const nature = watch("nature");
   const type = watch("type");
+  const tva = watch("tva");
   const actif = watch("actif");
+
+  // Mettre à jour TVA automatiquement selon le type
+  useEffect(() => {
+    if (type === "CHARGE") {
+      setValue("tva", "normal");
+    } else {
+      setValue("tva", "exonere");
+    }
+  }, [type, setValue]);
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -73,6 +89,7 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
           nom: data.nom,
           nature: data.nature,
           type: data.type,
+          tva: data.tva,
           montant_mensuel: data.montant_mensuel ? parseFloat(data.montant_mensuel) : null,
           jour_prelevement: data.jour_prelevement ? parseInt(data.jour_prelevement) : null,
           actif: data.actif,
@@ -153,6 +170,22 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
                 </SelectTrigger>
                 <SelectContent>
                   {TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tva">TVA</Label>
+              <Select value={tva} onValueChange={(value) => setValue("tva", value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TVAS.map((t) => (
                     <SelectItem key={t.value} value={t.value}>
                       {t.label}
                     </SelectItem>
