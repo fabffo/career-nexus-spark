@@ -44,6 +44,11 @@ const TYPES = [
   { value: "AUTRE", label: "Autre" },
 ];
 
+const TVAS = [
+  { value: "normal", label: "Normal" },
+  { value: "exonere", label: "Exonéré" },
+];
+
 export function EditAbonnementDialog({
   open,
   onOpenChange,
@@ -58,6 +63,7 @@ export function EditAbonnementDialog({
 
   const nature = watch("nature");
   const type = watch("type");
+  const tva = watch("tva");
   const actif = watch("actif");
 
   useEffect(() => {
@@ -66,6 +72,7 @@ export function EditAbonnementDialog({
         nom: abonnement.nom,
         nature: abonnement.nature,
         type: abonnement.type || "CHARGE",
+        tva: abonnement.tva || "normal",
         montant_mensuel: abonnement.montant_mensuel || "",
         jour_prelevement: abonnement.jour_prelevement || "",
         actif: abonnement.actif,
@@ -97,6 +104,7 @@ export function EditAbonnementDialog({
           nom: data.nom,
           nature: data.nature,
           type: data.type,
+          tva: data.tva,
           montant_mensuel: data.montant_mensuel ? parseFloat(data.montant_mensuel) : null,
           jour_prelevement: data.jour_prelevement ? parseInt(data.jour_prelevement) : null,
           actif: data.actif,
@@ -173,6 +181,22 @@ export function EditAbonnementDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tva">TVA</Label>
+              <Select value={tva} onValueChange={(value) => setValue("tva", value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TVAS.map((t) => (
                     <SelectItem key={t.value} value={t.value}>
                       {t.label}
                     </SelectItem>

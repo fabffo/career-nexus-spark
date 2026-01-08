@@ -115,6 +115,7 @@ export type Database = {
           nature: string
           nom: string
           notes: string | null
+          tva: string | null
           type: string
           updated_at: string | null
         }
@@ -129,6 +130,7 @@ export type Database = {
           nature: string
           nom: string
           notes?: string | null
+          tva?: string | null
           type?: string
           updated_at?: string | null
         }
@@ -143,6 +145,7 @@ export type Database = {
           nature?: string
           nom?: string
           notes?: string | null
+          tva?: string | null
           type?: string
           updated_at?: string | null
         }

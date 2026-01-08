@@ -41,11 +41,17 @@ const TYPE_LABELS: Record<string, string> = {
   AUTRE: "Autre",
 };
 
+const TVA_LABELS: Record<string, string> = {
+  normal: "Normal",
+  exonere: "Exonéré",
+};
+
 type Abonnement = {
   id: string;
   nom: string;
   nature: string;
   type: string;
+  tva: string;
   montant_mensuel: number;
   jour_prelevement: number;
   actif: boolean;
@@ -116,6 +122,15 @@ export default function AbonnementsPartenaires() {
       cell: ({ row }) => (
         <Badge variant="outline">
           {TYPE_LABELS[row.original.type] || row.original.type}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "tva",
+      header: "TVA",
+      cell: ({ row }) => (
+        <Badge variant="secondary">
+          {TVA_LABELS[row.original.tva] || row.original.tva}
         </Badge>
       ),
     },
