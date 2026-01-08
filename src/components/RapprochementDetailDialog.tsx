@@ -64,66 +64,113 @@ export default function RapprochementDetailDialog({
   const loadRapprochementDetails = async () => {
     setLoading(true);
     try {
-      // 1. Chercher le rapprochement bancaire
+      // 1. Chercher le rapprochement bancaire dans la table rapprochements_bancaires
       const { data: rapprochement, error: rapprochementError } = await supabase
         .from('rapprochements_bancaires')
         .select('*')
         .eq('numero_ligne', numeroLigne)
-        .single();
+        .maybeSingle();
 
-      if (rapprochementError) throw rapprochementError;
+      if (rapprochement) {
+        // Rapprochement trouvé dans la table, charger les détails normalement
+        const { data: liaisonsFactures } = await supabase
+          .from('rapprochements_factures')
+          .select('facture_id')
+          .eq('rapprochement_id', rapprochement.id);
 
-      // 2. Chercher toutes les factures liées via rapprochements_factures
-      const { data: liaisonsFactures, error: liaisonsError } = await supabase
-        .from('rapprochements_factures')
-        .select('facture_id')
-        .eq('rapprochement_id', rapprochement.id);
+        const factureIds = liaisonsFactures?.map(l => l.facture_id) || [];
+        
+        let factures: any[] = [];
+        if (factureIds.length > 0) {
+          const { data: facturesData } = await supabase
+            .from('factures')
+            .select('*')
+            .in('id', factureIds);
+          factures = facturesData || [];
+        }
 
-      if (liaisonsError) throw liaisonsError;
+        let abonnement = undefined;
+        if (rapprochement.abonnement_id) {
+          const { data: abonnementData } = await supabase
+            .from('abonnements_partenaires')
+            .select('id, nom, montant_mensuel')
+            .eq('id', rapprochement.abonnement_id)
+            .single();
+          abonnement = abonnementData || undefined;
+        }
 
-      const factureIds = liaisonsFactures?.map(l => l.facture_id) || [];
-      
-      let factures: any[] = [];
-      if (factureIds.length > 0) {
-        const { data: facturesData, error: facturesError } = await supabase
-          .from('factures')
+        let declaration = undefined;
+        if (rapprochement.declaration_charge_id) {
+          const { data: declarationData } = await supabase
+            .from('declarations_charges_sociales')
+            .select('id, nom, organisme')
+            .eq('id', rapprochement.declaration_charge_id)
+            .single();
+          declaration = declarationData || undefined;
+        }
+
+        setDetails({
+          rapprochement,
+          factures,
+          abonnement,
+          declaration,
+        });
+      } else {
+        // Pas trouvé dans la table, chercher dans fichier_data des fichiers validés
+        const { data: fichiers } = await supabase
+          .from('fichiers_rapprochement')
           .select('*')
-          .in('id', factureIds);
+          .eq('statut', 'VALIDE')
+          .order('created_at', { ascending: false });
 
-        if (facturesError) throw facturesError;
-        factures = facturesData || [];
+        let foundRapprochement = null;
+        for (const fichier of fichiers || []) {
+          const fichierData = fichier.fichier_data as any;
+          const rapprochements = fichierData?.rapprochements || [];
+          const found = rapprochements.find((r: any) => 
+            r.transaction?.numero_ligne === numeroLigne || r.numero_ligne === numeroLigne
+          );
+          if (found) {
+            foundRapprochement = found;
+            break;
+          }
+        }
+
+        if (foundRapprochement) {
+          const transaction = foundRapprochement.transaction || foundRapprochement;
+          
+          // Charger la facture associée si présente
+          let factures: any[] = [];
+          if (foundRapprochement.facture?.id) {
+            const { data: factureData } = await supabase
+              .from('factures')
+              .select('*')
+              .eq('id', foundRapprochement.facture.id)
+              .single();
+            if (factureData) {
+              factures = [factureData];
+            }
+          }
+
+          setDetails({
+            rapprochement: {
+              id: '',
+              numero_ligne: transaction.numero_ligne || numeroLigne,
+              transaction_date: transaction.date,
+              transaction_libelle: transaction.libelle,
+              transaction_debit: transaction.debit || 0,
+              transaction_credit: transaction.credit || 0,
+              transaction_montant: transaction.montant,
+              notes: foundRapprochement.notes,
+            },
+            factures,
+            abonnement: undefined,
+            declaration: undefined,
+          });
+        } else {
+          setDetails(null);
+        }
       }
-
-      // 3. Chercher l'abonnement associé si présent
-      let abonnement = undefined;
-      if (rapprochement.abonnement_id) {
-        const { data: abonnementData } = await supabase
-          .from('abonnements_partenaires')
-          .select('id, nom, montant_mensuel')
-          .eq('id', rapprochement.abonnement_id)
-          .single();
-        
-        abonnement = abonnementData || undefined;
-      }
-
-      // 4. Chercher la déclaration de charge associée si présente
-      let declaration = undefined;
-      if (rapprochement.declaration_charge_id) {
-        const { data: declarationData } = await supabase
-          .from('declarations_charges_sociales')
-          .select('id, nom, organisme')
-          .eq('id', rapprochement.declaration_charge_id)
-          .single();
-        
-        declaration = declarationData || undefined;
-      }
-
-      setDetails({
-        rapprochement,
-        factures,
-        abonnement,
-        declaration,
-      });
     } catch (error) {
       console.error('Erreur lors du chargement des détails:', error);
       setDetails(null);
