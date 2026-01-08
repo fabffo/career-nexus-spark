@@ -31,26 +31,23 @@ interface TopPrestataire {
   montant: number;
 }
 
-// Calculer le dernier mois terminé par défaut
-const getDefaultPeriod = (): { year: number; month: number } => {
+// Calculer l'année du dernier mois terminé par défaut
+const getDefaultYear = (): number => {
   const now = new Date();
   const currentMonth = now.getMonth(); // 0-11
   const currentYear = now.getFullYear();
   
   // Si on est en janvier, le dernier mois terminé est décembre de l'année précédente
   if (currentMonth === 0) {
-    return { year: currentYear - 1, month: 11 };
+    return currentYear - 1;
   }
-  // Sinon, c'est le mois précédent de l'année courante
-  return { year: currentYear, month: currentMonth - 1 };
+  return currentYear;
 };
-
-const defaultPeriod = getDefaultPeriod();
 
 export default function DashboardFinancier() {
   const [loading, setLoading] = useState(true);
-  const [anneeSelectionnee, setAnneeSelectionnee] = useState(defaultPeriod.year);
-  const [moisSelectionne, setMoisSelectionne] = useState<number | null>(defaultPeriod.month);
+  const [anneeSelectionnee, setAnneeSelectionnee] = useState(getDefaultYear());
+  const [moisSelectionne, setMoisSelectionne] = useState<number | null>(null);
   const [kpis, setKpis] = useState<KPI>({
     ca: 0,
     achatServices: 0,
