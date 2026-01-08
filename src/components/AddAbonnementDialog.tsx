@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useFileUpload } from "@/hooks/useFileUpload";
@@ -43,22 +43,30 @@ const TYPES = [
   { value: "AUTRE", label: "Autre" },
 ];
 
-const TVAS = [
-  { value: "normal", label: "Normal" },
-  { value: "exonere", label: "Exonéré" },
-];
-
 export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogProps) {
   const queryClient = useQueryClient();
   const { uploadFile } = useFileUpload();
   const [documentFiles, setDocumentFiles] = useState<File[]>([]);
   
+  // Charger les taux de TVA depuis la table paramètre
+  const { data: tvaOptions = [] } = useQuery({
+    queryKey: ["tva-options"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tva")
+        .select("id, libelle, taux, is_default")
+        .order("taux");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { register, handleSubmit, reset, setValue, watch } = useForm({
     defaultValues: {
       nom: "",
       nature: "RELEVE_BANQUE",
       type: "CHARGE",
-      tva: "normal",
+      tva: "",
       montant_mensuel: "",
       jour_prelevement: "",
       actif: true,
@@ -73,12 +81,18 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
 
   // Mettre à jour TVA automatiquement selon le type
   useEffect(() => {
-    if (type === "CHARGE") {
-      setValue("tva", "normal");
-    } else {
-      setValue("tva", "exonere");
+    if (tvaOptions.length > 0) {
+      if (type === "CHARGE") {
+        // Pour les charges: TVA normale (is_default ou taux > 0)
+        const defaultTva = tvaOptions.find(t => t.is_default) || tvaOptions.find(t => t.taux > 0);
+        if (defaultTva) setValue("tva", defaultTva.libelle);
+      } else {
+        // Pour les autres: TVA exonérée (taux = 0)
+        const exonereTva = tvaOptions.find(t => t.taux === 0);
+        if (exonereTva) setValue("tva", exonereTva.libelle);
+      }
     }
-  }, [type, setValue]);
+  }, [type, tvaOptions, setValue]);
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -182,12 +196,12 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
               <Label htmlFor="tva">TVA</Label>
               <Select value={tva} onValueChange={(value) => setValue("tva", value)}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Sélectionner une TVA" />
                 </SelectTrigger>
                 <SelectContent>
-                  {TVAS.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
+                  {tvaOptions.map((t) => (
+                    <SelectItem key={t.id} value={t.libelle}>
+                      {t.libelle} ({t.taux}%)
                     </SelectItem>
                   ))}
                 </SelectContent>
