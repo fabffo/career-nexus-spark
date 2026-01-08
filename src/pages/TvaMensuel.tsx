@@ -26,6 +26,8 @@ interface RapprochementLigne {
     type_facture: string;
     activite?: string;
     type_frais?: string;
+    type_fournisseur?: string;
+    emetteur_nom?: string;
   };
   factures?: {
     numero_facture: string;
@@ -33,6 +35,8 @@ interface RapprochementLigne {
     type_facture: string;
     activite?: string;
     type_frais?: string;
+    type_fournisseur?: string;
+    emetteur_nom?: string;
   }[];
   total_tva?: number;
   manualId?: string;
@@ -223,9 +227,9 @@ export default function TvaMensuel() {
           if (firstFacture.type_facture === "VENTES") {
             return firstFacture.activite || "—";
           }
-          // Pour les achats: on utilise type_frais
+          // Pour les achats: on utilise type_fournisseur (Généraux/Services)
           if (firstFacture.type_facture === "ACHATS") {
-            return firstFacture.type_frais || "—";
+            return firstFacture.type_fournisseur || "—";
           }
         }
         if (row.original.facture) {
@@ -233,7 +237,7 @@ export default function TvaMensuel() {
             return row.original.facture.activite || "—";
           }
           if (row.original.facture.type_facture === "ACHATS") {
-            return row.original.facture.type_frais || "—";
+            return row.original.facture.type_fournisseur || "—";
           }
         }
         return "—";
@@ -245,11 +249,11 @@ export default function TvaMensuel() {
           if (row.original.declarationId) return row.original.declaration_organisme || "";
           if (row.original.factures && row.original.factures.length > 0) {
             const f = row.original.factures[0];
-            return f.type_facture === "VENTES" ? (f.activite || "") : (f.type_frais || "");
+            return f.type_facture === "VENTES" ? (f.activite || "") : (f.type_fournisseur || "");
           }
           if (row.original.facture) {
             const f = row.original.facture;
-            return f.type_facture === "VENTES" ? (f.activite || "") : (f.type_frais || "");
+            return f.type_facture === "VENTES" ? (f.activite || "") : (f.type_fournisseur || "");
           }
           return "";
         };
@@ -461,6 +465,27 @@ export default function TvaMensuel() {
       const declarationsMap = new Map<string, any>();
       declarationsData?.forEach(d => declarationsMap.set(d.id, d));
 
+      // Récupérer les fournisseurs pour déterminer le type (Généraux/Services)
+      const { data: fournisseursServices } = await supabase
+        .from("fournisseurs_services")
+        .select("raison_sociale");
+      
+      const { data: fournisseursGeneraux } = await supabase
+        .from("fournisseurs_generaux")
+        .select("raison_sociale");
+
+      const fournisseurTypesMap = new Map<string, string>();
+      fournisseursServices?.forEach(f => {
+        if (f.raison_sociale) {
+          fournisseurTypesMap.set(f.raison_sociale.toLowerCase().trim(), "Services");
+        }
+      });
+      fournisseursGeneraux?.forEach(f => {
+        if (f.raison_sociale) {
+          fournisseurTypesMap.set(f.raison_sociale.toLowerCase().trim(), "Généraux");
+        }
+      });
+
       // Créer une Map des factures par rapprochement_id
       const facturesParRapprochement = new Map<string, any[]>();
       if (rapprochementsViaLiaison) {
@@ -565,7 +590,7 @@ export default function TvaMensuel() {
       if (factureIds.size > 0) {
         const { data: factures, error: facturesError } = await supabase
           .from("factures")
-          .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission, activite, type_frais")
+          .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission, activite, type_frais, emetteur_nom")
           .in("id", Array.from(factureIds));
 
         if (facturesError) {
@@ -645,13 +670,22 @@ export default function TvaMensuel() {
         };
 
         if (facturesData.length > 0) {
-          ligne.factures = facturesData.map(f => ({
-            numero_facture: f.numero_facture,
-            total_tva: f.total_tva || 0,
-            type_facture: f.type_facture,
-            activite: f.activite,
-            type_frais: f.type_frais,
-          }));
+          ligne.factures = facturesData.map(f => {
+            // Déterminer le type de fournisseur pour les achats
+            let typeFournisseur: string | undefined;
+            if (f.type_facture === "ACHATS" && f.emetteur_nom) {
+              typeFournisseur = fournisseurTypesMap.get(f.emetteur_nom.toLowerCase().trim());
+            }
+            return {
+              numero_facture: f.numero_facture,
+              total_tva: f.total_tva || 0,
+              type_facture: f.type_facture,
+              activite: f.activite,
+              type_frais: f.type_frais,
+              type_fournisseur: typeFournisseur,
+              emetteur_nom: f.emetteur_nom,
+            };
+          });
           ligne.total_tva = tvaLigne;
         }
 
