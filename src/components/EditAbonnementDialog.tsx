@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useFileUpload } from "@/hooks/useFileUpload";
@@ -44,11 +44,6 @@ const TYPES = [
   { value: "AUTRE", label: "Autre" },
 ];
 
-const TVAS = [
-  { value: "normal", label: "Normal" },
-  { value: "exonere", label: "Exonéré" },
-];
-
 export function EditAbonnementDialog({
   open,
   onOpenChange,
@@ -59,6 +54,19 @@ export function EditAbonnementDialog({
   const [newDocumentFiles, setNewDocumentFiles] = useState<File[]>([]);
   const [existingDocuments, setExistingDocuments] = useState<any[]>([]);
   
+  // Charger les taux de TVA depuis la table paramètre
+  const { data: tvaOptions = [] } = useQuery({
+    queryKey: ["tva-options"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tva")
+        .select("id, libelle, taux, is_default")
+        .order("taux");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { register, handleSubmit, reset, setValue, watch } = useForm();
 
   const nature = watch("nature");
@@ -193,12 +201,12 @@ export function EditAbonnementDialog({
               <Label htmlFor="tva">TVA</Label>
               <Select value={tva} onValueChange={(value) => setValue("tva", value)}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Sélectionner une TVA" />
                 </SelectTrigger>
                 <SelectContent>
-                  {TVAS.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
+                  {tvaOptions.map((t) => (
+                    <SelectItem key={t.id} value={t.libelle}>
+                      {t.libelle} ({t.taux}%)
                     </SelectItem>
                   ))}
                 </SelectContent>
