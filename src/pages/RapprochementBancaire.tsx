@@ -452,12 +452,23 @@ export default function RapprochementBancaire() {
         });
         
         console.log(`✅ Total rapprochements formatés depuis DB: ${rapprochementsManuelsFormatted.length}`);
-        
-        const matchedCount = rapprochementsManuelsFormatted.filter((r: Rapprochement) => r.status === "matched").length;
-        const unmatchedCount = rapprochementsManuelsFormatted.filter((r: Rapprochement) => r.status === "unmatched").length;
-        
+
+        // ✅ Compléter avec les rapprochements présents dans fichier_data mais absents en DB
+        // (cas où une ligne a été rapprochée mais l'écriture n'a pas été persistée dans rapprochements_bancaires)
+        const originalRapprochements = (fichier.fichier_data?.rapprochements || []) as unknown as Rapprochement[];
+        const buildKey = (r: Rapprochement) =>
+          r.transaction.numero_ligne || `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`;
+
+        const keysFromDb = new Set(rapprochementsManuelsFormatted.map(buildKey));
+        const missingFromDb = originalRapprochements.filter((r) => !keysFromDb.has(buildKey(r)));
+
+        const mergedRapprochements = [...rapprochementsManuelsFormatted, ...missingFromDb];
+
+        const matchedCount = mergedRapprochements.filter((r: Rapprochement) => r.status === "matched").length;
+        const unmatchedCount = mergedRapprochements.filter((r: Rapprochement) => r.status === "unmatched").length;
+
         console.log(`🔍 DEBUG ${fichier.numero_rapprochement}:`);
-        console.log(`   - Total transactions depuis DB: ${rapprochementsManuelsFormatted.length}`);
+        console.log(`   - Total transactions (DB + fichier_data): ${mergedRapprochements.length}`);
         console.log(`   - Matched: ${matchedCount}`);
         console.log(`   - Unmatched: ${unmatchedCount}`);
 
@@ -466,7 +477,7 @@ export default function RapprochementBancaire() {
           fichier_data: {
             ...fichier.fichier_data,
             transactions: fichier.fichier_data?.transactions || [],
-            rapprochements: rapprochementsManuelsFormatted,
+            rapprochements: mergedRapprochements,
             rapprochementsManuels: fichier.fichier_data?.rapprochementsManuels || [],
           },
           lignes_rapprochees: matchedCount,
