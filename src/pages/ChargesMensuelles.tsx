@@ -286,12 +286,13 @@ export default function ChargesMensuelles() {
       const endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
 
       // Charger le fichier de rapprochement validé pour cette période
+      // On cherche les fichiers dont la période chevauche le mois sélectionné
       const { data: fichiers, error: fichierError } = await supabase
         .from("fichiers_rapprochement")
         .select("*")
         .eq("statut", "VALIDE")
-        .gte("date_debut", startDate)
-        .lte("date_fin", endDate)
+        .lte("date_debut", endDate)
+        .gte("date_fin", startDate)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
