@@ -119,9 +119,35 @@ export default function PaiementsAbonnements() {
         const tvaStr = row.original.abonnement?.tva;
         if (!tvaStr) return <span className="text-muted-foreground">-</span>;
         
-        // Extraire le taux de TVA (format: "20", "10", "0" ou libellé comme "TVA 20%")
-        const tvaMatch = tvaStr.match(/(\d+(?:[.,]\d+)?)/);
-        const tauxTva = tvaMatch ? parseFloat(tvaMatch[1].replace(',', '.')) : 0;
+        // Mapper les valeurs textuelles aux taux de TVA
+        const tvaMapping: Record<string, number> = {
+          'normal': 20,
+          'normale': 20,
+          'reduit': 5.5,
+          'réduit': 5.5,
+          'reduite': 5.5,
+          'réduite': 5.5,
+          'intermediaire': 10,
+          'intermédiaire': 10,
+          'super_reduit': 2.1,
+          'super_réduit': 2.1,
+          'exonere': 0,
+          'exonéré': 0,
+          'exoneree': 0,
+          'exonérée': 0,
+        };
+        
+        let tauxTva = 0;
+        const tvaLower = tvaStr.toLowerCase().trim();
+        
+        // D'abord vérifier si c'est une valeur mappée
+        if (tvaMapping[tvaLower] !== undefined) {
+          tauxTva = tvaMapping[tvaLower];
+        } else {
+          // Sinon essayer d'extraire un nombre
+          const tvaMatch = tvaStr.match(/(\d+(?:[.,]\d+)?)/);
+          tauxTva = tvaMatch ? parseFloat(tvaMatch[1].replace(',', '.')) : 0;
+        }
         
         if (tauxTva === 0) return <span className="text-muted-foreground">0,00 €</span>;
         
