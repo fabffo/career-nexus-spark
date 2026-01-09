@@ -151,13 +151,38 @@ export default function DashboardFinancier() {
       }
     });
 
-    // Abonnements - uniquement ceux de type CHARGE
+    // Abonnements - uniquement ceux de type CHARGE, calculer HT à partir du TTC
     const { data: paiementsAbonnements } = await supabase
       .from("paiements_abonnements")
-      .select("montant, abonnement:abonnements_partenaires!inner(type)")
+      .select("montant, abonnement:abonnements_partenaires!inner(type, tva)")
       .eq("abonnement.type", "CHARGE")
       .gte("date_paiement", format(debut, "yyyy-MM-dd"))
       .lte("date_paiement", format(fin, "yyyy-MM-dd"));
+    
+    // Fonction pour calculer le montant HT à partir du TTC et du taux TVA
+    const calculerMontantHT = (montantTTC: number, tvaStr: string | null): number => {
+      if (!tvaStr) return montantTTC;
+      
+      const tvaMapping: Record<string, number> = {
+        'normal': 20, 'normale': 20,
+        'reduit': 5.5, 'réduit': 5.5, 'reduite': 5.5, 'réduite': 5.5,
+        'intermediaire': 10, 'intermédiaire': 10,
+        'super_reduit': 2.1, 'super_réduit': 2.1,
+        'exonere': 0, 'exonéré': 0, 'exoneree': 0, 'exonérée': 0,
+      };
+      
+      const tvaLower = tvaStr.toLowerCase().trim();
+      let tauxTva = 0;
+      
+      if (tvaMapping[tvaLower] !== undefined) {
+        tauxTva = tvaMapping[tvaLower];
+      } else {
+        const tvaMatch = tvaStr.match(/(\d+(?:[.,]\d+)?)/);
+        tauxTva = tvaMatch ? parseFloat(tvaMatch[1].replace(',', '.')) : 0;
+      }
+      
+      return montantTTC / (1 + tauxTva / 100);
+    };
 
     // Charges sociales - basées sur la date effective (pas la date de paiement)
     const { data: paiementsCharges } = await supabase
@@ -221,7 +246,10 @@ export default function DashboardFinancier() {
       }
     });
     
-    const abonnementsTotal = paiementsAbonnements?.reduce((sum, p) => sum + Number(p.montant || 0), 0) || 0;
+    const abonnementsTotal = paiementsAbonnements?.reduce((sum, p: any) => {
+      const montantHT = calculerMontantHT(Number(p.montant || 0), p.abonnement?.tva);
+      return sum + montantHT;
+    }, 0) || 0;
     
     // Total des charges sociales filtrées par date effective
     const chargesTotal = chargesFiltered.reduce(
