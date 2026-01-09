@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +18,8 @@ interface ChargeLigne {
   statut: string;
   facture?: {
     numero_facture: string;
+    total_ht: number;
+    total_ttc: number;
     total_tva: number;
     type_facture: string;
     activite?: string;
@@ -28,6 +29,8 @@ interface ChargeLigne {
   };
   factures?: {
     numero_facture: string;
+    total_ht: number;
+    total_ttc: number;
     total_tva: number;
     type_facture: string;
     activite?: string;
@@ -35,12 +38,11 @@ interface ChargeLigne {
     type_fournisseur?: string;
     emetteur_nom?: string;
   }[];
+  total_ht?: number;
+  total_ttc?: number;
   total_tva?: number;
-  abonnementId?: string;
-  declarationId?: string;
-  abonnement_type?: string;
-  abonnement_nom?: string;
-  declaration_organisme?: string;
+  type: string;
+  activite: string;
 }
 
 export default function ChargesMensuelles() {
@@ -55,10 +57,9 @@ export default function ChargesMensuelles() {
   const stats = {
     total: lignes.reduce((sum, l) => sum + Math.abs(l.transaction_montant), 0),
     count: lignes.length,
-    totalTva: lignes.reduce((sum, l) => {
-      const tva = l.total_tva ?? l.facture?.total_tva ?? 0;
-      return sum + tva;
-    }, 0),
+    totalHt: lignes.reduce((sum, l) => sum + (l.total_ht ?? 0), 0),
+    totalTtc: lignes.reduce((sum, l) => sum + (l.total_ttc ?? 0), 0),
+    totalTva: lignes.reduce((sum, l) => sum + (l.total_tva ?? 0), 0),
   };
 
   const columns: ColumnDef<ChargeLigne>[] = [
@@ -90,93 +91,30 @@ export default function ChargesMensuelles() {
       enableSorting: true,
     },
     {
-      accessorKey: "statut",
-      header: "Statut",
-      cell: ({ row }) => (
-        <Badge variant={row.original.statut === "RAPPROCHE" ? "default" : "outline"}>
-          {row.original.statut === "RAPPROCHE" ? "Rapprochée" : "Non rapprochée"}
-        </Badge>
-      ),
-      enableSorting: true,
-    },
-    {
-      id: "facture",
-      header: "Facture",
+      id: "total_ht",
+      header: "HT",
       cell: ({ row }) => {
-        if (row.original.abonnementId) {
-          return row.original.abonnement_nom || "Abonnement";
-        }
-        if (row.original.declarationId) {
-          return "Déclaration";
-        }
-        if (row.original.factures && row.original.factures.length > 0) {
-          return row.original.factures.map(f => f.numero_facture).join(", ");
-        }
-        if (row.original.facture?.numero_facture) {
-          return row.original.facture.numero_facture;
-        }
-        if (row.original.statut !== "RAPPROCHE") {
-          return "facDefaut";
-        }
-        return "—";
-      },
-      enableSorting: false,
-    },
-    {
-      id: "type",
-      header: "Type",
-      cell: ({ row }) => {
-        if (row.original.abonnementId) {
-          return "Abonnement";
-        }
-        if (row.original.declarationId) {
-          return "Déclaration";
-        }
-        if (row.original.factures && row.original.factures.length > 0) {
-          return row.original.factures[0].type_facture === "VENTES" ? "Vente" : "Achat";
-        }
-        if (row.original.facture) {
-          return row.original.facture.type_facture === "VENTES" ? "Vente" 
-            : row.original.facture.type_facture === "ACHATS" ? "Achat" : "—";
-        }
-        if (row.original.statut !== "RAPPROCHE") {
-          return "Achat";
-        }
-        return "—";
+        const ht = row.original.total_ht;
+        return ht !== undefined
+          ? new Intl.NumberFormat("fr-FR", {
+              style: "currency",
+              currency: "EUR",
+            }).format(ht)
+          : "—";
       },
       enableSorting: true,
     },
     {
-      id: "activite",
-      header: "Activité",
+      id: "total_ttc",
+      header: "TTC",
       cell: ({ row }) => {
-        if (row.original.abonnementId) {
-          return row.original.abonnement_type || "—";
-        }
-        if (row.original.declarationId) {
-          return row.original.declaration_organisme || "—";
-        }
-        if (row.original.factures && row.original.factures.length > 0) {
-          const firstFacture = row.original.factures[0];
-          if (firstFacture.type_facture === "VENTES") {
-            return firstFacture.activite || "—";
-          }
-          if (firstFacture.type_facture === "ACHATS") {
-            return firstFacture.type_fournisseur || "—";
-          }
-        }
-        if (row.original.facture) {
-          if (row.original.facture.type_facture === "VENTES") {
-            return row.original.facture.activite || "—";
-          }
-          if (row.original.facture.type_facture === "ACHATS") {
-            return row.original.facture.type_fournisseur || "—";
-          }
-        }
-        if (row.original.statut !== "RAPPROCHE") {
-          return "Généraux";
-        }
-        return "—";
+        const ttc = row.original.total_ttc;
+        return ttc !== undefined
+          ? new Intl.NumberFormat("fr-FR", {
+              style: "currency",
+              currency: "EUR",
+            }).format(ttc)
+          : "—";
       },
       enableSorting: true,
     },
@@ -184,10 +122,7 @@ export default function ChargesMensuelles() {
       id: "total_tva",
       header: "TVA",
       cell: ({ row }) => {
-        if (row.original.abonnementId || row.original.declarationId) {
-          return "—";
-        }
-        const tva = row.original.total_tva ?? row.original.facture?.total_tva;
+        const tva = row.original.total_tva;
         return tva !== undefined
           ? new Intl.NumberFormat("fr-FR", {
               style: "currency",
@@ -198,30 +133,27 @@ export default function ChargesMensuelles() {
       enableSorting: true,
     },
     {
-      id: "type_tva",
-      header: "Type TVA",
+      id: "facture",
+      header: "Facture",
       cell: ({ row }) => {
-        if (row.original.abonnementId || row.original.declarationId) {
-          return "—";
-        }
         if (row.original.factures && row.original.factures.length > 0) {
-          const typeTva = row.original.factures[0].type_facture === "VENTES" ? "Collectée" : "Déductible";
-          return (
-            <Badge variant={typeTva === "Collectée" ? "default" : "secondary"}>
-              {typeTva}
-            </Badge>
-          );
+          return row.original.factures.map(f => f.numero_facture).join(", ");
         }
-        if (row.original.facture) {
-          const typeTva = row.original.facture.type_facture === "VENTES" ? "Collectée" : "Déductible";
-          return (
-            <Badge variant={typeTva === "Collectée" ? "default" : "secondary"}>
-              {typeTva}
-            </Badge>
-          );
+        if (row.original.facture?.numero_facture) {
+          return row.original.facture.numero_facture;
         }
-        return "—";
+        return "facDefaut";
       },
+      enableSorting: false,
+    },
+    {
+      accessorKey: "type",
+      header: "Type",
+      enableSorting: true,
+    },
+    {
+      accessorKey: "activite",
+      header: "Activité",
       enableSorting: true,
     },
   ];
@@ -335,6 +267,7 @@ export default function ChargesMensuelles() {
             id,
             numero_facture,
             type_facture,
+            total_ht,
             total_ttc,
             total_tva,
             destinataire_nom,
@@ -408,22 +341,41 @@ export default function ChargesMensuelles() {
         rapprochementDetailsMap.set(r.numero_ligne, r);
       });
 
-      // Construire les lignes finales
-      const processedLignes: ChargeLigne[] = lignesFromFichier.map((ligne: any) => {
+      // Construire les lignes finales et filtrer
+      const allLignes: ChargeLigne[] = lignesFromFichier.map((ligne: any) => {
         const rapprochement = rapprochementDetailsMap.get(ligne.numero_ligne);
         const factures = rapprochement ? facturesParRapprochement.get(rapprochement.id) : undefined;
-        const abonnement = rapprochement?.abonnement_id ? abonnementsMap.get(rapprochement.abonnement_id) : undefined;
-        const declaration = rapprochement?.declaration_charge_id ? declarationsMap.get(rapprochement.declaration_charge_id) : undefined;
 
         let statut = "NON_RAPPROCHE";
-        if (rapprochement && (factures?.length > 0 || rapprochement.abonnement_id || rapprochement.declaration_charge_id)) {
+        if (rapprochement && factures?.length > 0) {
           statut = "RAPPROCHE";
         }
 
-        // Calculer la TVA totale si plusieurs factures
+        // Calculer les totaux si plusieurs factures
+        let totalHt: number | undefined;
+        let totalTtc: number | undefined;
         let totalTva: number | undefined;
         if (factures && factures.length > 0) {
+          totalHt = factures.reduce((sum: number, f: any) => sum + (f.total_ht || 0), 0);
+          totalTtc = factures.reduce((sum: number, f: any) => sum + (f.total_ttc || 0), 0);
           totalTva = factures.reduce((sum: number, f: any) => sum + (f.total_tva || 0), 0);
+        }
+
+        // Déterminer le type
+        let type = "Achat";
+        if (factures && factures.length > 0) {
+          type = factures[0].type_facture === "VENTES" ? "Vente" : "Achat";
+        }
+
+        // Déterminer l'activité
+        let activite = "Généraux";
+        if (factures && factures.length > 0) {
+          const firstFacture = factures[0];
+          if (firstFacture.type_facture === "VENTES") {
+            activite = firstFacture.activite || "—";
+          } else {
+            activite = firstFacture.type_fournisseur || "Généraux";
+          }
         }
 
         return {
@@ -435,16 +387,20 @@ export default function ChargesMensuelles() {
           transaction_debit: ligne.debit || 0,
           statut,
           factures: factures,
+          total_ht: totalHt,
+          total_ttc: totalTtc,
           total_tva: totalTva,
-          abonnementId: rapprochement?.abonnement_id,
-          declarationId: rapprochement?.declaration_charge_id,
-          abonnement_type: abonnement?.type,
-          abonnement_nom: abonnement?.nom,
-          declaration_organisme: declaration?.organisme,
+          type,
+          activite,
         };
       });
 
-      setLignes(processedLignes);
+      // Filtrer uniquement les lignes type=Achat et activité=Généraux
+      const filteredLignes = allLignes.filter(ligne => 
+        ligne.type === "Achat" && ligne.activite === "Généraux"
+      );
+
+      setLignes(filteredLignes);
     } catch (error: any) {
       toast({
         title: "Erreur",
@@ -494,15 +450,21 @@ export default function ChargesMensuelles() {
       </div>
 
       {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Nombre de lignes</div>
           <div className="text-2xl font-bold">{stats.count}</div>
         </Card>
         <Card className="p-4">
-          <div className="text-sm text-muted-foreground">Montant total</div>
+          <div className="text-sm text-muted-foreground">Total HT</div>
           <div className="text-2xl font-bold">
-            {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(stats.total)}
+            {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(stats.totalHt)}
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground">Total TTC</div>
+          <div className="text-2xl font-bold">
+            {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(stats.totalTtc)}
           </div>
         </Card>
         <Card className="p-4">
