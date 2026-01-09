@@ -166,7 +166,14 @@ export default function TvaMensuel() {
         if (row.original.factures && row.original.factures.length > 0) {
           return row.original.factures.map(f => f.numero_facture).join(", ");
         }
-        return row.original.facture?.numero_facture || "—";
+        if (row.original.facture?.numero_facture) {
+          return row.original.facture.numero_facture;
+        }
+        // Par défaut pour les lignes non rapprochées: facDefaut
+        if (row.original.statut !== "RAPPROCHE") {
+          return "facDefaut";
+        }
+        return "—";
       },
       enableSorting: false,
     },
