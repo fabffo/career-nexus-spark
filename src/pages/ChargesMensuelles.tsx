@@ -13,34 +13,10 @@ interface ChargeLigne {
   transaction_date: string;
   transaction_libelle: string;
   transaction_montant: number;
-  transaction_credit: number;
-  transaction_debit: number;
-  statut: string;
-  facture?: {
-    numero_facture: string;
-    total_ht: number;
-    total_ttc: number;
-    total_tva: number;
-    type_facture: string;
-    activite?: string;
-    type_frais?: string;
-    type_fournisseur?: string;
-    emetteur_nom?: string;
-  };
-  factures?: {
-    numero_facture: string;
-    total_ht: number;
-    total_ttc: number;
-    total_tva: number;
-    type_facture: string;
-    activite?: string;
-    type_frais?: string;
-    type_fournisseur?: string;
-    emetteur_nom?: string;
-  }[];
-  total_ht?: number;
-  total_ttc?: number;
-  total_tva?: number;
+  total_ht: number;
+  total_ttc: number;
+  total_tva: number;
+  numero_facture: string | null;
   type: string;
   activite: string;
 }
@@ -55,7 +31,6 @@ export default function ChargesMensuelles() {
 
   // Statistiques
   const stats = {
-    total: lignes.reduce((sum, l) => sum + Math.abs(l.transaction_montant), 0),
     count: lignes.length,
     totalHt: lignes.reduce((sum, l) => sum + (l.total_ht ?? 0), 0),
     totalTtc: lignes.reduce((sum, l) => sum + (l.total_ttc ?? 0), 0),
@@ -91,11 +66,11 @@ export default function ChargesMensuelles() {
       enableSorting: true,
     },
     {
-      id: "total_ht",
+      accessorKey: "total_ht",
       header: "HT",
       cell: ({ row }) => {
         const ht = row.original.total_ht;
-        return ht !== undefined
+        return ht !== undefined && ht !== null
           ? new Intl.NumberFormat("fr-FR", {
               style: "currency",
               currency: "EUR",
@@ -105,11 +80,11 @@ export default function ChargesMensuelles() {
       enableSorting: true,
     },
     {
-      id: "total_ttc",
+      accessorKey: "total_ttc",
       header: "TTC",
       cell: ({ row }) => {
         const ttc = row.original.total_ttc;
-        return ttc !== undefined
+        return ttc !== undefined && ttc !== null
           ? new Intl.NumberFormat("fr-FR", {
               style: "currency",
               currency: "EUR",
@@ -119,11 +94,11 @@ export default function ChargesMensuelles() {
       enableSorting: true,
     },
     {
-      id: "total_tva",
+      accessorKey: "total_tva",
       header: "TVA",
       cell: ({ row }) => {
         const tva = row.original.total_tva;
-        return tva !== undefined
+        return tva !== undefined && tva !== null
           ? new Intl.NumberFormat("fr-FR", {
               style: "currency",
               currency: "EUR",
@@ -133,18 +108,10 @@ export default function ChargesMensuelles() {
       enableSorting: true,
     },
     {
-      id: "facture",
+      accessorKey: "numero_facture",
       header: "Facture",
-      cell: ({ row }) => {
-        if (row.original.factures && row.original.factures.length > 0) {
-          return row.original.factures.map(f => f.numero_facture).join(", ");
-        }
-        if (row.original.facture?.numero_facture) {
-          return row.original.facture.numero_facture;
-        }
-        return "facDefaut";
-      },
-      enableSorting: false,
+      cell: ({ row }) => row.original.numero_facture || "facDefaut",
+      enableSorting: true,
     },
     {
       accessorKey: "type",
@@ -170,19 +137,19 @@ export default function ChargesMensuelles() {
 
   const loadAvailablePeriods = async () => {
     try {
-      const { data: fichiers, error } = await supabase
-        .from("fichiers_rapprochement")
-        .select("date_debut, date_fin")
-        .eq("statut", "VALIDE")
-        .order("date_debut", { ascending: false });
+      // Charger les périodes disponibles depuis charges_mensuelles
+      const { data: charges, error } = await supabase
+        .from("charges_mensuelles")
+        .select("periode_mois, periode_annee")
+        .order("periode_annee", { ascending: false })
+        .order("periode_mois", { ascending: false });
 
       if (error) throw error;
 
       const periods = new Map<string, { month: string; year: string }>();
-      fichiers?.forEach(fichier => {
-        const date = new Date(fichier.date_debut);
-        const month = (date.getMonth() + 1).toString();
-        const year = date.getFullYear().toString();
+      charges?.forEach(charge => {
+        const month = charge.periode_mois.toString();
+        const year = charge.periode_annee.toString();
         const key = `${year}-${month}`;
         if (!periods.has(key)) {
           periods.set(key, { month, year });
@@ -213,194 +180,31 @@ export default function ChargesMensuelles() {
     try {
       const year = parseInt(selectedYear);
       const month = parseInt(selectedMonth);
-      const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
-      const lastDay = new Date(year, month, 0).getDate();
-      const endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
 
-      // Charger le fichier de rapprochement validé pour cette période
-      // On cherche les fichiers dont la période chevauche le mois sélectionné
-      const { data: fichiers, error: fichierError } = await supabase
-        .from("fichiers_rapprochement")
+      // Charger les données depuis la table charges_mensuelles
+      const { data, error } = await supabase
+        .from("charges_mensuelles")
         .select("*")
-        .eq("statut", "VALIDE")
-        .lte("date_debut", endDate)
-        .gte("date_fin", startDate)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .eq("periode_annee", year)
+        .eq("periode_mois", month)
+        .order("transaction_date", { ascending: true });
 
-      if (fichierError) throw fichierError;
+      if (error) throw error;
 
-      if (!fichiers) {
-        setLignes([]);
-        return;
-      }
+      const formattedData: ChargeLigne[] = (data || []).map(row => ({
+        id: row.id,
+        transaction_date: row.transaction_date,
+        transaction_libelle: row.transaction_libelle,
+        transaction_montant: row.transaction_montant,
+        total_ht: row.total_ht || 0,
+        total_ttc: row.total_ttc || 0,
+        total_tva: row.total_tva || 0,
+        numero_facture: row.numero_facture,
+        type: row.type,
+        activite: row.activite,
+      }));
 
-      // Charger les rapprochements bancaires
-      const { data: allRapprochementsDetails } = await supabase
-        .from("rapprochements_bancaires")
-        .select(`
-          id,
-          numero_ligne,
-          transaction_date,
-          transaction_libelle,
-          transaction_montant,
-          transaction_credit,
-          transaction_debit,
-          facture_id,
-          abonnement_id,
-          declaration_charge_id,
-          notes
-        `)
-        .gte("transaction_date", fichiers.date_debut)
-        .lte("transaction_date", fichiers.date_fin);
-
-      const rapprochementIds = (allRapprochementsDetails || []).map(r => r.id);
-
-      // Récupérer les factures associées via la table de liaison
-      const { data: rapprochementsViaLiaison } = await supabase
-        .from("rapprochements_factures")
-        .select(`
-          id,
-          rapprochement_id,
-          factures (
-            id,
-            numero_facture,
-            type_facture,
-            total_ht,
-            total_ttc,
-            total_tva,
-            destinataire_nom,
-            emetteur_nom,
-            activite,
-            type_frais
-          )
-        `)
-        .in("rapprochement_id", rapprochementIds.length > 0 ? rapprochementIds : ["00000000-0000-0000-0000-000000000000"]);
-
-      // Récupérer les abonnements
-      const { data: abonnementsData } = await supabase
-        .from("abonnements_partenaires")
-        .select("id, type, nom");
-
-      const abonnementsMap = new Map<string, any>();
-      abonnementsData?.forEach(a => abonnementsMap.set(a.id, a));
-
-      // Récupérer les déclarations de charges
-      const { data: declarationsData } = await supabase
-        .from("declarations_charges_sociales")
-        .select("id, organisme, nom");
-
-      const declarationsMap = new Map<string, any>();
-      declarationsData?.forEach(d => declarationsMap.set(d.id, d));
-
-      // Récupérer les fournisseurs pour déterminer le type
-      const { data: fournisseursServices } = await supabase
-        .from("fournisseurs_services")
-        .select("raison_sociale");
-      
-      const { data: fournisseursGeneraux } = await supabase
-        .from("fournisseurs_generaux")
-        .select("raison_sociale");
-
-      const fournisseurTypesMap = new Map<string, string>();
-      fournisseursServices?.forEach(f => {
-        if (f.raison_sociale) {
-          fournisseurTypesMap.set(f.raison_sociale.toLowerCase().trim(), "Services");
-        }
-      });
-      fournisseursGeneraux?.forEach(f => {
-        if (f.raison_sociale) {
-          fournisseurTypesMap.set(f.raison_sociale.toLowerCase().trim(), "Généraux");
-        }
-      });
-
-      // Construire la map des factures par rapprochement_id
-      const facturesParRapprochement = new Map<string, any[]>();
-      rapprochementsViaLiaison?.forEach(rf => {
-        if (rf.factures) {
-          const existing = facturesParRapprochement.get(rf.rapprochement_id) || [];
-          const factureWithType = {
-            ...rf.factures,
-            type_fournisseur: rf.factures.emetteur_nom 
-              ? fournisseurTypesMap.get(rf.factures.emetteur_nom.toLowerCase().trim()) || "Généraux"
-              : "Généraux"
-          };
-          existing.push(factureWithType);
-          facturesParRapprochement.set(rf.rapprochement_id, existing);
-        }
-      });
-
-      // Parser les données du fichier
-      const fichierData = fichiers.fichier_data as { lignes: any[] };
-      const lignesFromFichier = fichierData?.lignes || [];
-
-      // Créer la map des rapprochements pour accès rapide
-      const rapprochementDetailsMap = new Map<string, any>();
-      allRapprochementsDetails?.forEach(r => {
-        rapprochementDetailsMap.set(r.numero_ligne, r);
-      });
-
-      // Construire les lignes finales et filtrer
-      const allLignes: ChargeLigne[] = lignesFromFichier.map((ligne: any) => {
-        const rapprochement = rapprochementDetailsMap.get(ligne.numero_ligne);
-        const factures = rapprochement ? facturesParRapprochement.get(rapprochement.id) : undefined;
-
-        let statut = "NON_RAPPROCHE";
-        if (rapprochement && factures?.length > 0) {
-          statut = "RAPPROCHE";
-        }
-
-        // Calculer les totaux si plusieurs factures
-        let totalHt: number | undefined;
-        let totalTtc: number | undefined;
-        let totalTva: number | undefined;
-        if (factures && factures.length > 0) {
-          totalHt = factures.reduce((sum: number, f: any) => sum + (f.total_ht || 0), 0);
-          totalTtc = factures.reduce((sum: number, f: any) => sum + (f.total_ttc || 0), 0);
-          totalTva = factures.reduce((sum: number, f: any) => sum + (f.total_tva || 0), 0);
-        }
-
-        // Déterminer le type
-        let type = "Achat";
-        if (factures && factures.length > 0) {
-          type = factures[0].type_facture === "VENTES" ? "Vente" : "Achat";
-        }
-
-        // Déterminer l'activité
-        let activite = "Généraux";
-        if (factures && factures.length > 0) {
-          const firstFacture = factures[0];
-          if (firstFacture.type_facture === "VENTES") {
-            activite = firstFacture.activite || "—";
-          } else {
-            activite = firstFacture.type_fournisseur || "Généraux";
-          }
-        }
-
-        return {
-          id: ligne.numero_ligne,
-          transaction_date: ligne.date,
-          transaction_libelle: ligne.libelle,
-          transaction_montant: ligne.montant,
-          transaction_credit: ligne.credit || 0,
-          transaction_debit: ligne.debit || 0,
-          statut,
-          factures: factures,
-          total_ht: totalHt,
-          total_ttc: totalTtc,
-          total_tva: totalTva,
-          type,
-          activite,
-        };
-      });
-
-      // Filtrer uniquement les lignes type=Achat et activité=Généraux
-      const filteredLignes = allLignes.filter(ligne => 
-        ligne.type === "Achat" && ligne.activite === "Généraux"
-      );
-
-      setLignes(filteredLignes);
+      setLignes(formattedData);
     } catch (error: any) {
       toast({
         title: "Erreur",
@@ -426,7 +230,7 @@ export default function ChargesMensuelles() {
         <div>
           <h1 className="text-3xl font-bold">Charges Mensuelles</h1>
           <p className="text-muted-foreground mt-1">
-            Détail des transactions issues des rapprochements bancaires
+            Charges mensuelles - Type Achat, Activité Généraux
           </p>
         </div>
         <div className="flex gap-4">
@@ -478,7 +282,7 @@ export default function ChargesMensuelles() {
       <DataTable
         columns={columns}
         data={lignes}
-        searchPlaceholder="Rechercher une transaction..."
+        searchPlaceholder="Rechercher une charge..."
       />
     </div>
   );
