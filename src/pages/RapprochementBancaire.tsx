@@ -1155,6 +1155,12 @@ export default function RapprochementBancaire() {
 
       // Pour chaque facture, calculer le score
       for (const facture of factures) {
+        // ⭐ EXCLURE les factures déjà rapprochées
+        if (facture.numero_rapprochement) {
+          console.log(`🚫 Facture ${facture.numero_facture} déjà rapprochée (RAP: ${facture.numero_rapprochement}), ignorée`);
+          continue;
+        }
+
         const montantFacture = Math.abs(facture.total_ttc);
         const diffMontant = Math.abs(montantTransaction - montantFacture);
         
