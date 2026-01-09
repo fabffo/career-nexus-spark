@@ -106,6 +106,36 @@ export default function PaiementsAbonnements() {
       },
     },
     {
+      id: "montant_ht",
+      header: "Montant HT",
+      cell: ({ row }) => {
+        const tvaStr = row.original.abonnement?.tva;
+        const montantTTC = Number(row.original.montant);
+        
+        if (!tvaStr) return <span className="text-muted-foreground">{montantTTC.toFixed(2)} €</span>;
+        
+        const tvaMapping: Record<string, number> = {
+          'normal': 20, 'normale': 20,
+          'reduit': 5.5, 'réduit': 5.5, 'reduite': 5.5, 'réduite': 5.5,
+          'intermediaire': 10, 'intermédiaire': 10,
+          'super_reduit': 2.1, 'super_réduit': 2.1,
+          'exonere': 0, 'exonéré': 0, 'exoneree': 0, 'exonérée': 0,
+        };
+        
+        let tauxTva = 0;
+        const tvaLower = tvaStr.toLowerCase().trim();
+        if (tvaMapping[tvaLower] !== undefined) {
+          tauxTva = tvaMapping[tvaLower];
+        } else {
+          const tvaMatch = tvaStr.match(/(\d+(?:[.,]\d+)?)/);
+          tauxTva = tvaMatch ? parseFloat(tvaMatch[1].replace(',', '.')) : 0;
+        }
+        
+        const montantHT = montantTTC / (1 + tauxTva / 100);
+        return <span>{montantHT.toFixed(2)} €</span>;
+      },
+    },
+    {
       accessorKey: "montant",
       header: "Montant TTC",
       cell: ({ row }) => (
