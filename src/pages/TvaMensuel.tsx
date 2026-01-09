@@ -190,6 +190,10 @@ export default function TvaMensuel() {
           return row.original.facture.type_facture === "VENTES" ? "Vente" 
             : row.original.facture.type_facture === "ACHATS" ? "Achat" : "—";
         }
+        // Par défaut pour les lignes non rapprochées: Achat
+        if (row.original.statut !== "RAPPROCHE") {
+          return "Achat";
+        }
         return "—";
       },
       sortingFn: (rowA, rowB) => {
@@ -199,7 +203,9 @@ export default function TvaMensuel() {
           if (row.original.factures && row.original.factures.length > 0) {
             return row.original.factures[0].type_facture;
           }
-          return row.original.facture?.type_facture || "";
+          if (row.original.facture?.type_facture) return row.original.facture.type_facture;
+          if (row.original.statut !== "RAPPROCHE") return "ACHATS";
+          return "";
         };
         return getType(rowA).localeCompare(getType(rowB));
       },
@@ -209,10 +215,6 @@ export default function TvaMensuel() {
       id: "activite",
       header: "Activité",
       cell: ({ row }) => {
-        // Si la ligne n'est pas rapprochée, pas d'activité
-        if (row.original.statut !== "RAPPROCHE") {
-          return "—";
-        }
         // Si c'est un abonnement, on affiche le type d'abonnement
         if (row.original.abonnementId) {
           return row.original.abonnement_type || "—";
@@ -241,11 +243,14 @@ export default function TvaMensuel() {
             return row.original.facture.type_fournisseur || "—";
           }
         }
+        // Par défaut pour les lignes non rapprochées: Généraux
+        if (row.original.statut !== "RAPPROCHE") {
+          return "Généraux";
+        }
         return "—";
       },
       sortingFn: (rowA, rowB) => {
         const getActivite = (row: any) => {
-          if (row.original.statut !== "RAPPROCHE") return "";
           if (row.original.abonnementId) return row.original.abonnement_type || "";
           if (row.original.declarationId) return row.original.declaration_organisme || "";
           if (row.original.factures && row.original.factures.length > 0) {
@@ -256,6 +261,7 @@ export default function TvaMensuel() {
             const f = row.original.facture;
             return f.type_facture === "VENTES" ? (f.activite || "") : (f.type_fournisseur || "");
           }
+          if (row.original.statut !== "RAPPROCHE") return "Généraux";
           return "";
         };
         return getActivite(rowA).localeCompare(getActivite(rowB));
