@@ -103,6 +103,7 @@ export function Sidebar() {
         { path: '/paiements-abonnements', label: 'Paiements Abonnements', icon: FileText },
         { path: '/charges-salaries', label: 'Charges Salariales', icon: FileText },
         { path: '/declarations-charges-sociales', label: 'Déclarations Charges Sociales', icon: FileText },
+        { path: '/charges-mensuelles', label: 'Charges Mensuelles', icon: FileText },
         { path: '/tva-mensuel', label: 'TVA Mensuel', icon: FileText },
         { path: '/fiscalite', label: 'Gestion Fiscale SASU', icon: FileText },
         { path: '/bulletins-salaire', label: 'Bulletins de Salaire', icon: FileText },
