@@ -26,7 +26,7 @@ type Paiement = {
   date_paiement: string;
   montant: number;
   notes: string;
-  abonnement?: { id: string; nom: string; nature: string; type: string };
+  abonnement?: { id: string; nom: string; nature: string; type: string; tva: string | null };
   rapprochement?: { id: string; transaction_libelle: string };
 };
 
@@ -48,7 +48,7 @@ export default function PaiementsAbonnements() {
         .from("paiements_abonnements")
         .select(`
           *,
-          abonnement:abonnements_partenaires(id, nom, nature, type),
+          abonnement:abonnements_partenaires(id, nom, nature, type, tva),
           rapprochement:rapprochements_bancaires(id, transaction_libelle)
         `)
         .gte("date_paiement", format(debut, "yyyy-MM-dd"))
@@ -107,10 +107,33 @@ export default function PaiementsAbonnements() {
     },
     {
       accessorKey: "montant",
-      header: "Montant",
+      header: "Montant TTC",
       cell: ({ row }) => (
         <span className="font-semibold">{Number(row.original.montant).toFixed(2)} €</span>
       ),
+    },
+    {
+      id: "tva",
+      header: "TVA",
+      cell: ({ row }) => {
+        const tvaStr = row.original.abonnement?.tva;
+        if (!tvaStr) return <span className="text-muted-foreground">-</span>;
+        
+        // Extraire le taux de TVA (format: "20", "10", "0" ou libellé comme "TVA 20%")
+        const tvaMatch = tvaStr.match(/(\d+(?:[.,]\d+)?)/);
+        const tauxTva = tvaMatch ? parseFloat(tvaMatch[1].replace(',', '.')) : 0;
+        
+        if (tauxTva === 0) return <span className="text-muted-foreground">0,00 €</span>;
+        
+        const montantTTC = Number(row.original.montant);
+        const montantTVA = montantTTC - (montantTTC / (1 + tauxTva / 100));
+        
+        return (
+          <span className="text-sm">
+            {montantTVA.toFixed(2)} € <span className="text-muted-foreground">({tauxTva}%)</span>
+          </span>
+        );
+      },
     },
     {
       id: "rapprochement",
