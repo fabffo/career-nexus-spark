@@ -44,6 +44,7 @@ interface RapprochementLigne {
   declarationId?: string;
   notes?: string;
   abonnement_type?: string;
+  abonnement_nom?: string;
   declaration_organisme?: string;
 }
 
@@ -153,9 +154,9 @@ export default function TvaMensuel() {
       id: "facture",
       header: "Facture",
       cell: ({ row }) => {
-        // Si c'est un abonnement
+        // Si c'est un abonnement, afficher le nom
         if (row.original.abonnementId) {
-          return "Abonnement";
+          return row.original.abonnement_nom || "Abonnement";
         }
         // Si c'est une déclaration de charges
         if (row.original.declarationId) {
@@ -666,6 +667,7 @@ export default function TvaMensuel() {
           declarationId: rapp.declaration_info?.id,
           notes: rapp.notes,
           abonnement_type: abonnementInfo?.type,
+          abonnement_nom: abonnementInfo?.nom,
           declaration_organisme: declarationInfo?.organisme,
         };
 
