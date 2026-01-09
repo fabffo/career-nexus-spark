@@ -357,6 +357,91 @@ export type Database = {
         }
         Relationships: []
       }
+      charges_mensuelles: {
+        Row: {
+          activite: string
+          created_at: string
+          created_by: string | null
+          facture_id: string | null
+          fichier_rapprochement_id: string | null
+          id: string
+          numero_facture: string | null
+          periode_annee: number
+          periode_mois: number
+          rapprochement_id: string | null
+          total_ht: number | null
+          total_ttc: number | null
+          total_tva: number | null
+          transaction_date: string
+          transaction_libelle: string
+          transaction_montant: number
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          activite?: string
+          created_at?: string
+          created_by?: string | null
+          facture_id?: string | null
+          fichier_rapprochement_id?: string | null
+          id?: string
+          numero_facture?: string | null
+          periode_annee: number
+          periode_mois: number
+          rapprochement_id?: string | null
+          total_ht?: number | null
+          total_ttc?: number | null
+          total_tva?: number | null
+          transaction_date: string
+          transaction_libelle: string
+          transaction_montant?: number
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          activite?: string
+          created_at?: string
+          created_by?: string | null
+          facture_id?: string | null
+          fichier_rapprochement_id?: string | null
+          id?: string
+          numero_facture?: string | null
+          periode_annee?: number
+          periode_mois?: number
+          rapprochement_id?: string | null
+          total_ht?: number | null
+          total_ttc?: number | null
+          total_tva?: number | null
+          transaction_date?: string
+          transaction_libelle?: string
+          transaction_montant?: number
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "charges_mensuelles_facture_id_fkey"
+            columns: ["facture_id"]
+            isOneToOne: false
+            referencedRelation: "factures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "charges_mensuelles_fichier_rapprochement_id_fkey"
+            columns: ["fichier_rapprochement_id"]
+            isOneToOne: false
+            referencedRelation: "fichiers_rapprochement"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "charges_mensuelles_rapprochement_id_fkey"
+            columns: ["rapprochement_id"]
+            isOneToOne: false
+            referencedRelation: "rapprochements_bancaires"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       charges_salaries: {
         Row: {
           created_at: string | null
