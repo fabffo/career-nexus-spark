@@ -22,12 +22,27 @@ interface ChargeLigne {
 }
 
 export default function ChargesMensuelles() {
-  const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedMonth, setSelectedMonth] = useState<string>("all"); // "all" pour tous les mois
   const [selectedYear, setSelectedYear] = useState<string>("");
-  const [availablePeriods, setAvailablePeriods] = useState<{ month: string; year: string }[]>([]);
+  const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [lignes, setLignes] = useState<ChargeLigne[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  const months = [
+    { value: "1", label: "Janvier" },
+    { value: "2", label: "Février" },
+    { value: "3", label: "Mars" },
+    { value: "4", label: "Avril" },
+    { value: "5", label: "Mai" },
+    { value: "6", label: "Juin" },
+    { value: "7", label: "Juillet" },
+    { value: "8", label: "Août" },
+    { value: "9", label: "Septembre" },
+    { value: "10", label: "Octobre" },
+    { value: "11", label: "Novembre" },
+    { value: "12", label: "Décembre" },
+  ];
 
   // Statistiques
   const stats = {
@@ -126,50 +141,39 @@ export default function ChargesMensuelles() {
   ];
 
   useEffect(() => {
-    loadAvailablePeriods();
+    loadAvailableYears();
   }, []);
 
   useEffect(() => {
-    if (selectedMonth && selectedYear) {
+    if (selectedYear) {
       loadData();
     }
   }, [selectedMonth, selectedYear]);
 
-  const loadAvailablePeriods = async () => {
+  const loadAvailableYears = async () => {
     try {
-      // Charger les périodes disponibles depuis charges_mensuelles
       const { data: charges, error } = await supabase
         .from("charges_mensuelles")
-        .select("periode_mois, periode_annee")
-        .order("periode_annee", { ascending: false })
-        .order("periode_mois", { ascending: false });
+        .select("periode_annee")
+        .order("periode_annee", { ascending: false });
 
       if (error) throw error;
 
-      const periods = new Map<string, { month: string; year: string }>();
+      const yearsSet = new Set<string>();
       charges?.forEach(charge => {
-        const month = charge.periode_mois.toString();
-        const year = charge.periode_annee.toString();
-        const key = `${year}-${month}`;
-        if (!periods.has(key)) {
-          periods.set(key, { month, year });
-        }
+        yearsSet.add(charge.periode_annee.toString());
       });
 
-      const periodsArray = Array.from(periods.values()).sort((a, b) => {
-        if (a.year !== b.year) return parseInt(b.year) - parseInt(a.year);
-        return parseInt(b.month) - parseInt(a.month);
-      });
-
-      setAvailablePeriods(periodsArray);
-      if (periodsArray.length > 0 && !selectedMonth && !selectedYear) {
-        setSelectedMonth(periodsArray[0].month);
-        setSelectedYear(periodsArray[0].year);
+      const yearsArray = Array.from(yearsSet).sort((a, b) => parseInt(b) - parseInt(a));
+      setAvailableYears(yearsArray);
+      
+      if (yearsArray.length > 0 && !selectedYear) {
+        setSelectedYear(yearsArray[0]);
       }
     } catch (error: any) {
       toast({
         title: "Erreur",
-        description: "Impossible de charger les périodes disponibles",
+        description: "Impossible de charger les années disponibles",
         variant: "destructive",
       });
     }
@@ -179,15 +183,18 @@ export default function ChargesMensuelles() {
     setIsLoading(true);
     try {
       const year = parseInt(selectedYear);
-      const month = parseInt(selectedMonth);
 
-      // Charger les données depuis la table charges_mensuelles
-      const { data, error } = await supabase
+      let query = supabase
         .from("charges_mensuelles")
         .select("*")
-        .eq("periode_annee", year)
-        .eq("periode_mois", month)
-        .order("transaction_date", { ascending: true });
+        .eq("periode_annee", year);
+
+      // Si un mois spécifique est sélectionné (pas "all")
+      if (selectedMonth !== "all") {
+        query = query.eq("periode_mois", parseInt(selectedMonth));
+      }
+
+      const { data, error } = await query.order("transaction_date", { ascending: true });
 
       if (error) throw error;
 
@@ -216,12 +223,12 @@ export default function ChargesMensuelles() {
     }
   };
 
-  const getMonthLabel = (month: string) => {
-    const months = [
-      "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-      "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
-    ];
-    return months[parseInt(month) - 1] || month;
+  const getPeriodLabel = () => {
+    if (selectedMonth === "all") {
+      return `Année ${selectedYear}`;
+    }
+    const monthInfo = months.find(m => m.value === selectedMonth);
+    return `${monthInfo?.label || ""} ${selectedYear}`;
   };
 
   return (
@@ -231,21 +238,31 @@ export default function ChargesMensuelles() {
           <h1 className="text-3xl font-bold">Charges Mensuelles</h1>
           <p className="text-muted-foreground mt-1">
             Charges mensuelles - Type Achat, Activité Généraux
+            {selectedYear && ` • ${getPeriodLabel()}`}
           </p>
         </div>
-        <div className="flex gap-4">
-          <Select value={`${selectedYear}-${selectedMonth}`} onValueChange={(value) => {
-            const [year, month] = value.split("-");
-            setSelectedYear(year);
-            setSelectedMonth(month);
-          }}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Sélectionner une période" />
+        <div className="flex gap-2">
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Année" />
             </SelectTrigger>
             <SelectContent>
-              {availablePeriods.map(period => (
-                <SelectItem key={`${period.year}-${period.month}`} value={`${period.year}-${period.month}`}>
-                  {getMonthLabel(period.month)} {period.year}
+              {availableYears.map(year => (
+                <SelectItem key={year} value={year}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Mois" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les mois</SelectItem>
+              {months.map(month => (
+                <SelectItem key={month.value} value={month.value}>
+                  {month.label}
                 </SelectItem>
               ))}
             </SelectContent>
