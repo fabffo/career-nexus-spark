@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2, Globe, Mail, Phone, Building, Eye, Copy, Users } from 'lucide-react';
 import { ViewClientDialog } from '@/components/ViewClientDialog';
 import { ReferentsDialog } from '@/components/ReferentsDialog';
+import { RapprochementSearchSection } from '@/components/RapprochementSearchSection';
+import { MatchingHistorySection } from '@/components/MatchingHistorySection';
 import { ColumnDef } from '@tanstack/react-table';
 import {
   Dialog,
@@ -283,7 +285,7 @@ export default function Clients() {
 
       {/* Form Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {selectedClient ? 'Modifier le client' : 'Nouveau client'}
@@ -386,6 +388,22 @@ export default function Clients() {
                 placeholder="30"
               />
             </div>
+
+            {/* Rapprochement sections - only shown when editing */}
+            {selectedClient && (
+              <>
+                <RapprochementSearchSection 
+                  entityType="client"
+                  entityId={selectedClient.id}
+                  entityName={selectedClient.raisonSociale}
+                />
+                <MatchingHistorySection 
+                  entityType="client"
+                  entityId={selectedClient.id}
+                  entityName={selectedClient.raisonSociale}
+                />
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsFormOpen(false)}>
