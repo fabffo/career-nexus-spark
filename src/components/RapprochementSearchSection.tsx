@@ -42,13 +42,15 @@ export function RapprochementSearchSection({
   const [searchKeyword, setSearchKeyword] = useState(entityName || "");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    // Initialiser avec le nom de l'entité
-    if (entityName) {
+    // Initialiser avec le nom de l'entité seulement si pas encore initialisé
+    if (entityName && !isInitialized) {
       setSearchKeyword(entityName);
+      setIsInitialized(true);
     }
-  }, [entityName]);
+  }, [entityName, isInitialized]);
 
   // Rechercher dans les fichiers de rapprochement EN_COURS
   const { data: transactionsEnCours = [], isLoading, refetch } = useQuery({
