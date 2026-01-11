@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { FileUploadField } from '@/components/FileUploadField';
 import { DataTable } from '@/components/ui/data-table';
 import { ColumnDef } from '@tanstack/react-table';
+import { ViewPrestataireDialog } from '@/components/ViewPrestataireDialog';
 
 export default function Prestataires() {
   const [prestataires, setPrestataires] = useState<any[]>([]);
@@ -606,95 +607,12 @@ export default function Prestataires() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de visualisation */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Détails du prestataire</DialogTitle>
-          </DialogHeader>
-
-          {selectedPrestataire && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-muted-foreground">Nom</Label>
-                  <p className="font-medium">{selectedPrestataire.nom}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Prénom</Label>
-                  <p className="font-medium">{selectedPrestataire.prenom}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-muted-foreground">Type</Label>
-                  <Badge variant={
-                    selectedPrestataire.type_prestataire === 'SOCIETE' ? 'default' : 
-                    selectedPrestataire.type_prestataire === 'SALARIE' ? 'outline' : 
-                    'secondary'
-                  }>
-                    {selectedPrestataire.type_prestataire === 'SOCIETE' ? 'Société' : 
-                     selectedPrestataire.type_prestataire === 'SALARIE' ? 'Salarié' : 
-                     'Indépendant'}
-                  </Badge>
-                </div>
-                {selectedPrestataire.type_prestataire === 'SOCIETE' && selectedPrestataire.fournisseur_services && (
-                  <div>
-                    <Label className="text-muted-foreground">Fournisseur de services</Label>
-                    <p className="font-medium">{selectedPrestataire.fournisseur_services.raison_sociale}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-muted-foreground">Email</Label>
-                  <p className="font-medium">{selectedPrestataire.email || '-'}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Téléphone</Label>
-                  <p className="font-medium">{selectedPrestataire.telephone || '-'}</p>
-                </div>
-              </div>
-
-              {selectedPrestataire.detail_cv && (
-                <div>
-                  <Label className="text-muted-foreground">Détail CV</Label>
-                  <p className="whitespace-pre-wrap">{selectedPrestataire.detail_cv}</p>
-                </div>
-              )}
-
-              <div className="flex gap-4">
-                {selectedPrestataire.cv_url && (
-                  <Button
-                    variant="outline"
-                    onClick={() => window.open(selectedPrestataire.cv_url, '_blank')}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Voir CV
-                  </Button>
-                )}
-                {selectedPrestataire.recommandation_url && (
-                  <Button
-                    variant="outline"
-                    onClick={() => window.open(selectedPrestataire.recommandation_url, '_blank')}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Voir Recommandation
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button onClick={() => setIsViewDialogOpen(false)}>
-              Fermer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Dialog de visualisation avec recherche de rapprochement */}
+      <ViewPrestataireDialog
+        prestataire={selectedPrestataire}
+        open={isViewDialogOpen}
+        onOpenChange={setIsViewDialogOpen}
+      />
     </div>
   );
 }

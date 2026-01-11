@@ -10,7 +10,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 
-type EntityType = "client" | "prestataire" | "abonnement" | "fournisseur" | "declaration" | "salarie";
+type EntityType = "client" | "prestataire" | "abonnement" | "fournisseur" | "declaration" | "salarie" | "fournisseur_services" | "fournisseur_etat";
 
 interface RapprochementSearchSectionProps {
   entityType: EntityType;
@@ -137,6 +137,12 @@ export function RapprochementSearchSection({
             break;
           case "fournisseur":
             rapp.fournisseur_info = { id: entityId, nom: entityName, type: "general" };
+            break;
+          case "fournisseur_services":
+            rapp.fournisseur_info = { id: entityId, nom: entityName, type: "services" };
+            break;
+          case "fournisseur_etat":
+            rapp.fournisseur_info = { id: entityId, nom: entityName, type: "etat" };
             break;
           case "client":
             rapp.client_info = { id: entityId, nom: entityName };

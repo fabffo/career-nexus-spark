@@ -3,7 +3,7 @@ import { fournisseurEtatOrganismeService } from '@/services/contratService';
 import { FournisseurEtatOrganisme } from '@/types/contrat';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Globe, Mail, Phone, Building, Copy } from 'lucide-react';
+import { Plus, Edit, Trash2, Globe, Mail, Phone, Building, Eye, Copy } from 'lucide-react';
 import { ColumnDef } from '@tanstack/react-table';
 import {
   Dialog,
@@ -25,11 +25,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { ViewFournisseurEtatDialog } from '@/components/ViewFournisseurEtatDialog';
 
 export default function FournisseursEtatOrganismes() {
   const [fournisseurs, setFournisseurs] = useState<FournisseurEtatOrganisme[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<FournisseurEtatOrganisme | null>(null);
   const [formData, setFormData] = useState({
     raison_sociale: '',
@@ -184,6 +186,17 @@ export default function FournisseursEtatOrganismes() {
           <Button
             variant="ghost"
             size="icon"
+            onClick={() => {
+              setSelectedFournisseur(row.original);
+              setIsViewOpen(true);
+            }}
+            title="Voir"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => handleCopy(row.original)}
             title="Copier"
           >
@@ -325,6 +338,13 @@ export default function FournisseursEtatOrganismes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* View Dialog */}
+      <ViewFournisseurEtatDialog
+        fournisseur={selectedFournisseur}
+        open={isViewOpen}
+        onOpenChange={setIsViewOpen}
+      />
     </div>
   );
 }
