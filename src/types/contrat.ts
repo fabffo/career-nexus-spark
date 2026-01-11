@@ -47,6 +47,7 @@ export interface Prestataire {
   salarie_id?: string;
   type_prestataire?: 'INDEPENDANT' | 'SOCIETE' | 'SALARIE';
   actif?: boolean;
+  mots_cles_rapprochement?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -59,6 +60,7 @@ export interface FournisseurServices {
   telephone?: string;
   email?: string;
   site_web?: string;
+  mots_cles_rapprochement?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -71,6 +73,7 @@ export interface FournisseurGeneral {
   telephone?: string;
   email?: string;
   site_web?: string;
+  mots_cles_rapprochement?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -83,6 +86,7 @@ export interface FournisseurEtatOrganisme {
   telephone?: string;
   email?: string;
   site_web?: string;
+  mots_cles_rapprochement?: string | null;
   created_at?: string;
   updated_at?: string;
 }

@@ -65,7 +65,7 @@ export default function FournisseursServices() {
         telephone: fournisseur.telephone || '',
         email: fournisseur.email || '',
         site_web: fournisseur.site_web || '',
-        mots_cles_rapprochement: (fournisseur as any).mots_cles_rapprochement || defaultKeywords,
+        mots_cles_rapprochement: fournisseur.mots_cles_rapprochement || defaultKeywords,
       });
     } else {
       setSelectedFournisseur(null);

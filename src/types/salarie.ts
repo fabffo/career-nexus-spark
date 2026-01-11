@@ -13,6 +13,7 @@ export interface Salarie {
   detail_cv?: string;
   cv_url?: string;
   recommandation_url?: string;
+  mots_cles_rapprochement?: string | null;
   user_id?: string;
   invitation_token?: string;
   invitation_sent_at?: string;
