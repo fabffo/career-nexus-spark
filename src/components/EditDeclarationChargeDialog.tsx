@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { RapprochementSearchSection } from "@/components/RapprochementSearchSection";
+import { MatchingHistorySection } from "@/components/MatchingHistorySection";
 
 interface EditDeclarationChargeDialogProps {
   open: boolean;
@@ -28,7 +30,8 @@ export default function EditDeclarationChargeDialog({
     periodicite: "MENSUEL",
     montant_estime: "",
     jour_echeance: "",
-    notes: ""
+    notes: "",
+    mots_cles_rapprochement: ""
   });
 
   useEffect(() => {
@@ -40,7 +43,8 @@ export default function EditDeclarationChargeDialog({
         periodicite: declaration.periodicite || "MENSUEL",
         montant_estime: declaration.montant_estime?.toString() || "",
         jour_echeance: declaration.jour_echeance?.toString() || "",
-        notes: declaration.notes || ""
+        notes: declaration.notes || "",
+        mots_cles_rapprochement: declaration.mots_cles_rapprochement || ""
       });
     }
   }, [declaration]);
@@ -76,7 +80,7 @@ export default function EditDeclarationChargeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Modifier la déclaration</DialogTitle>
         </DialogHeader>
@@ -175,6 +179,36 @@ export default function EditDeclarationChargeDialog({
               rows={3}
             />
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="mots_cles_rapprochement">Mots-clés de rapprochement bancaire</Label>
+            <Input
+              id="mots_cles_rapprochement"
+              value={formData.mots_cles_rapprochement}
+              onChange={(e) => setFormData({ ...formData, mots_cles_rapprochement: e.target.value })}
+              placeholder="Ex: URSSAF ou URSSAF, CPAM"
+            />
+            <p className="text-xs text-muted-foreground">
+              <strong>Syntaxe :</strong> Espace = ET (tous les mots), Virgule = OU (l'un ou l'autre)
+            </p>
+          </div>
+
+          {/* Rapprochement sections */}
+          {declaration && (
+            <>
+              <RapprochementSearchSection 
+                entityType="declaration"
+                entityId={declaration.id}
+                entityName={declaration.nom}
+                savedKeywords={formData.mots_cles_rapprochement}
+              />
+              <MatchingHistorySection 
+                entityType="declaration"
+                entityId={declaration.id}
+                entityName={declaration.nom}
+              />
+            </>
+          )}
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
