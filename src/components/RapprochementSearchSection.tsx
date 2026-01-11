@@ -16,6 +16,7 @@ interface RapprochementSearchSectionProps {
   entityType: EntityType;
   entityId: string;
   entityName: string;
+  savedKeywords?: string;
   onMatch?: (rapprochementId: string) => void;
 }
 
@@ -37,25 +38,24 @@ export function RapprochementSearchSection({
   entityType, 
   entityId, 
   entityName,
+  savedKeywords,
   onMatch 
 }: RapprochementSearchSectionProps) {
-  const [searchKeyword, setSearchKeyword] = useState("");
+  // Utiliser les mots-clés enregistrés s'ils existent, sinon le nom de l'entité
+  const initialKeywords = savedKeywords || entityName || "";
+  const [searchKeyword, setSearchKeyword] = useState(initialKeywords);
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [hasInitialized, setHasInitialized] = useState(false);
 
-  // Initialiser seulement au premier montage du composant
+  // Mettre à jour si les savedKeywords changent
   useEffect(() => {
-    if (entityName && !hasInitialized) {
-      console.log("RapprochementSearchSection: Initializing with entityName:", entityName);
-      setSearchKeyword(entityName);
-      setHasInitialized(true);
+    if (savedKeywords !== undefined) {
+      setSearchKeyword(savedKeywords);
     }
-  }, [entityName, hasInitialized]);
+  }, [savedKeywords]);
 
   const handleKeywordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
-    console.log("RapprochementSearchSection: Keyword changed to:", newValue);
     setSearchKeyword(newValue);
   };
 
@@ -118,7 +118,6 @@ export function RapprochementSearchSection({
   });
 
   const handleSearch = () => {
-    console.log("RapprochementSearchSection: handleSearch called with keyword:", searchKeyword);
     setSearchTerm(searchKeyword);
     setIsSearching(true);
     refetch();
@@ -126,7 +125,6 @@ export function RapprochementSearchSection({
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
-      console.log("RapprochementSearchSection: Enter pressed");
       handleSearch();
     }
   };
