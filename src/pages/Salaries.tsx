@@ -84,7 +84,7 @@ export default function Salaries() {
       const defaultKeywords = `${salarie.prenom} ${salarie.nom}`.trim();
       setFormData({
         ...salarie,
-        mots_cles_rapprochement: (salarie as any).mots_cles_rapprochement || defaultKeywords,
+        mots_cles_rapprochement: salarie.mots_cles_rapprochement || defaultKeywords,
       });
     } else {
       setSelectedSalarie(null);
