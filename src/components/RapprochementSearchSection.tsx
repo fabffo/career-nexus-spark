@@ -66,7 +66,20 @@ export function RapprochementSearchSection({
       if (!fichiers || fichiers.length === 0) return [];
 
       const results: TransactionEnCours[] = [];
-      const searchLower = searchTerm.toLowerCase();
+      
+      // Parser la syntaxe de recherche
+      // Virgule = OU, Espace = ET
+      const orGroups = searchTerm.split(",").map(g => g.trim().toLowerCase()).filter(g => g.length > 0);
+      
+      const matchesSearch = (libelle: string): boolean => {
+        const libelleLower = libelle.toLowerCase();
+        
+        // Pour chaque groupe OR, vérifier si TOUS les mots (AND) sont présents
+        return orGroups.some(group => {
+          const andWords = group.split(/\s+/).filter(w => w.length > 0);
+          return andWords.every(word => libelleLower.includes(word));
+        });
+      };
 
       fichiers.forEach((fichier) => {
         const fichierData = fichier.fichier_data as any;
@@ -75,8 +88,8 @@ export function RapprochementSearchSection({
         fichierData.rapprochements.forEach((rapp: any, index: number) => {
           if (!rapp.transaction) return;
           
-          const libelle = rapp.transaction.libelle?.toLowerCase() || "";
-          if (libelle.includes(searchLower)) {
+          const libelle = rapp.transaction.libelle || "";
+          if (matchesSearch(libelle)) {
             // Ne montrer que les transactions non rapprochées
             if (rapp.status === "unmatched" || rapp.status === "uncertain") {
               results.push({
@@ -232,7 +245,8 @@ export function RapprochementSearchSection({
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Recherche dans les lignes de rapprochement en cours non encore rapprochées.
+          <strong>Syntaxe :</strong> Espace = ET (tous les mots), Virgule = OU (l'un ou l'autre). 
+          Ex: <code className="bg-muted px-1 rounded">ORANGE ABONNEMENT</code> ou <code className="bg-muted px-1 rounded">ORANGE, SFR</code>
         </p>
 
         {/* Résultats */}
