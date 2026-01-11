@@ -1819,43 +1819,51 @@ export default function RapprochementBancaire() {
     setLoading(true);
 
     try {
-      // Charger tous les abonnements partenaires actifs ET les fournisseurs généraux
-      const [abonnementsResult, fournisseursResult] = await Promise.all([
+      // Charger tous les abonnements partenaires actifs, fournisseurs généraux ET déclarations charges sociales
+      const [abonnementsResult, fournisseursResult, declarationsResult] = await Promise.all([
         supabase
           .from("abonnements_partenaires")
           .select("id, nom, montant_mensuel, nature, type")
           .eq("actif", true),
         supabase
           .from("fournisseurs_generaux")
-          .select("id, raison_sociale")
+          .select("id, raison_sociale"),
+        supabase
+          .from("declarations_charges_sociales")
+          .select("id, nom, organisme, type_charge")
+          .eq("actif", true)
       ]);
 
       if (abonnementsResult.error) throw abonnementsResult.error;
       if (fournisseursResult.error) throw fournisseursResult.error;
+      if (declarationsResult.error) throw declarationsResult.error;
 
       const abonnements = abonnementsResult.data || [];
       const fournisseurs = fournisseursResult.data || [];
+      const declarations = declarationsResult.data || [];
 
-      if (abonnements.length === 0 && fournisseurs.length === 0) {
+      if (abonnements.length === 0 && fournisseurs.length === 0 && declarations.length === 0) {
         toast({
           title: "Aucune référence",
-          description: "Aucun abonnement partenaire ou fournisseur général trouvé",
+          description: "Aucun abonnement, fournisseur ou déclaration trouvé",
           variant: "destructive",
         });
         setLoading(false);
         return;
       }
 
-      console.log("🔍 Matching avec", abonnements.length, "abonnements et", fournisseurs.length, "fournisseurs généraux");
+      console.log("🔍 Matching avec", abonnements.length, "abonnements,", fournisseurs.length, "fournisseurs généraux et", declarations.length, "déclarations");
       console.log("📋 Fournisseurs:", fournisseurs.map(f => f.raison_sociale));
+      console.log("📋 Déclarations:", declarations.map(d => `${d.nom} (${d.organisme})`));
 
       let matchAbonnementCount = 0;
       let matchFournisseurCount = 0;
+      let matchDeclarationCount = 0;
 
-      // Boucler sur les rapprochements pour matcher avec les partenaires et fournisseurs
+      // Boucler sur les rapprochements pour matcher avec les partenaires, fournisseurs et déclarations
       const updatedRapprochements = rapprochements.map(rapprochement => {
-        // Ignorer uniquement si déjà associé à un abonnement ou fournisseur
-        if (rapprochement.abonnement_info || rapprochement.fournisseur_info) {
+        // Ignorer uniquement si déjà associé à un abonnement, fournisseur ou déclaration
+        if (rapprochement.abonnement_info || rapprochement.fournisseur_info || rapprochement.declaration_info) {
           console.log(`⏭️ Ignoré (déjà associé): "${rapprochement.transaction.libelle}"`);
           return rapprochement;
         }
@@ -1902,15 +1910,36 @@ export default function RapprochementBancaire() {
           }
         }
 
+        // Enfin chercher un match dans les déclarations charges sociales (par nom ou organisme)
+        for (const declaration of declarations) {
+          const nomDeclaration = declaration.nom.toUpperCase();
+          const organismeDeclaration = declaration.organisme.toUpperCase();
+          
+          if (libelle.includes(nomDeclaration) || libelle.includes(organismeDeclaration)) {
+            matchDeclarationCount++;
+            console.log(`✅ Match déclaration: "${rapprochement.transaction.libelle}" -> "${declaration.nom} (${declaration.organisme})"`);
+            
+            return {
+              ...rapprochement,
+              declaration_info: {
+                id: declaration.id,
+                nom: declaration.nom,
+                organisme: declaration.organisme
+              },
+              status: "matched" as const
+            };
+          }
+        }
+
         return rapprochement;
       });
 
       setRapprochements(updatedRapprochements);
 
-      const totalMatches = matchAbonnementCount + matchFournisseurCount;
+      const totalMatches = matchAbonnementCount + matchFournisseurCount + matchDeclarationCount;
       toast({
         title: "Matching terminé",
-        description: `${totalMatches} ligne(s) rapprochée(s): ${matchAbonnementCount} partenaire(s), ${matchFournisseurCount} fournisseur(s)`,
+        description: `${totalMatches} ligne(s) rapprochée(s): ${matchAbonnementCount} partenaire(s), ${matchFournisseurCount} fournisseur(s), ${matchDeclarationCount} déclaration(s)`,
       });
 
     } catch (error) {
