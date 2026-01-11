@@ -1847,18 +1847,20 @@ export default function RapprochementBancaire() {
       }
 
       console.log("🔍 Matching avec", abonnements.length, "abonnements et", fournisseurs.length, "fournisseurs généraux");
+      console.log("📋 Fournisseurs:", fournisseurs.map(f => f.raison_sociale));
 
       let matchAbonnementCount = 0;
       let matchFournisseurCount = 0;
 
       // Boucler sur les rapprochements pour matcher avec les partenaires et fournisseurs
       const updatedRapprochements = rapprochements.map(rapprochement => {
-        // Si déjà rapproché avec un partenaire ou fournisseur, ne pas modifier
-        if (rapprochement.abonnement_info || rapprochement.fournisseur_info) {
+        // Ne matcher que les lignes non rapprochées
+        if (rapprochement.status === "matched" && (rapprochement.abonnement_info || rapprochement.fournisseur_info || rapprochement.facture)) {
           return rapprochement;
         }
 
         const libelle = rapprochement.transaction.libelle.toUpperCase();
+        console.log(`🔎 Analyse libellé: "${libelle}"`);
 
         // D'abord chercher un match dans les abonnements
         for (const abonnement of abonnements) {
