@@ -63,6 +63,7 @@ interface Rapprochement {
   numero_ligne?: string; // Numéro unique de la ligne de rapprochement (format: RL-YYYYMMDD-XXXXX)
   abonnement_info?: { id: string; nom: string };
   declaration_info?: { id: string; nom: string; organisme: string };
+  fournisseur_info?: { id: string; nom: string; type: 'general' | 'services' | 'etat' };
   factureIds?: string[]; // Pour les rapprochements avec plusieurs factures
 }
 
@@ -1804,7 +1805,7 @@ export default function RapprochementBancaire() {
     }
   };
 
-  // Fonction de matching partenaires
+  // Fonction de matching partenaires et fournisseurs généraux
   const handleMatchPartenaires = async () => {
     if (rapprochements.length === 0) {
       toast({
@@ -1818,45 +1819,54 @@ export default function RapprochementBancaire() {
     setLoading(true);
 
     try {
-      // Charger tous les abonnements partenaires actifs
-      const { data: abonnements, error } = await supabase
-        .from("abonnements_partenaires")
-        .select("id, nom, montant_mensuel, nature, type")
-        .eq("actif", true);
+      // Charger tous les abonnements partenaires actifs ET les fournisseurs généraux
+      const [abonnementsResult, fournisseursResult] = await Promise.all([
+        supabase
+          .from("abonnements_partenaires")
+          .select("id, nom, montant_mensuel, nature, type")
+          .eq("actif", true),
+        supabase
+          .from("fournisseurs_generaux")
+          .select("id, raison_sociale")
+      ]);
 
-      if (error) throw error;
+      if (abonnementsResult.error) throw abonnementsResult.error;
+      if (fournisseursResult.error) throw fournisseursResult.error;
 
-      if (!abonnements || abonnements.length === 0) {
+      const abonnements = abonnementsResult.data || [];
+      const fournisseurs = fournisseursResult.data || [];
+
+      if (abonnements.length === 0 && fournisseurs.length === 0) {
         toast({
-          title: "Aucun partenaire",
-          description: "Aucun abonnement partenaire actif trouvé",
+          title: "Aucune référence",
+          description: "Aucun abonnement partenaire ou fournisseur général trouvé",
           variant: "destructive",
         });
         setLoading(false);
         return;
       }
 
-      console.log("🔍 Matching partenaires avec", abonnements.length, "abonnements");
+      console.log("🔍 Matching avec", abonnements.length, "abonnements et", fournisseurs.length, "fournisseurs généraux");
 
-      let matchCount = 0;
+      let matchAbonnementCount = 0;
+      let matchFournisseurCount = 0;
 
-      // Boucler sur les rapprochements pour matcher avec les partenaires
+      // Boucler sur les rapprochements pour matcher avec les partenaires et fournisseurs
       const updatedRapprochements = rapprochements.map(rapprochement => {
-        // Si déjà rapproché avec un partenaire, ne pas modifier
-        if (rapprochement.abonnement_info) {
+        // Si déjà rapproché avec un partenaire ou fournisseur, ne pas modifier
+        if (rapprochement.abonnement_info || rapprochement.fournisseur_info) {
           return rapprochement;
         }
 
         const libelle = rapprochement.transaction.libelle.toUpperCase();
 
-        // Chercher un match dans les abonnements
+        // D'abord chercher un match dans les abonnements
         for (const abonnement of abonnements) {
           const nomPartenaire = abonnement.nom.toUpperCase();
           
-          // Vérifier si le nom du partenaire est contenu dans le libellé
           if (libelle.includes(nomPartenaire)) {
-            matchCount++;
-            console.log(`✅ Match trouvé: "${rapprochement.transaction.libelle}" -> "${abonnement.nom}"`);
+            matchAbonnementCount++;
+            console.log(`✅ Match abonnement: "${rapprochement.transaction.libelle}" -> "${abonnement.nom}"`);
             
             return {
               ...rapprochement,
@@ -1869,21 +1879,42 @@ export default function RapprochementBancaire() {
           }
         }
 
+        // Ensuite chercher un match dans les fournisseurs généraux
+        for (const fournisseur of fournisseurs) {
+          const nomFournisseur = fournisseur.raison_sociale.toUpperCase();
+          
+          if (libelle.includes(nomFournisseur)) {
+            matchFournisseurCount++;
+            console.log(`✅ Match fournisseur: "${rapprochement.transaction.libelle}" -> "${fournisseur.raison_sociale}"`);
+            
+            return {
+              ...rapprochement,
+              fournisseur_info: {
+                id: fournisseur.id,
+                nom: fournisseur.raison_sociale,
+                type: 'general' as const
+              },
+              status: "matched" as const
+            };
+          }
+        }
+
         return rapprochement;
       });
 
       setRapprochements(updatedRapprochements);
 
+      const totalMatches = matchAbonnementCount + matchFournisseurCount;
       toast({
-        title: "Matching partenaires terminé",
-        description: `${matchCount} ligne(s) rapprochée(s) avec des partenaires`,
+        title: "Matching terminé",
+        description: `${totalMatches} ligne(s) rapprochée(s): ${matchAbonnementCount} partenaire(s), ${matchFournisseurCount} fournisseur(s)`,
       });
 
     } catch (error) {
-      console.error("Erreur lors du matching partenaires:", error);
+      console.error("Erreur lors du matching partenaires/fournisseurs:", error);
       toast({
         title: "Erreur",
-        description: "Impossible d'effectuer le matching partenaires",
+        description: "Impossible d'effectuer le matching",
         variant: "destructive",
       });
     } finally {
