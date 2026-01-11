@@ -256,6 +256,7 @@ class ClientService implements CrudOperations<Client> {
     if (item.telephone !== undefined) updateData.telephone = item.telephone;
     if (item.email !== undefined) updateData.email = item.email;
     if ((item as any).delaiPaiementJours !== undefined) updateData.delai_paiement_jours = (item as any).delaiPaiementJours;
+    if ((item as any).mots_cles_rapprochement !== undefined) updateData.mots_cles_rapprochement = (item as any).mots_cles_rapprochement;
     
     const { data, error } = await supabase
       .from('clients')
