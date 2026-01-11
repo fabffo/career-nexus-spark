@@ -112,6 +112,7 @@ export type Database = {
           id: string
           jour_prelevement: number | null
           montant_mensuel: number | null
+          mots_cles_rapprochement: string | null
           nature: string
           nom: string
           notes: string | null
@@ -127,6 +128,7 @@ export type Database = {
           id?: string
           jour_prelevement?: number | null
           montant_mensuel?: number | null
+          mots_cles_rapprochement?: string | null
           nature: string
           nom: string
           notes?: string | null
@@ -142,6 +144,7 @@ export type Database = {
           id?: string
           jour_prelevement?: number | null
           montant_mensuel?: number | null
+          mots_cles_rapprochement?: string | null
           nature?: string
           nom?: string
           notes?: string | null
@@ -202,6 +205,7 @@ export type Database = {
           created_at: string | null
           email: string | null
           id: string
+          mots_cles_rapprochement: string | null
           raison_sociale: string
           secteur_activite: string | null
           site_web: string | null
@@ -213,6 +217,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          mots_cles_rapprochement?: string | null
           raison_sociale: string
           secteur_activite?: string | null
           site_web?: string | null
@@ -224,6 +229,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          mots_cles_rapprochement?: string | null
           raison_sociale?: string
           secteur_activite?: string | null
           site_web?: string | null
@@ -540,6 +546,7 @@ export type Database = {
           delai_paiement_jours: number | null
           email: string | null
           id: string
+          mots_cles_rapprochement: string | null
           pays: string
           raison_sociale: string
           telephone: string | null
@@ -553,6 +560,7 @@ export type Database = {
           delai_paiement_jours?: number | null
           email?: string | null
           id?: string
+          mots_cles_rapprochement?: string | null
           pays?: string
           raison_sociale: string
           telephone?: string | null
@@ -566,6 +574,7 @@ export type Database = {
           delai_paiement_jours?: number | null
           email?: string | null
           id?: string
+          mots_cles_rapprochement?: string | null
           pays?: string
           raison_sociale?: string
           telephone?: string | null
@@ -844,6 +853,7 @@ export type Database = {
           id: string
           jour_echeance: number | null
           montant_estime: number | null
+          mots_cles_rapprochement: string | null
           nom: string
           notes: string | null
           organisme: string
@@ -858,6 +868,7 @@ export type Database = {
           id?: string
           jour_echeance?: number | null
           montant_estime?: number | null
+          mots_cles_rapprochement?: string | null
           nom: string
           notes?: string | null
           organisme: string
@@ -872,6 +883,7 @@ export type Database = {
           id?: string
           jour_echeance?: number | null
           montant_estime?: number | null
+          mots_cles_rapprochement?: string | null
           nom?: string
           notes?: string | null
           organisme?: string
@@ -1236,6 +1248,7 @@ export type Database = {
           created_at: string | null
           email: string | null
           id: string
+          mots_cles_rapprochement: string | null
           raison_sociale: string
           secteur_activite: string | null
           site_web: string | null
@@ -1247,6 +1260,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          mots_cles_rapprochement?: string | null
           raison_sociale: string
           secteur_activite?: string | null
           site_web?: string | null
@@ -1258,6 +1272,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          mots_cles_rapprochement?: string | null
           raison_sociale?: string
           secteur_activite?: string | null
           site_web?: string | null
@@ -1272,6 +1287,7 @@ export type Database = {
           created_at: string | null
           email: string | null
           id: string
+          mots_cles_rapprochement: string | null
           raison_sociale: string
           secteur_activite: string | null
           site_web: string | null
@@ -1283,6 +1299,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          mots_cles_rapprochement?: string | null
           raison_sociale: string
           secteur_activite?: string | null
           site_web?: string | null
@@ -1294,6 +1311,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          mots_cles_rapprochement?: string | null
           raison_sociale?: string
           secteur_activite?: string | null
           site_web?: string | null
@@ -1308,6 +1326,7 @@ export type Database = {
           created_at: string | null
           email: string | null
           id: string
+          mots_cles_rapprochement: string | null
           raison_sociale: string
           secteur_activite: string | null
           site_web: string | null
@@ -1319,6 +1338,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          mots_cles_rapprochement?: string | null
           raison_sociale: string
           secteur_activite?: string | null
           site_web?: string | null
@@ -1330,6 +1350,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          mots_cles_rapprochement?: string | null
           raison_sociale?: string
           secteur_activite?: string | null
           site_web?: string | null
@@ -1931,6 +1952,7 @@ export type Database = {
           invitation_sent_at: string | null
           invitation_token: string | null
           invitation_used_at: string | null
+          mots_cles_rapprochement: string | null
           nom: string
           prenom: string
           recommandation_url: string | null
@@ -1952,6 +1974,7 @@ export type Database = {
           invitation_sent_at?: string | null
           invitation_token?: string | null
           invitation_used_at?: string | null
+          mots_cles_rapprochement?: string | null
           nom: string
           prenom: string
           recommandation_url?: string | null
@@ -1973,6 +1996,7 @@ export type Database = {
           invitation_sent_at?: string | null
           invitation_token?: string | null
           invitation_used_at?: string | null
+          mots_cles_rapprochement?: string | null
           nom?: string
           prenom?: string
           recommandation_url?: string | null
@@ -2468,6 +2492,7 @@ export type Database = {
           invitation_token: string | null
           invitation_used_at: string | null
           metier: string | null
+          mots_cles_rapprochement: string | null
           nom: string
           prenom: string
           recommandation_url: string | null
@@ -2488,6 +2513,7 @@ export type Database = {
           invitation_token?: string | null
           invitation_used_at?: string | null
           metier?: string | null
+          mots_cles_rapprochement?: string | null
           nom: string
           prenom: string
           recommandation_url?: string | null
@@ -2508,6 +2534,7 @@ export type Database = {
           invitation_token?: string | null
           invitation_used_at?: string | null
           metier?: string | null
+          mots_cles_rapprochement?: string | null
           nom?: string
           prenom?: string
           recommandation_url?: string | null

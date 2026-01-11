@@ -49,6 +49,7 @@ export default function Clients() {
     email: '',
     siteWeb: '',
     delaiPaiementJours: 30,
+    mots_cles_rapprochement: '',
   });
 
   useEffect(() => {
@@ -74,6 +75,7 @@ export default function Clients() {
         email: client.email,
         siteWeb: client.siteWeb || '',
         delaiPaiementJours: (client as any).delai_paiement_jours || 30,
+        mots_cles_rapprochement: (client as any).mots_cles_rapprochement || '',
       });
     } else {
       setSelectedClient(null);
@@ -88,6 +90,7 @@ export default function Clients() {
         email: '',
         siteWeb: '',
         delaiPaiementJours: 30,
+        mots_cles_rapprochement: '',
       });
     }
     setIsFormOpen(true);
@@ -388,6 +391,18 @@ export default function Clients() {
                 placeholder="30"
               />
             </div>
+            <div>
+              <Label htmlFor="mots_cles_rapprochement">Mots-clés de rapprochement bancaire</Label>
+              <Input
+                id="mots_cles_rapprochement"
+                value={formData.mots_cles_rapprochement}
+                onChange={(e) => setFormData({ ...formData, mots_cles_rapprochement: e.target.value })}
+                placeholder="Ex: ORANGE ABONNEMENT ou ORANGE, SFR"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                <strong>Syntaxe :</strong> Espace = ET (tous les mots), Virgule = OU (l'un ou l'autre)
+              </p>
+            </div>
 
             {/* Rapprochement sections - only shown when editing */}
             {selectedClient && (
@@ -396,6 +411,7 @@ export default function Clients() {
                   entityType="client"
                   entityId={selectedClient.id}
                   entityName={selectedClient.raisonSociale}
+                  savedKeywords={formData.mots_cles_rapprochement}
                 />
                 <MatchingHistorySection 
                   entityType="client"
