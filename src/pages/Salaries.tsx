@@ -35,7 +35,7 @@ export default function Salaries() {
   const [adminOpen, setAdminOpen] = useState(false);
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
   const [selectedSalarie, setSelectedSalarie] = useState<Salarie | null>(null);
-  const [formData, setFormData] = useState<Partial<Salarie>>({
+  const [formData, setFormData] = useState<Partial<Salarie> & { mots_cles_rapprochement?: string }>({
     nom: '',
     prenom: '',
     email: '',
@@ -44,6 +44,7 @@ export default function Salaries() {
     fonction: '',
     role: 'RECRUTEUR' as SalarieRole,
     detail_cv: '',
+    mots_cles_rapprochement: '',
   });
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [recommandationFile, setRecommandationFile] = useState<File | null>(null);
@@ -77,10 +78,14 @@ export default function Salaries() {
     }
   };
 
-  const handleOpenForm = (salarie?: Salarie) => {
+  const handleOpenForm = (salarie?: Salarie & { mots_cles_rapprochement?: string }) => {
     if (salarie) {
       setSelectedSalarie(salarie);
-      setFormData(salarie);
+      const defaultKeywords = `${salarie.prenom} ${salarie.nom}`.trim();
+      setFormData({
+        ...salarie,
+        mots_cles_rapprochement: (salarie as any).mots_cles_rapprochement || defaultKeywords,
+      });
     } else {
       setSelectedSalarie(null);
       setFormData({
@@ -92,6 +97,7 @@ export default function Salaries() {
         fonction: '',
         role: 'RECRUTEUR' as SalarieRole,
         detail_cv: '',
+        mots_cles_rapprochement: '',
       });
     }
     setCvFile(null);
@@ -552,6 +558,19 @@ export default function Salaries() {
                 onChange={(e) => setFormData({ ...formData, detail_cv: e.target.value })}
                 rows={4}
               />
+            </div>
+
+            <div>
+              <Label htmlFor="mots_cles_rapprochement">Mots-clés de rapprochement bancaire</Label>
+              <Input
+                id="mots_cles_rapprochement"
+                value={formData.mots_cles_rapprochement || ''}
+                onChange={(e) => setFormData({ ...formData, mots_cles_rapprochement: e.target.value })}
+                placeholder={`${formData.prenom} ${formData.nom}`.trim() || 'Mots-clés pour le rapprochement'}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Espaces = ET, Virgules = OU. Par défaut: nom du salarié.
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

@@ -64,6 +64,7 @@ export default function Clients() {
   const handleOpenForm = (client?: Client) => {
     if (client) {
       setSelectedClient(client);
+      const defaultKeywords = client.raisonSociale;
       setFormData({
         raisonSociale: client.raisonSociale,
         secteurActivite: client.secteurActivite,
@@ -75,7 +76,7 @@ export default function Clients() {
         email: client.email,
         siteWeb: client.siteWeb || '',
         delaiPaiementJours: (client as any).delai_paiement_jours || 30,
-        mots_cles_rapprochement: (client as any).mots_cles_rapprochement || '',
+        mots_cles_rapprochement: (client as any).mots_cles_rapprochement || defaultKeywords,
       });
     } else {
       setSelectedClient(null);

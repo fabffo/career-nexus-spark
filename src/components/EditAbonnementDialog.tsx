@@ -78,6 +78,7 @@ export function EditAbonnementDialog({
 
   useEffect(() => {
     if (abonnement) {
+      const defaultKeywords = abonnement.nom;
       reset({
         nom: abonnement.nom,
         nature: abonnement.nature,
@@ -87,7 +88,7 @@ export function EditAbonnementDialog({
         jour_prelevement: abonnement.jour_prelevement || "",
         actif: abonnement.actif,
         notes: abonnement.notes || "",
-        mots_cles_rapprochement: abonnement.mots_cles_rapprochement || "",
+        mots_cles_rapprochement: abonnement.mots_cles_rapprochement || defaultKeywords,
       });
       
       // Charger les documents existants
