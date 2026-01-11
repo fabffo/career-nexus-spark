@@ -21,6 +21,7 @@ import {
   Handshake,
   Activity,
   Sparkles,
+  Landmark,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -51,6 +52,7 @@ export function Sidebar() {
         { path: '/clients', label: 'Clients', icon: Building2 },
         { path: '/prestataires', label: 'Prestataires', icon: UserCheck },
         { path: '/salaries', label: 'Salariés', icon: Users },
+        { path: '/banques', label: 'Banques', icon: Landmark },
         { path: '/fournisseurs-generaux', label: 'Fournisseurs Généraux', icon: Building2 },
         { path: '/fournisseurs-services', label: 'Fournisseurs Services', icon: Building2 },
         { path: '/fournisseurs-etat-organismes', label: 'Fournisseurs État & organismes sociaux', icon: Building2 },

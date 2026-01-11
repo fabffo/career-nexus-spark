@@ -7,7 +7,7 @@ import { Link2, Calendar, Euro, FileText, Building } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
-type EntityType = "abonnement" | "fournisseur" | "declaration" | "client" | "prestataire" | "salarie" | "fournisseur_services" | "fournisseur_etat";
+type EntityType = "abonnement" | "fournisseur" | "declaration" | "client" | "prestataire" | "salarie" | "fournisseur_services" | "fournisseur_etat" | "banque";
 
 interface MatchingHistorySectionProps {
   entityType: EntityType;
@@ -50,7 +50,7 @@ export function MatchingHistorySection({ entityType, entityId, entityName }: Mat
         query = query.eq("abonnement_id", entityId);
       } else if (entityType === "declaration") {
         query = query.eq("declaration_charge_id", entityId);
-      } else if (entityType === "client" || entityType === "prestataire" || entityType === "salarie" || entityType === "fournisseur" || entityType === "fournisseur_services" || entityType === "fournisseur_etat") {
+      } else if (entityType === "client" || entityType === "prestataire" || entityType === "salarie" || entityType === "fournisseur" || entityType === "fournisseur_services" || entityType === "fournisseur_etat" || entityType === "banque") {
         // Pour ces types, on cherche dans les factures
         return [];
       }
