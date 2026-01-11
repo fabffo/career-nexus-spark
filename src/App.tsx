@@ -61,6 +61,7 @@ import CRAGestion from "./pages/CRAGestion";
 import DashboardFinancier from "./pages/DashboardFinancier";
 import AnalyseFinanciere from "./pages/AnalyseFinanciere";
 import ChargesMensuelles from "./pages/ChargesMensuelles";
+import Banques from "./pages/Banques";
 
 const queryClient = new QueryClient();
 
@@ -152,6 +153,7 @@ const App = () => (
               <Route path="dashboard-financier" element={<DashboardFinancier />} />
               <Route path="analyse-financiere" element={<AnalyseFinanciere />} />
               <Route path="charges-mensuelles" element={<ChargesMensuelles />} />
+              <Route path="banques" element={<Banques />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />

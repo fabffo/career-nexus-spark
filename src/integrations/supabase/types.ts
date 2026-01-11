@@ -196,6 +196,42 @@ export type Database = {
         }
         Relationships: []
       }
+      banques: {
+        Row: {
+          adresse: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          raison_sociale: string
+          secteur_activite: string | null
+          site_web: string | null
+          telephone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          adresse?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          raison_sociale: string
+          secteur_activite?: string | null
+          site_web?: string | null
+          telephone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          adresse?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          raison_sociale?: string
+          secteur_activite?: string | null
+          site_web?: string | null
+          telephone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       bulletins_salaire: {
         Row: {
           charges_sociales_patronales: number | null

@@ -10,7 +10,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 
-type EntityType = "client" | "prestataire" | "abonnement" | "fournisseur" | "declaration" | "salarie" | "fournisseur_services" | "fournisseur_etat";
+type EntityType = "client" | "prestataire" | "abonnement" | "fournisseur" | "declaration" | "salarie" | "fournisseur_services" | "fournisseur_etat" | "banque";
 
 interface RapprochementSearchSectionProps {
   entityType: EntityType;
