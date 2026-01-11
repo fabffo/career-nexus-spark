@@ -36,6 +36,7 @@ export default function EditDeclarationChargeDialog({
 
   useEffect(() => {
     if (declaration) {
+      const defaultKeywords = declaration.nom;
       setFormData({
         nom: declaration.nom || "",
         organisme: declaration.organisme || "",
@@ -44,7 +45,7 @@ export default function EditDeclarationChargeDialog({
         montant_estime: declaration.montant_estime?.toString() || "",
         jour_echeance: declaration.jour_echeance?.toString() || "",
         notes: declaration.notes || "",
-        mots_cles_rapprochement: declaration.mots_cles_rapprochement || ""
+        mots_cles_rapprochement: declaration.mots_cles_rapprochement || defaultKeywords
       });
     }
   }, [declaration]);

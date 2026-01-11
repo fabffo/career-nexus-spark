@@ -57,6 +57,7 @@ export default function FournisseursGeneraux() {
   const handleOpenForm = (fournisseur?: FournisseurGeneral) => {
     if (fournisseur) {
       setSelectedFournisseur(fournisseur);
+      const defaultKeywords = fournisseur.raison_sociale;
       setFormData({
         raison_sociale: fournisseur.raison_sociale,
         secteur_activite: fournisseur.secteur_activite || '',
@@ -64,7 +65,7 @@ export default function FournisseursGeneraux() {
         telephone: fournisseur.telephone || '',
         email: fournisseur.email || '',
         site_web: fournisseur.site_web || '',
-        mots_cles_rapprochement: (fournisseur as any).mots_cles_rapprochement || '',
+        mots_cles_rapprochement: (fournisseur as any).mots_cles_rapprochement || defaultKeywords,
       });
     } else {
       setSelectedFournisseur(null);

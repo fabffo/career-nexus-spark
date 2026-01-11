@@ -82,6 +82,7 @@ export default function Banques() {
 
   const handleOpenForm = (banque?: Banque) => {
     if (banque) {
+      const defaultKeywords = banque.raison_sociale;
       setFormData({
         raison_sociale: banque.raison_sociale,
         secteur_activite: banque.secteur_activite || 'Banque',
@@ -89,7 +90,7 @@ export default function Banques() {
         email: banque.email || '',
         telephone: banque.telephone || '',
         site_web: banque.site_web || '',
-        mots_cles_rapprochement: banque.mots_cles_rapprochement || '',
+        mots_cles_rapprochement: banque.mots_cles_rapprochement || defaultKeywords,
       });
       setSelectedBanque(banque);
       setIsEditing(true);

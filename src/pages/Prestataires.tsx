@@ -43,7 +43,8 @@ export default function Prestataires() {
     recommandation_url: '',
     type_prestataire: 'INDEPENDANT' as 'INDEPENDANT' | 'SOCIETE' | 'SALARIE',
     fournisseur_services_id: '',
-    salarie_id: ''
+    salarie_id: '',
+    mots_cles_rapprochement: ''
   });
 
   useEffect(() => {
@@ -232,7 +233,8 @@ export default function Prestataires() {
       recommandation_url: '',
       type_prestataire: 'INDEPENDANT',
       fournisseur_services_id: '',
-      salarie_id: ''
+      salarie_id: '',
+      mots_cles_rapprochement: ''
     });
     setCvFile(null);
     setRecommandationFile(null);
@@ -259,6 +261,7 @@ export default function Prestataires() {
 
   const openEditDialog = (prestataire: any) => {
     setSelectedPrestataire(prestataire);
+    const defaultKeywords = `${prestataire.prenom} ${prestataire.nom}`.trim();
     setFormData({
       nom: prestataire.nom,
       prenom: prestataire.prenom,
@@ -269,7 +272,8 @@ export default function Prestataires() {
       recommandation_url: prestataire.recommandation_url || '',
       type_prestataire: prestataire.type_prestataire || 'INDEPENDANT',
       fournisseur_services_id: prestataire.fournisseur_services_id || '',
-      salarie_id: prestataire.salarie_id || ''
+      salarie_id: prestataire.salarie_id || '',
+      mots_cles_rapprochement: prestataire.mots_cles_rapprochement || defaultKeywords
     });
     setIsEditMode(true);
     setIsDialogOpen(true);
@@ -564,6 +568,19 @@ export default function Prestataires() {
                 onChange={(e) => setFormData({ ...formData, detail_cv: e.target.value })}
                 rows={4}
               />
+            </div>
+
+            <div>
+              <Label htmlFor="mots_cles_rapprochement">Mots-clés de rapprochement bancaire</Label>
+              <Input
+                id="mots_cles_rapprochement"
+                value={formData.mots_cles_rapprochement}
+                onChange={(e) => setFormData({ ...formData, mots_cles_rapprochement: e.target.value })}
+                placeholder={`${formData.prenom} ${formData.nom}`.trim() || 'Mots-clés pour le rapprochement'}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Espaces = ET, Virgules = OU. Par défaut: nom du prestataire.
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
