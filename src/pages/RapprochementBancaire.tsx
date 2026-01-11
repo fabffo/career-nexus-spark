@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter, History, Clock, Pencil, Trash2, Settings, Plus, Edit, Trash, Power, PowerOff } from "lucide-react";
+import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter, History, Clock, Pencil, Trash2, Settings, Plus, Edit, Trash, Power, PowerOff, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -1804,6 +1804,93 @@ export default function RapprochementBancaire() {
     }
   };
 
+  // Fonction de matching partenaires
+  const handleMatchPartenaires = async () => {
+    if (rapprochements.length === 0) {
+      toast({
+        title: "Erreur",
+        description: "Aucune transaction à traiter",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Charger tous les abonnements partenaires actifs
+      const { data: abonnements, error } = await supabase
+        .from("abonnements_partenaires")
+        .select("id, nom, montant_mensuel, nature, type")
+        .eq("actif", true);
+
+      if (error) throw error;
+
+      if (!abonnements || abonnements.length === 0) {
+        toast({
+          title: "Aucun partenaire",
+          description: "Aucun abonnement partenaire actif trouvé",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      console.log("🔍 Matching partenaires avec", abonnements.length, "abonnements");
+
+      let matchCount = 0;
+
+      // Boucler sur les rapprochements pour matcher avec les partenaires
+      const updatedRapprochements = rapprochements.map(rapprochement => {
+        // Si déjà rapproché avec un partenaire, ne pas modifier
+        if (rapprochement.abonnement_info) {
+          return rapprochement;
+        }
+
+        const libelle = rapprochement.transaction.libelle.toUpperCase();
+
+        // Chercher un match dans les abonnements
+        for (const abonnement of abonnements) {
+          const nomPartenaire = abonnement.nom.toUpperCase();
+          
+          // Vérifier si le nom du partenaire est contenu dans le libellé
+          if (libelle.includes(nomPartenaire)) {
+            matchCount++;
+            console.log(`✅ Match trouvé: "${rapprochement.transaction.libelle}" -> "${abonnement.nom}"`);
+            
+            return {
+              ...rapprochement,
+              abonnement_info: {
+                id: abonnement.id,
+                nom: abonnement.nom
+              },
+              status: "matched" as const
+            };
+          }
+        }
+
+        return rapprochement;
+      });
+
+      setRapprochements(updatedRapprochements);
+
+      toast({
+        title: "Matching partenaires terminé",
+        description: `${matchCount} ligne(s) rapprochée(s) avec des partenaires`,
+      });
+
+    } catch (error) {
+      console.error("Erreur lors du matching partenaires:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'effectuer le matching partenaires",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleValidateRapprochement = async () => {
     if (transactions.length === 0 || rapprochements.length === 0) {
       toast({
@@ -2493,6 +2580,15 @@ export default function RapprochementBancaire() {
               <div className="flex items-center justify-between">
                 <CardTitle>Résultats du rapprochement</CardTitle>
                 <div className="flex gap-2">
+                  <Button 
+                    onClick={handleMatchPartenaires} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={loading}
+                  >
+                    <Users className="h-4 w-4 mr-2" />
+                    {loading ? "Matching..." : "Partenaires"}
+                  </Button>
                   <Button 
                     onClick={handleAnnulerFichierEnCours} 
                     variant="destructive" 
