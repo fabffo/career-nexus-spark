@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, FileText } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AddAbonnementDialog } from "@/components/AddAbonnementDialog";
 import { EditAbonnementDialog } from "@/components/EditAbonnementDialog";
+import { ViewAbonnementDialog } from "@/components/ViewAbonnementDialog";
 
 const NATURE_LABELS: Record<string, string> = {
   RELEVE_BANQUE: "Relevé Banque",
@@ -62,6 +63,7 @@ type Abonnement = {
 export default function AbonnementsPartenaires() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingAbonnement, setEditingAbonnement] = useState<any>(null);
+  const [viewingAbonnement, setViewingAbonnement] = useState<any>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
@@ -213,7 +215,16 @@ export default function AbonnementsPartenaires() {
           <Button
             variant="ghost"
             size="icon"
+            onClick={() => setViewingAbonnement(row.original)}
+            title="Voir détails et matching"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setEditingAbonnement(row.original)}
+            title="Modifier"
           >
             <Pencil className="h-4 w-4" />
           </Button>
@@ -221,6 +232,7 @@ export default function AbonnementsPartenaires() {
             variant="ghost"
             size="icon"
             onClick={() => setDeletingId(row.original.id)}
+            title="Supprimer"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -254,6 +266,12 @@ export default function AbonnementsPartenaires() {
       <AddAbonnementDialog
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
+      />
+
+      <ViewAbonnementDialog
+        open={!!viewingAbonnement}
+        onOpenChange={(open) => !open && setViewingAbonnement(null)}
+        abonnement={viewingAbonnement}
       />
 
       {editingAbonnement && (

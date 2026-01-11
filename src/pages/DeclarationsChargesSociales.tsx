@@ -4,10 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, CheckCircle, XCircle, Eye } from "lucide-react";
 import { toast } from "sonner";
 import AddDeclarationChargeDialog from "@/components/AddDeclarationChargeDialog";
 import EditDeclarationChargeDialog from "@/components/EditDeclarationChargeDialog";
+import { ViewDeclarationChargeDialog } from "@/components/ViewDeclarationChargeDialog";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 
@@ -38,6 +39,7 @@ type Declaration = {
 export default function DeclarationsChargesSociales() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingDeclaration, setEditingDeclaration] = useState<any>(null);
+  const [viewingDeclaration, setViewingDeclaration] = useState<any>(null);
   const queryClient = useQueryClient();
 
   const { data: declarations, isLoading } = useQuery({
@@ -158,7 +160,16 @@ export default function DeclarationsChargesSociales() {
           <Button
             variant="ghost"
             size="sm"
+            onClick={() => setViewingDeclaration(row.original)}
+            title="Voir détails et matching"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setEditingDeclaration(row.original)}
+            title="Modifier"
           >
             <Pencil className="h-4 w-4" />
           </Button>
@@ -170,6 +181,7 @@ export default function DeclarationsChargesSociales() {
                 deleteMutation.mutate(row.original.id);
               }
             }}
+            title="Supprimer"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -219,6 +231,12 @@ export default function DeclarationsChargesSociales() {
           declaration={editingDeclaration}
         />
       )}
+
+      <ViewDeclarationChargeDialog
+        open={!!viewingDeclaration}
+        onOpenChange={(open) => !open && setViewingDeclaration(null)}
+        declaration={viewingDeclaration}
+      />
     </div>
   );
 }

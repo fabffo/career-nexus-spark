@@ -25,11 +25,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { ViewFournisseurGeneralDialog } from '@/components/ViewFournisseurGeneralDialog';
 
 export default function FournisseursGeneraux() {
   const [fournisseurs, setFournisseurs] = useState<FournisseurGeneral[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [viewingFournisseur, setViewingFournisseur] = useState<FournisseurGeneral | null>(null);
   const [selectedFournisseur, setSelectedFournisseur] = useState<FournisseurGeneral | null>(null);
   const [formData, setFormData] = useState({
     raison_sociale: '',
@@ -184,6 +186,14 @@ export default function FournisseursGeneraux() {
           <Button
             variant="ghost"
             size="icon"
+            onClick={() => setViewingFournisseur(row.original)}
+            title="Voir détails et matching"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => handleCopy(row.original)}
             title="Copier"
           >
@@ -325,6 +335,13 @@ export default function FournisseursGeneraux() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* View Dialog with Matching */}
+      <ViewFournisseurGeneralDialog
+        open={!!viewingFournisseur}
+        onOpenChange={(open) => !open && setViewingFournisseur(null)}
+        fournisseur={viewingFournisseur}
+      />
     </div>
   );
 }
