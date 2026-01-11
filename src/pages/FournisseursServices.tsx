@@ -25,11 +25,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { ViewFournisseurServicesDialog } from '@/components/ViewFournisseurServicesDialog';
 
 export default function FournisseursServices() {
   const [fournisseurs, setFournisseurs] = useState<FournisseurServices[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<FournisseurServices | null>(null);
   const [formData, setFormData] = useState({
     raison_sociale: '',
@@ -184,6 +186,17 @@ export default function FournisseursServices() {
           <Button
             variant="ghost"
             size="icon"
+            onClick={() => {
+              setSelectedFournisseur(row.original);
+              setIsViewOpen(true);
+            }}
+            title="Voir"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => handleCopy(row.original)}
             title="Copier"
           >
@@ -325,6 +338,13 @@ export default function FournisseursServices() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* View Dialog */}
+      <ViewFournisseurServicesDialog
+        fournisseur={selectedFournisseur}
+        open={isViewOpen}
+        onOpenChange={setIsViewOpen}
+      />
     </div>
   );
 }

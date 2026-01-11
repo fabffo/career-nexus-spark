@@ -7,12 +7,12 @@ import { Link2, Calendar, Euro, FileText, Building } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
-type EntityType = "abonnement" | "fournisseur" | "declaration";
+type EntityType = "abonnement" | "fournisseur" | "declaration" | "client" | "prestataire" | "salarie" | "fournisseur_services" | "fournisseur_etat";
 
 interface MatchingHistorySectionProps {
   entityType: EntityType;
   entityId: string;
-  entityName: string;
+  entityName?: string;
 }
 
 interface RapprochementMatch {
@@ -50,6 +50,9 @@ export function MatchingHistorySection({ entityType, entityId, entityName }: Mat
         query = query.eq("abonnement_id", entityId);
       } else if (entityType === "declaration") {
         query = query.eq("declaration_charge_id", entityId);
+      } else if (entityType === "client" || entityType === "prestataire" || entityType === "salarie" || entityType === "fournisseur" || entityType === "fournisseur_services" || entityType === "fournisseur_etat") {
+        // Pour ces types, on cherche dans les factures
+        return [];
       }
 
       const { data, error } = await query;
@@ -59,30 +62,31 @@ export function MatchingHistorySection({ entityType, entityId, entityName }: Mat
     enabled: entityType === "abonnement" || entityType === "declaration",
   });
 
-  // Pour les fournisseurs généraux, chercher dans les factures avec le nom du fournisseur
+  // Pour les fournisseurs et autres entités, chercher dans les factures avec le nom
   const { data: factures = [], isLoading: loadingFactures } = useQuery({
-    queryKey: ["matching-history", entityType, entityId, "factures"],
+    queryKey: ["matching-history", entityType, entityId, "factures", entityName],
     queryFn: async () => {
-      if (entityType !== "fournisseur") return [];
+      const searchName = entityName || "";
+      if (!searchName) return [];
       
       const { data, error } = await supabase
         .from("factures")
         .select("*")
-        .or(`emetteur_nom.ilike.%${entityName}%,destinataire_nom.ilike.%${entityName}%`)
+        .or(`emetteur_nom.ilike.%${searchName}%,destinataire_nom.ilike.%${searchName}%`)
         .order("date_emission", { ascending: false })
         .limit(20);
 
       if (error) throw error;
       return data || [];
     },
-    enabled: entityType === "fournisseur",
+    enabled: ["fournisseur", "fournisseur_services", "fournisseur_etat", "client", "prestataire", "salarie"].includes(entityType) && !!entityName,
   });
 
-  // Chercher aussi les rapprochements via les factures pour les fournisseurs
+  // Chercher aussi les rapprochements via les factures
   const { data: facturesRapprochements = [], isLoading: loadingFacturesRapprochements } = useQuery({
     queryKey: ["matching-history", entityType, entityId, "factures-rapprochements"],
     queryFn: async () => {
-      if (entityType !== "fournisseur" || factures.length === 0) return [];
+      if (factures.length === 0) return [];
       
       const factureIds = factures.map(f => f.id);
       const { data, error } = await supabase
@@ -94,7 +98,7 @@ export function MatchingHistorySection({ entityType, entityId, entityName }: Mat
       if (error) throw error;
       return data || [];
     },
-    enabled: entityType === "fournisseur" && factures.length > 0,
+    enabled: factures.length > 0,
   });
 
   // Récupérer les paiements d'abonnements
@@ -148,7 +152,7 @@ export function MatchingHistorySection({ entityType, entityId, entityName }: Mat
   };
 
   // Combiner tous les matchings
-  const allRapprochements = entityType === "fournisseur" 
+  const allRapprochements = ["fournisseur", "fournisseur_services", "fournisseur_etat", "client", "prestataire", "salarie"].includes(entityType) 
     ? facturesRapprochements 
     : rapprochements;
 
