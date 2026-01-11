@@ -24,6 +24,8 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { FileUploadField } from "@/components/FileUploadField";
 import { ExternalLink, FileText } from "lucide-react";
+import { RapprochementSearchSection } from "@/components/RapprochementSearchSection";
+import { MatchingHistorySection } from "@/components/MatchingHistorySection";
 
 interface EditAbonnementDialogProps {
   open: boolean;
@@ -85,6 +87,7 @@ export function EditAbonnementDialog({
         jour_prelevement: abonnement.jour_prelevement || "",
         actif: abonnement.actif,
         notes: abonnement.notes || "",
+        mots_cles_rapprochement: abonnement.mots_cles_rapprochement || "",
       });
       
       // Charger les documents existants
@@ -117,6 +120,7 @@ export function EditAbonnementDialog({
           jour_prelevement: data.jour_prelevement ? parseInt(data.jour_prelevement) : null,
           actif: data.actif,
           notes: data.notes || null,
+          mots_cles_rapprochement: data.mots_cles_rapprochement || null,
         })
         .eq("id", abonnement.id);
 
@@ -152,9 +156,11 @@ export function EditAbonnementDialog({
     },
   });
 
+  const mots_cles_rapprochement = watch("mots_cles_rapprochement");
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Modifier l'abonnement</DialogTitle>
         </DialogHeader>
@@ -248,6 +254,35 @@ export function EditAbonnementDialog({
             <Label htmlFor="notes">Notes</Label>
             <Textarea id="notes" {...register("notes")} rows={3} />
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="mots_cles_rapprochement">Mots-clés de rapprochement bancaire</Label>
+            <Input
+              id="mots_cles_rapprochement"
+              {...register("mots_cles_rapprochement")}
+              placeholder="Ex: ORANGE ABONNEMENT ou ORANGE, SFR"
+            />
+            <p className="text-xs text-muted-foreground">
+              <strong>Syntaxe :</strong> Espace = ET (tous les mots), Virgule = OU (l'un ou l'autre)
+            </p>
+          </div>
+
+          {/* Rapprochement sections */}
+          {abonnement && (
+            <>
+              <RapprochementSearchSection 
+                entityType="abonnement"
+                entityId={abonnement.id}
+                entityName={abonnement.nom}
+                savedKeywords={mots_cles_rapprochement}
+              />
+              <MatchingHistorySection 
+                entityType="abonnement"
+                entityId={abonnement.id}
+                entityName={abonnement.nom}
+              />
+            </>
+          )}
 
           <div className="space-y-2">
             <Label>Documents existants</Label>

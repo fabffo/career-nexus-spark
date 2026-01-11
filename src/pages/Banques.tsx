@@ -23,6 +23,8 @@ import { DataTable } from '@/components/ui/data-table';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import ViewBanqueDialog from '@/components/ViewBanqueDialog';
+import { RapprochementSearchSection } from '@/components/RapprochementSearchSection';
+import { MatchingHistorySection } from '@/components/MatchingHistorySection';
 
 interface Banque {
   id: string;
@@ -32,6 +34,7 @@ interface Banque {
   email: string | null;
   telephone: string | null;
   site_web: string | null;
+  mots_cles_rapprochement: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -43,6 +46,7 @@ const emptyFormData = {
   email: '',
   telephone: '',
   site_web: '',
+  mots_cles_rapprochement: '',
 };
 
 export default function Banques() {
@@ -85,6 +89,7 @@ export default function Banques() {
         email: banque.email || '',
         telephone: banque.telephone || '',
         site_web: banque.site_web || '',
+        mots_cles_rapprochement: banque.mots_cles_rapprochement || '',
       });
       setSelectedBanque(banque);
       setIsEditing(true);
@@ -258,7 +263,7 @@ export default function Banques() {
 
       {/* Dialog formulaire */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {isEditing ? 'Modifier la banque' : 'Ajouter une banque'}
@@ -322,6 +327,36 @@ export default function Banques() {
                 onChange={(e) => setFormData({ ...formData, site_web: e.target.value })}
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="mots_cles_rapprochement">Mots-clés de rapprochement bancaire</Label>
+              <Input
+                id="mots_cles_rapprochement"
+                value={formData.mots_cles_rapprochement}
+                onChange={(e) => setFormData({ ...formData, mots_cles_rapprochement: e.target.value })}
+                placeholder="Ex: BNP PARIBAS ou BNP, BNPP"
+              />
+              <p className="text-xs text-muted-foreground">
+                <strong>Syntaxe :</strong> Espace = ET (tous les mots), Virgule = OU (l'un ou l'autre)
+              </p>
+            </div>
+
+            {/* Rapprochement sections - only shown when editing */}
+            {isEditing && selectedBanque && (
+              <>
+                <RapprochementSearchSection 
+                  entityType="banque"
+                  entityId={selectedBanque.id}
+                  entityName={selectedBanque.raison_sociale}
+                  savedKeywords={formData.mots_cles_rapprochement}
+                />
+                <MatchingHistorySection 
+                  entityType="banque"
+                  entityId={selectedBanque.id}
+                  entityName={selectedBanque.raison_sociale}
+                />
+              </>
+            )}
 
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>

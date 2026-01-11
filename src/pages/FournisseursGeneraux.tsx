@@ -5,6 +5,8 @@ import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2, Globe, Mail, Phone, Building, Eye, Copy } from 'lucide-react';
 import { ColumnDef } from '@tanstack/react-table';
+import { RapprochementSearchSection } from '@/components/RapprochementSearchSection';
+import { MatchingHistorySection } from '@/components/MatchingHistorySection';
 import {
   Dialog,
   DialogContent,
@@ -40,6 +42,7 @@ export default function FournisseursGeneraux() {
     telephone: '',
     email: '',
     site_web: '',
+    mots_cles_rapprochement: '',
   });
 
   useEffect(() => {
@@ -61,6 +64,7 @@ export default function FournisseursGeneraux() {
         telephone: fournisseur.telephone || '',
         email: fournisseur.email || '',
         site_web: fournisseur.site_web || '',
+        mots_cles_rapprochement: (fournisseur as any).mots_cles_rapprochement || '',
       });
     } else {
       setSelectedFournisseur(null);
@@ -71,6 +75,7 @@ export default function FournisseursGeneraux() {
         telephone: '',
         email: '',
         site_web: '',
+        mots_cles_rapprochement: '',
       });
     }
     setIsFormOpen(true);
@@ -246,7 +251,7 @@ export default function FournisseursGeneraux() {
 
       {/* Form Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {selectedFournisseur ? 'Modifier le fournisseur' : 'Nouveau fournisseur'}
@@ -306,6 +311,35 @@ export default function FournisseursGeneraux() {
                 placeholder="https://..."
               />
             </div>
+            <div>
+              <Label htmlFor="mots_cles_rapprochement">Mots-clés de rapprochement bancaire</Label>
+              <Input
+                id="mots_cles_rapprochement"
+                value={formData.mots_cles_rapprochement}
+                onChange={(e) => setFormData({ ...formData, mots_cles_rapprochement: e.target.value })}
+                placeholder="Ex: FOURNISSEUR ABC ou ABC, XYZ"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                <strong>Syntaxe :</strong> Espace = ET (tous les mots), Virgule = OU (l'un ou l'autre)
+              </p>
+            </div>
+
+            {/* Rapprochement sections - only shown when editing */}
+            {selectedFournisseur && (
+              <>
+                <RapprochementSearchSection 
+                  entityType="fournisseur"
+                  entityId={selectedFournisseur.id}
+                  entityName={selectedFournisseur.raison_sociale}
+                  savedKeywords={formData.mots_cles_rapprochement}
+                />
+                <MatchingHistorySection 
+                  entityType="fournisseur"
+                  entityId={selectedFournisseur.id}
+                  entityName={selectedFournisseur.raison_sociale}
+                />
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsFormOpen(false)}>
