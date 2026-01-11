@@ -175,6 +175,7 @@ class ClientService implements CrudOperations<Client> {
       siteWeb: '',
       pieceJointes: [],
       delai_paiement_jours: item.delai_paiement_jours || 30,
+      mots_cles_rapprochement: item.mots_cles_rapprochement ?? null,
       createdAt: new Date(item.created_at),
       updatedAt: new Date(item.updated_at),
     }));
@@ -203,6 +204,7 @@ class ClientService implements CrudOperations<Client> {
       siteWeb: '',
       pieceJointes: [],
       delai_paiement_jours: data.delai_paiement_jours || 30,
+      mots_cles_rapprochement: data.mots_cles_rapprochement ?? null,
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };
@@ -217,7 +219,8 @@ class ClientService implements CrudOperations<Client> {
       pays: item.pays,
       telephone: item.telephone,
       email: item.email,
-      delai_paiement_jours: (item as any).delaiPaiementJours || 30
+      delai_paiement_jours: (item as any).delaiPaiementJours || 30,
+      mots_cles_rapprochement: item.mots_cles_rapprochement ?? null,
     };
     
     const { data, error } = await supabase
@@ -241,6 +244,7 @@ class ClientService implements CrudOperations<Client> {
       siteWeb: item.siteWeb,
       pieceJointes: item.pieceJointes,
       delai_paiement_jours: data.delai_paiement_jours || 30,
+      mots_cles_rapprochement: data.mots_cles_rapprochement ?? null,
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };
@@ -280,6 +284,7 @@ class ClientService implements CrudOperations<Client> {
       siteWeb: item.siteWeb,
       pieceJointes: item.pieceJointes,
       delai_paiement_jours: data.delai_paiement_jours || 30,
+      mots_cles_rapprochement: data.mots_cles_rapprochement ?? null,
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };

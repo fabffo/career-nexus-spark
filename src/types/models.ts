@@ -33,6 +33,7 @@ export interface Client extends AuditFields {
   siteWeb?: string;
   pieceJointes?: string[];
   delai_paiement_jours?: number;
+  mots_cles_rapprochement?: string | null;
 }
 
 // RDV model

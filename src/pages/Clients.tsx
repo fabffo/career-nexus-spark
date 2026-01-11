@@ -75,8 +75,8 @@ export default function Clients() {
         telephone: client.telephone,
         email: client.email,
         siteWeb: client.siteWeb || '',
-        delaiPaiementJours: (client as any).delai_paiement_jours || 30,
-        mots_cles_rapprochement: (client as any).mots_cles_rapprochement || defaultKeywords,
+        delaiPaiementJours: client.delai_paiement_jours || 30,
+        mots_cles_rapprochement: client.mots_cles_rapprochement || defaultKeywords,
       });
     } else {
       setSelectedClient(null);
