@@ -1828,7 +1828,9 @@ export default function RapprochementBancaire() {
       const { data: banques, error: e5 } = await supabase.from("banques").select("id, raison_sociale, mots_cles_rapprochement");
       const { data: prestatairesData, error: e6 } = await supabase.from("prestataires").select("id, nom, prenom, mots_cles_rapprochement").eq("actif", true);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const salariesResult = await (supabase as any).from("salaries").select("id, nom, prenom, mots_cles_rapprochement").eq("actif", true);
+      const salariesResult = await (supabase as any)
+        .from("salaries")
+        .select("id, nom, prenom, mots_cles_rapprochement");
       const salariesData = salariesResult.data as { id: string; nom: string; prenom: string; mots_cles_rapprochement: string | null }[] | null;
       const e7 = salariesResult.error;
 
