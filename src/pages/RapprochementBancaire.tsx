@@ -1854,8 +1854,9 @@ export default function RapprochementBancaire() {
 
       // Boucler sur les rapprochements pour matcher avec les partenaires et fournisseurs
       const updatedRapprochements = rapprochements.map(rapprochement => {
-        // Ne matcher que les lignes non rapprochées
-        if (rapprochement.status === "matched" && (rapprochement.abonnement_info || rapprochement.fournisseur_info || rapprochement.facture)) {
+        // Ignorer uniquement si déjà associé à un abonnement ou fournisseur
+        if (rapprochement.abonnement_info || rapprochement.fournisseur_info) {
+          console.log(`⏭️ Ignoré (déjà associé): "${rapprochement.transaction.libelle}"`);
           return rapprochement;
         }
 
