@@ -950,10 +950,17 @@ export default function RapprochementBancaire() {
 
             setTransactions(transactionsParsed);
 
-            // Effectuer le rapprochement automatique avec les factures chargées
-            console.log("🔍 Lancement du rapprochement automatique...");
-            const rapprochementsResult = await performMatching(transactionsParsed, facturesChargees);
-            console.log("✅ Rapprochement terminé:", rapprochementsResult.filter(r => r.status === "matched").length, "matchés sur", rapprochementsResult.length);
+            // Créer des rapprochements NON rapprochés (pas de matching automatique)
+            console.log("📥 Import sans rapprochement automatique...");
+            const rapprochementsResult: Rapprochement[] = transactionsParsed.map(transaction => ({
+              transaction,
+              facture: null,
+              score: 0,
+              status: "unmatched" as const,
+              isManual: false,
+              numero_ligne: transaction.numero_ligne,
+            }));
+            console.log("✅ Toutes les lignes importées comme non rapprochées:", rapprochementsResult.length);
             setRapprochements(rapprochementsResult);
 
             // Créer automatiquement un fichier EN_COURS
@@ -1011,10 +1018,17 @@ export default function RapprochementBancaire() {
 
             setTransactions(transactionsParsed);
 
-            // Effectuer le rapprochement automatique avec les factures chargées
-            console.log("🔍 Lancement du rapprochement automatique...");
-            const rapprochementsResult = await performMatching(transactionsParsed, facturesChargees);
-            console.log("✅ Rapprochement terminé:", rapprochementsResult.filter(r => r.status === "matched").length, "matchés sur", rapprochementsResult.length);
+            // Créer des rapprochements NON rapprochés (pas de matching automatique)
+            console.log("📥 Import sans rapprochement automatique...");
+            const rapprochementsResult: Rapprochement[] = transactionsParsed.map(transaction => ({
+              transaction,
+              facture: null,
+              score: 0,
+              status: "unmatched" as const,
+              isManual: false,
+              numero_ligne: transaction.numero_ligne,
+            }));
+            console.log("✅ Toutes les lignes importées comme non rapprochées:", rapprochementsResult.length);
             setRapprochements(rapprochementsResult);
 
             // Créer automatiquement un fichier EN_COURS
