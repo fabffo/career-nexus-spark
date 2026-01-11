@@ -2343,8 +2343,8 @@ export default function RapprochementBancaire() {
         Crédit: r.transaction.credit || "",
         Statut: r.status === "matched" ? "Rapproché" : r.status === "uncertain" ? "Incertain" : "Non rapproché",
         "N° Facture": r.facture?.numero_facture || "",
-        "Type Facture": r.facture?.type_facture || r.abonnement_info ? "ABONNEMENT" : r.declaration_info ? "DECLARATION" : "",
-        Partenaire: r.facture?.partenaire_nom || r.abonnement_info?.nom || (r.declaration_info ? `${r.declaration_info.nom} (${r.declaration_info.organisme})` : "") || "",
+        "Type Facture": r.facture?.type_facture || r.abonnement_info ? "ABONNEMENT" : r.declaration_info ? "DECLARATION" : r.fournisseur_info ? "FOURNISSEUR" : "",
+        Partenaire: r.facture?.partenaire_nom || r.abonnement_info?.nom || (r.declaration_info ? `${r.declaration_info.nom} (${r.declaration_info.organisme})` : "") || r.fournisseur_info?.nom || "",
         "Montant Facture": r.facture?.total_ttc || "",
         "Score %": r.score,
       }))
@@ -2809,12 +2809,26 @@ export default function RapprochementBancaire() {
                             <span className="text-muted-foreground">-</span>
                           )}
                         </td>
-                         <td className="p-2 align-middle truncate max-w-0 text-sm" title={rapprochement.facture?.partenaire_nom || rapprochement.abonnement_info?.nom || ""}>
-                           {rapprochement.facture?.partenaire_nom || 
-                            rapprochement.abonnement_info?.nom || 
-                            (rapprochement.declaration_info ? `${rapprochement.declaration_info.nom}` : "") ||
-                            "-"}
-                         </td>
+                          <td
+                            className="p-2 align-middle truncate max-w-0 text-sm"
+                            title={
+                              rapprochement.facture?.partenaire_nom ||
+                              rapprochement.abonnement_info?.nom ||
+                              (rapprochement.declaration_info
+                                ? `${rapprochement.declaration_info.nom}`
+                                : "") ||
+                              rapprochement.fournisseur_info?.nom ||
+                              ""
+                            }
+                          >
+                            {rapprochement.facture?.partenaire_nom ||
+                              rapprochement.abonnement_info?.nom ||
+                              (rapprochement.declaration_info
+                                ? `${rapprochement.declaration_info.nom}`
+                                : "") ||
+                              rapprochement.fournisseur_info?.nom ||
+                              "-"}
+                          </td>
                         <td className="p-2 align-middle text-right text-sm">
                           {rapprochement.facture
                             ? new Intl.NumberFormat("fr-FR", {
@@ -2857,7 +2871,11 @@ export default function RapprochementBancaire() {
                                <LinkIcon className="h-3 w-3" />
                                {rapprochement.isManual ? "Mod." : "Rapp."}
                              </Button>
-                             {(rapprochement.facture || rapprochement.factureIds || rapprochement.abonnement_info || rapprochement.declaration_info) && (
+                              {(rapprochement.facture ||
+                                rapprochement.factureIds ||
+                                rapprochement.abonnement_info ||
+                                rapprochement.declaration_info ||
+                                rapprochement.fournisseur_info) && (
                                <Button
                                  variant="ghost"
                                  size="sm"
@@ -2868,17 +2886,18 @@ export default function RapprochementBancaire() {
                                      if (r.transaction.date === rapprochement.transaction.date &&
                                          r.transaction.libelle === rapprochement.transaction.libelle &&
                                          r.transaction.montant === rapprochement.transaction.montant) {
-                                       return {
-                                         ...r,
-                                         facture: null,
-                                         factureIds: undefined,
-                                         abonnement_info: undefined,
-                                         declaration_info: undefined,
-                                         status: "unmatched" as const,
-                                         score: 0,
-                                         isManual: false,
-                                         notes: null
-                                       };
+                                        return {
+                                          ...r,
+                                          facture: null,
+                                          factureIds: undefined,
+                                          abonnement_info: undefined,
+                                          declaration_info: undefined,
+                                          fournisseur_info: undefined,
+                                          status: "unmatched" as const,
+                                          score: 0,
+                                          isManual: false,
+                                          notes: null
+                                        };
                                      }
                                      return r;
                                   }));
