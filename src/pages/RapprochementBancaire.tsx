@@ -1820,18 +1820,17 @@ export default function RapprochementBancaire() {
 
     try {
       // Charger toutes les entités partenaires avec leurs mots-clés de rapprochement
-      const { data: abonnements, error: e1 } = await supabase.from("abonnements_partenaires").select("id, nom, mots_cles_rapprochement").eq("actif", true);
-      const { data: fournisseursGeneraux, error: e2 } = await supabase.from("fournisseurs_generaux").select("id, raison_sociale, mots_cles_rapprochement");
-      const { data: declarations, error: e3 } = await supabase.from("declarations_charges_sociales").select("id, nom, organisme, mots_cles_rapprochement").eq("actif", true);
-      const { data: clients, error: e4 } = await supabase.from("clients").select("id, raison_sociale, mots_cles_rapprochement");
-      const { data: fournisseursServices, error: e5 } = await supabase.from("fournisseurs_services").select("id, raison_sociale, mots_cles_rapprochement");
-      const { data: fournisseursEtat, error: e6 } = await supabase.from("fournisseurs_etat_organismes").select("id, raison_sociale, mots_cles_rapprochement");
-      const { data: banques, error: e7 } = await supabase.from("banques").select("id, raison_sociale, mots_cles_rapprochement");
-      const { data: prestatairesData, error: e8 } = await supabase.from("prestataires").select("id, nom, prenom, mots_cles_rapprochement").eq("actif", true);
+      // (sans abonnements ni déclarations)
+      const { data: fournisseursGeneraux, error: e1 } = await supabase.from("fournisseurs_generaux").select("id, raison_sociale, mots_cles_rapprochement");
+      const { data: clients, error: e2 } = await supabase.from("clients").select("id, raison_sociale, mots_cles_rapprochement");
+      const { data: fournisseursServices, error: e3 } = await supabase.from("fournisseurs_services").select("id, raison_sociale, mots_cles_rapprochement");
+      const { data: fournisseursEtat, error: e4 } = await supabase.from("fournisseurs_etat_organismes").select("id, raison_sociale, mots_cles_rapprochement");
+      const { data: banques, error: e5 } = await supabase.from("banques").select("id, raison_sociale, mots_cles_rapprochement");
+      const { data: prestatairesData, error: e6 } = await supabase.from("prestataires").select("id, nom, prenom, mots_cles_rapprochement").eq("actif", true);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const salariesResult = await (supabase as any).from("salaries").select("id, nom, prenom, mots_cles_rapprochement").eq("actif", true);
       const salariesData = salariesResult.data as { id: string; nom: string; prenom: string; mots_cles_rapprochement: string | null }[] | null;
-      const e9 = salariesResult.error;
+      const e7 = salariesResult.error;
 
       if (e1) throw e1;
       if (e2) throw e2;
@@ -1840,15 +1839,13 @@ export default function RapprochementBancaire() {
       if (e5) throw e5;
       if (e6) throw e6;
       if (e7) throw e7;
-      if (e8) throw e8;
-      if (e9) throw e9;
 
       const prestataires = prestatairesData || [];
       const salaries = salariesData || [];
 
-      const totalEntities = abonnements.length + fournisseursGeneraux.length + declarations.length + 
-                           clients.length + fournisseursServices.length + fournisseursEtat.length + 
-                           banques.length + prestataires.length + salaries.length;
+      const totalEntities = (fournisseursGeneraux?.length || 0) + (clients?.length || 0) + 
+                           (fournisseursServices?.length || 0) + (fournisseursEtat?.length || 0) + 
+                           (banques?.length || 0) + prestataires.length + salaries.length;
 
       if (totalEntities === 0) {
         toast({
@@ -1861,13 +1858,11 @@ export default function RapprochementBancaire() {
       }
 
       console.log("🔍 Matching avec mots-clés:", {
-        abonnements: abonnements.length,
-        fournisseursGeneraux: fournisseursGeneraux.length,
-        declarations: declarations.length,
-        clients: clients.length,
-        fournisseursServices: fournisseursServices.length,
-        fournisseursEtat: fournisseursEtat.length,
-        banques: banques.length,
+        fournisseursGeneraux: fournisseursGeneraux?.length || 0,
+        clients: clients?.length || 0,
+        fournisseursServices: fournisseursServices?.length || 0,
+        fournisseursEtat: fournisseursEtat?.length || 0,
+        banques: banques?.length || 0,
         prestataires: prestataires.length,
         salaries: salaries.length
       });
@@ -1888,9 +1883,7 @@ export default function RapprochementBancaire() {
         });
       };
 
-      let matchAbonnementCount = 0;
       let matchFournisseurCount = 0;
-      let matchDeclarationCount = 0;
       let matchClientCount = 0;
       let matchPrestataireCount = 0;
       let matchSalarieCount = 0;
@@ -1898,41 +1891,15 @@ export default function RapprochementBancaire() {
 
       // Boucler sur les rapprochements pour matcher avec les partenaires
       const updatedRapprochements = rapprochements.map(rapprochement => {
-        // Ignorer uniquement si déjà associé à un abonnement, fournisseur ou déclaration
-        if (rapprochement.abonnement_info || rapprochement.fournisseur_info || rapprochement.declaration_info) {
+        // Ignorer si déjà associé à un fournisseur
+        if (rapprochement.fournisseur_info) {
           return rapprochement;
         }
 
         const libelle = rapprochement.transaction.libelle;
 
-        // 1. Chercher un match dans les abonnements (via mots_cles_rapprochement)
-        for (const abonnement of abonnements) {
-          if (checkKeywordsMatch(abonnement.mots_cles_rapprochement, libelle)) {
-            matchAbonnementCount++;
-            console.log(`✅ Match abonnement: "${libelle}" -> "${abonnement.nom}" (mots-clés: ${abonnement.mots_cles_rapprochement})`);
-            return {
-              ...rapprochement,
-              abonnement_info: { id: abonnement.id, nom: abonnement.nom },
-              status: "matched" as const
-            };
-          }
-        }
-
-        // 2. Chercher un match dans les déclarations charges sociales
-        for (const declaration of declarations) {
-          if (checkKeywordsMatch(declaration.mots_cles_rapprochement, libelle)) {
-            matchDeclarationCount++;
-            console.log(`✅ Match déclaration: "${libelle}" -> "${declaration.nom}" (mots-clés: ${declaration.mots_cles_rapprochement})`);
-            return {
-              ...rapprochement,
-              declaration_info: { id: declaration.id, nom: declaration.nom, organisme: declaration.organisme },
-              status: "matched" as const
-            };
-          }
-        }
-
-        // 3. Chercher un match dans les fournisseurs généraux
-        for (const fournisseur of fournisseursGeneraux) {
+        // 1. Chercher un match dans les fournisseurs généraux
+        for (const fournisseur of (fournisseursGeneraux || [])) {
           if (checkKeywordsMatch(fournisseur.mots_cles_rapprochement, libelle)) {
             matchFournisseurCount++;
             console.log(`✅ Match fournisseur général: "${libelle}" -> "${fournisseur.raison_sociale}"`);
@@ -1944,8 +1911,8 @@ export default function RapprochementBancaire() {
           }
         }
 
-        // 4. Chercher un match dans les clients
-        for (const client of clients) {
+        // 2. Chercher un match dans les clients
+        for (const client of (clients || [])) {
           if (checkKeywordsMatch(client.mots_cles_rapprochement, libelle)) {
             matchClientCount++;
             console.log(`✅ Match client: "${libelle}" -> "${client.raison_sociale}"`);
@@ -1957,8 +1924,8 @@ export default function RapprochementBancaire() {
           }
         }
 
-        // 5. Chercher un match dans les fournisseurs services
-        for (const fournisseur of fournisseursServices) {
+        // 3. Chercher un match dans les fournisseurs services
+        for (const fournisseur of (fournisseursServices || [])) {
           if (checkKeywordsMatch(fournisseur.mots_cles_rapprochement, libelle)) {
             matchFournisseurCount++;
             console.log(`✅ Match fournisseur services: "${libelle}" -> "${fournisseur.raison_sociale}"`);
@@ -1970,8 +1937,8 @@ export default function RapprochementBancaire() {
           }
         }
 
-        // 6. Chercher un match dans les fournisseurs état/organismes
-        for (const fournisseur of fournisseursEtat) {
+        // 4. Chercher un match dans les fournisseurs état/organismes
+        for (const fournisseur of (fournisseursEtat || [])) {
           if (checkKeywordsMatch(fournisseur.mots_cles_rapprochement, libelle)) {
             matchFournisseurCount++;
             console.log(`✅ Match fournisseur état: "${libelle}" -> "${fournisseur.raison_sociale}"`);
@@ -1983,8 +1950,8 @@ export default function RapprochementBancaire() {
           }
         }
 
-        // 7. Chercher un match dans les banques
-        for (const banque of banques) {
+        // 5. Chercher un match dans les banques
+        for (const banque of (banques || [])) {
           if (checkKeywordsMatch(banque.mots_cles_rapprochement, libelle)) {
             matchBanqueCount++;
             console.log(`✅ Match banque: "${libelle}" -> "${banque.raison_sociale}"`);
@@ -1996,7 +1963,7 @@ export default function RapprochementBancaire() {
           }
         }
 
-        // 8. Chercher un match dans les prestataires
+        // 6. Chercher un match dans les prestataires
         for (const prestataire of prestataires) {
           if (checkKeywordsMatch(prestataire.mots_cles_rapprochement, libelle)) {
             matchPrestataireCount++;
@@ -2009,7 +1976,7 @@ export default function RapprochementBancaire() {
           }
         }
 
-        // 9. Chercher un match dans les salariés
+        // 7. Chercher un match dans les salariés
         for (const salarie of salaries) {
           if (checkKeywordsMatch(salarie.mots_cles_rapprochement, libelle)) {
             matchSalarieCount++;
@@ -2027,12 +1994,9 @@ export default function RapprochementBancaire() {
 
       setRapprochements(updatedRapprochements);
 
-      const totalMatches = matchAbonnementCount + matchFournisseurCount + matchDeclarationCount + 
-                          matchClientCount + matchPrestataireCount + matchSalarieCount + matchBanqueCount;
+      const totalMatches = matchFournisseurCount + matchClientCount + matchPrestataireCount + matchSalarieCount + matchBanqueCount;
       
       const details = [
-        matchAbonnementCount > 0 ? `${matchAbonnementCount} abonnement(s)` : null,
-        matchDeclarationCount > 0 ? `${matchDeclarationCount} déclaration(s)` : null,
         matchFournisseurCount > 0 ? `${matchFournisseurCount} fournisseur(s)` : null,
         matchClientCount > 0 ? `${matchClientCount} client(s)` : null,
         matchPrestataireCount > 0 ? `${matchPrestataireCount} prestataire(s)` : null,
