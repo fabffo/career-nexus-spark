@@ -5,6 +5,8 @@ import { Salarie } from '@/types/salarie';
 import { User, Mail, Phone, FileText, Calendar, ExternalLink, Briefcase, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { RapprochementSearchSection } from './RapprochementSearchSection';
+import { MatchingHistorySection } from './MatchingHistorySection';
 
 interface ViewSalarieDialogProps {
   salarie: Salarie | null;
@@ -165,6 +167,20 @@ export function ViewSalarieDialog({ salarie, open, onOpenChange }: ViewSalarieDi
               )}
             </div>
           </div>
+
+          {/* Section Recherche Rapprochement */}
+          <RapprochementSearchSection
+            entityType="salarie"
+            entityId={salarie.id}
+            entityName={`${salarie.prenom} ${salarie.nom}`}
+          />
+
+          {/* Section Historique Matching */}
+          <MatchingHistorySection
+            entityType="fournisseur"
+            entityId={salarie.id}
+            entityName={`${salarie.prenom} ${salarie.nom}`}
+          />
         </div>
       </DialogContent>
     </Dialog>
