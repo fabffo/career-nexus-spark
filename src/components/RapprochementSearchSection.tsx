@@ -39,18 +39,25 @@ export function RapprochementSearchSection({
   entityName,
   onMatch 
 }: RapprochementSearchSectionProps) {
-  const [searchKeyword, setSearchKeyword] = useState(entityName || "");
+  const [searchKeyword, setSearchKeyword] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
+  // Initialiser seulement au premier montage du composant
   useEffect(() => {
-    // Initialiser avec le nom de l'entité seulement si pas encore initialisé
-    if (entityName && !isInitialized) {
+    if (entityName && !hasInitialized) {
+      console.log("RapprochementSearchSection: Initializing with entityName:", entityName);
       setSearchKeyword(entityName);
-      setIsInitialized(true);
+      setHasInitialized(true);
     }
-  }, [entityName, isInitialized]);
+  }, [entityName, hasInitialized]);
+
+  const handleKeywordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    console.log("RapprochementSearchSection: Keyword changed to:", newValue);
+    setSearchKeyword(newValue);
+  };
 
   // Rechercher dans les fichiers de rapprochement EN_COURS
   const { data: transactionsEnCours = [], isLoading, refetch } = useQuery({
@@ -111,6 +118,7 @@ export function RapprochementSearchSection({
   });
 
   const handleSearch = () => {
+    console.log("RapprochementSearchSection: handleSearch called with keyword:", searchKeyword);
     setSearchTerm(searchKeyword);
     setIsSearching(true);
     refetch();
@@ -118,6 +126,7 @@ export function RapprochementSearchSection({
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
+      console.log("RapprochementSearchSection: Enter pressed");
       handleSearch();
     }
   };
@@ -231,7 +240,7 @@ export function RapprochementSearchSection({
             <Input
               placeholder="Mot clé à rechercher dans les libellés..."
               value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
+              onChange={handleKeywordChange}
               onKeyPress={handleKeyPress}
               className="w-full"
             />
