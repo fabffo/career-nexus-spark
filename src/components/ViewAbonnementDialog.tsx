@@ -10,6 +10,7 @@ import { Calendar, Euro, FileText, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { MatchingHistorySection } from "./MatchingHistorySection";
+import { RapprochementSearchSection } from "./RapprochementSearchSection";
 
 const NATURE_LABELS: Record<string, string> = {
   RELEVE_BANQUE: "Relevé Banque",
@@ -170,6 +171,13 @@ export function ViewAbonnementDialog({ open, onOpenChange, abonnement }: ViewAbo
               </CardContent>
             </Card>
           )}
+
+          {/* Section Recherche Rapprochement */}
+          <RapprochementSearchSection
+            entityType="abonnement"
+            entityId={abonnement.id}
+            entityName={abonnement.nom}
+          />
 
           {/* Section Matching */}
           <MatchingHistorySection

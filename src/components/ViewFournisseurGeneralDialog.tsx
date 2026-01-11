@@ -7,6 +7,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building, Mail, Phone, Globe, MapPin, Briefcase, Info } from "lucide-react";
 import { MatchingHistorySection } from "./MatchingHistorySection";
+import { RapprochementSearchSection } from "./RapprochementSearchSection";
 
 interface FournisseurGeneral {
   id: string;
@@ -95,6 +96,13 @@ export function ViewFournisseurGeneralDialog({ open, onOpenChange, fournisseur }
               )}
             </CardContent>
           </Card>
+
+          {/* Section Recherche Rapprochement */}
+          <RapprochementSearchSection
+            entityType="fournisseur"
+            entityId={fournisseur.id}
+            entityName={fournisseur.raison_sociale}
+          />
 
           {/* Section Matching */}
           <MatchingHistorySection

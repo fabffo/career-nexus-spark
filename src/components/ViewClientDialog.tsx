@@ -1,6 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Building, Mail, Phone, Globe, MapPin, Briefcase, Calendar } from 'lucide-react';
+import { RapprochementSearchSection } from './RapprochementSearchSection';
+import { MatchingHistorySection } from './MatchingHistorySection';
 
 interface ViewClientDialogProps {
   client: any;
@@ -11,9 +13,11 @@ interface ViewClientDialogProps {
 export function ViewClientDialog({ client, open, onOpenChange }: ViewClientDialogProps) {
   if (!client) return null;
 
+  const clientName = client.raison_sociale || client.raisonSociale || '';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Building className="h-5 w-5" />
@@ -110,6 +114,20 @@ export function ViewClientDialog({ client, open, onOpenChange }: ViewClientDialo
               )}
             </div>
           )}
+
+          {/* Section Recherche Rapprochement */}
+          <RapprochementSearchSection
+            entityType="client"
+            entityId={client.id}
+            entityName={clientName}
+          />
+
+          {/* Section Historique Matching */}
+          <MatchingHistorySection
+            entityType="fournisseur"
+            entityId={client.id}
+            entityName={clientName}
+          />
         </div>
       </DialogContent>
     </Dialog>

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Euro, Building, Info, CheckCircle, XCircle } from "lucide-react";
 import { MatchingHistorySection } from "./MatchingHistorySection";
+import { RapprochementSearchSection } from "./RapprochementSearchSection";
 
 const PERIODICITE_LABELS: Record<string, string> = {
   MENSUEL: "Mensuel",
@@ -118,6 +119,13 @@ export function ViewDeclarationChargeDialog({ open, onOpenChange, declaration }:
               )}
             </CardContent>
           </Card>
+
+          {/* Section Recherche Rapprochement */}
+          <RapprochementSearchSection
+            entityType="declaration"
+            entityId={declaration.id}
+            entityName={declaration.nom}
+          />
 
           {/* Section Matching */}
           <MatchingHistorySection
