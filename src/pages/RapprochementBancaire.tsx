@@ -3466,6 +3466,11 @@ export default function RapprochementBancaire() {
                               <span className="font-medium text-sm truncate">{rapprochement.abonnement_info.nom}</span>
                               <span className="text-xs text-muted-foreground">ABONNEMENT</span>
                             </div>
+                          ) : rapprochement.declaration_info ? (
+                            <div className="flex flex-col">
+                              <span className="font-medium text-sm truncate">{rapprochement.declaration_info.nom}</span>
+                              <span className="text-xs text-muted-foreground">CHARGE SOCIALE</span>
+                            </div>
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )}
@@ -3501,6 +3506,11 @@ export default function RapprochementBancaire() {
                                 style: "currency",
                                 currency: "EUR",
                               }).format(rapprochement.abonnement_info.montant_ttc)
+                            : rapprochement.declaration_info
+                            ? new Intl.NumberFormat("fr-FR", {
+                                style: "currency",
+                                currency: "EUR",
+                              }).format(rapprochement.transaction.debit > 0 ? rapprochement.transaction.debit : rapprochement.transaction.credit)
                             : "-"}
                         </td>
                         <td className="p-2 align-middle text-right">
