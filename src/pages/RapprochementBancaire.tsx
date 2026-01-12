@@ -3254,19 +3254,19 @@ export default function RapprochementBancaire() {
                   <TabsList>
                     <TabsTrigger value="all" className="gap-2">
                       Toutes
-                      <Badge variant="secondary">{stats.all}</Badge>
+                      <Badge variant="secondary" className="rounded-full min-w-[2rem] justify-center">{stats.all}</Badge>
                     </TabsTrigger>
                     <TabsTrigger value="matched" className="gap-2">
                       Rapprochées
-                      <Badge className="bg-green-100 text-green-800 hover:bg-green-200">{stats.matched}</Badge>
+                      <Badge className="bg-green-100 text-green-800 hover:bg-green-200 rounded-full min-w-[2rem] justify-center">{stats.matched}</Badge>
                     </TabsTrigger>
                     <TabsTrigger value="uncertain" className="gap-2">
                       Incertaines
-                      <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-200">{stats.uncertain}</Badge>
+                      <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 rounded-full min-w-[2rem] justify-center">{stats.uncertain}</Badge>
                     </TabsTrigger>
                     <TabsTrigger value="unmatched" className="gap-2">
                       Non rapprochées
-                      <Badge className="bg-red-100 text-red-800 hover:bg-red-200">{stats.unmatched}</Badge>
+                      <Badge className="bg-red-100 text-red-800 hover:bg-red-200 rounded-full min-w-[2rem] justify-center">{stats.unmatched}</Badge>
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
