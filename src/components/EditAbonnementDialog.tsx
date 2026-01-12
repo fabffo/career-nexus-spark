@@ -58,6 +58,7 @@ export function EditAbonnementDialog({
   const [existingDocuments, setExistingDocuments] = useState<any[]>([]);
   const [partenaireType, setPartenaireType] = useState<string | null>(null);
   const [partenaireId, setPartenaireId] = useState<string | null>(null);
+  const [initializedAbonnementId, setInitializedAbonnementId] = useState<string | null>(null);
   
   // Charger les taux de TVA depuis la table paramètre
   const { data: tvaOptions = [] } = useQuery({
@@ -88,8 +89,8 @@ export function EditAbonnementDialog({
   }, []);
 
   useEffect(() => {
-    if (abonnement) {
-      const defaultKeywords = abonnement.nom;
+    // Ne réinitialiser que si c'est un nouvel abonnement (différent de l'actuel)
+    if (abonnement && abonnement.id !== initializedAbonnementId) {
       reset({
         nom: abonnement.nom,
         nature: abonnement.nature,
@@ -99,7 +100,7 @@ export function EditAbonnementDialog({
         jour_prelevement: abonnement.jour_prelevement || "",
         actif: abonnement.actif,
         notes: abonnement.notes || "",
-        mots_cles_rapprochement: abonnement.mots_cles_rapprochement || defaultKeywords,
+        mots_cles_rapprochement: abonnement.mots_cles_rapprochement || abonnement.nom,
       });
       
       // Set partenaire values
@@ -119,8 +120,16 @@ export function EditAbonnementDialog({
       
       loadDocuments();
       setNewDocumentFiles([]);
+      setInitializedAbonnementId(abonnement.id);
     }
-  }, [abonnement, reset]);
+  }, [abonnement, reset, initializedAbonnementId]);
+
+  // Reset initialized ID when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setInitializedAbonnementId(null);
+    }
+  }, [open]);
 
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
