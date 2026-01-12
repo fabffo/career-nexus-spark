@@ -3109,7 +3109,7 @@ export default function RapprochementBancaire() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-green-600" />
-                Rapprochés
+                Rapprochées
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -3126,7 +3126,7 @@ export default function RapprochementBancaire() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 text-orange-600" />
-                Incertains
+                Incertaines
               </CardTitle>
             </CardHeader>
             <CardContent>
