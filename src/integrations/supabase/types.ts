@@ -550,6 +550,7 @@ export type Database = {
           code_postal: string | null
           created_at: string | null
           delai_paiement_jours: number | null
+          ecart_paiement_jours: number | null
           email: string | null
           id: string
           mots_cles_rapprochement: string | null
@@ -564,6 +565,7 @@ export type Database = {
           code_postal?: string | null
           created_at?: string | null
           delai_paiement_jours?: number | null
+          ecart_paiement_jours?: number | null
           email?: string | null
           id?: string
           mots_cles_rapprochement?: string | null
@@ -578,6 +580,7 @@ export type Database = {
           code_postal?: string | null
           created_at?: string | null
           delai_paiement_jours?: number | null
+          ecart_paiement_jours?: number | null
           email?: string | null
           id?: string
           mots_cles_rapprochement?: string | null
@@ -1258,6 +1261,8 @@ export type Database = {
         Row: {
           adresse: string | null
           created_at: string | null
+          delai_paiement_jours: number | null
+          ecart_paiement_jours: number | null
           email: string | null
           id: string
           mots_cles_rapprochement: string | null
@@ -1270,6 +1275,8 @@ export type Database = {
         Insert: {
           adresse?: string | null
           created_at?: string | null
+          delai_paiement_jours?: number | null
+          ecart_paiement_jours?: number | null
           email?: string | null
           id?: string
           mots_cles_rapprochement?: string | null
@@ -1282,6 +1289,8 @@ export type Database = {
         Update: {
           adresse?: string | null
           created_at?: string | null
+          delai_paiement_jours?: number | null
+          ecart_paiement_jours?: number | null
           email?: string | null
           id?: string
           mots_cles_rapprochement?: string | null
@@ -1297,6 +1306,8 @@ export type Database = {
         Row: {
           adresse: string | null
           created_at: string | null
+          delai_paiement_jours: number | null
+          ecart_paiement_jours: number | null
           email: string | null
           id: string
           mots_cles_rapprochement: string | null
@@ -1309,6 +1320,8 @@ export type Database = {
         Insert: {
           adresse?: string | null
           created_at?: string | null
+          delai_paiement_jours?: number | null
+          ecart_paiement_jours?: number | null
           email?: string | null
           id?: string
           mots_cles_rapprochement?: string | null
@@ -1321,6 +1334,8 @@ export type Database = {
         Update: {
           adresse?: string | null
           created_at?: string | null
+          delai_paiement_jours?: number | null
+          ecart_paiement_jours?: number | null
           email?: string | null
           id?: string
           mots_cles_rapprochement?: string | null
@@ -1336,6 +1351,8 @@ export type Database = {
         Row: {
           adresse: string | null
           created_at: string | null
+          delai_paiement_jours: number | null
+          ecart_paiement_jours: number | null
           email: string | null
           id: string
           mots_cles_rapprochement: string | null
@@ -1348,6 +1365,8 @@ export type Database = {
         Insert: {
           adresse?: string | null
           created_at?: string | null
+          delai_paiement_jours?: number | null
+          ecart_paiement_jours?: number | null
           email?: string | null
           id?: string
           mots_cles_rapprochement?: string | null
@@ -1360,6 +1379,8 @@ export type Database = {
         Update: {
           adresse?: string | null
           created_at?: string | null
+          delai_paiement_jours?: number | null
+          ecart_paiement_jours?: number | null
           email?: string | null
           id?: string
           mots_cles_rapprochement?: string | null
@@ -1956,7 +1977,9 @@ export type Database = {
           actif: boolean
           created_at: string | null
           cv_url: string | null
+          delai_paiement_jours: number | null
           detail_cv: string | null
+          ecart_paiement_jours: number | null
           email: string | null
           fournisseur_services_id: string | null
           id: string
@@ -1978,7 +2001,9 @@ export type Database = {
           actif?: boolean
           created_at?: string | null
           cv_url?: string | null
+          delai_paiement_jours?: number | null
           detail_cv?: string | null
+          ecart_paiement_jours?: number | null
           email?: string | null
           fournisseur_services_id?: string | null
           id?: string
@@ -2000,7 +2025,9 @@ export type Database = {
           actif?: boolean
           created_at?: string | null
           cv_url?: string | null
+          delai_paiement_jours?: number | null
           detail_cv?: string | null
+          ecart_paiement_jours?: number | null
           email?: string | null
           fournisseur_services_id?: string | null
           id?: string
