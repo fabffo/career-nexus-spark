@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter, History, Clock, Pencil, Trash2, Settings, Plus, Edit, Trash, Power, PowerOff, Users } from "lucide-react";
+import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter, History, Clock, Pencil, Trash2, Settings, Plus, Edit, Trash, Power, PowerOff, Users, CreditCard } from "lucide-react";
 import { RapprochementTypeIndicatorCompact } from "@/components/RapprochementTypeIndicator";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -2043,6 +2043,180 @@ export default function RapprochementBancaire() {
     }
   };
 
+  // Fonction de matching des abonnements partenaires
+  const handleMatchAbonnements = async () => {
+    if (rapprochements.length === 0) {
+      toast({
+        title: "Erreur",
+        description: "Aucune transaction à traiter",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Charger les abonnements partenaires actifs avec leurs mots-clés et partenaires associés
+      const { data: abonnementsData, error: abonnementsError } = await supabase
+        .from("abonnements_partenaires")
+        .select("id, nom, mots_cles_rapprochement, partenaire_type, partenaire_id")
+        .eq("actif", true);
+
+      if (abonnementsError) throw abonnementsError;
+
+      if (!abonnementsData || abonnementsData.length === 0) {
+        toast({
+          title: "Aucun abonnement",
+          description: "Aucun abonnement actif trouvé",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Pour chaque abonnement avec un partenaire, récupérer le nom du partenaire
+      const abonnementsEnrichis = await Promise.all(
+        abonnementsData.map(async (abonnement) => {
+          let partenaireNom = "";
+          
+          if (abonnement.partenaire_type && abonnement.partenaire_id) {
+            let tableName = "";
+            let nomField = "raison_sociale";
+            
+            switch (abonnement.partenaire_type) {
+              case "CLIENT":
+                tableName = "clients";
+                break;
+              case "PRESTATAIRE":
+                tableName = "prestataires";
+                nomField = "nom"; // Pour les prestataires, on utilise nom + prenom
+                break;
+              case "SALARIE":
+                tableName = "salaries";
+                nomField = "nom";
+                break;
+              case "BANQUE":
+                tableName = "banques";
+                break;
+              case "FOURNISSEUR_GENERAL":
+                tableName = "fournisseurs_generaux";
+                break;
+              case "FOURNISSEUR_SERVICES":
+                tableName = "fournisseurs_services";
+                break;
+              case "FOURNISSEUR_ETAT":
+                tableName = "fournisseurs_etat_organismes";
+                break;
+            }
+            
+            if (tableName) {
+              const { data: partenaireData } = await supabase
+                .from(tableName as any)
+                .select(nomField === "nom" ? "nom, prenom" : "raison_sociale")
+                .eq("id", abonnement.partenaire_id)
+                .maybeSingle();
+              
+              if (partenaireData) {
+                partenaireNom = nomField === "nom" 
+                  ? `${(partenaireData as any).prenom || ""} ${(partenaireData as any).nom || ""}`.trim()
+                  : (partenaireData as any).raison_sociale || "";
+              }
+            }
+          }
+          
+          return {
+            ...abonnement,
+            partenaireNom,
+          };
+        })
+      );
+
+      console.log("🔍 Matching abonnements:", abonnementsEnrichis.length, "abonnements trouvés");
+
+      // Fonction helper pour normaliser le texte et vérifier le matching
+      const normalizeText = (text: string) =>
+        text
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toUpperCase()
+          .replace(/[^A-Z0-9]+/g, " ")
+          .trim()
+          .replace(/\s+/g, " ");
+
+      // Construire les mots-clés effectifs: mots_cles_rapprochement OU nom abonnement OU nom partenaire
+      const getEffectiveKeywords = (abonnement: typeof abonnementsEnrichis[0]) => {
+        const mcr = (abonnement.mots_cles_rapprochement ?? "").trim();
+        if (mcr.length > 0) return mcr;
+        if (abonnement.partenaireNom.length > 0) return abonnement.partenaireNom;
+        return abonnement.nom;
+      };
+
+      const checkKeywordsMatch = (keywords: string, libelle: string): boolean => {
+        const kw = keywords.trim();
+        if (kw === "") return false;
+
+        const libelleNorm = normalizeText(libelle);
+
+        // Séparer par virgule (OU) puis par espace (ET)
+        const orGroups = kw.split(",").map((g) => normalizeText(g));
+
+        return orGroups.some((group) => {
+          if (group === "") return false;
+          const andTerms = group.split(/\s+/).filter((t) => t !== "");
+          return andTerms.every((term) => libelleNorm.includes(term));
+        });
+      };
+
+      let matchAbonnementCount = 0;
+
+      // Boucler sur les rapprochements pour matcher avec les abonnements
+      const updatedRapprochements = rapprochements.map((rapprochement) => {
+        // Ignorer si déjà associé à un abonnement
+        if (rapprochement.abonnement_info) {
+          return rapprochement;
+        }
+
+        const libelle = rapprochement.transaction.libelle;
+
+        // Chercher un match dans les abonnements
+        for (const abonnement of abonnementsEnrichis) {
+          const effectiveKeywords = getEffectiveKeywords(abonnement);
+          if (checkKeywordsMatch(effectiveKeywords, libelle)) {
+            matchAbonnementCount++;
+            console.log(`✅ Match abonnement: "${libelle}" -> "${abonnement.nom}" (via: ${effectiveKeywords})`);
+            return {
+              ...rapprochement,
+              abonnement_info: { id: abonnement.id, nom: abonnement.nom },
+              status: "matched" as const,
+            };
+          }
+        }
+
+        return rapprochement;
+      });
+
+      setRapprochements(updatedRapprochements);
+
+      toast({
+        title: "Matching abonnements terminé",
+        description:
+          matchAbonnementCount > 0
+            ? `${matchAbonnementCount} ligne(s) rapprochée(s) avec des abonnements`
+            : "Aucune correspondance trouvée",
+      });
+    } catch (error) {
+      console.error("Erreur lors du matching abonnements:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'effectuer le matching des abonnements",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleValidateRapprochement = async () => {
     if (transactions.length === 0 || rapprochements.length === 0) {
       toast({
@@ -2732,6 +2906,15 @@ export default function RapprochementBancaire() {
               <div className="flex items-center justify-between">
                 <CardTitle>Résultats du rapprochement</CardTitle>
                 <div className="flex gap-2">
+                  <Button 
+                    onClick={handleMatchAbonnements} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={loading}
+                  >
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    {loading ? "Matching..." : "Abonnements"}
+                  </Button>
                   <Button 
                     onClick={handleMatchPartenaires} 
                     variant="outline" 
