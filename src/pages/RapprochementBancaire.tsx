@@ -3433,7 +3433,7 @@ export default function RapprochementBancaire() {
                         <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '12%' }}>Facture</th>
                         <th 
                           className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
-                          style={{ width: '14%' }}
+                          style={{ width: '12%' }}
                           onClick={() => handleSort("partenaire")}
                         >
                           <div className="flex items-center">
@@ -3441,6 +3441,7 @@ export default function RapprochementBancaire() {
                             <SortIcon column="partenaire" />
                           </div>
                         </th>
+                        <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '90px' }}>Type Part.</th>
                         <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Mnt Fact.</th>
                         <th 
                           className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
@@ -3563,6 +3564,30 @@ export default function RapprochementBancaire() {
                                 : "") ||
                               rapprochement.fournisseur_info?.nom ||
                               "-"}
+                          </td>
+                          <td className="p-2 align-middle text-xs">
+                            {rapprochement.facture ? (
+                              <Badge variant="outline" className="text-xs">
+                                {rapprochement.facture.type_facture === "VENTES" ? "Client" : "Fournisseur"}
+                              </Badge>
+                            ) : rapprochement.abonnement_info ? (
+                              <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                                Abonnement
+                              </Badge>
+                            ) : rapprochement.declaration_info ? (
+                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                Organisme
+                              </Badge>
+                            ) : rapprochement.fournisseur_info ? (
+                              <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                                {rapprochement.fournisseur_info.type === "general" ? "Frns Général" :
+                                 rapprochement.fournisseur_info.type === "services" ? "Frns Services" :
+                                 rapprochement.fournisseur_info.type === "etat" ? "État/Org." :
+                                 "Autre"}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
                           </td>
                         <td className="p-2 align-middle text-right text-sm">
                           {rapprochement.facture
