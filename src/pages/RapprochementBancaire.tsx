@@ -135,6 +135,21 @@ export default function RapprochementBancaire() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const { toast } = useToast();
 
+  // Statut métier:
+  // - matched    = Partenaire + Facture
+  // - uncertain  = rapprochement partiel (abonnement/déclaration/partenaire seul/facture seule)
+  // - unmatched  = rien
+  const deriveStatus = (r: Rapprochement): Rapprochement["status"] => {
+    const hasPartenaire = r.fournisseur_info !== undefined;
+    const hasFacture = r.facture !== null || (r.factureIds && r.factureIds.length > 0);
+    const hasAbonnement = r.abonnement_info !== undefined;
+    const hasDeclaration = r.declaration_info !== undefined;
+
+    if (hasPartenaire && hasFacture) return "matched";
+    if (hasPartenaire || hasFacture || hasAbonnement || hasDeclaration) return "uncertain";
+    return "unmatched";
+  };
+
   // Charger le fichier EN_COURS au montage du composant
   useEffect(() => {
     loadFichierEnCours();
@@ -266,10 +281,17 @@ export default function RapprochementBancaire() {
             rapprochementsManuels?: RapprochementManuel[];
           };
           
-          if (fichierData.transactions) setTransactions(fichierData.transactions);
-          if (fichierData.rapprochements) setRapprochements(fichierData.rapprochements);
-          if (fichierData.rapprochementsManuels) setRapprochementsManuels(fichierData.rapprochementsManuels);
-          
+           if (fichierData.transactions) setTransactions(fichierData.transactions);
+           if (fichierData.rapprochements) {
+             setRapprochements(
+               fichierData.rapprochements.map((r) => ({
+                 ...r,
+                 status: deriveStatus(r),
+               }))
+             );
+           }
+           if (fichierData.rapprochementsManuels) setRapprochementsManuels(fichierData.rapprochementsManuels);
+
           console.log("✅ Fichier EN_COURS restauré:", data.numero_rapprochement);
           toast({
             title: "Session restaurée",
@@ -1927,16 +1949,14 @@ export default function RapprochementBancaire() {
           const hasFacture = r.facture !== null || (r.factureIds && r.factureIds.length > 0);
           const hasAbonnement = r.abonnement_info !== undefined;
           const hasDeclaration = r.declaration_info !== undefined;
-          
-          // Si partenaire + (facture OU abonnement OU déclaration) → matched
-          if (hasPartenaire && (hasFacture || hasAbonnement || hasDeclaration)) {
-            return "matched";
-          }
-          // Si seulement partenaire OU seulement facture/abonnement/déclaration → uncertain (partiel)
-          if (hasPartenaire || hasFacture || hasAbonnement || hasDeclaration) {
-            return "uncertain";
-          }
-          // Rien → unmatched
+
+          // ✅ "Rapprochée" = Partenaire + Facture
+          if (hasPartenaire && hasFacture) return "matched";
+
+          // ✅ "Incertaine" = rapprochement partiel
+          if (hasPartenaire || hasFacture || hasAbonnement || hasDeclaration) return "uncertain";
+
+          // ✅ Rien
           return "unmatched";
         };
 
@@ -2189,16 +2209,14 @@ export default function RapprochementBancaire() {
         const hasFacture = r.facture !== null || (r.factureIds && r.factureIds.length > 0);
         const hasAbonnement = r.abonnement_info !== undefined;
         const hasDeclaration = hasNewDeclaration || r.declaration_info !== undefined;
-        
-        // Si partenaire + (facture OU abonnement OU déclaration) → matched
-        if (hasPartenaire && (hasFacture || hasAbonnement || hasDeclaration)) {
-          return "matched";
-        }
-        // Si seulement partenaire OU seulement facture/abonnement/déclaration → uncertain (partiel)
-        if (hasPartenaire || hasFacture || hasAbonnement || hasDeclaration) {
-          return "uncertain";
-        }
-        // Rien → unmatched
+
+        // ✅ "Rapprochée" = Partenaire + Facture
+        if (hasPartenaire && hasFacture) return "matched";
+
+        // ✅ "Incertaine" = rapprochement partiel
+        if (hasPartenaire || hasFacture || hasAbonnement || hasDeclaration) return "uncertain";
+
+        // ✅ Rien
         return "unmatched";
       };
 
@@ -2390,16 +2408,14 @@ export default function RapprochementBancaire() {
         const hasFacture = r.facture !== null || (r.factureIds && r.factureIds.length > 0);
         const hasAbonnement = hasNewAbonnement || r.abonnement_info !== undefined;
         const hasDeclaration = r.declaration_info !== undefined;
-        
-        // Si partenaire + (facture OU abonnement OU déclaration) → matched
-        if (hasPartenaire && (hasFacture || hasAbonnement || hasDeclaration)) {
-          return "matched";
-        }
-        // Si seulement partenaire OU seulement facture/abonnement/déclaration → uncertain (partiel)
-        if (hasPartenaire || hasFacture || hasAbonnement || hasDeclaration) {
-          return "uncertain";
-        }
-        // Rien → unmatched
+
+        // ✅ "Rapprochée" = Partenaire + Facture
+        if (hasPartenaire && hasFacture) return "matched";
+
+        // ✅ "Incertaine" = rapprochement partiel
+        if (hasPartenaire || hasFacture || hasAbonnement || hasDeclaration) return "uncertain";
+
+        // ✅ Rien
         return "unmatched";
       };
 
