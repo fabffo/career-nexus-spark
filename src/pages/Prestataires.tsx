@@ -44,7 +44,9 @@ export default function Prestataires() {
     type_prestataire: 'INDEPENDANT' as 'INDEPENDANT' | 'SOCIETE' | 'SALARIE',
     fournisseur_services_id: '',
     salarie_id: '',
-    mots_cles_rapprochement: ''
+    mots_cles_rapprochement: '',
+    delai_paiement_jours: 30,
+    ecart_paiement_jours: 5
   });
 
   useEffect(() => {
@@ -234,7 +236,9 @@ export default function Prestataires() {
       type_prestataire: 'INDEPENDANT',
       fournisseur_services_id: '',
       salarie_id: '',
-      mots_cles_rapprochement: ''
+      mots_cles_rapprochement: '',
+      delai_paiement_jours: 30,
+      ecart_paiement_jours: 5
     });
     setCvFile(null);
     setRecommandationFile(null);
@@ -273,7 +277,9 @@ export default function Prestataires() {
       type_prestataire: prestataire.type_prestataire || 'INDEPENDANT',
       fournisseur_services_id: prestataire.fournisseur_services_id || '',
       salarie_id: prestataire.salarie_id || '',
-      mots_cles_rapprochement: prestataire.mots_cles_rapprochement || defaultKeywords
+      mots_cles_rapprochement: prestataire.mots_cles_rapprochement || defaultKeywords,
+      delai_paiement_jours: prestataire.delai_paiement_jours ?? 30,
+      ecart_paiement_jours: prestataire.ecart_paiement_jours ?? 5
     });
     setIsEditMode(true);
     setIsDialogOpen(true);
@@ -556,6 +562,31 @@ export default function Prestataires() {
                   id="telephone"
                   value={formData.telephone}
                   onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="delai_paiement_jours">Délai de paiement (jours)</Label>
+                <Input
+                  id="delai_paiement_jours"
+                  type="number"
+                  min="0"
+                  value={formData.delai_paiement_jours}
+                  onChange={(e) => setFormData({ ...formData, delai_paiement_jours: parseInt(e.target.value) || 0 })}
+                  placeholder="30"
+                />
+              </div>
+              <div>
+                <Label htmlFor="ecart_paiement_jours">Écart toléré (± jours)</Label>
+                <Input
+                  id="ecart_paiement_jours"
+                  type="number"
+                  min="0"
+                  value={formData.ecart_paiement_jours}
+                  onChange={(e) => setFormData({ ...formData, ecart_paiement_jours: parseInt(e.target.value) || 0 })}
+                  placeholder="5"
                 />
               </div>
             </div>

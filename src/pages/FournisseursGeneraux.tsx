@@ -43,6 +43,8 @@ export default function FournisseursGeneraux() {
     email: '',
     site_web: '',
     mots_cles_rapprochement: '',
+    delai_paiement_jours: 30,
+    ecart_paiement_jours: 5,
   });
 
   useEffect(() => {
@@ -66,6 +68,8 @@ export default function FournisseursGeneraux() {
         email: fournisseur.email || '',
         site_web: fournisseur.site_web || '',
         mots_cles_rapprochement: fournisseur.mots_cles_rapprochement || defaultKeywords,
+        delai_paiement_jours: (fournisseur as any).delai_paiement_jours ?? 30,
+        ecart_paiement_jours: (fournisseur as any).ecart_paiement_jours ?? 5,
       });
     } else {
       setSelectedFournisseur(null);
@@ -77,6 +81,8 @@ export default function FournisseursGeneraux() {
         email: '',
         site_web: '',
         mots_cles_rapprochement: '',
+        delai_paiement_jours: 30,
+        ecart_paiement_jours: 5,
       });
     }
     setIsFormOpen(true);
@@ -311,6 +317,30 @@ export default function FournisseursGeneraux() {
                 onChange={(e) => setFormData({ ...formData, site_web: e.target.value })}
                 placeholder="https://..."
               />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="delai_paiement_jours">Délai de paiement (jours)</Label>
+                <Input
+                  id="delai_paiement_jours"
+                  type="number"
+                  min="0"
+                  value={formData.delai_paiement_jours}
+                  onChange={(e) => setFormData({ ...formData, delai_paiement_jours: parseInt(e.target.value) || 0 })}
+                  placeholder="30"
+                />
+              </div>
+              <div>
+                <Label htmlFor="ecart_paiement_jours">Écart toléré (± jours)</Label>
+                <Input
+                  id="ecart_paiement_jours"
+                  type="number"
+                  min="0"
+                  value={formData.ecart_paiement_jours}
+                  onChange={(e) => setFormData({ ...formData, ecart_paiement_jours: parseInt(e.target.value) || 0 })}
+                  placeholder="5"
+                />
+              </div>
             </div>
             <div>
               <Label htmlFor="mots_cles_rapprochement">Mots-clés de rapprochement bancaire</Label>
