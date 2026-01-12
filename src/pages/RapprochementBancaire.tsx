@@ -2047,6 +2047,178 @@ export default function RapprochementBancaire() {
     }
   };
 
+  // Fonction de matching des déclarations de charges sociales
+  const handleMatchDeclarationsCharges = async () => {
+    if (rapprochements.length === 0) {
+      toast({
+        title: "Erreur",
+        description: "Aucune transaction à traiter",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Charger les déclarations de charges sociales actives avec leurs mots-clés et partenaires
+      const { data: declarationsData, error: declarationsError } = await supabase
+        .from("declarations_charges_sociales")
+        .select("id, nom, organisme, mots_cles_rapprochement, partenaire_type, partenaire_id")
+        .eq("actif", true);
+
+      if (declarationsError) throw declarationsError;
+
+      if (!declarationsData || declarationsData.length === 0) {
+        toast({
+          title: "Aucune déclaration",
+          description: "Aucune déclaration de charges sociales active trouvée",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Pour chaque déclaration avec un partenaire, récupérer le nom du partenaire
+      const declarationsEnrichies = await Promise.all(
+        declarationsData.map(async (declaration) => {
+          let partenaireNom = "";
+          
+          if (declaration.partenaire_type && declaration.partenaire_id) {
+            let tableName = "";
+            let nomField = "raison_sociale";
+            
+            switch (declaration.partenaire_type) {
+              case "SALARIE":
+                tableName = "salaries";
+                nomField = "nom";
+                break;
+              case "FOURNISSEUR_ETAT":
+                tableName = "fournisseurs_etat_organismes";
+                break;
+            }
+            
+            if (tableName) {
+              const { data: partenaireData } = await supabase
+                .from(tableName as any)
+                .select(nomField === "nom" ? "nom, prenom" : "raison_sociale")
+                .eq("id", declaration.partenaire_id)
+                .maybeSingle();
+              
+              if (partenaireData) {
+                partenaireNom = nomField === "nom" 
+                  ? `${(partenaireData as any).prenom || ""} ${(partenaireData as any).nom || ""}`.trim()
+                  : (partenaireData as any).raison_sociale || "";
+              }
+            }
+          }
+          
+          return {
+            ...declaration,
+            partenaireNom,
+          };
+        })
+      );
+
+      console.log("🔍 Matching déclarations charges sociales:", declarationsEnrichies.length, "déclarations trouvées");
+      console.log("🔍 Déclarations détails:", declarationsEnrichies.map(d => ({ 
+        nom: d.nom, 
+        organisme: d.organisme,
+        mots_cles: d.mots_cles_rapprochement, 
+        partenaireNom: d.partenaireNom 
+      })));
+
+      // Fonction helper pour normaliser le texte et vérifier le matching
+      const normalizeText = (text: string) =>
+        text
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toUpperCase()
+          .replace(/[^A-Z0-9]+/g, " ")
+          .trim()
+          .replace(/\s+/g, " ");
+
+      // Construire les mots-clés effectifs: mots_cles_rapprochement OU nom partenaire OU nom déclaration
+      const getEffectiveKeywords = (declaration: typeof declarationsEnrichies[0]) => {
+        const mcr = (declaration.mots_cles_rapprochement ?? "").trim();
+        if (mcr.length > 0) return mcr;
+        if (declaration.partenaireNom.length > 0) return declaration.partenaireNom;
+        // Fallback: utiliser le nom de la déclaration + organisme
+        return `${declaration.nom} ${declaration.organisme}`;
+      };
+
+      const checkKeywordsMatch = (keywords: string, libelle: string): boolean => {
+        const kw = keywords.trim();
+        if (kw === "") return false;
+
+        const libelleNorm = normalizeText(libelle);
+
+        // Séparer par virgule (OU) puis par espace (ET)
+        const orGroups = kw.split(",").map((g) => normalizeText(g));
+
+        return orGroups.some((group) => {
+          if (group === "") return false;
+          const andTerms = group.split(/\s+/).filter((t) => t !== "");
+          return andTerms.every((term) => libelleNorm.includes(term));
+        });
+      };
+
+      let matchDeclarationCount = 0;
+
+      // Boucler sur les rapprochements pour matcher avec les déclarations
+      const updatedRapprochements = rapprochements.map((rapprochement) => {
+        // Ignorer si déjà associé à une déclaration
+        if (rapprochement.declaration_info) {
+          return rapprochement;
+        }
+
+        const libelle = rapprochement.transaction.libelle;
+        console.log(`🔎 Test libellé charges sociales: "${libelle}"`);
+
+        // Chercher un match dans les déclarations
+        for (const declaration of declarationsEnrichies) {
+          const effectiveKeywords = getEffectiveKeywords(declaration);
+          const isMatch = checkKeywordsMatch(effectiveKeywords, libelle);
+          console.log(`   - Test "${declaration.nom}" (${declaration.organisme}) avec mots-clés "${effectiveKeywords}" => ${isMatch ? "MATCH" : "non"}`);
+          if (isMatch) {
+            matchDeclarationCount++;
+            console.log(`✅ Match déclaration: "${libelle}" -> "${declaration.nom}" (${declaration.organisme}) via: ${effectiveKeywords}`);
+            return {
+              ...rapprochement,
+              declaration_info: { 
+                id: declaration.id, 
+                nom: declaration.nom, 
+                organisme: declaration.organisme 
+              },
+              status: "matched" as const,
+            };
+          }
+        }
+
+        return rapprochement;
+      });
+
+      setRapprochements(updatedRapprochements);
+
+      toast({
+        title: "Matching charges sociales terminé",
+        description:
+          matchDeclarationCount > 0
+            ? `${matchDeclarationCount} ligne(s) rapprochée(s) avec des déclarations de charges sociales`
+            : "Aucune correspondance trouvée",
+      });
+    } catch (error) {
+      console.error("Erreur lors du matching déclarations charges:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'effectuer le matching des charges sociales",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fonction de matching des abonnements partenaires
   const handleMatchAbonnements = async () => {
     if (rapprochements.length === 0) {
@@ -3002,6 +3174,15 @@ export default function RapprochementBancaire() {
                   >
                     <CreditCard className="h-4 w-4 mr-2" />
                     {loading ? "Matching..." : "Abonnements"}
+                  </Button>
+                  <Button 
+                    onClick={handleMatchDeclarationsCharges} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={loading}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    {loading ? "Matching..." : "Charges sociales"}
                   </Button>
                   <Button 
                     onClick={handleMatchPartenaires} 
