@@ -41,18 +41,21 @@ export function RapprochementSearchSection({
   savedKeywords,
   onMatch 
 }: RapprochementSearchSectionProps) {
-  // Utiliser les mots-clés enregistrés s'ils existent, sinon le nom de l'entité
-  const initialKeywords = savedKeywords || entityName || "";
-  const [searchKeyword, setSearchKeyword] = useState(initialKeywords);
+  // IMPORTANT: certains enregistrements ont savedKeywords = '' (string vide)
+  // Dans ce cas, on doit retomber sur le nom de l'entité.
+  const getEffectiveKeywords = (kw?: string) => {
+    const v = (kw ?? "").trim();
+    return v.length > 0 ? v : (entityName || "");
+  };
+
+  const [searchKeyword, setSearchKeyword] = useState(getEffectiveKeywords(savedKeywords));
   const [searchTerm, setSearchTerm] = useState("");
   const [isSearching, setIsSearching] = useState(false);
 
-  // Mettre à jour si les savedKeywords changent
+  // Mettre à jour si les savedKeywords / entityName changent
   useEffect(() => {
-    if (savedKeywords !== undefined) {
-      setSearchKeyword(savedKeywords);
-    }
-  }, [savedKeywords]);
+    setSearchKeyword(getEffectiveKeywords(savedKeywords));
+  }, [savedKeywords, entityName]);
 
   const handleKeywordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
