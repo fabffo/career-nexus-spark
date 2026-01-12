@@ -2133,6 +2133,7 @@ export default function RapprochementBancaire() {
       );
 
       console.log("🔍 Matching abonnements:", abonnementsEnrichis.length, "abonnements trouvés");
+      console.log("🔍 Abonnements détails:", abonnementsEnrichis.map(a => ({ nom: a.nom, mots_cles: a.mots_cles_rapprochement, partenaireNom: a.partenaireNom })));
 
       // Fonction helper pour normaliser le texte et vérifier le matching
       const normalizeText = (text: string) =>
@@ -2178,11 +2179,14 @@ export default function RapprochementBancaire() {
         }
 
         const libelle = rapprochement.transaction.libelle;
+        console.log(`🔎 Test libellé: "${libelle}"`);
 
         // Chercher un match dans les abonnements
         for (const abonnement of abonnementsEnrichis) {
           const effectiveKeywords = getEffectiveKeywords(abonnement);
-          if (checkKeywordsMatch(effectiveKeywords, libelle)) {
+          const isMatch = checkKeywordsMatch(effectiveKeywords, libelle);
+          console.log(`   - Test "${abonnement.nom}" avec mots-clés "${effectiveKeywords}" => ${isMatch ? "MATCH" : "non"}`);
+          if (isMatch) {
             matchAbonnementCount++;
             // Utiliser le montant de la transaction (débit positif ou crédit) comme montant facturé
             const montantTtc = rapprochement.transaction.debit > 0 
