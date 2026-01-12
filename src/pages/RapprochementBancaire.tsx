@@ -136,17 +136,20 @@ export default function RapprochementBancaire() {
   const { toast } = useToast();
 
   // Statut métier:
-  // - matched    = Partenaire + Facture
-  // - uncertain  = rapprochement partiel (abonnement/déclaration/partenaire seul/facture seule)
-  // - unmatched  = rien
+  // - matched    = Facture + Montant facturé renseignés (facture/abonnement/déclaration)
+  // - uncertain  = Partenaire seul (sans facture/abonnement/déclaration)
+  // - unmatched  = Rien de renseigné
   const deriveStatus = (r: Rapprochement): Rapprochement["status"] => {
+    const hasFactureInfo = r.facture !== null || (r.factureIds && r.factureIds.length > 0) || r.abonnement_info !== undefined || r.declaration_info !== undefined;
     const hasPartenaire = r.fournisseur_info !== undefined;
-    const hasFacture = r.facture !== null || (r.factureIds && r.factureIds.length > 0);
-    const hasAbonnement = r.abonnement_info !== undefined;
-    const hasDeclaration = r.declaration_info !== undefined;
 
-    if (hasPartenaire && hasFacture) return "matched";
-    if (hasPartenaire || hasFacture || hasAbonnement || hasDeclaration) return "uncertain";
+    // Rapprochées = Facture + Montant renseignés
+    if (hasFactureInfo) return "matched";
+
+    // Incertaines = Partenaire seul
+    if (hasPartenaire) return "uncertain";
+
+    // Non rapprochées = Rien
     return "unmatched";
   };
 
@@ -1946,17 +1949,15 @@ export default function RapprochementBancaire() {
         
         // Helper pour déterminer le statut en fonction de ce qui est rapproché
         const determineStatus = (hasPartenaire: boolean, r: Rapprochement): "matched" | "uncertain" | "unmatched" => {
-          const hasFacture = r.facture !== null || (r.factureIds && r.factureIds.length > 0);
-          const hasAbonnement = r.abonnement_info !== undefined;
-          const hasDeclaration = r.declaration_info !== undefined;
+          const hasFactureInfo = r.facture !== null || (r.factureIds && r.factureIds.length > 0) || r.abonnement_info !== undefined || r.declaration_info !== undefined;
 
-          // ✅ "Rapprochée" = Partenaire + Facture
-          if (hasPartenaire && hasFacture) return "matched";
+          // Rapprochées = Facture + Montant renseignés
+          if (hasFactureInfo) return "matched";
 
-          // ✅ "Incertaine" = rapprochement partiel
-          if (hasPartenaire || hasFacture || hasAbonnement || hasDeclaration) return "uncertain";
+          // Incertaines = Partenaire seul
+          if (hasPartenaire) return "uncertain";
 
-          // ✅ Rien
+          // Non rapprochées = Rien
           return "unmatched";
         };
 
@@ -2205,18 +2206,16 @@ export default function RapprochementBancaire() {
 
       // Helper pour déterminer le statut en fonction de ce qui est rapproché
       const determineStatus = (r: Rapprochement, hasNewDeclaration: boolean = false): "matched" | "uncertain" | "unmatched" => {
+        const hasFactureInfo = r.facture !== null || (r.factureIds && r.factureIds.length > 0) || r.abonnement_info !== undefined || hasNewDeclaration || r.declaration_info !== undefined;
         const hasPartenaire = r.fournisseur_info !== undefined;
-        const hasFacture = r.facture !== null || (r.factureIds && r.factureIds.length > 0);
-        const hasAbonnement = r.abonnement_info !== undefined;
-        const hasDeclaration = hasNewDeclaration || r.declaration_info !== undefined;
 
-        // ✅ "Rapprochée" = Partenaire + Facture
-        if (hasPartenaire && hasFacture) return "matched";
+        // Rapprochées = Facture + Montant renseignés
+        if (hasFactureInfo) return "matched";
 
-        // ✅ "Incertaine" = rapprochement partiel
-        if (hasPartenaire || hasFacture || hasAbonnement || hasDeclaration) return "uncertain";
+        // Incertaines = Partenaire seul
+        if (hasPartenaire) return "uncertain";
 
-        // ✅ Rien
+        // Non rapprochées = Rien
         return "unmatched";
       };
 
@@ -2404,18 +2403,16 @@ export default function RapprochementBancaire() {
 
       // Helper pour déterminer le statut en fonction de ce qui est rapproché
       const determineStatus = (r: Rapprochement, hasNewAbonnement: boolean = false): "matched" | "uncertain" | "unmatched" => {
+        const hasFactureInfo = r.facture !== null || (r.factureIds && r.factureIds.length > 0) || hasNewAbonnement || r.abonnement_info !== undefined || r.declaration_info !== undefined;
         const hasPartenaire = r.fournisseur_info !== undefined;
-        const hasFacture = r.facture !== null || (r.factureIds && r.factureIds.length > 0);
-        const hasAbonnement = hasNewAbonnement || r.abonnement_info !== undefined;
-        const hasDeclaration = r.declaration_info !== undefined;
 
-        // ✅ "Rapprochée" = Partenaire + Facture
-        if (hasPartenaire && hasFacture) return "matched";
+        // Rapprochées = Facture + Montant renseignés
+        if (hasFactureInfo) return "matched";
 
-        // ✅ "Incertaine" = rapprochement partiel
-        if (hasPartenaire || hasFacture || hasAbonnement || hasDeclaration) return "uncertain";
+        // Incertaines = Partenaire seul
+        if (hasPartenaire) return "uncertain";
 
-        // ✅ Rien
+        // Non rapprochées = Rien
         return "unmatched";
       };
 
