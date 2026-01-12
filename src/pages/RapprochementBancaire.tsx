@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter, History, Clock, Pencil, Trash2, Settings, Plus, Edit, Trash, Power, PowerOff, Users } from "lucide-react";
+import { RapprochementTypeIndicatorCompact } from "@/components/RapprochementTypeIndicator";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -2838,16 +2839,17 @@ export default function RapprochementBancaire() {
                     <thead className="bg-muted sticky top-0 z-10">
                       <tr className="border-b">
                         <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '60px' }}>Statut</th>
+                        <th className="h-12 px-2 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ width: '80px' }}>Type</th>
                         <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '140px' }}>N° Ligne</th>
                         <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '90px' }}>Date</th>
-                        <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '22%' }}>Libellé</th>
-                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '110px' }}>Débit</th>
-                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '110px' }}>Crédit</th>
-                        <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '13%' }}>Facture</th>
-                        <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '15%' }}>Partenaire</th>
-                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '110px' }}>Mnt Fact.</th>
-                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Score</th>
-                        <th className="h-12 px-2 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ width: '140px' }}>Action</th>
+                        <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '20%' }}>Libellé</th>
+                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Débit</th>
+                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Crédit</th>
+                        <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '12%' }}>Facture</th>
+                        <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '14%' }}>Partenaire</th>
+                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Mnt Fact.</th>
+                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '80px' }}>Score</th>
+                        <th className="h-12 px-2 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2884,6 +2886,9 @@ export default function RapprochementBancaire() {
                                </div>
                              )}
                            </div>
+                         </td>
+                         <td className="p-2 align-middle">
+                           <RapprochementTypeIndicatorCompact rapprochement={rapprochement} />
                          </td>
                          <td className="p-2 align-middle">
                            <Badge variant="outline" className="font-mono text-xs">
@@ -3139,14 +3144,15 @@ export default function RapprochementBancaire() {
                                 <thead className="bg-muted sticky top-0 z-10">
                                   <tr className="border-b">
                                     <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '60px' }}>Statut</th>
+                                    <th className="h-12 px-2 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ width: '80px' }}>Type</th>
                                     <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '140px' }}>N° Ligne</th>
                                     <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '90px' }}>Date</th>
-                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '25%' }}>Libellé</th>
-                                    <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '110px' }}>Débit</th>
-                                    <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '110px' }}>Crédit</th>
-                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '13%' }}>Facture</th>
-                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '15%' }}>Partenaire</th>
-                                    <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Score</th>
+                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '22%' }}>Libellé</th>
+                                    <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Débit</th>
+                                    <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Crédit</th>
+                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '12%' }}>Facture</th>
+                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '14%' }}>Partenaire</th>
+                                    <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '80px' }}>Score</th>
                                     <th className="h-12 px-2 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Actions</th>
                                   </tr>
                                 </thead>
@@ -3182,6 +3188,9 @@ export default function RapprochementBancaire() {
                                              {rapprochement.status === "uncertain" && <AlertCircle className="h-5 w-5 text-orange-600" />}
                                              {rapprochement.status === "unmatched" && <XCircle className="h-5 w-5 text-red-600" />}
                                            </div>
+                                         </td>
+                                         <td className="p-2 align-middle">
+                                           <RapprochementTypeIndicatorCompact rapprochement={rapprochement} />
                                          </td>
                                          <td className="p-2 align-middle">
                                            <Badge variant="outline" className="font-mono text-xs">
