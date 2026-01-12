@@ -2086,6 +2086,121 @@ export default function RapprochementBancaire() {
     }
   };
 
+  // Fonction de matching par montant exact sur les factures d'achats du même mois
+  const handleMatchMontants = async () => {
+    if (rapprochements.length === 0) {
+      toast({
+        title: "Erreur",
+        description: "Aucune transaction à traiter",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Charger les factures d'achats validées ou payées
+      const { data: facturesAchats, error: facturesError } = await supabase
+        .from("factures")
+        .select("id, numero_facture, date_emission, emetteur_nom, emetteur_id, emetteur_type, total_ttc, statut, numero_rapprochement")
+        .eq("type_facture", "ACHATS")
+        .in("statut", ["VALIDEE", "PAYEE"])
+        .is("numero_rapprochement", null); // Seulement les factures non encore rapprochées
+
+      if (facturesError) throw facturesError;
+
+      if (!facturesAchats || facturesAchats.length === 0) {
+        toast({
+          title: "Aucune facture",
+          description: "Aucune facture d'achats disponible pour le rapprochement",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      console.log("🔍 Matching montants: ", facturesAchats.length, "factures d'achats trouvées");
+
+      let matchCount = 0;
+
+      const updatedRapprochements = rapprochements.map(rapprochement => {
+        // Ne traiter que les transactions non rapprochées ou incertaines
+        if (rapprochement.status === 'matched' && rapprochement.facture) {
+          return rapprochement;
+        }
+
+        const transactionDate = new Date(rapprochement.transaction.date);
+        const transactionMonth = transactionDate.getMonth();
+        const transactionYear = transactionDate.getFullYear();
+        const transactionMontant = Math.abs(rapprochement.transaction.montant);
+
+        // Chercher une facture avec montant exact dans le même mois
+        for (const facture of facturesAchats) {
+          const factureDate = new Date(facture.date_emission);
+          const factureMonth = factureDate.getMonth();
+          const factureYear = factureDate.getFullYear();
+          const factureMontant = Math.abs(facture.total_ttc || 0);
+
+          // Vérifier si même mois/année ET montant exact
+          if (factureMonth === transactionMonth && 
+              factureYear === transactionYear && 
+              Math.abs(transactionMontant - factureMontant) < 0.01) {
+            
+            matchCount++;
+            console.log(`✅ Match montant: ${transactionMontant}€ -> Facture ${facture.numero_facture} (${facture.emetteur_nom})`);
+
+            // Créer la facture match
+            const factureMatch: FactureMatch = {
+              id: facture.id,
+              numero_facture: facture.numero_facture,
+              type_facture: "ACHATS",
+              date_emission: facture.date_emission,
+              partenaire_nom: facture.emetteur_nom,
+              total_ttc: facture.total_ttc || 0,
+              statut: facture.statut || "VALIDEE",
+            };
+
+            // Retirer cette facture de la liste pour ne pas la réutiliser
+            const factureIndex = facturesAchats.findIndex(f => f.id === facture.id);
+            if (factureIndex > -1) {
+              facturesAchats.splice(factureIndex, 1);
+            }
+
+            return {
+              ...rapprochement,
+              facture: factureMatch,
+              factureIds: [facture.id],
+              score: 100,
+              status: 'matched' as const,
+            };
+          }
+        }
+
+        return rapprochement;
+      });
+
+      setRapprochements(updatedRapprochements);
+
+      toast({
+        title: "Matching terminé",
+        description: matchCount > 0 
+          ? `${matchCount} correspondance(s) de montant trouvée(s)`
+          : "Aucune correspondance de montant exact trouvée",
+      });
+
+    } catch (error) {
+      console.error("Erreur lors du matching montants:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'effectuer le matching par montant",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fonction de matching des déclarations de charges sociales
   const handleMatchDeclarationsCharges = async () => {
     if (rapprochements.length === 0) {
@@ -3261,6 +3376,15 @@ export default function RapprochementBancaire() {
                   >
                     <Users className="h-4 w-4 mr-2" />
                     {loading ? "Matching..." : "Partenaires"}
+                  </Button>
+                  <Button 
+                    onClick={handleMatchMontants} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={loading}
+                  >
+                    <ArrowUpDown className="h-4 w-4 mr-2" />
+                    {loading ? "Matching..." : "Montant"}
                   </Button>
                   <Button 
                     onClick={handleAnnulerFichierEnCours} 
