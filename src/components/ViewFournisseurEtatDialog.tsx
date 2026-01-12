@@ -81,6 +81,7 @@ export function ViewFournisseurEtatDialog({ fournisseur, open, onOpenChange }: V
             entityType="fournisseur_etat"
             entityId={fournisseur.id}
             entityName={fournisseur.raison_sociale}
+            savedKeywords={fournisseur.mots_cles_rapprochement || fournisseur.raison_sociale}
           />
 
           {/* Historique des matchings */}

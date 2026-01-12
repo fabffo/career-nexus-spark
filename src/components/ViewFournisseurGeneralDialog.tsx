@@ -17,6 +17,7 @@ interface FournisseurGeneral {
   telephone?: string | null;
   email?: string | null;
   site_web?: string | null;
+  mots_cles_rapprochement?: string | null;
 }
 
 interface ViewFournisseurGeneralDialogProps {
@@ -102,6 +103,7 @@ export function ViewFournisseurGeneralDialog({ open, onOpenChange, fournisseur }
             entityType="fournisseur"
             entityId={fournisseur.id}
             entityName={fournisseur.raison_sociale}
+            savedKeywords={fournisseur.mots_cles_rapprochement || fournisseur.raison_sociale}
           />
 
           {/* Section Matching */}
