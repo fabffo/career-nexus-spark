@@ -1879,13 +1879,21 @@ export default function RapprochementBancaire() {
           .trim()
           .replace(/\s+/g, " ");
 
-      const checkKeywordsMatch = (keywords: string | null, libelle: string): boolean => {
-        if (!keywords || keywords.trim() === "") return false;
+      // IMPORTANT: certaines fiches peuvent avoir mots_cles_rapprochement = '' (string vide)
+      // Dans ce cas on doit retomber sur le nom de l'entité.
+      const getEffectiveKeywords = (keywords: string | null | undefined, fallback: string) => {
+        const v = (keywords ?? "").trim();
+        return v.length > 0 ? v : fallback;
+      };
+
+      const checkKeywordsMatch = (keywords: string, libelle: string): boolean => {
+        const kw = keywords.trim();
+        if (kw === "") return false;
 
         const libelleNorm = normalizeText(libelle);
 
         // Séparer par virgule (OU) puis par espace (ET)
-        const orGroups = keywords.split(",").map((g) => normalizeText(g));
+        const orGroups = kw.split(",").map((g) => normalizeText(g));
 
         return orGroups.some((group) => {
           if (group === "") return false;
@@ -1911,7 +1919,7 @@ export default function RapprochementBancaire() {
 
         // 1. Chercher un match dans les fournisseurs généraux
         for (const fournisseur of (fournisseursGeneraux || [])) {
-          if (checkKeywordsMatch(fournisseur.mots_cles_rapprochement ?? fournisseur.raison_sociale, libelle)) {
+          if (checkKeywordsMatch(getEffectiveKeywords(fournisseur.mots_cles_rapprochement, fournisseur.raison_sociale), libelle)) {
             matchFournisseurCount++;
             console.log(`✅ Match fournisseur général: "${libelle}" -> "${fournisseur.raison_sociale}"`);
             return {
@@ -1924,7 +1932,7 @@ export default function RapprochementBancaire() {
 
         // 2. Chercher un match dans les clients
         for (const client of (clients || [])) {
-          if (checkKeywordsMatch(client.mots_cles_rapprochement ?? client.raison_sociale, libelle)) {
+          if (checkKeywordsMatch(getEffectiveKeywords(client.mots_cles_rapprochement, client.raison_sociale), libelle)) {
             matchClientCount++;
             console.log(`✅ Match client: "${libelle}" -> "${client.raison_sociale}"`);
             return {
@@ -1937,7 +1945,7 @@ export default function RapprochementBancaire() {
 
         // 3. Chercher un match dans les fournisseurs services
         for (const fournisseur of (fournisseursServices || [])) {
-          if (checkKeywordsMatch(fournisseur.mots_cles_rapprochement ?? fournisseur.raison_sociale, libelle)) {
+          if (checkKeywordsMatch(getEffectiveKeywords(fournisseur.mots_cles_rapprochement, fournisseur.raison_sociale), libelle)) {
             matchFournisseurCount++;
             console.log(`✅ Match fournisseur services: "${libelle}" -> "${fournisseur.raison_sociale}"`);
             return {
@@ -1950,7 +1958,7 @@ export default function RapprochementBancaire() {
 
         // 4. Chercher un match dans les fournisseurs état/organismes
         for (const fournisseur of (fournisseursEtat || [])) {
-          if (checkKeywordsMatch(fournisseur.mots_cles_rapprochement ?? fournisseur.raison_sociale, libelle)) {
+          if (checkKeywordsMatch(getEffectiveKeywords(fournisseur.mots_cles_rapprochement, fournisseur.raison_sociale), libelle)) {
             matchFournisseurCount++;
             console.log(`✅ Match fournisseur état: "${libelle}" -> "${fournisseur.raison_sociale}"`);
             return {
@@ -1963,7 +1971,7 @@ export default function RapprochementBancaire() {
 
         // 5. Chercher un match dans les banques
         for (const banque of (banques || [])) {
-          if (checkKeywordsMatch(banque.mots_cles_rapprochement ?? banque.raison_sociale, libelle)) {
+          if (checkKeywordsMatch(getEffectiveKeywords(banque.mots_cles_rapprochement, banque.raison_sociale), libelle)) {
             matchBanqueCount++;
             console.log(`✅ Match banque: "${libelle}" -> "${banque.raison_sociale}"`);
             return {
@@ -1976,7 +1984,7 @@ export default function RapprochementBancaire() {
 
         // 6. Chercher un match dans les prestataires
         for (const prestataire of prestataires) {
-          if (checkKeywordsMatch(prestataire.mots_cles_rapprochement ?? `${prestataire.prenom} ${prestataire.nom}`, libelle)) {
+          if (checkKeywordsMatch(getEffectiveKeywords(prestataire.mots_cles_rapprochement, `${prestataire.prenom} ${prestataire.nom}`), libelle)) {
             matchPrestataireCount++;
             console.log(`✅ Match prestataire: "${libelle}" -> "${prestataire.prenom} ${prestataire.nom}"`);
             return {
@@ -1989,7 +1997,7 @@ export default function RapprochementBancaire() {
 
         // 7. Chercher un match dans les salariés
         for (const salarie of salaries) {
-          if (checkKeywordsMatch(salarie.mots_cles_rapprochement ?? `${salarie.prenom} ${salarie.nom}`, libelle)) {
+          if (checkKeywordsMatch(getEffectiveKeywords(salarie.mots_cles_rapprochement, `${salarie.prenom} ${salarie.nom}`), libelle)) {
             matchSalarieCount++;
             console.log(`✅ Match salarié: "${libelle}" -> "${salarie.prenom} ${salarie.nom}"`);
             return {
