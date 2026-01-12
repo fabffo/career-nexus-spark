@@ -62,7 +62,7 @@ interface Rapprochement {
   manualId?: string;
   notes?: string | null;
   numero_ligne?: string; // Numéro unique de la ligne de rapprochement (format: RL-YYYYMMDD-XXXXX)
-  abonnement_info?: { id: string; nom: string };
+  abonnement_info?: { id: string; nom: string; montant_ttc?: number };
   declaration_info?: { id: string; nom: string; organisme: string };
   fournisseur_info?: { id: string; nom: string; type: 'general' | 'services' | 'etat' };
   factureIds?: string[]; // Pour les rapprochements avec plusieurs factures
@@ -2184,10 +2184,14 @@ export default function RapprochementBancaire() {
           const effectiveKeywords = getEffectiveKeywords(abonnement);
           if (checkKeywordsMatch(effectiveKeywords, libelle)) {
             matchAbonnementCount++;
-            console.log(`✅ Match abonnement: "${libelle}" -> "${abonnement.nom}" (via: ${effectiveKeywords})`);
+            // Utiliser le montant de la transaction (débit positif ou crédit) comme montant facturé
+            const montantTtc = rapprochement.transaction.debit > 0 
+              ? rapprochement.transaction.debit 
+              : rapprochement.transaction.credit;
+            console.log(`✅ Match abonnement: "${libelle}" -> "${abonnement.nom}" (via: ${effectiveKeywords}) - Montant TTC: ${montantTtc}`);
             return {
               ...rapprochement,
-              abonnement_info: { id: abonnement.id, nom: abonnement.nom },
+              abonnement_info: { id: abonnement.id, nom: abonnement.nom, montant_ttc: montantTtc },
               status: "matched" as const,
             };
           }
@@ -3110,6 +3114,11 @@ export default function RapprochementBancaire() {
                             </div>
                           ) : rapprochement.factureIds && rapprochement.factureIds.length > 0 ? (
                             <Badge variant="outline" className="text-xs">{rapprochement.factureIds.length} fact.</Badge>
+                          ) : rapprochement.abonnement_info ? (
+                            <div className="flex flex-col">
+                              <span className="font-medium text-sm truncate">{rapprochement.abonnement_info.nom}</span>
+                              <span className="text-xs text-muted-foreground">ABONNEMENT</span>
+                            </div>
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )}
@@ -3140,6 +3149,11 @@ export default function RapprochementBancaire() {
                                 style: "currency",
                                 currency: "EUR",
                               }).format(rapprochement.facture.total_ttc)
+                            : rapprochement.abonnement_info?.montant_ttc
+                            ? new Intl.NumberFormat("fr-FR", {
+                                style: "currency",
+                                currency: "EUR",
+                              }).format(rapprochement.abonnement_info.montant_ttc)
                             : "-"}
                         </td>
                         <td className="p-2 align-middle text-right">
