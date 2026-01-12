@@ -25,6 +25,11 @@ const TYPE_CHARGE_LABELS = {
   MUTUELLE: "Mutuelle"
 };
 
+const PARTENAIRE_TYPE_LABELS: Record<string, string> = {
+  salarie: "Salarié",
+  fournisseur_etat: "Fournisseur État"
+};
+
 type Declaration = {
   id: string;
   nom: string;
@@ -34,6 +39,9 @@ type Declaration = {
   montant_estime: number;
   jour_echeance: number;
   actif: boolean;
+  partenaire_type: string | null;
+  partenaire_id: string | null;
+  partenaire_label?: string;
 };
 
 export default function DeclarationsChargesSociales() {
@@ -51,7 +59,31 @@ export default function DeclarationsChargesSociales() {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data || [];
+      
+      // Fetch partenaire labels
+      const enriched = await Promise.all((data || []).map(async (d) => {
+        let partenaire_label = '';
+        if (d.partenaire_type && d.partenaire_id) {
+          if (d.partenaire_type === 'salarie') {
+            const { data: salarie } = await supabase
+              .from('salaries')
+              .select('nom, prenom')
+              .eq('id', d.partenaire_id)
+              .single();
+            if (salarie) partenaire_label = `${salarie.prenom} ${salarie.nom}`;
+          } else if (d.partenaire_type === 'fournisseur_etat') {
+            const { data: fournisseur } = await supabase
+              .from('fournisseurs_etat_organismes')
+              .select('raison_sociale')
+              .eq('id', d.partenaire_id)
+              .single();
+            if (fournisseur) partenaire_label = fournisseur.raison_sociale;
+          }
+        }
+        return { ...d, partenaire_label };
+      }));
+      
+      return enriched;
     }
   });
 
@@ -111,6 +143,21 @@ export default function DeclarationsChargesSociales() {
           {TYPE_CHARGE_LABELS[row.original.type_charge as keyof typeof TYPE_CHARGE_LABELS]}
         </Badge>
       ),
+    },
+    {
+      id: "partenaire",
+      header: "Partenaire",
+      cell: ({ row }) => {
+        if (!row.original.partenaire_type) return <span className="text-muted-foreground">-</span>;
+        return (
+          <div className="text-sm">
+            <div className="font-medium">{row.original.partenaire_label || '-'}</div>
+            <div className="text-xs text-muted-foreground">
+              {PARTENAIRE_TYPE_LABELS[row.original.partenaire_type] || row.original.partenaire_type}
+            </div>
+          </div>
+        );
+      },
     },
     {
       accessorKey: "periodicite",

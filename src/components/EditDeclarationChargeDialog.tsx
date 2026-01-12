@@ -5,11 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { RapprochementSearchSection } from "@/components/RapprochementSearchSection";
 import { MatchingHistorySection } from "@/components/MatchingHistorySection";
+
+const PARTENAIRE_TYPES = [
+  { value: "salarie", label: "Salarié" },
+  { value: "fournisseur_etat", label: "Fournisseur État & organismes" },
+];
 
 interface EditDeclarationChargeDialogProps {
   open: boolean;
@@ -23,6 +28,8 @@ export default function EditDeclarationChargeDialog({
   declaration 
 }: EditDeclarationChargeDialogProps) {
   const queryClient = useQueryClient();
+  const [partenaireType, setPartenaireType] = useState<string | null>(null);
+  const [partenaireId, setPartenaireId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     nom: "",
     organisme: "",
@@ -32,6 +39,32 @@ export default function EditDeclarationChargeDialog({
     jour_echeance: "",
     notes: "",
     mots_cles_rapprochement: ""
+  });
+
+  // Fetch partenaires based on type
+  const { data: partenaires = [] } = useQuery({
+    queryKey: ['partenaires-declaration', partenaireType],
+    queryFn: async () => {
+      if (!partenaireType) return [];
+      
+      if (partenaireType === 'salarie') {
+        const { data, error } = await supabase
+          .from('salaries')
+          .select('id, nom, prenom')
+          .order('nom');
+        if (error) throw error;
+        return (data || []).map(s => ({ id: s.id, label: `${s.prenom} ${s.nom}` }));
+      } else if (partenaireType === 'fournisseur_etat') {
+        const { data, error } = await supabase
+          .from('fournisseurs_etat_organismes')
+          .select('id, raison_sociale')
+          .order('raison_sociale');
+        if (error) throw error;
+        return (data || []).map(f => ({ id: f.id, label: f.raison_sociale }));
+      }
+      return [];
+    },
+    enabled: !!partenaireType
   });
 
   useEffect(() => {
@@ -47,6 +80,8 @@ export default function EditDeclarationChargeDialog({
         notes: declaration.notes || "",
         mots_cles_rapprochement: declaration.mots_cles_rapprochement || defaultKeywords
       });
+      setPartenaireType(declaration.partenaire_type || null);
+      setPartenaireId(declaration.partenaire_id || null);
     }
   }, [declaration]);
 
@@ -57,7 +92,9 @@ export default function EditDeclarationChargeDialog({
         .update({
           ...data,
           montant_estime: data.montant_estime ? parseFloat(data.montant_estime) : null,
-          jour_echeance: data.jour_echeance ? parseInt(data.jour_echeance) : null
+          jour_echeance: data.jour_echeance ? parseInt(data.jour_echeance) : null,
+          partenaire_type: partenaireType,
+          partenaire_id: partenaireId
         })
         .eq('id', declaration.id);
 
@@ -141,6 +178,48 @@ export default function EditDeclarationChargeDialog({
                   <SelectItem value="MENSUEL">Mensuel</SelectItem>
                   <SelectItem value="TRIMESTRIEL">Trimestriel</SelectItem>
                   <SelectItem value="ANNUEL">Annuel</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Type de partenaire</Label>
+              <Select
+                value={partenaireType || "none"}
+                onValueChange={(value) => {
+                  setPartenaireType(value === "none" ? null : value);
+                  setPartenaireId(null);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucun</SelectItem>
+                  {PARTENAIRE_TYPES.map(type => (
+                    <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Partenaire</Label>
+              <Select
+                value={partenaireId || "none"}
+                onValueChange={(value) => setPartenaireId(value === "none" ? null : value)}
+                disabled={!partenaireType}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={partenaireType ? "Sélectionner" : "Choisir un type d'abord"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucun</SelectItem>
+                  {partenaires.map((p: any) => (
+                    <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

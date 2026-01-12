@@ -863,6 +863,8 @@ export type Database = {
           nom: string
           notes: string | null
           organisme: string
+          partenaire_id: string | null
+          partenaire_type: string | null
           periodicite: string
           type_charge: string
           updated_at: string | null
@@ -878,6 +880,8 @@ export type Database = {
           nom: string
           notes?: string | null
           organisme: string
+          partenaire_id?: string | null
+          partenaire_type?: string | null
           periodicite?: string
           type_charge: string
           updated_at?: string | null
@@ -893,6 +897,8 @@ export type Database = {
           nom?: string
           notes?: string | null
           organisme?: string
+          partenaire_id?: string | null
+          partenaire_type?: string | null
           periodicite?: string
           type_charge?: string
           updated_at?: string | null
