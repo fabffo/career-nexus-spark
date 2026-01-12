@@ -1921,17 +1921,35 @@ export default function RapprochementBancaire() {
         }
 
         const libelle = rapprochement.transaction.libelle;
+        
+        // Helper pour déterminer le statut en fonction de ce qui est rapproché
+        const determineStatus = (hasPartenaire: boolean, r: Rapprochement): "matched" | "uncertain" | "unmatched" => {
+          const hasFacture = r.facture !== null || (r.factureIds && r.factureIds.length > 0);
+          const hasAbonnement = r.abonnement_info !== undefined;
+          const hasDeclaration = r.declaration_info !== undefined;
+          
+          // Si partenaire + (facture OU abonnement OU déclaration) → matched
+          if (hasPartenaire && (hasFacture || hasAbonnement || hasDeclaration)) {
+            return "matched";
+          }
+          // Si seulement partenaire OU seulement facture/abonnement/déclaration → uncertain (partiel)
+          if (hasPartenaire || hasFacture || hasAbonnement || hasDeclaration) {
+            return "uncertain";
+          }
+          // Rien → unmatched
+          return "unmatched";
+        };
 
         // 1. Chercher un match dans les fournisseurs généraux
         for (const fournisseur of (fournisseursGeneraux || [])) {
           if (checkKeywordsMatch(getEffectiveKeywords(fournisseur.mots_cles_rapprochement, fournisseur.raison_sociale), libelle)) {
             matchFournisseurCount++;
             console.log(`✅ Match fournisseur général: "${libelle}" -> "${fournisseur.raison_sociale}"`);
-            return {
+            const updatedRapp = {
               ...rapprochement,
               fournisseur_info: { id: fournisseur.id, nom: fournisseur.raison_sociale, type: 'general' as const },
-              status: "matched" as const
             };
+            return { ...updatedRapp, status: determineStatus(true, updatedRapp) };
           }
         }
 
@@ -1940,11 +1958,11 @@ export default function RapprochementBancaire() {
           if (checkKeywordsMatch(getEffectiveKeywords(client.mots_cles_rapprochement, client.raison_sociale), libelle)) {
             matchClientCount++;
             console.log(`✅ Match client: "${libelle}" -> "${client.raison_sociale}"`);
-            return {
+            const updatedRapp = {
               ...rapprochement,
               fournisseur_info: { id: client.id, nom: client.raison_sociale, type: 'services' as const },
-              status: "matched" as const
             };
+            return { ...updatedRapp, status: determineStatus(true, updatedRapp) };
           }
         }
 
@@ -1953,11 +1971,11 @@ export default function RapprochementBancaire() {
           if (checkKeywordsMatch(getEffectiveKeywords(fournisseur.mots_cles_rapprochement, fournisseur.raison_sociale), libelle)) {
             matchFournisseurCount++;
             console.log(`✅ Match fournisseur services: "${libelle}" -> "${fournisseur.raison_sociale}"`);
-            return {
+            const updatedRapp = {
               ...rapprochement,
               fournisseur_info: { id: fournisseur.id, nom: fournisseur.raison_sociale, type: 'services' as const },
-              status: "matched" as const
             };
+            return { ...updatedRapp, status: determineStatus(true, updatedRapp) };
           }
         }
 
@@ -1966,11 +1984,11 @@ export default function RapprochementBancaire() {
           if (checkKeywordsMatch(getEffectiveKeywords(fournisseur.mots_cles_rapprochement, fournisseur.raison_sociale), libelle)) {
             matchFournisseurCount++;
             console.log(`✅ Match fournisseur état: "${libelle}" -> "${fournisseur.raison_sociale}"`);
-            return {
+            const updatedRapp = {
               ...rapprochement,
               fournisseur_info: { id: fournisseur.id, nom: fournisseur.raison_sociale, type: 'etat' as const },
-              status: "matched" as const
             };
+            return { ...updatedRapp, status: determineStatus(true, updatedRapp) };
           }
         }
 
@@ -1979,11 +1997,11 @@ export default function RapprochementBancaire() {
           if (checkKeywordsMatch(getEffectiveKeywords(banque.mots_cles_rapprochement, banque.raison_sociale), libelle)) {
             matchBanqueCount++;
             console.log(`✅ Match banque: "${libelle}" -> "${banque.raison_sociale}"`);
-            return {
+            const updatedRapp = {
               ...rapprochement,
               fournisseur_info: { id: banque.id, nom: banque.raison_sociale, type: 'general' as const },
-              status: "matched" as const
             };
+            return { ...updatedRapp, status: determineStatus(true, updatedRapp) };
           }
         }
 
@@ -1992,11 +2010,11 @@ export default function RapprochementBancaire() {
           if (checkKeywordsMatch(getEffectiveKeywords(prestataire.mots_cles_rapprochement, `${prestataire.prenom} ${prestataire.nom}`), libelle)) {
             matchPrestataireCount++;
             console.log(`✅ Match prestataire: "${libelle}" -> "${prestataire.prenom} ${prestataire.nom}"`);
-            return {
+            const updatedRapp = {
               ...rapprochement,
               fournisseur_info: { id: prestataire.id, nom: `${prestataire.prenom} ${prestataire.nom}`, type: 'services' as const },
-              status: "matched" as const
             };
+            return { ...updatedRapp, status: determineStatus(true, updatedRapp) };
           }
         }
 
@@ -2005,11 +2023,11 @@ export default function RapprochementBancaire() {
           if (checkKeywordsMatch(getEffectiveKeywords(salarie.mots_cles_rapprochement, `${salarie.prenom} ${salarie.nom}`), libelle)) {
             matchSalarieCount++;
             console.log(`✅ Match salarié: "${libelle}" -> "${salarie.prenom} ${salarie.nom}"`);
-            return {
+            const updatedRapp = {
               ...rapprochement,
               fournisseur_info: { id: salarie.id, nom: `${salarie.prenom} ${salarie.nom}`, type: 'services' as const },
-              status: "matched" as const
             };
+            return { ...updatedRapp, status: determineStatus(true, updatedRapp) };
           }
         }
 
@@ -2165,6 +2183,25 @@ export default function RapprochementBancaire() {
 
       let matchDeclarationCount = 0;
 
+      // Helper pour déterminer le statut en fonction de ce qui est rapproché
+      const determineStatus = (r: Rapprochement, hasNewDeclaration: boolean = false): "matched" | "uncertain" | "unmatched" => {
+        const hasPartenaire = r.fournisseur_info !== undefined;
+        const hasFacture = r.facture !== null || (r.factureIds && r.factureIds.length > 0);
+        const hasAbonnement = r.abonnement_info !== undefined;
+        const hasDeclaration = hasNewDeclaration || r.declaration_info !== undefined;
+        
+        // Si partenaire + (facture OU abonnement OU déclaration) → matched
+        if (hasPartenaire && (hasFacture || hasAbonnement || hasDeclaration)) {
+          return "matched";
+        }
+        // Si seulement partenaire OU seulement facture/abonnement/déclaration → uncertain (partiel)
+        if (hasPartenaire || hasFacture || hasAbonnement || hasDeclaration) {
+          return "uncertain";
+        }
+        // Rien → unmatched
+        return "unmatched";
+      };
+
       // Boucler sur les rapprochements pour matcher avec les déclarations
       const updatedRapprochements = rapprochements.map((rapprochement) => {
         // Ignorer si déjà associé à une déclaration
@@ -2183,15 +2220,15 @@ export default function RapprochementBancaire() {
           if (isMatch) {
             matchDeclarationCount++;
             console.log(`✅ Match déclaration: "${libelle}" -> "${declaration.nom}" (${declaration.organisme}) via: ${effectiveKeywords}`);
-            return {
+            const updatedRapp = {
               ...rapprochement,
               declaration_info: { 
                 id: declaration.id, 
                 nom: declaration.nom, 
                 organisme: declaration.organisme 
               },
-              status: "matched" as const,
             };
+            return { ...updatedRapp, status: determineStatus(updatedRapp, true) };
           }
         }
 
@@ -2347,6 +2384,25 @@ export default function RapprochementBancaire() {
 
       let matchAbonnementCount = 0;
 
+      // Helper pour déterminer le statut en fonction de ce qui est rapproché
+      const determineStatus = (r: Rapprochement, hasNewAbonnement: boolean = false): "matched" | "uncertain" | "unmatched" => {
+        const hasPartenaire = r.fournisseur_info !== undefined;
+        const hasFacture = r.facture !== null || (r.factureIds && r.factureIds.length > 0);
+        const hasAbonnement = hasNewAbonnement || r.abonnement_info !== undefined;
+        const hasDeclaration = r.declaration_info !== undefined;
+        
+        // Si partenaire + (facture OU abonnement OU déclaration) → matched
+        if (hasPartenaire && (hasFacture || hasAbonnement || hasDeclaration)) {
+          return "matched";
+        }
+        // Si seulement partenaire OU seulement facture/abonnement/déclaration → uncertain (partiel)
+        if (hasPartenaire || hasFacture || hasAbonnement || hasDeclaration) {
+          return "uncertain";
+        }
+        // Rien → unmatched
+        return "unmatched";
+      };
+
       // Boucler sur les rapprochements pour matcher avec les abonnements
       const updatedRapprochements = rapprochements.map((rapprochement) => {
         // Ignorer si déjà associé à un abonnement
@@ -2369,11 +2425,11 @@ export default function RapprochementBancaire() {
               ? rapprochement.transaction.debit 
               : rapprochement.transaction.credit;
             console.log(`✅ Match abonnement: "${libelle}" -> "${abonnement.nom}" (via: ${effectiveKeywords}) - Montant TTC: ${montantTtc}`);
-            return {
+            const updatedRapp = {
               ...rapprochement,
               abonnement_info: { id: abonnement.id, nom: abonnement.nom, montant_ttc: montantTtc },
-              status: "matched" as const,
             };
+            return { ...updatedRapp, status: determineStatus(updatedRapp, true) };
           }
         }
 
