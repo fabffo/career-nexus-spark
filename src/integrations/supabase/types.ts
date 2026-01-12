@@ -116,6 +116,8 @@ export type Database = {
           nature: string
           nom: string
           notes: string | null
+          partenaire_id: string | null
+          partenaire_type: string | null
           tva: string | null
           type: string
           updated_at: string | null
@@ -132,6 +134,8 @@ export type Database = {
           nature: string
           nom: string
           notes?: string | null
+          partenaire_id?: string | null
+          partenaire_type?: string | null
           tva?: string | null
           type?: string
           updated_at?: string | null
@@ -148,6 +152,8 @@ export type Database = {
           nature?: string
           nom?: string
           notes?: string | null
+          partenaire_id?: string | null
+          partenaire_type?: string | null
           tva?: string | null
           type?: string
           updated_at?: string | null

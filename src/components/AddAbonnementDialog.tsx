@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +24,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { FileUploadField } from "@/components/FileUploadField";
 import { FileText } from "lucide-react";
+import { PartenaireSelect } from "@/components/PartenaireSelect";
 
 interface AddAbonnementDialogProps {
   open: boolean;
@@ -47,6 +48,8 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
   const queryClient = useQueryClient();
   const { uploadFile } = useFileUpload();
   const [documentFiles, setDocumentFiles] = useState<File[]>([]);
+  const [partenaireType, setPartenaireType] = useState<string | null>(null);
+  const [partenaireId, setPartenaireId] = useState<string | null>(null);
   
   // Charger les taux de TVA depuis la table paramètre
   const { data: tvaOptions = [] } = useQuery({
@@ -79,6 +82,14 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
   const tva = watch("tva");
   const actif = watch("actif");
 
+  const handlePartenaireTypeChange = useCallback((type: string | null) => {
+    setPartenaireType(type);
+  }, []);
+
+  const handlePartenaireIdChange = useCallback((id: string | null) => {
+    setPartenaireId(id);
+  }, []);
+
   // Mettre à jour TVA automatiquement selon le type
   useEffect(() => {
     if (tvaOptions.length > 0) {
@@ -108,6 +119,8 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
           jour_prelevement: data.jour_prelevement ? parseInt(data.jour_prelevement) : null,
           actif: data.actif,
           notes: data.notes || null,
+          partenaire_type: partenaireType,
+          partenaire_id: partenaireId,
         })
         .select()
         .single();
@@ -139,6 +152,8 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
       toast.success("Abonnement créé");
       reset();
       setDocumentFiles([]);
+      setPartenaireType(null);
+      setPartenaireId(null);
       onOpenChange(false);
     },
     onError: (error) => {
@@ -154,6 +169,13 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
           <DialogTitle>Nouvel abonnement partenaire</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit((data) => createMutation.mutate(data))} className="space-y-4">
+          <PartenaireSelect
+            partenaireType={partenaireType}
+            partenaireId={partenaireId}
+            onTypeChange={handlePartenaireTypeChange}
+            onIdChange={handlePartenaireIdChange}
+          />
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="nom">Nom *</Label>

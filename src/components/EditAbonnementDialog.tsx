@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +26,7 @@ import { FileUploadField } from "@/components/FileUploadField";
 import { ExternalLink, FileText } from "lucide-react";
 import { RapprochementSearchSection } from "@/components/RapprochementSearchSection";
 import { MatchingHistorySection } from "@/components/MatchingHistorySection";
+import { PartenaireSelect } from "@/components/PartenaireSelect";
 
 interface EditAbonnementDialogProps {
   open: boolean;
@@ -55,6 +56,8 @@ export function EditAbonnementDialog({
   const { uploadFile, deleteFile } = useFileUpload();
   const [newDocumentFiles, setNewDocumentFiles] = useState<File[]>([]);
   const [existingDocuments, setExistingDocuments] = useState<any[]>([]);
+  const [partenaireType, setPartenaireType] = useState<string | null>(null);
+  const [partenaireId, setPartenaireId] = useState<string | null>(null);
   
   // Charger les taux de TVA depuis la table paramètre
   const { data: tvaOptions = [] } = useQuery({
@@ -76,6 +79,14 @@ export function EditAbonnementDialog({
   const tva = watch("tva");
   const actif = watch("actif");
 
+  const handlePartenaireTypeChange = useCallback((type: string | null) => {
+    setPartenaireType(type);
+  }, []);
+
+  const handlePartenaireIdChange = useCallback((id: string | null) => {
+    setPartenaireId(id);
+  }, []);
+
   useEffect(() => {
     if (abonnement) {
       const defaultKeywords = abonnement.nom;
@@ -90,6 +101,10 @@ export function EditAbonnementDialog({
         notes: abonnement.notes || "",
         mots_cles_rapprochement: abonnement.mots_cles_rapprochement || defaultKeywords,
       });
+      
+      // Set partenaire values
+      setPartenaireType(abonnement.partenaire_type || null);
+      setPartenaireId(abonnement.partenaire_id || null);
       
       // Charger les documents existants
       const loadDocuments = async () => {
@@ -122,6 +137,8 @@ export function EditAbonnementDialog({
           actif: data.actif,
           notes: data.notes || null,
           mots_cles_rapprochement: data.mots_cles_rapprochement || null,
+          partenaire_type: partenaireType,
+          partenaire_id: partenaireId,
         })
         .eq("id", abonnement.id);
 
@@ -166,6 +183,13 @@ export function EditAbonnementDialog({
           <DialogTitle>Modifier l'abonnement</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit((data) => updateMutation.mutate(data))} className="space-y-4">
+          <PartenaireSelect
+            partenaireType={partenaireType}
+            partenaireId={partenaireId}
+            onTypeChange={handlePartenaireTypeChange}
+            onIdChange={handlePartenaireIdChange}
+          />
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="nom">Nom *</Label>
