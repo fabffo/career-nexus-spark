@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from "react";
-import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter, History, Clock, Pencil, Trash2, Settings, Plus, Edit, Trash, Power, PowerOff, Users, CreditCard } from "lucide-react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter, History, Clock, Pencil, Trash2, Settings, Plus, Edit, Trash, Power, PowerOff, Users, CreditCard, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { RapprochementTypeIndicatorCompact } from "@/components/RapprochementTypeIndicator";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -129,6 +130,9 @@ export default function RapprochementBancaire() {
   const [selectedEnCoursRapprochement, setSelectedEnCoursRapprochement] = useState<Rapprochement | null>(null);
   const [fichierEnCoursId, setFichierEnCoursId] = useState<string | null>(null);
   const [autoSaving, setAutoSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortColumn, setSortColumn] = useState<"date" | "libelle" | "debit" | "credit" | "partenaire" | "score" | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const { toast } = useToast();
 
   // Charger le fichier EN_COURS au montage du composant
@@ -2661,17 +2665,93 @@ export default function RapprochementBancaire() {
     window.URL.revokeObjectURL(url);
   };
 
-  // Filtrage par statut
-  const filteredRapprochements = rapprochements.filter(r => {
-    if (statusFilter === "all") return true;
-    return r.status === statusFilter;
-  });
+  // Fonction pour extraire le nom du partenaire d'un rapprochement
+  const getPartenaireName = (r: Rapprochement): string => {
+    return (
+      r.facture?.partenaire_nom ||
+      r.abonnement_info?.nom ||
+      (r.declaration_info ? r.declaration_info.nom : "") ||
+      r.fournisseur_info?.nom ||
+      ""
+    ).toLowerCase();
+  };
+
+  // Filtrage par statut et recherche
+  const filteredRapprochements = useMemo(() => {
+    return rapprochements.filter(r => {
+      // Filtre par statut
+      if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      
+      // Filtre par recherche (libellé ou partenaire)
+      if (searchTerm.trim()) {
+        const searchLower = searchTerm.toLowerCase();
+        const libelleMatch = r.transaction.libelle.toLowerCase().includes(searchLower);
+        const partenaireMatch = getPartenaireName(r).includes(searchLower);
+        if (!libelleMatch && !partenaireMatch) return false;
+      }
+      
+      return true;
+    });
+  }, [rapprochements, statusFilter, searchTerm]);
+
+  // Tri des résultats
+  const sortedRapprochements = useMemo(() => {
+    if (!sortColumn) return filteredRapprochements;
+    
+    return [...filteredRapprochements].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortColumn) {
+        case "date":
+          comparison = new Date(a.transaction.date).getTime() - new Date(b.transaction.date).getTime();
+          break;
+        case "libelle":
+          comparison = a.transaction.libelle.localeCompare(b.transaction.libelle);
+          break;
+        case "debit":
+          comparison = (a.transaction.debit || 0) - (b.transaction.debit || 0);
+          break;
+        case "credit":
+          comparison = (a.transaction.credit || 0) - (b.transaction.credit || 0);
+          break;
+        case "partenaire":
+          comparison = getPartenaireName(a).localeCompare(getPartenaireName(b));
+          break;
+        case "score":
+          comparison = a.score - b.score;
+          break;
+      }
+      
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [filteredRapprochements, sortColumn, sortDirection]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredRapprochements.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedRapprochements.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentRapprochements = filteredRapprochements.slice(startIndex, endIndex);
+  const currentRapprochements = sortedRapprochements.slice(startIndex, endIndex);
+
+  // Gestion du tri
+  const handleSort = (column: typeof sortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+    setCurrentPage(1);
+  };
+
+  // Icône de tri
+  const SortIcon = ({ column }: { column: typeof sortColumn }) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
+    }
+    return sortDirection === "asc" 
+      ? <ArrowUp className="h-3 w-3 ml-1" />
+      : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
 
   // Statistiques par statut
   const stats = {
@@ -2713,7 +2793,7 @@ export default function RapprochementBancaire() {
     <div className="flex items-center justify-between px-2 py-4">
       <div className="flex items-center gap-2">
         <p className="text-sm text-muted-foreground">
-          Affichage de {startIndex + 1} à {Math.min(endIndex, filteredRapprochements.length)} sur {filteredRapprochements.length} résultats {statusFilter !== "all" && `(${stats.all} au total)`}
+          Affichage de {startIndex + 1} à {Math.min(endIndex, sortedRapprochements.length)} sur {sortedRapprochements.length} résultats {(statusFilter !== "all" || searchTerm) && `(${stats.all} au total)`}
         </p>
         <Select
           value={itemsPerPage.toString()}
@@ -2957,6 +3037,32 @@ export default function RapprochementBancaire() {
                 </div>
               </div>
 
+              {/* Zone de recherche */}
+              <div className="flex items-center gap-4">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Rechercher par libellé ou partenaire..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="pl-9"
+                  />
+                </div>
+                {searchTerm && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setSearchTerm("")}
+                  >
+                    Effacer
+                  </Button>
+                )}
+              </div>
+
               {/* Filtres par statut */}
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
@@ -2989,7 +3095,9 @@ export default function RapprochementBancaire() {
           <CardContent>
               <PaginationControls />
               <div className="text-sm text-muted-foreground mb-2">
-                Affichage de {startIndex + 1} à {Math.min(endIndex, filteredRapprochements.length)} sur {filteredRapprochements.length} transaction(s) {statusFilter !== "all" && `(${stats.all} au total)`}
+                Affichage de {startIndex + 1} à {Math.min(endIndex, sortedRapprochements.length)} sur {sortedRapprochements.length} transaction(s) 
+                {(statusFilter !== "all" || searchTerm) && ` (${stats.all} au total)`}
+                {searchTerm && ` - Recherche: "${searchTerm}"`}
               </div>
               <div className="rounded-md border">
                 {/* Contrôles de défilement horizontal */}
@@ -3032,14 +3140,68 @@ export default function RapprochementBancaire() {
                         <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '60px' }}>Statut</th>
                         <th className="h-12 px-2 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ width: '80px' }}>Type</th>
                         <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '140px' }}>N° Ligne</th>
-                        <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '90px' }}>Date</th>
-                        <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '20%' }}>Libellé</th>
-                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Débit</th>
-                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Crédit</th>
+                        <th 
+                          className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
+                          style={{ width: '90px' }}
+                          onClick={() => handleSort("date")}
+                        >
+                          <div className="flex items-center">
+                            Date
+                            <SortIcon column="date" />
+                          </div>
+                        </th>
+                        <th 
+                          className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
+                          style={{ width: '20%' }}
+                          onClick={() => handleSort("libelle")}
+                        >
+                          <div className="flex items-center">
+                            Libellé
+                            <SortIcon column="libelle" />
+                          </div>
+                        </th>
+                        <th 
+                          className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
+                          style={{ width: '100px' }}
+                          onClick={() => handleSort("debit")}
+                        >
+                          <div className="flex items-center justify-end">
+                            Débit
+                            <SortIcon column="debit" />
+                          </div>
+                        </th>
+                        <th 
+                          className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
+                          style={{ width: '100px' }}
+                          onClick={() => handleSort("credit")}
+                        >
+                          <div className="flex items-center justify-end">
+                            Crédit
+                            <SortIcon column="credit" />
+                          </div>
+                        </th>
                         <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '12%' }}>Facture</th>
-                        <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '14%' }}>Partenaire</th>
+                        <th 
+                          className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
+                          style={{ width: '14%' }}
+                          onClick={() => handleSort("partenaire")}
+                        >
+                          <div className="flex items-center">
+                            Partenaire
+                            <SortIcon column="partenaire" />
+                          </div>
+                        </th>
                         <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Mnt Fact.</th>
-                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '80px' }}>Score</th>
+                        <th 
+                          className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
+                          style={{ width: '80px' }}
+                          onClick={() => handleSort("score")}
+                        >
+                          <div className="flex items-center justify-end">
+                            Score
+                            <SortIcon column="score" />
+                          </div>
+                        </th>
                         <th className="h-12 px-2 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Action</th>
                       </tr>
                     </thead>
