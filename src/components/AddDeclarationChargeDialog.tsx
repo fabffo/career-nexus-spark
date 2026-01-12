@@ -5,9 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+const PARTENAIRE_TYPES = [
+  { value: "salarie", label: "Salarié" },
+  { value: "fournisseur_etat", label: "Fournisseur État & organismes" },
+];
 
 interface AddDeclarationChargeDialogProps {
   open: boolean;
@@ -16,6 +21,8 @@ interface AddDeclarationChargeDialogProps {
 
 export default function AddDeclarationChargeDialog({ open, onOpenChange }: AddDeclarationChargeDialogProps) {
   const queryClient = useQueryClient();
+  const [partenaireType, setPartenaireType] = useState<string | null>(null);
+  const [partenaireId, setPartenaireId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     nom: "",
     organisme: "",
@@ -24,6 +31,32 @@ export default function AddDeclarationChargeDialog({ open, onOpenChange }: AddDe
     montant_estime: "",
     jour_echeance: "",
     notes: ""
+  });
+
+  // Fetch partenaires based on type
+  const { data: partenaires = [] } = useQuery({
+    queryKey: ['partenaires-declaration', partenaireType],
+    queryFn: async () => {
+      if (!partenaireType) return [];
+      
+      if (partenaireType === 'salarie') {
+        const { data, error } = await supabase
+          .from('salaries')
+          .select('id, nom, prenom')
+          .order('nom');
+        if (error) throw error;
+        return (data || []).map(s => ({ id: s.id, label: `${s.prenom} ${s.nom}` }));
+      } else if (partenaireType === 'fournisseur_etat') {
+        const { data, error } = await supabase
+          .from('fournisseurs_etat_organismes')
+          .select('id, raison_sociale')
+          .order('raison_sociale');
+        if (error) throw error;
+        return (data || []).map(f => ({ id: f.id, label: f.raison_sociale }));
+      }
+      return [];
+    },
+    enabled: !!partenaireType
   });
 
   const createMutation = useMutation({
@@ -37,6 +70,8 @@ export default function AddDeclarationChargeDialog({ open, onOpenChange }: AddDe
           ...data,
           montant_estime: data.montant_estime ? parseFloat(data.montant_estime) : null,
           jour_echeance: data.jour_echeance ? parseInt(data.jour_echeance) : null,
+          partenaire_type: partenaireType,
+          partenaire_id: partenaireId,
           created_by: user.id
         });
 
@@ -55,6 +90,8 @@ export default function AddDeclarationChargeDialog({ open, onOpenChange }: AddDe
         jour_echeance: "",
         notes: ""
       });
+      setPartenaireType(null);
+      setPartenaireId(null);
     },
     onError: (error) => {
       console.error('Error creating declaration:', error);
@@ -130,6 +167,48 @@ export default function AddDeclarationChargeDialog({ open, onOpenChange }: AddDe
                   <SelectItem value="MENSUEL">Mensuel</SelectItem>
                   <SelectItem value="TRIMESTRIEL">Trimestriel</SelectItem>
                   <SelectItem value="ANNUEL">Annuel</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Type de partenaire</Label>
+              <Select
+                value={partenaireType || "none"}
+                onValueChange={(value) => {
+                  setPartenaireType(value === "none" ? null : value);
+                  setPartenaireId(null);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucun</SelectItem>
+                  {PARTENAIRE_TYPES.map(type => (
+                    <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Partenaire</Label>
+              <Select
+                value={partenaireId || "none"}
+                onValueChange={(value) => setPartenaireId(value === "none" ? null : value)}
+                disabled={!partenaireType}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={partenaireType ? "Sélectionner" : "Choisir un type d'abord"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucun</SelectItem>
+                  {partenaires.map((p: any) => (
+                    <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
