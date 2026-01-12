@@ -65,7 +65,7 @@ interface Rapprochement {
   numero_ligne?: string; // Numéro unique de la ligne de rapprochement (format: RL-YYYYMMDD-XXXXX)
   abonnement_info?: { id: string; nom: string; montant_ttc?: number };
   declaration_info?: { id: string; nom: string; organisme: string };
-  fournisseur_info?: { id: string; nom: string; type: 'general' | 'services' | 'etat' };
+  fournisseur_info?: { id: string; nom: string; type: 'general' | 'services' | 'etat' | 'client' | 'banque' | 'prestataire' | 'salarie' };
   factureIds?: string[]; // Pour les rapprochements avec plusieurs factures
 }
 
@@ -1981,7 +1981,7 @@ export default function RapprochementBancaire() {
             console.log(`✅ Match client: "${libelle}" -> "${client.raison_sociale}"`);
             const updatedRapp = {
               ...rapprochement,
-              fournisseur_info: { id: client.id, nom: client.raison_sociale, type: 'services' as const },
+              fournisseur_info: { id: client.id, nom: client.raison_sociale, type: 'client' as const },
             };
             return { ...updatedRapp, status: determineStatus(true, updatedRapp) };
           }
@@ -2020,7 +2020,7 @@ export default function RapprochementBancaire() {
             console.log(`✅ Match banque: "${libelle}" -> "${banque.raison_sociale}"`);
             const updatedRapp = {
               ...rapprochement,
-              fournisseur_info: { id: banque.id, nom: banque.raison_sociale, type: 'general' as const },
+              fournisseur_info: { id: banque.id, nom: banque.raison_sociale, type: 'banque' as const },
             };
             return { ...updatedRapp, status: determineStatus(true, updatedRapp) };
           }
@@ -2033,7 +2033,7 @@ export default function RapprochementBancaire() {
             console.log(`✅ Match prestataire: "${libelle}" -> "${prestataire.prenom} ${prestataire.nom}"`);
             const updatedRapp = {
               ...rapprochement,
-              fournisseur_info: { id: prestataire.id, nom: `${prestataire.prenom} ${prestataire.nom}`, type: 'services' as const },
+              fournisseur_info: { id: prestataire.id, nom: `${prestataire.prenom} ${prestataire.nom}`, type: 'prestataire' as const },
             };
             return { ...updatedRapp, status: determineStatus(true, updatedRapp) };
           }
@@ -2046,7 +2046,7 @@ export default function RapprochementBancaire() {
             console.log(`✅ Match salarié: "${libelle}" -> "${salarie.prenom} ${salarie.nom}"`);
             const updatedRapp = {
               ...rapprochement,
-              fournisseur_info: { id: salarie.id, nom: `${salarie.prenom} ${salarie.nom}`, type: 'services' as const },
+              fournisseur_info: { id: salarie.id, nom: `${salarie.prenom} ${salarie.nom}`, type: 'salarie' as const },
             };
             return { ...updatedRapp, status: determineStatus(true, updatedRapp) };
           }
@@ -3583,6 +3583,10 @@ export default function RapprochementBancaire() {
                                 {rapprochement.fournisseur_info.type === "general" ? "Frns Général" :
                                  rapprochement.fournisseur_info.type === "services" ? "Frns Services" :
                                  rapprochement.fournisseur_info.type === "etat" ? "État/Org." :
+                                 rapprochement.fournisseur_info.type === "client" ? "Client" :
+                                 rapprochement.fournisseur_info.type === "banque" ? "Banque" :
+                                 rapprochement.fournisseur_info.type === "prestataire" ? "Prestataire" :
+                                 rapprochement.fournisseur_info.type === "salarie" ? "Salarié" :
                                  "Autre"}
                               </Badge>
                             ) : (
