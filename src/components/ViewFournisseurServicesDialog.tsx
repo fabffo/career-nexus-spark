@@ -81,6 +81,7 @@ export function ViewFournisseurServicesDialog({ fournisseur, open, onOpenChange 
             entityType="fournisseur_services"
             entityId={fournisseur.id}
             entityName={fournisseur.raison_sociale}
+            savedKeywords={fournisseur.mots_cles_rapprochement || fournisseur.raison_sociale}
           />
 
           {/* Historique des matchings */}
