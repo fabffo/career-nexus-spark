@@ -329,6 +329,32 @@ export default function RapprochementBancaire() {
 
       if (error) throw error;
 
+      // Synchroniser les lignes dans lignes_rapprochement
+      // Mettre à jour les statuts et les associations
+      for (const r of rapprochements) {
+        const numeroLigne = r.transaction.numero_ligne || r.numero_ligne;
+        if (numeroLigne) {
+          await supabase
+            .from('lignes_rapprochement')
+            .update({
+              statut: r.status,
+              facture_id: r.facture?.id || null,
+              factures_ids: r.factureIds || null,
+              numero_facture: r.facture?.numero_facture || null,
+              fournisseur_detecte_id: r.fournisseur_info?.id || null,
+              fournisseur_detecte_nom: r.fournisseur_info?.nom || null,
+              fournisseur_detecte_type: r.fournisseur_info?.type || null,
+              abonnement_id: r.abonnement_info?.id || null,
+              declaration_charge_id: r.declaration_info?.id || null,
+              score_detection: r.score || null,
+              notes: r.notes || null,
+              updated_at: new Date().toISOString()
+            })
+            .eq('fichier_rapprochement_id', fichierEnCoursId)
+            .eq('numero_ligne', numeroLigne);
+        }
+      }
+
       console.log("💾 Sauvegarde automatique effectuée");
     } catch (error) {
       console.error("Erreur lors de la sauvegarde automatique:", error);
@@ -1104,6 +1130,12 @@ export default function RapprochementBancaire() {
 
       // Supprimer l'ancien fichier EN_COURS s'il existe
       if (fichierEnCoursId) {
+        // Supprimer d'abord les lignes de rapprochement associées
+        await supabase
+          .from('lignes_rapprochement')
+          .delete()
+          .eq('fichier_rapprochement_id', fichierEnCoursId);
+        
         await supabase
           .from('fichiers_rapprochement')
           .delete()
@@ -1140,6 +1172,38 @@ export default function RapprochementBancaire() {
 
       setFichierEnCoursId(fichier.id);
       console.log("✅ Fichier EN_COURS créé:", fichier.numero_rapprochement);
+
+      // Alimenter la table lignes_rapprochement
+      const lignesAInserer = rapprochementsResult.map((r, index) => ({
+        fichier_rapprochement_id: fichier.id,
+        numero_ligne: r.transaction.numero_ligne || `RL-${format(new Date(r.transaction.date), 'yyyyMMdd')}-${String(index + 1).padStart(5, '0')}`,
+        transaction_date: r.transaction.date,
+        transaction_libelle: r.transaction.libelle,
+        transaction_debit: r.transaction.debit || null,
+        transaction_credit: r.transaction.credit || null,
+        transaction_montant: r.transaction.montant,
+        statut: r.status,
+        facture_id: r.facture?.id || null,
+        factures_ids: r.factureIds || null,
+        numero_facture: r.facture?.numero_facture || null,
+        fournisseur_detecte_id: r.fournisseur_info?.id || null,
+        fournisseur_detecte_nom: r.fournisseur_info?.nom || null,
+        fournisseur_detecte_type: r.fournisseur_info?.type || null,
+        abonnement_id: r.abonnement_info?.id || null,
+        declaration_charge_id: r.declaration_info?.id || null,
+        score_detection: r.score || null,
+        notes: r.notes || null
+      }));
+
+      const { error: insertError } = await supabase
+        .from('lignes_rapprochement')
+        .insert(lignesAInserer);
+
+      if (insertError) {
+        console.error("❌ Erreur insertion lignes_rapprochement:", insertError);
+      } else {
+        console.log(`✅ ${lignesAInserer.length} lignes insérées dans lignes_rapprochement`);
+      }
     } catch (error) {
       console.error("Erreur lors de la création du fichier EN_COURS:", error);
     }
