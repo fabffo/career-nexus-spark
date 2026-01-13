@@ -1457,6 +1457,107 @@ export type Database = {
         }
         Relationships: []
       }
+      lignes_rapprochement: {
+        Row: {
+          abonnement_id: string | null
+          created_at: string
+          declaration_charge_id: string | null
+          facture_id: string | null
+          factures_ids: string[] | null
+          fichier_rapprochement_id: string
+          fournisseur_detecte_id: string | null
+          fournisseur_detecte_nom: string | null
+          fournisseur_detecte_type: string | null
+          id: string
+          notes: string | null
+          numero_facture: string | null
+          numero_ligne: string
+          score_detection: number | null
+          statut: string
+          transaction_credit: number | null
+          transaction_date: string
+          transaction_debit: number | null
+          transaction_libelle: string
+          transaction_montant: number | null
+          updated_at: string
+        }
+        Insert: {
+          abonnement_id?: string | null
+          created_at?: string
+          declaration_charge_id?: string | null
+          facture_id?: string | null
+          factures_ids?: string[] | null
+          fichier_rapprochement_id: string
+          fournisseur_detecte_id?: string | null
+          fournisseur_detecte_nom?: string | null
+          fournisseur_detecte_type?: string | null
+          id?: string
+          notes?: string | null
+          numero_facture?: string | null
+          numero_ligne: string
+          score_detection?: number | null
+          statut?: string
+          transaction_credit?: number | null
+          transaction_date: string
+          transaction_debit?: number | null
+          transaction_libelle: string
+          transaction_montant?: number | null
+          updated_at?: string
+        }
+        Update: {
+          abonnement_id?: string | null
+          created_at?: string
+          declaration_charge_id?: string | null
+          facture_id?: string | null
+          factures_ids?: string[] | null
+          fichier_rapprochement_id?: string
+          fournisseur_detecte_id?: string | null
+          fournisseur_detecte_nom?: string | null
+          fournisseur_detecte_type?: string | null
+          id?: string
+          notes?: string | null
+          numero_facture?: string | null
+          numero_ligne?: string
+          score_detection?: number | null
+          statut?: string
+          transaction_credit?: number | null
+          transaction_date?: string
+          transaction_debit?: number | null
+          transaction_libelle?: string
+          transaction_montant?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lignes_rapprochement_abonnement_id_fkey"
+            columns: ["abonnement_id"]
+            isOneToOne: false
+            referencedRelation: "abonnements_partenaires"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lignes_rapprochement_declaration_charge_id_fkey"
+            columns: ["declaration_charge_id"]
+            isOneToOne: false
+            referencedRelation: "declarations_charges_sociales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lignes_rapprochement_facture_id_fkey"
+            columns: ["facture_id"]
+            isOneToOne: false
+            referencedRelation: "factures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lignes_rapprochement_fichier_rapprochement_id_fkey"
+            columns: ["fichier_rapprochement_id"]
+            isOneToOne: false
+            referencedRelation: "fichiers_rapprochement"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       login_attempts: {
         Row: {
           created_at: string | null
