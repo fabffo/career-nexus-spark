@@ -2183,24 +2183,27 @@ export default function RapprochementBancaire() {
 
       if (facturesError) throw facturesError;
 
-      // Filtrer pour ne garder que les factures de type "général" ou "GENERAL"
-      const facturesGenerales = (facturesAchats || []).filter(f => 
-        f.type_frais?.toLowerCase() === 'general' || 
-        f.type_frais?.toLowerCase() === 'général' ||
-        f.type_frais?.toLowerCase() === 'generaux'
-      );
+      // Filtrer pour ne garder que les factures de type "général" ou null (par défaut considéré comme général)
+      const facturesGenerales = (facturesAchats || []).filter(f => {
+        const typeFrais = f.type_frais?.toLowerCase();
+        // Inclure si type_frais est null, vide, ou "general/général/generaux"
+        return !typeFrais || 
+               typeFrais === 'general' || 
+               typeFrais === 'général' ||
+               typeFrais === 'generaux';
+      });
 
       if (facturesGenerales.length === 0) {
         toast({
           title: "Aucune facture",
-          description: "Aucune facture d'achats de type général disponible pour le rapprochement",
+          description: "Aucune facture d'achats disponible pour le rapprochement",
           variant: "destructive",
         });
         setLoading(false);
         return;
       }
 
-      console.log("🔍 Matching montants (général): ", facturesGenerales.length, "factures d'achats généraux trouvées");
+      console.log("🔍 Matching montants: ", facturesGenerales.length, "factures d'achats trouvées");
 
       let matchCount = 0;
 
