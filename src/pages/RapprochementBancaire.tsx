@@ -2157,7 +2157,9 @@ export default function RapprochementBancaire() {
     }
   };
 
-  // Fonction de matching par montant exact sur les factures d'achats du même mois
+  // Fonction de matching par montant exact sur les factures d'achats généraux du même mois
+  // Cas 1: partenaire_type = "Fournisseur général" -> chercher factures type "général", maj montant + facture
+  // Cas 2: partenaire vide -> chercher factures type "général", maj montant + facture + partenaire + type
   const handleMatchMontants = async () => {
     if (rapprochements.length === 0) {
       toast({
@@ -2171,33 +2173,52 @@ export default function RapprochementBancaire() {
     setLoading(true);
 
     try {
-      // Charger les factures d'achats validées ou payées
+      // Charger les factures d'achats de type GÉNÉRAL validées ou payées, non rapprochées
       const { data: facturesAchats, error: facturesError } = await supabase
         .from("factures")
         .select("id, numero_facture, date_emission, emetteur_nom, emetteur_id, emetteur_type, type_frais, total_ttc, statut, numero_rapprochement")
         .eq("type_facture", "ACHATS")
         .in("statut", ["VALIDEE", "PAYEE"])
-        .is("numero_rapprochement", null); // Seulement les factures non encore rapprochées
+        .is("numero_rapprochement", null);
 
       if (facturesError) throw facturesError;
 
-      if (!facturesAchats || facturesAchats.length === 0) {
+      // Filtrer pour ne garder que les factures de type "général" ou "GENERAL"
+      const facturesGenerales = (facturesAchats || []).filter(f => 
+        f.type_frais?.toLowerCase() === 'general' || 
+        f.type_frais?.toLowerCase() === 'général' ||
+        f.type_frais?.toLowerCase() === 'generaux'
+      );
+
+      if (facturesGenerales.length === 0) {
         toast({
           title: "Aucune facture",
-          description: "Aucune facture d'achats disponible pour le rapprochement",
+          description: "Aucune facture d'achats de type général disponible pour le rapprochement",
           variant: "destructive",
         });
         setLoading(false);
         return;
       }
 
-      console.log("🔍 Matching montants: ", facturesAchats.length, "factures d'achats trouvées");
+      console.log("🔍 Matching montants (général): ", facturesGenerales.length, "factures d'achats généraux trouvées");
 
       let matchCount = 0;
 
       const updatedRapprochements = rapprochements.map(rapprochement => {
-        // Ne traiter que les transactions non rapprochées ou incertaines
+        // Ne traiter que les lignes:
+        // - Cas 1: partenaire_type = "Fournisseur général" (ou 'general')
+        // - Cas 2: pas de partenaire du tout
+        const partenaireType = rapprochement.fournisseur_info?.type;
+        const hasPartenaire = !!rapprochement.fournisseur_info;
+        const isFournisseurGeneral = partenaireType === 'general';
+        
+        // Si déjà matched avec une facture, on ne touche pas
         if (rapprochement.status === 'matched' && rapprochement.facture) {
+          return rapprochement;
+        }
+
+        // Cas éligibles: Fournisseur général OU pas de partenaire
+        if (hasPartenaire && !isFournisseurGeneral) {
           return rapprochement;
         }
 
@@ -2207,7 +2228,7 @@ export default function RapprochementBancaire() {
         const transactionMontant = Math.abs(rapprochement.transaction.montant);
 
         // Chercher une facture avec montant exact dans le même mois
-        for (const facture of facturesAchats) {
+        for (const facture of facturesGenerales) {
           const factureDate = new Date(facture.date_emission);
           const factureMonth = factureDate.getMonth();
           const factureYear = factureDate.getFullYear();
@@ -2219,7 +2240,7 @@ export default function RapprochementBancaire() {
               Math.abs(transactionMontant - factureMontant) < 0.01) {
             
             matchCount++;
-            console.log(`✅ Match montant: ${transactionMontant}€ -> Facture ${facture.numero_facture} (${facture.emetteur_nom})`);
+            console.log(`✅ Match montant général: ${transactionMontant}€ -> Facture ${facture.numero_facture} (${facture.emetteur_nom})`);
 
             // Créer la facture match
             const factureMatch: FactureMatch = {
@@ -2230,23 +2251,36 @@ export default function RapprochementBancaire() {
               partenaire_nom: facture.emetteur_nom,
               total_ttc: facture.total_ttc || 0,
               statut: facture.statut || "VALIDEE",
-              emetteur_type: facture.emetteur_type,
+              emetteur_type: facture.emetteur_type || "FOURNISSEUR_GENERAL",
               type_frais: facture.type_frais,
             };
 
             // Retirer cette facture de la liste pour ne pas la réutiliser
-            const factureIndex = facturesAchats.findIndex(f => f.id === facture.id);
+            const factureIndex = facturesGenerales.findIndex(f => f.id === facture.id);
             if (factureIndex > -1) {
-              facturesAchats.splice(factureIndex, 1);
+              facturesGenerales.splice(factureIndex, 1);
             }
 
-            return {
+            // Cas 1: Partenaire déjà = Fournisseur général -> maj juste facture
+            // Cas 2: Pas de partenaire -> maj facture + partenaire
+            const updatedRapp: Rapprochement = {
               ...rapprochement,
               facture: factureMatch,
               factureIds: [facture.id],
               score: 100,
               status: 'matched' as const,
             };
+
+            // Cas 2: si pas de partenaire, on ajoute le fournisseur de la facture
+            if (!hasPartenaire && facture.emetteur_id) {
+              updatedRapp.fournisseur_info = {
+                id: facture.emetteur_id,
+                nom: facture.emetteur_nom,
+                type: 'general' as const,
+              };
+            }
+
+            return updatedRapp;
           }
         }
 
@@ -2258,7 +2292,7 @@ export default function RapprochementBancaire() {
       toast({
         title: "Matching terminé",
         description: matchCount > 0 
-          ? `${matchCount} correspondance(s) de montant trouvée(s)`
+          ? `${matchCount} correspondance(s) de montant trouvée(s) avec factures généraux`
           : "Aucune correspondance de montant exact trouvée",
       });
 
