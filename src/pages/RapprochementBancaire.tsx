@@ -4624,16 +4624,22 @@ export default function RapprochementBancaire() {
         }}
         onFactureSelect={async (factureIds) => {
           if (selectedEnCoursRapprochement) {
+            // Préserver le fournisseur_info original
+            const originalFournisseurInfo = selectedEnCoursRapprochement.fournisseur_info;
+            
             if (factureIds.length === 0) {
               setRapprochements(prev => prev.map(r => {
                 const key = getTransactionKey(r.transaction);
                 const selectedKey = getTransactionKey(selectedEnCoursRapprochement.transaction);
                 if (key === selectedKey) {
+                  // Déterminer le statut: si on a un fournisseur_info, c'est "uncertain", sinon "unmatched"
+                  const newStatus = originalFournisseurInfo ? "uncertain" as const : "unmatched" as const;
                   return {
                     ...r,
                     facture: null,
                     factureIds: undefined,
-                    status: "unmatched" as const,
+                    status: newStatus,
+                    fournisseur_info: originalFournisseurInfo, // Préserver le type de partenaire
                   };
                 }
                 return r;
@@ -4649,6 +4655,7 @@ export default function RapprochementBancaire() {
                     facture: facture || null,
                     status: facture ? "matched" as const : r.status,
                     factureIds: undefined,
+                    fournisseur_info: originalFournisseurInfo, // Préserver le type de partenaire
                   };
                 }
                 return r;
@@ -4664,6 +4671,7 @@ export default function RapprochementBancaire() {
                     factureIds: factureIds,
                     status: "matched" as const,
                     isManual: true,
+                    fournisseur_info: originalFournisseurInfo, // Préserver le type de partenaire
                   };
                 }
                 return r;
@@ -4685,6 +4693,9 @@ export default function RapprochementBancaire() {
         }}
         onAbonnementSelect={(abonnementId) => {
           if (selectedEnCoursRapprochement) {
+            // Préserver le fournisseur_info original
+            const originalFournisseurInfo = selectedEnCoursRapprochement.fournisseur_info;
+            
             setRapprochements(prev => prev.map(r => {
               const key = getTransactionKey(r.transaction);
               const selectedKey = getTransactionKey(selectedEnCoursRapprochement.transaction);
@@ -4693,6 +4704,7 @@ export default function RapprochementBancaire() {
                   ...r, 
                   abonnement_info: abonnementId ? { id: abonnementId, nom: "" } : undefined,
                   status: abonnementId ? "matched" as const : r.status,
+                  fournisseur_info: originalFournisseurInfo, // Préserver le type de partenaire
                 };
               }
               return r;
@@ -4701,6 +4713,9 @@ export default function RapprochementBancaire() {
         }}
         onDeclarationSelect={(declarationId) => {
           if (selectedEnCoursRapprochement) {
+            // Préserver le fournisseur_info original
+            const originalFournisseurInfo = selectedEnCoursRapprochement.fournisseur_info;
+            
             setRapprochements(prev => prev.map(r => {
               const key = getTransactionKey(r.transaction);
               const selectedKey = getTransactionKey(selectedEnCoursRapprochement.transaction);
@@ -4709,6 +4724,7 @@ export default function RapprochementBancaire() {
                   ...r, 
                   declaration_info: declarationId ? { id: declarationId, nom: "", organisme: "" } : undefined,
                   status: declarationId ? "matched" as const : r.status,
+                  fournisseur_info: originalFournisseurInfo, // Préserver le type de partenaire
                 };
               }
               return r;
