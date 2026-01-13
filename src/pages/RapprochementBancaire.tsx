@@ -3298,9 +3298,9 @@ export default function RapprochementBancaire() {
           break;
       }
       
-      return sortDirection === "asc" ? comparison : -comparison;
+    return sortDirection === "asc" ? comparison : -comparison;
     });
-  }, [filteredRapprochements, sortColumn, sortDirection]);
+  }, [filteredRapprochements, sortColumn, sortDirection, getPartenaireName, getPartenaireType]);
 
   // Pagination
   const totalPages = Math.ceil(sortedRapprochements.length / itemsPerPage);
