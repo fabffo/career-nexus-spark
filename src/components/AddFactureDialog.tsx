@@ -33,6 +33,7 @@ export default function AddFactureDialog({
   const [clients, setClients] = useState<any[]>([]);
   const [fournisseursGeneraux, setFournisseursGeneraux] = useState<any[]>([]);
   const [fournisseursServices, setFournisseursServices] = useState<any[]>([]);
+  const [fournisseursEtat, setFournisseursEtat] = useState<any[]>([]);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [typesMission, setTypesMission] = useState<any[]>([]);
   
@@ -62,6 +63,11 @@ export default function AddFactureDialog({
   const [lignes, setLignes] = useState<FactureLigne[]>([
     { ordre: 1, description: '', quantite: 1, prix_unitaire_ht: 0, prix_ht: 0, taux_tva: 20, montant_tva: 0, prix_ttc: 0 }
   ]);
+
+  // Helper pour vérifier si c'est une facture d'achat (inclut les sous-types)
+  const isAchat = (type: string) => {
+    return type === 'ACHATS' || type === 'ACHATS_SERVICES' || type === 'ACHATS_GENERAUX' || type === 'ACHATS_ETAT';
+  };
 
   useEffect(() => {
     if (open) {
@@ -314,6 +320,13 @@ export default function AddFactureDialog({
         .order('raison_sociale');
       setFournisseursServices(fournServices || []);
 
+      // Récupérer les fournisseurs État & Organismes
+      const { data: fournEtat } = await supabase
+        .from('fournisseurs_etat_organismes')
+        .select('*')
+        .order('raison_sociale');
+      setFournisseursEtat(fournEtat || []);
+
       // Récupérer les missions en cours avec TVA et informations du contrat
       const { data: missionsData } = await supabase
         .from('missions')
@@ -408,11 +421,24 @@ export default function AddFactureDialog({
       emetteur = fournisseursGeneraux.find(f => f.id === id);
     } else if (type === 'FOURNISSEUR_SERVICE') {
       emetteur = fournisseursServices.find(f => f.id === id);
+    } else if (type === 'FOURNISSEUR_ETAT') {
+      emetteur = fournisseursEtat.find(f => f.id === id);
     }
     
     if (emetteur) {
+      // Déterminer le type_facture selon le type de fournisseur
+      let typeFacture: string = 'ACHATS';
+      if (type === 'FOURNISSEUR_SERVICE') {
+        typeFacture = 'ACHATS_SERVICES';
+      } else if (type === 'FOURNISSEUR_GENERAL') {
+        typeFacture = 'ACHATS_GENERAUX';
+      } else if (type === 'FOURNISSEUR_ETAT') {
+        typeFacture = 'ACHATS_ETAT';
+      }
+      
       setFormData(prev => ({
         ...prev,
+        type_facture: typeFacture as any,
         emetteur_type: type,
         emetteur_id: id,
         emetteur_nom: emetteur.raison_sociale,
@@ -557,7 +583,7 @@ export default function AddFactureDialog({
 
         if (numeroError) throw numeroError;
         numeroFacture = numeroData;
-      } else if (formData.type_facture === 'ACHATS' && !numeroFacture) {
+      } else if (isAchat(formData.type_facture) && !numeroFacture) {
         // Pour les factures d'achat, vérifier que le numéro est saisi
         toast({
           title: "Erreur",
@@ -725,7 +751,7 @@ export default function AddFactureDialog({
 
           {/* Dates et Numéro de facture */}
           <div className="grid grid-cols-3 gap-4">
-            {formData.type_facture === 'ACHATS' && (
+            {isAchat(formData.type_facture) && (
               <div>
                 <Label>Numéro de facture *</Label>
                 <Input
@@ -733,7 +759,7 @@ export default function AddFactureDialog({
                   value={formData.numero_facture || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, numero_facture: e.target.value }))}
                   placeholder="N° facture fournisseur"
-                  required={formData.type_facture === 'ACHATS'}
+                  required={isAchat(formData.type_facture)}
                 />
               </div>
             )}
@@ -791,6 +817,12 @@ export default function AddFactureDialog({
                         {f.raison_sociale}
                       </SelectItem>
                     ))}
+                    <SelectItem value="none3" disabled>-- État & Organismes sociaux --</SelectItem>
+                    {fournisseursEtat.map(f => (
+                      <SelectItem key={f.id} value={`FOURNISSEUR_ETAT:${f.id}`}>
+                        {f.raison_sociale}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -800,7 +832,7 @@ export default function AddFactureDialog({
           {/* Destinataire */}
           <div className="space-y-2">
             <Label className="text-lg font-semibold">Destinataire</Label>
-            {formData.type_facture === 'ACHATS' ? (
+            {isAchat(formData.type_facture) ? (
               <div className="p-4 border rounded-lg bg-muted/50">
                 <p className="font-medium">{formData.destinataire_nom}</p>
                 {formData.destinataire_adresse && <p className="text-sm">{formData.destinataire_adresse}</p>}

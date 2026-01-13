@@ -425,13 +425,75 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           throw new Error(`Impossible de sauvegarder car la facture "${numeroFacture}" existe déjà`);
         }
 
-        const factureData = {
+        // Déterminer le type de facture en cherchant le fournisseur dans les tables
+        let typeFacture = "ACHATS";
+        let emetteurType = "Fournisseur";
+        let emetteurId: string | null = null;
+        const fournisseurNom = facture.donnees.fournisseur || "";
+        
+        if (fournisseurNom) {
+          const fournisseurNomLower = fournisseurNom.toLowerCase();
+          
+          // Chercher dans les fournisseurs de services
+          const { data: fournServicesData } = await supabase
+            .from("fournisseurs_services")
+            .select("id, raison_sociale");
+          
+          const fournService = fournServicesData?.find(f => 
+            f.raison_sociale.toLowerCase().includes(fournisseurNomLower) ||
+            fournisseurNomLower.includes(f.raison_sociale.toLowerCase())
+          );
+          
+          if (fournService) {
+            typeFacture = "ACHATS_SERVICES";
+            emetteurType = "FOURNISSEUR_SERVICE";
+            emetteurId = fournService.id;
+            console.log("🔍 Fournisseur services trouvé:", fournService.raison_sociale);
+          } else {
+            // Chercher dans les fournisseurs généraux
+            const { data: fournGenerauxData } = await supabase
+              .from("fournisseurs_generaux")
+              .select("id, raison_sociale");
+            
+            const fournGeneral = fournGenerauxData?.find(f => 
+              f.raison_sociale.toLowerCase().includes(fournisseurNomLower) ||
+              fournisseurNomLower.includes(f.raison_sociale.toLowerCase())
+            );
+            
+            if (fournGeneral) {
+              typeFacture = "ACHATS_GENERAUX";
+              emetteurType = "FOURNISSEUR_GENERAL";
+              emetteurId = fournGeneral.id;
+              console.log("🔍 Fournisseur général trouvé:", fournGeneral.raison_sociale);
+            } else {
+              // Chercher dans les fournisseurs État/Organismes
+              const { data: fournEtatData } = await supabase
+                .from("fournisseurs_etat_organismes")
+                .select("id, raison_sociale");
+              
+              const fournEtat = fournEtatData?.find(f => 
+                f.raison_sociale.toLowerCase().includes(fournisseurNomLower) ||
+                fournisseurNomLower.includes(f.raison_sociale.toLowerCase())
+              );
+              
+              if (fournEtat) {
+                typeFacture = "ACHATS_ETAT";
+                emetteurType = "FOURNISSEUR_ETAT";
+                emetteurId = fournEtat.id;
+                console.log("🔍 Fournisseur État/Organisme trouvé:", fournEtat.raison_sociale);
+              }
+            }
+          }
+        }
+
+        const factureData: any = {
           numero_facture: numeroFacture,
-          type_facture: "ACHATS",
+          type_facture: typeFacture,
           date_emission: facture.donnees.date_facture || new Date().toISOString().split("T")[0],
           date_echeance: facture.donnees.date_facture || new Date().toISOString().split("T")[0],
-          emetteur_type: "Fournisseur",
+          emetteur_type: emetteurType,
           emetteur_nom: facture.donnees.fournisseur || "Fournisseur inconnu",
+          emetteur_id: emetteurId,
           destinataire_type: "Entreprise",
           destinataire_nom: "Votre Entreprise",
           total_ht: facture.donnees.montant_ht || 0,
