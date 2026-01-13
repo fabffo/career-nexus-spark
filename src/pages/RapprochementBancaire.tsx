@@ -2174,23 +2174,33 @@ export default function RapprochementBancaire() {
 
     try {
       // Charger les factures d'achats de type GÉNÉRAL validées ou payées, non rapprochées
+      // On cherche ACHATS_GENERAUX (nouveau format) ou ACHATS avec type_frais général (ancien format)
       const { data: facturesAchats, error: facturesError } = await supabase
         .from("factures")
-        .select("id, numero_facture, date_emission, emetteur_nom, emetteur_id, emetteur_type, type_frais, total_ttc, statut, numero_rapprochement")
-        .eq("type_facture", "ACHATS")
+        .select("id, numero_facture, date_emission, emetteur_nom, emetteur_id, emetteur_type, type_frais, type_facture, total_ttc, statut, numero_rapprochement")
+        .in("type_facture", ["ACHATS_GENERAUX", "ACHATS"])
         .in("statut", ["VALIDEE", "PAYEE"])
         .is("numero_rapprochement", null);
 
       if (facturesError) throw facturesError;
 
-      // Filtrer pour ne garder que les factures de type "général" ou null (par défaut considéré comme général)
+      // Filtrer pour ne garder que les factures de type "général"
+      // - type_facture = ACHATS_GENERAUX (nouveau format)
+      // - type_facture = ACHATS avec type_frais = null/vide/general (ancien format)
       const facturesGenerales = (facturesAchats || []).filter(f => {
-        const typeFrais = f.type_frais?.toLowerCase();
-        // Inclure si type_frais est null, vide, ou "general/général/generaux"
-        return !typeFrais || 
-               typeFrais === 'general' || 
-               typeFrais === 'général' ||
-               typeFrais === 'generaux';
+        // Nouveau format: type_facture = ACHATS_GENERAUX
+        if (f.type_facture === 'ACHATS_GENERAUX') return true;
+        
+        // Ancien format: type_facture = ACHATS avec type_frais général ou null
+        if (f.type_facture === 'ACHATS') {
+          const typeFrais = f.type_frais?.toLowerCase();
+          return !typeFrais || 
+                 typeFrais === 'general' || 
+                 typeFrais === 'général' ||
+                 typeFrais === 'generaux';
+        }
+        
+        return false;
       });
 
       if (facturesGenerales.length === 0) {
