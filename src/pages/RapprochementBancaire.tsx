@@ -2233,12 +2233,12 @@ export default function RapprochementBancaire() {
       console.log(`🔍 Matching Frns Services: ${lignesFrnsServices.length} lignes à traiter`);
 
       // 2. Récupérer les fournisseurs services avec leurs délais de paiement
-      const fournisseurIds = [...new Set(lignesFrnsServices.map(l => l.fournisseur_info!.id))];
+      const fournisseurIdsFromLines = [...new Set(lignesFrnsServices.map(l => l.fournisseur_info!.id))];
       
       const { data: fournisseursData, error: fournisseursError } = await supabase
         .from("fournisseurs_services")
         .select("id, raison_sociale, delai_paiement_jours, ecart_paiement_jours")
-        .in("id", fournisseurIds);
+        .in("id", fournisseurIdsFromLines);
 
       if (fournisseursError) throw fournisseursError;
 
@@ -2246,7 +2246,16 @@ export default function RapprochementBancaire() {
         (fournisseursData || []).map(f => [f.id, f])
       );
 
-      // 3. Récupérer les factures d'achats non rapprochées (on filtrera ensuite par fournisseur services)
+      // 3. Récupérer TOUS les IDs des fournisseurs_services pour filtrer les factures
+      const { data: allFournisseursServices, error: allFournisseursError } = await supabase
+        .from("fournisseurs_services")
+        .select("id");
+
+      if (allFournisseursError) throw allFournisseursError;
+
+      const allFournisseurServicesIds = new Set((allFournisseursServices || []).map(f => f.id));
+
+      // 4. Récupérer les factures d'achats non rapprochées
       const { data: facturesAchats, error: facturesError } = await supabase
         .from("factures")
         .select("id, numero_facture, date_emission, date_echeance, emetteur_nom, emetteur_id, emetteur_type, total_ttc, statut, numero_rapprochement")
@@ -2257,14 +2266,9 @@ export default function RapprochementBancaire() {
       if (facturesError) throw facturesError;
 
       // Filtrer pour ne garder que les factures dont l'émetteur est un fournisseur de services
-      const facturesServices = (facturesAchats || []).filter(f => {
-        // Vérifier si emetteur_id correspond à un fournisseur services
-        const isFromFournisseurServices = fournisseurIds.includes(f.emetteur_id);
-        // Ou si emetteur_type contient "fournisseur" ou "services" (cas legacy)
-        const hasServiceType = f.emetteur_type?.toLowerCase().includes('fournisseur') || 
-                               f.emetteur_type?.toLowerCase().includes('services');
-        return isFromFournisseurServices || hasServiceType;
-      });
+      const facturesServices = (facturesAchats || []).filter(f => 
+        f.emetteur_id && allFournisseurServicesIds.has(f.emetteur_id)
+      );
 
       if (facturesServices.length === 0) {
         toast({
