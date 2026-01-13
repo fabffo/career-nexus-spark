@@ -2246,11 +2246,12 @@ export default function RapprochementBancaire() {
         (fournisseursData || []).map(f => [f.id, f])
       );
 
-      // 3. Récupérer les factures d'achats non rapprochées
+      // 3. Récupérer les factures d'achats de services non rapprochées
       const { data: facturesAchats, error: facturesError } = await supabase
         .from("factures")
         .select("id, numero_facture, date_emission, date_echeance, emetteur_nom, emetteur_id, emetteur_type, total_ttc, statut, numero_rapprochement")
         .eq("type_facture", "ACHATS")
+        .eq("emetteur_type", "fournisseur_services")
         .in("statut", ["VALIDEE", "PAYEE"])
         .is("numero_rapprochement", null);
 
@@ -2259,14 +2260,14 @@ export default function RapprochementBancaire() {
       if (!facturesAchats || facturesAchats.length === 0) {
         toast({
           title: "Aucune facture",
-          description: "Aucune facture d'achats disponible pour le rapprochement",
+          description: "Aucune facture d'achats de services disponible pour le rapprochement",
           variant: "destructive",
         });
         setLoading(false);
         return;
       }
 
-      console.log(`🔍 ${facturesAchats.length} factures d'achats disponibles`);
+      console.log(`🔍 ${facturesAchats.length} factures d'achats de services disponibles`);
 
       let matchCount = 0;
       const facturesUtilisees = new Set<string>();
