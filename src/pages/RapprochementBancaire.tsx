@@ -2201,6 +2201,168 @@ export default function RapprochementBancaire() {
     }
   };
 
+  // Fonction de matching des fournisseurs services avec plage de dates
+  const handleMatchFournisseursServices = async () => {
+    if (rapprochements.length === 0) {
+      toast({
+        title: "Erreur",
+        description: "Aucune transaction à traiter",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // 1. Récupérer les lignes avec fournisseur_info de type 'services'
+      const lignesFrnsServices = rapprochements.filter(
+        r => r.fournisseur_info?.type === 'services' && r.status !== 'matched'
+      );
+
+      if (lignesFrnsServices.length === 0) {
+        toast({
+          title: "Aucune ligne",
+          description: "Aucune ligne avec partenaire 'Frns Services' à traiter. Lancez d'abord le matching 'Partenaires'.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      console.log(`🔍 Matching Frns Services: ${lignesFrnsServices.length} lignes à traiter`);
+
+      // 2. Récupérer les fournisseurs services avec leurs délais de paiement
+      const fournisseurIds = [...new Set(lignesFrnsServices.map(l => l.fournisseur_info!.id))];
+      
+      const { data: fournisseursData, error: fournisseursError } = await supabase
+        .from("fournisseurs_services")
+        .select("id, raison_sociale, delai_paiement_jours, ecart_paiement_jours")
+        .in("id", fournisseurIds);
+
+      if (fournisseursError) throw fournisseursError;
+
+      const fournisseursMap = new Map(
+        (fournisseursData || []).map(f => [f.id, f])
+      );
+
+      // 3. Récupérer les factures d'achats non rapprochées
+      const { data: facturesAchats, error: facturesError } = await supabase
+        .from("factures")
+        .select("id, numero_facture, date_emission, date_echeance, emetteur_nom, emetteur_id, emetteur_type, total_ttc, statut, numero_rapprochement")
+        .eq("type_facture", "ACHATS")
+        .in("statut", ["VALIDEE", "PAYEE"])
+        .is("numero_rapprochement", null);
+
+      if (facturesError) throw facturesError;
+
+      if (!facturesAchats || facturesAchats.length === 0) {
+        toast({
+          title: "Aucune facture",
+          description: "Aucune facture d'achats disponible pour le rapprochement",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      console.log(`🔍 ${facturesAchats.length} factures d'achats disponibles`);
+
+      let matchCount = 0;
+      const facturesUtilisees = new Set<string>();
+
+      const updatedRapprochements = rapprochements.map(rapprochement => {
+        // Ne traiter que les lignes Frns Services non matched
+        if (!rapprochement.fournisseur_info || rapprochement.fournisseur_info.type !== 'services' || rapprochement.status === 'matched') {
+          return rapprochement;
+        }
+
+        const fournisseur = fournisseursMap.get(rapprochement.fournisseur_info.id);
+        if (!fournisseur) {
+          console.log(`⚠️ Fournisseur non trouvé: ${rapprochement.fournisseur_info.id}`);
+          return rapprochement;
+        }
+
+        const transactionDate = new Date(rapprochement.transaction.date);
+        const transactionMontant = Math.abs(rapprochement.transaction.montant);
+
+        // Calculer la plage de dates autorisée
+        const delaiPaiement = fournisseur.delai_paiement_jours || 30;
+        const ecart = fournisseur.ecart_paiement_jours || 0;
+        const joursMax = delaiPaiement + ecart;
+
+        // Date minimum = date transaction - (délai + écart)
+        const dateMinEmission = new Date(transactionDate);
+        dateMinEmission.setDate(dateMinEmission.getDate() - joursMax);
+
+        console.log(`🔎 Ligne "${rapprochement.transaction.libelle}" - Fournisseur: ${fournisseur.raison_sociale}`);
+        console.log(`   Montant: ${transactionMontant}€ - Date: ${format(transactionDate, 'dd/MM/yyyy')}`);
+        console.log(`   Plage recherche: ${format(dateMinEmission, 'dd/MM/yyyy')} -> ${format(transactionDate, 'dd/MM/yyyy')} (délai: ${delaiPaiement}j, écart: ${ecart}j)`);
+
+        // Chercher une facture correspondante
+        for (const facture of facturesAchats) {
+          if (facturesUtilisees.has(facture.id)) continue;
+
+          const factureEmission = new Date(facture.date_emission);
+          const factureMontant = Math.abs(facture.total_ttc || 0);
+
+          // Vérifier: 
+          // 1. Montant exact
+          // 2. Date d'émission dans la plage autorisée
+          const montantMatch = Math.abs(transactionMontant - factureMontant) < 0.01;
+          const dateValide = factureEmission >= dateMinEmission && factureEmission <= transactionDate;
+
+          if (montantMatch && dateValide) {
+            matchCount++;
+            facturesUtilisees.add(facture.id);
+            
+            console.log(`✅ Match trouvé: Facture ${facture.numero_facture} (${facture.emetteur_nom}) - ${factureMontant}€ du ${format(factureEmission, 'dd/MM/yyyy')}`);
+
+            const factureMatch: FactureMatch = {
+              id: facture.id,
+              numero_facture: facture.numero_facture,
+              type_facture: "ACHATS",
+              date_emission: facture.date_emission,
+              partenaire_nom: facture.emetteur_nom,
+              total_ttc: facture.total_ttc || 0,
+              statut: facture.statut || "VALIDEE",
+            };
+
+            return {
+              ...rapprochement,
+              facture: factureMatch,
+              factureIds: [facture.id],
+              score: 100,
+              status: 'matched' as const,
+            };
+          }
+        }
+
+        console.log(`❌ Aucune facture correspondante trouvée`);
+        return rapprochement;
+      });
+
+      setRapprochements(updatedRapprochements);
+
+      toast({
+        title: "Matching Frns Services terminé",
+        description: matchCount > 0 
+          ? `${matchCount} facture(s) rapprochée(s) avec les fournisseurs services`
+          : "Aucune correspondance trouvée",
+      });
+
+    } catch (error) {
+      console.error("Erreur lors du matching Frns Services:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'effectuer le matching Frns Services",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fonction de matching des déclarations de charges sociales
   const handleMatchDeclarationsCharges = async () => {
     if (rapprochements.length === 0) {
@@ -3401,6 +3563,15 @@ export default function RapprochementBancaire() {
                   >
                     <ArrowUpDown className="h-4 w-4 mr-2" />
                     {loading ? "Matching..." : "Montant"}
+                  </Button>
+                  <Button 
+                    onClick={handleMatchFournisseursServices} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={loading}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    {loading ? "Matching..." : "Frns Services"}
                   </Button>
                   <Button 
                     onClick={handleAnnulerFichierEnCours} 
