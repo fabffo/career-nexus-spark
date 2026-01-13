@@ -10,15 +10,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Building2, User, Briefcase, Landmark, Package, Settings, Users } from "lucide-react";
+import { PartenaireType } from "@/types/partenaire";
 
 export const PARTENAIRE_TYPES = [
-  { value: "CLIENT", label: "Clients", icon: Building2 },
-  { value: "PRESTATAIRE", label: "Prestataires", icon: Briefcase },
-  { value: "SALARIE", label: "Salariés", icon: User },
-  { value: "BANQUE", label: "Banques", icon: Landmark },
-  { value: "FOURNISSEUR_GENERAL", label: "Fournisseurs généraux", icon: Package },
-  { value: "FOURNISSEUR_SERVICES", label: "Fournisseurs de services", icon: Settings },
-  { value: "FOURNISSEUR_ETAT_ORGANISME", label: "Fournisseurs État & organismes sociaux", icon: Users },
+  { value: "CLIENT" as PartenaireType, label: "Clients", icon: Building2 },
+  { value: "PRESTATAIRE" as PartenaireType, label: "Prestataires", icon: Briefcase },
+  { value: "SALARIE" as PartenaireType, label: "Salariés", icon: User },
+  { value: "BANQUE" as PartenaireType, label: "Banques", icon: Landmark },
+  { value: "FOURNISSEUR_GENERAL" as PartenaireType, label: "Fournisseurs généraux", icon: Package },
+  { value: "FOURNISSEUR_SERVICES" as PartenaireType, label: "Fournisseurs de services", icon: Settings },
+  { value: "FOURNISSEUR_ETAT_ORGANISME" as PartenaireType, label: "Fournisseurs État & organismes", icon: Users },
 ];
 
 interface PartenaireSelectProps {

@@ -2492,7 +2492,7 @@ export default function RapprochementBancaire() {
                 tableName = "salaries";
                 nomField = "nom";
                 break;
-              case "FOURNISSEUR_ETAT":
+              case "FOURNISSEUR_ETAT_ORGANISME":
                 tableName = "fournisseurs_etat_organismes";
                 break;
             }
@@ -2695,7 +2695,7 @@ export default function RapprochementBancaire() {
               case "FOURNISSEUR_SERVICES":
                 tableName = "fournisseurs_services";
                 break;
-              case "FOURNISSEUR_ETAT":
+              case "FOURNISSEUR_ETAT_ORGANISME":
                 tableName = "fournisseurs_etat_organismes";
                 break;
             }
