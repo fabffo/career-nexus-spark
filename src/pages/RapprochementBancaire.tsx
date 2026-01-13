@@ -2402,10 +2402,10 @@ export default function RapprochementBancaire() {
     setLoading(true);
 
     try {
-      // Charger les abonnements partenaires actifs avec leurs mots-clés et partenaires associés
+      // Charger les abonnements partenaires actifs avec leurs mots-clés, montants et partenaires associés
       const { data: abonnementsData, error: abonnementsError } = await supabase
         .from("abonnements_partenaires")
-        .select("id, nom, mots_cles_rapprochement, partenaire_type, partenaire_id")
+        .select("id, nom, mots_cles_rapprochement, montant_mensuel, partenaire_type, partenaire_id")
         .eq("actif", true);
 
       if (abonnementsError) throw abonnementsError;
@@ -2539,23 +2539,39 @@ export default function RapprochementBancaire() {
         }
 
         const libelle = rapprochement.transaction.libelle;
-        console.log(`🔎 Test libellé: "${libelle}"`);
+        // Montant de la transaction (valeur absolue)
+        const transactionMontant = rapprochement.transaction.debit > 0 
+          ? rapprochement.transaction.debit 
+          : rapprochement.transaction.credit;
+        
+        console.log(`🔎 Test libellé: "${libelle}" - Montant: ${transactionMontant}`);
 
         // Chercher un match dans les abonnements
         for (const abonnement of abonnementsEnrichis) {
+          // 1. D'abord vérifier si le montant correspond exactement (si montant_mensuel est défini)
+          if (abonnement.montant_mensuel && abonnement.montant_mensuel > 0) {
+            const montantMatch = Math.abs(transactionMontant - abonnement.montant_mensuel) < 0.01;
+            if (montantMatch) {
+              matchAbonnementCount++;
+              console.log(`✅ Match abonnement par MONTANT: "${libelle}" -> "${abonnement.nom}" (Montant: ${abonnement.montant_mensuel} = ${transactionMontant})`);
+              const updatedRapp = {
+                ...rapprochement,
+                abonnement_info: { id: abonnement.id, nom: abonnement.nom, montant_ttc: transactionMontant },
+              };
+              return { ...updatedRapp, status: determineStatus(updatedRapp, true) };
+            }
+          }
+
+          // 2. Sinon, vérifier par mots-clés
           const effectiveKeywords = getEffectiveKeywords(abonnement);
           const isMatch = checkKeywordsMatch(effectiveKeywords, libelle);
           console.log(`   - Test "${abonnement.nom}" avec mots-clés "${effectiveKeywords}" => ${isMatch ? "MATCH" : "non"}`);
           if (isMatch) {
             matchAbonnementCount++;
-            // Utiliser le montant de la transaction (débit positif ou crédit) comme montant facturé
-            const montantTtc = rapprochement.transaction.debit > 0 
-              ? rapprochement.transaction.debit 
-              : rapprochement.transaction.credit;
-            console.log(`✅ Match abonnement: "${libelle}" -> "${abonnement.nom}" (via: ${effectiveKeywords}) - Montant TTC: ${montantTtc}`);
+            console.log(`✅ Match abonnement par MOTS-CLES: "${libelle}" -> "${abonnement.nom}" (via: ${effectiveKeywords}) - Montant TTC: ${transactionMontant}`);
             const updatedRapp = {
               ...rapprochement,
-              abonnement_info: { id: abonnement.id, nom: abonnement.nom, montant_ttc: montantTtc },
+              abonnement_info: { id: abonnement.id, nom: abonnement.nom, montant_ttc: transactionMontant },
             };
             return { ...updatedRapp, status: determineStatus(updatedRapp, true) };
           }
