@@ -3301,9 +3301,9 @@ export default function RapprochementBancaire() {
 
     if (r.fournisseur_info?.type) {
       const typeLabels: Record<string, string> = {
-        general: "Frns Général",
-        services: "Frns Services",
-        etat: "État/Org.",
+        general: "Fournisseur général",
+        services: "Fournisseur de services",
+        etat: "Fournisseur État & organismes",
         client: "Client",
         banque: "Banque",
         prestataire: "Prestataire",
@@ -4008,9 +4008,9 @@ export default function RapprochementBancaire() {
                               </Badge>
                             ) : rapprochement.fournisseur_info ? (
                               <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
-                                {rapprochement.fournisseur_info.type === "general" ? "Frns Général" :
-                                 rapprochement.fournisseur_info.type === "services" ? "Frns Services" :
-                                 rapprochement.fournisseur_info.type === "etat" ? "État/Org." :
+                                {rapprochement.fournisseur_info.type === "general" ? "Fournisseur général" :
+                                 rapprochement.fournisseur_info.type === "services" ? "Fournisseur de services" :
+                                 rapprochement.fournisseur_info.type === "etat" ? "Fournisseur État & organismes" :
                                  rapprochement.fournisseur_info.type === "client" ? "Client" :
                                  rapprochement.fournisseur_info.type === "banque" ? "Banque" :
                                  rapprochement.fournisseur_info.type === "prestataire" ? "Prestataire" :
