@@ -2246,18 +2246,27 @@ export default function RapprochementBancaire() {
         (fournisseursData || []).map(f => [f.id, f])
       );
 
-      // 3. Récupérer les factures d'achats de services non rapprochées
+      // 3. Récupérer les factures d'achats non rapprochées (on filtrera ensuite par fournisseur services)
       const { data: facturesAchats, error: facturesError } = await supabase
         .from("factures")
         .select("id, numero_facture, date_emission, date_echeance, emetteur_nom, emetteur_id, emetteur_type, total_ttc, statut, numero_rapprochement")
         .eq("type_facture", "ACHATS")
-        .eq("emetteur_type", "fournisseur_services")
         .in("statut", ["VALIDEE", "PAYEE"])
         .is("numero_rapprochement", null);
 
       if (facturesError) throw facturesError;
 
-      if (!facturesAchats || facturesAchats.length === 0) {
+      // Filtrer pour ne garder que les factures dont l'émetteur est un fournisseur de services
+      const facturesServices = (facturesAchats || []).filter(f => {
+        // Vérifier si emetteur_id correspond à un fournisseur services
+        const isFromFournisseurServices = fournisseurIds.includes(f.emetteur_id);
+        // Ou si emetteur_type contient "fournisseur" ou "services" (cas legacy)
+        const hasServiceType = f.emetteur_type?.toLowerCase().includes('fournisseur') || 
+                               f.emetteur_type?.toLowerCase().includes('services');
+        return isFromFournisseurServices || hasServiceType;
+      });
+
+      if (facturesServices.length === 0) {
         toast({
           title: "Aucune facture",
           description: "Aucune facture d'achats de services disponible pour le rapprochement",
@@ -2267,7 +2276,7 @@ export default function RapprochementBancaire() {
         return;
       }
 
-      console.log(`🔍 ${facturesAchats.length} factures d'achats de services disponibles`);
+      console.log(`🔍 ${facturesServices.length} factures d'achats de services disponibles (sur ${facturesAchats?.length || 0} factures totales)`);
 
       let matchCount = 0;
       const facturesUtilisees = new Set<string>();
@@ -2305,8 +2314,8 @@ export default function RapprochementBancaire() {
         console.log(`   Délai: ${delaiPaiement}j + Écart: ${ecart}j = ${joursTotal}j → ${moisEnArriere} mois en arrière`);
         console.log(`   Mois cible des factures: ${moisCible + 1}/${anneeFacture}`);
 
-        // Chercher une facture correspondante
-        for (const facture of facturesAchats) {
+        // Chercher une facture correspondante parmi les factures de services
+        for (const facture of facturesServices) {
           if (facturesUtilisees.has(facture.id)) continue;
 
           const factureEmission = new Date(facture.date_emission);
