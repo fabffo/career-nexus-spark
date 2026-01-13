@@ -131,7 +131,7 @@ export default function RapprochementBancaire() {
   const [fichierEnCoursId, setFichierEnCoursId] = useState<string | null>(null);
   const [autoSaving, setAutoSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortColumn, setSortColumn] = useState<"date" | "libelle" | "debit" | "credit" | "partenaire" | "score" | null>(null);
+  const [sortColumn, setSortColumn] = useState<"date" | "libelle" | "debit" | "credit" | "partenaire" | "typePartenaire" | "score" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const { toast } = useToast();
 
@@ -3229,6 +3229,26 @@ export default function RapprochementBancaire() {
     ).toLowerCase();
   };
 
+  // Fonction pour extraire le type de partenaire d'un rapprochement
+  const getPartenaireType = (r: Rapprochement): string => {
+    if (r.fournisseur_info?.type) {
+      const typeLabels: Record<string, string> = {
+        general: "Fournisseur",
+        services: "Frns Services",
+        etat: "État/Org.",
+        client: "Client",
+        banque: "Banque",
+        prestataire: "Prestataire",
+        salarie: "Salarié",
+      };
+      return typeLabels[r.fournisseur_info.type] || r.fournisseur_info.type;
+    }
+    if (r.facture) return r.facture.type_facture === "VENTES" ? "Client" : "Fournisseur";
+    if (r.abonnement_info) return "Abonnement";
+    if (r.declaration_info) return "Charge Sociale";
+    return "";
+  };
+
   // Filtrage par statut et recherche
   const filteredRapprochements = useMemo(() => {
     return rapprochements.filter(r => {
@@ -3269,6 +3289,9 @@ export default function RapprochementBancaire() {
           break;
         case "partenaire":
           comparison = getPartenaireName(a).localeCompare(getPartenaireName(b));
+          break;
+        case "typePartenaire":
+          comparison = getPartenaireType(a).localeCompare(getPartenaireType(b));
           break;
         case "score":
           comparison = a.score - b.score;
@@ -3771,7 +3794,16 @@ export default function RapprochementBancaire() {
                             <SortIcon column="partenaire" />
                           </div>
                         </th>
-                        <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '90px' }}>Type Part.</th>
+                        <th 
+                          className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
+                          style={{ width: '90px' }}
+                          onClick={() => handleSort("typePartenaire")}
+                        >
+                          <div className="flex items-center">
+                            Type Part.
+                            <SortIcon column="typePartenaire" />
+                          </div>
+                        </th>
                         <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Mnt Fact.</th>
                         <th 
                           className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
