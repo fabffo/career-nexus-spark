@@ -2286,18 +2286,23 @@ export default function RapprochementBancaire() {
         const transactionDate = new Date(rapprochement.transaction.date);
         const transactionMontant = Math.abs(rapprochement.transaction.montant);
 
-        // Calculer la plage de dates autorisée
+        // Calculer le nombre de mois en arrière basé sur délai + écart
         const delaiPaiement = fournisseur.delai_paiement_jours || 30;
         const ecart = fournisseur.ecart_paiement_jours || 0;
-        const joursMax = delaiPaiement + ecart;
+        const joursTotal = delaiPaiement + ecart;
 
-        // Date minimum = date transaction - (délai + écart)
-        const dateMinEmission = new Date(transactionDate);
-        dateMinEmission.setDate(dateMinEmission.getDate() - joursMax);
+        // Calculer le nombre de mois: ex. 45j + 5j = 50j ≈ 2 mois
+        const moisEnArriere = Math.ceil(joursTotal / 30);
+
+        // Déterminer le mois cible des factures
+        const moisFacture = transactionDate.getMonth() - moisEnArriere;
+        const anneeFacture = transactionDate.getFullYear() + Math.floor(moisFacture / 12);
+        const moisCible = ((moisFacture % 12) + 12) % 12; // Gérer les mois négatifs
 
         console.log(`🔎 Ligne "${rapprochement.transaction.libelle}" - Fournisseur: ${fournisseur.raison_sociale}`);
-        console.log(`   Montant: ${transactionMontant}€ - Date: ${format(transactionDate, 'dd/MM/yyyy')}`);
-        console.log(`   Plage recherche: ${format(dateMinEmission, 'dd/MM/yyyy')} -> ${format(transactionDate, 'dd/MM/yyyy')} (délai: ${delaiPaiement}j, écart: ${ecart}j)`);
+        console.log(`   Montant: ${transactionMontant}€ - Date transaction: ${format(transactionDate, 'dd/MM/yyyy')}`);
+        console.log(`   Délai: ${delaiPaiement}j + Écart: ${ecart}j = ${joursTotal}j → ${moisEnArriere} mois en arrière`);
+        console.log(`   Mois cible des factures: ${moisCible + 1}/${anneeFacture}`);
 
         // Chercher une facture correspondante
         for (const facture of facturesAchats) {
@@ -2308,15 +2313,15 @@ export default function RapprochementBancaire() {
 
           // Vérifier: 
           // 1. Montant exact
-          // 2. Date d'émission dans la plage autorisée
+          // 2. La facture est du mois cible
           const montantMatch = Math.abs(transactionMontant - factureMontant) < 0.01;
-          const dateValide = factureEmission >= dateMinEmission && factureEmission <= transactionDate;
+          const moisMatch = factureEmission.getMonth() === moisCible && factureEmission.getFullYear() === anneeFacture;
 
-          if (montantMatch && dateValide) {
+          if (montantMatch && moisMatch) {
             matchCount++;
             facturesUtilisees.add(facture.id);
             
-            console.log(`✅ Match trouvé: Facture ${facture.numero_facture} (${facture.emetteur_nom}) - ${factureMontant}€ du ${format(factureEmission, 'dd/MM/yyyy')}`);
+            console.log(`✅ Match trouvé: Facture ${facture.numero_facture} (${facture.emetteur_nom}) - ${factureMontant}€ du ${format(factureEmission, 'dd/MM/yyyy')} (mois ${moisCible + 1}/${anneeFacture})`);
 
             const factureMatch: FactureMatch = {
               id: facture.id,
