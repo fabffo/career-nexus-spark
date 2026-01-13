@@ -41,6 +41,7 @@ interface FactureMatch {
   numero_rapprochement?: string;
   date_rapprochement?: string;
   numero_ligne_rapprochement?: string;
+  emetteur_type?: string; // Pour les factures ACHATS, le type de fournisseur
 }
 
 interface RapprochementManuel {
@@ -233,6 +234,7 @@ export default function RapprochementBancaire() {
         numero_rapprochement: f.numero_rapprochement,
         date_rapprochement: f.date_rapprochement,
         numero_ligne_rapprochement: f.numero_ligne_rapprochement,
+        emetteur_type: f.emetteur_type,
       }));
 
       console.log("✅ Factures chargées:", facturesFormatted.length);
@@ -499,6 +501,7 @@ export default function RapprochementBancaire() {
                 : factures[0].emetteur_nom,
               date_emission: "",
               statut: "PAYEE",
+              emetteur_type: factures[0].emetteur_type,
             };
           } else if (factures.length > 1) {
             // Plusieurs factures
@@ -2223,6 +2226,7 @@ export default function RapprochementBancaire() {
               partenaire_nom: facture.emetteur_nom,
               total_ttc: facture.total_ttc || 0,
               statut: facture.statut || "VALIDEE",
+              emetteur_type: facture.emetteur_type,
             };
 
             // Retirer cette facture de la liste pour ne pas la réutiliser
@@ -2409,6 +2413,7 @@ export default function RapprochementBancaire() {
               partenaire_nom: facture.emetteur_nom,
               total_ttc: facture.total_ttc || 0,
               statut: facture.statut || "VALIDEE",
+              emetteur_type: facture.emetteur_type,
             };
 
             return {
@@ -3227,6 +3232,7 @@ export default function RapprochementBancaire() {
           numero_rapprochement: f.numero_rapprochement,
           date_rapprochement: f.date_rapprochement,
           numero_ligne_rapprochement: f.numero_ligne_rapprochement,
+          emetteur_type: f.emetteur_type,
         }));
         setFactures(facturesFormatted);
         
@@ -3295,20 +3301,31 @@ export default function RapprochementBancaire() {
 
   // Fonction pour extraire le type de partenaire d'un rapprochement (doit matcher l'affichage de la colonne "Type Part.")
   const getPartenaireType = (r: Rapprochement): string => {
-    if (r.facture) return r.facture.type_facture === "VENTES" ? "Client" : "Fournisseur";
+    const typeLabels: Record<string, string> = {
+      general: "Fournisseur général",
+      services: "Fournisseur de services",
+      etat: "Fournisseur État & organismes",
+      client: "Client",
+      banque: "Banque",
+      prestataire: "Prestataire",
+      salarie: "Salarié",
+      FOURNISSEUR_GENERAL: "Fournisseur général",
+      FOURNISSEUR_SERVICES: "Fournisseur de services",
+      FOURNISSEUR_ETAT_ORGANISME: "Fournisseur État & organismes",
+    };
+
+    if (r.facture) {
+      if (r.facture.type_facture === "VENTES") return "Client";
+      // Pour les achats, utiliser le type d'émetteur si disponible
+      if (r.facture.emetteur_type) {
+        return typeLabels[r.facture.emetteur_type] || "Fournisseur";
+      }
+      return "Fournisseur";
+    }
     if (r.abonnement_info) return "Abonnement";
     if (r.declaration_info) return "Organisme";
 
     if (r.fournisseur_info?.type) {
-      const typeLabels: Record<string, string> = {
-        general: "Fournisseur général",
-        services: "Fournisseur de services",
-        etat: "Fournisseur État & organismes",
-        client: "Client",
-        banque: "Banque",
-        prestataire: "Prestataire",
-        salarie: "Salarié",
-      };
       return typeLabels[r.fournisseur_info.type] || "Autre";
     }
 
@@ -3996,7 +4013,18 @@ export default function RapprochementBancaire() {
                           <td className="p-2 align-middle text-xs">
                             {rapprochement.facture ? (
                               <Badge variant="outline" className="text-xs">
-                                {rapprochement.facture.type_facture === "VENTES" ? "Client" : "Fournisseur"}
+                                {rapprochement.facture.type_facture === "VENTES" ? "Client" : 
+                                 rapprochement.facture.emetteur_type === "general" ? "Fournisseur général" :
+                                 rapprochement.facture.emetteur_type === "services" ? "Fournisseur de services" :
+                                 rapprochement.facture.emetteur_type === "etat" ? "Fournisseur État & organismes" :
+                                 rapprochement.facture.emetteur_type === "FOURNISSEUR_GENERAL" ? "Fournisseur général" :
+                                 rapprochement.facture.emetteur_type === "FOURNISSEUR_SERVICES" ? "Fournisseur de services" :
+                                 rapprochement.facture.emetteur_type === "FOURNISSEUR_ETAT_ORGANISME" ? "Fournisseur État & organismes" :
+                                 rapprochement.facture.emetteur_type === "client" ? "Client" :
+                                 rapprochement.facture.emetteur_type === "banque" ? "Banque" :
+                                 rapprochement.facture.emetteur_type === "prestataire" ? "Prestataire" :
+                                 rapprochement.facture.emetteur_type === "salarie" ? "Salarié" :
+                                 "Fournisseur"}
                               </Badge>
                             ) : rapprochement.abonnement_info ? (
                               <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
