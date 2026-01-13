@@ -3229,11 +3229,15 @@ export default function RapprochementBancaire() {
     ).toLowerCase();
   };
 
-  // Fonction pour extraire le type de partenaire d'un rapprochement
+  // Fonction pour extraire le type de partenaire d'un rapprochement (doit matcher l'affichage de la colonne "Type Part.")
   const getPartenaireType = (r: Rapprochement): string => {
+    if (r.facture) return r.facture.type_facture === "VENTES" ? "Client" : "Fournisseur";
+    if (r.abonnement_info) return "Abonnement";
+    if (r.declaration_info) return "Organisme";
+
     if (r.fournisseur_info?.type) {
       const typeLabels: Record<string, string> = {
-        general: "Fournisseur",
+        general: "Frns Général",
         services: "Frns Services",
         etat: "État/Org.",
         client: "Client",
@@ -3241,11 +3245,9 @@ export default function RapprochementBancaire() {
         prestataire: "Prestataire",
         salarie: "Salarié",
       };
-      return typeLabels[r.fournisseur_info.type] || r.fournisseur_info.type;
+      return typeLabels[r.fournisseur_info.type] || "Autre";
     }
-    if (r.facture) return r.facture.type_facture === "VENTES" ? "Client" : "Fournisseur";
-    if (r.abonnement_info) return "Abonnement";
-    if (r.declaration_info) return "Charge Sociale";
+
     return "";
   };
 
