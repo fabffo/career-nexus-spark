@@ -370,14 +370,10 @@ export default function RapprochementBancaire() {
     try {
       const lignesRapprochees = rapprochements.filter(r => r.status === 'matched').length;
 
+      // Mettre à jour uniquement les compteurs dans fichiers_rapprochement (plus de fichier_data)
       const { error } = await supabase
         .from('fichiers_rapprochement')
         .update({
-          fichier_data: {
-            transactions,
-            rapprochements,
-            rapprochementsManuels
-          } as any,
           lignes_rapprochees: lignesRapprochees,
           updated_at: new Date().toISOString()
         })
@@ -386,7 +382,6 @@ export default function RapprochementBancaire() {
       if (error) throw error;
 
       // Synchroniser les lignes dans lignes_rapprochement
-      // Mettre à jour les statuts et les associations
       for (const r of rapprochements) {
         const numeroLigne = r.transaction.numero_ligne || r.numero_ligne;
         if (numeroLigne) {
@@ -411,7 +406,7 @@ export default function RapprochementBancaire() {
         }
       }
 
-      console.log("💾 Sauvegarde automatique effectuée");
+      console.log("💾 Sauvegarde automatique effectuée (lignes_rapprochement)");
     } catch (error) {
       console.error("Erreur lors de la sauvegarde automatique:", error);
     } finally {
@@ -430,171 +425,79 @@ export default function RapprochementBancaire() {
       if (error) throw error;
       
       const enrichedFiles = await Promise.all((data || []).map(async (fichier: any) => {
-        // Récupérer TOUS les rapprochements bancaires de cette période
-        const { data: allRapprochementsDetails } = await supabase
-          .from("rapprochements_bancaires")
+        // Charger les lignes depuis lignes_rapprochement
+        const { data: lignes, error: lignesError } = await supabase
+          .from('lignes_rapprochement')
           .select(`
-            id,
-            transaction_date,
-            transaction_libelle,
-            transaction_montant,
-            transaction_credit,
-            transaction_debit,
-            numero_ligne,
-            notes,
-            abonnement_id,
-            declaration_charge_id,
-            abonnements_partenaires (
-              id,
-              nom
-            ),
-            declarations_charges_sociales (
-              id,
-              nom,
-              organisme
-            )
+            *,
+            abonnements_partenaires (id, nom, montant_mensuel),
+            declarations_charges_sociales (id, nom, organisme)
           `)
-          .gte("transaction_date", fichier.date_debut)
-          .lte("transaction_date", fichier.date_fin);
+          .eq('fichier_rapprochement_id', fichier.id)
+          .order('transaction_date', { ascending: true });
 
-        const rapprochementIds = (allRapprochementsDetails || []).map(r => r.id);
-
-        // Récupérer les rapprochements avec factures via la table de liaison
-        const { data: rapprochementsViaLiaison, error: liaisonError } = await supabase
-          .from("rapprochements_factures")
-          .select(`
-            id,
-            rapprochement_id,
-            factures (
-              id,
-              numero_facture,
-              type_facture,
-              total_ttc,
-              destinataire_nom,
-              emetteur_nom
-            )
-          `)
-          .in("rapprochement_id", rapprochementIds.length > 0 ? rapprochementIds : ["00000000-0000-0000-0000-000000000000"]);
-
-        const rapprochementsManuelsFormatted: Rapprochement[] = [];
-
-        console.log(`📊 Rapprochements bancaires trouvés pour ${fichier.numero_rapprochement}:`, allRapprochementsDetails?.length || 0);
-        console.log(`📊 Rapprochements avec factures:`, rapprochementsViaLiaison?.length || 0);
-        
-        // Créer une Map des factures par rapprochement_id
-        const facturesParRapprochement = new Map<string, any[]>();
-        if (!liaisonError && rapprochementsViaLiaison) {
-          rapprochementsViaLiaison.forEach((liaison: any) => {
-            if (liaison.factures) {
-              if (!facturesParRapprochement.has(liaison.rapprochement_id)) {
-                facturesParRapprochement.set(liaison.rapprochement_id, []);
-              }
-              facturesParRapprochement.get(liaison.rapprochement_id)!.push(liaison.factures);
-            }
-          });
-        } else if (liaisonError) {
-          console.error("❌ Erreur chargement liaisons:", liaisonError);
+        if (lignesError) {
+          console.error("Erreur chargement lignes:", lignesError);
+          return fichier;
         }
-        
-        // Traiter TOUS les rapprochements bancaires
-        (allRapprochementsDetails || []).forEach((rb: any) => {
-          const factures = facturesParRapprochement.get(rb.id) || [];
-          
+
+        // Convertir les lignes en format Rapprochement
+        const rapprochementsFromLignes: Rapprochement[] = (lignes || []).map(ligne => {
           const rapprochement: Rapprochement = {
             transaction: {
-              date: rb.transaction_date,
-              libelle: rb.transaction_libelle,
-              montant: rb.transaction_montant,
-              debit: rb.transaction_debit || 0,
-              credit: rb.transaction_credit || 0,
-              numero_ligne: rb.numero_ligne,
+              date: ligne.transaction_date,
+              libelle: ligne.transaction_libelle,
+              debit: ligne.transaction_debit || 0,
+              credit: ligne.transaction_credit || 0,
+              montant: ligne.transaction_montant || 0,
+              numero_ligne: ligne.numero_ligne,
             },
-            facture: null,
-            factureIds: [],
-            score: 100,
-            status: "matched", // ⭐ Pour l'instant on garde matched par défaut pour compatibilité
-            isManual: true,
-            manualId: `rb_${rb.id}`,
-            notes: rb.notes,
+            facture: ligne.facture_id ? {
+              id: ligne.facture_id,
+              numero_facture: ligne.numero_facture || '',
+              type_facture: 'ACHATS' as const,
+              date_emission: '',
+              partenaire_nom: '',
+              total_ttc: 0,
+              statut: '',
+            } : null,
+            factureIds: ligne.factures_ids || undefined,
+            score: ligne.score_detection || 0,
+            status: (ligne.statut as "matched" | "unmatched" | "uncertain") || "unmatched",
+            isManual: ligne.statut === 'matched',
+            notes: ligne.notes,
+            numero_ligne: ligne.numero_ligne,
+            abonnement_info: ligne.abonnements_partenaires ? {
+              id: ligne.abonnements_partenaires.id,
+              nom: ligne.abonnements_partenaires.nom,
+              montant_ttc: ligne.abonnements_partenaires.montant_mensuel,
+            } : undefined,
+            declaration_info: ligne.declarations_charges_sociales ? {
+              id: ligne.declarations_charges_sociales.id,
+              nom: ligne.declarations_charges_sociales.nom,
+              organisme: ligne.declarations_charges_sociales.organisme,
+            } : undefined,
+            fournisseur_info: ligne.fournisseur_detecte_id ? {
+              id: ligne.fournisseur_detecte_id,
+              nom: ligne.fournisseur_detecte_nom || '',
+              type: (ligne.fournisseur_detecte_type as any) || 'general',
+            } : undefined,
           };
-          
-          // ⭐ Déterminer le statut: Si pas de facture/abonnement/déclaration -> unmatched
-          if (!rb.abonnement_id && !rb.declaration_charge_id && factures.length === 0) {
-            rapprochement.status = "unmatched";
-            rapprochement.isManual = false;
-            rapprochement.score = 0;
-          }
-          
-          // Ajouter les infos d'abonnement si présent
-          if (rb.abonnement_id && rb.abonnements_partenaires) {
-            rapprochement.abonnement_info = {
-              id: rb.abonnements_partenaires.id,
-              nom: rb.abonnements_partenaires.nom,
-            };
-          }
-          
-          // Ajouter les infos de déclaration si présent
-          if (rb.declaration_charge_id && rb.declarations_charges_sociales) {
-            rapprochement.declaration_info = {
-              id: rb.declarations_charges_sociales.id,
-              nom: rb.declarations_charges_sociales.nom,
-              organisme: rb.declarations_charges_sociales.organisme,
-            };
-          }
-          
-          // Ajouter les factures si présentes
-          if (factures.length === 1) {
-            // Une seule facture
-            rapprochement.facture = {
-              id: factures[0].id,
-              numero_facture: factures[0].numero_facture,
-              type_facture: factures[0].type_facture,
-              total_ttc: factures[0].total_ttc,
-              partenaire_nom: factures[0].type_facture === "VENTES" 
-                ? factures[0].destinataire_nom 
-                : factures[0].emetteur_nom,
-              date_emission: "",
-              statut: "PAYEE",
-              emetteur_type: factures[0].emetteur_type,
-              type_frais: factures[0].type_frais,
-            };
-          } else if (factures.length > 1) {
-            // Plusieurs factures
-            rapprochement.factureIds = factures.map(f => f.id);
-          }
-          
-          rapprochementsManuelsFormatted.push(rapprochement);
+
+          // Dériver le statut
+          return {
+            ...rapprochement,
+            status: deriveStatus(rapprochement),
+          };
         });
-        
-        console.log(`✅ Total rapprochements formatés depuis DB: ${rapprochementsManuelsFormatted.length}`);
 
-        // ✅ Compléter avec les rapprochements présents dans fichier_data mais absents en DB
-        // (cas où une ligne a été rapprochée mais l'écriture n'a pas été persistée dans rapprochements_bancaires)
-        const originalRapprochements = (fichier.fichier_data?.rapprochements || []) as unknown as Rapprochement[];
-        const buildKey = (r: Rapprochement) =>
-          r.transaction.numero_ligne || `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`;
+        const matchedCount = rapprochementsFromLignes.filter(r => r.status === "matched").length;
 
-        const keysFromDb = new Set(rapprochementsManuelsFormatted.map(buildKey));
-        const missingFromDb = originalRapprochements.filter((r) => !keysFromDb.has(buildKey(r)));
-
-        const mergedRapprochements = [...rapprochementsManuelsFormatted, ...missingFromDb];
-
-        const matchedCount = mergedRapprochements.filter((r: Rapprochement) => r.status === "matched").length;
-        const unmatchedCount = mergedRapprochements.filter((r: Rapprochement) => r.status === "unmatched").length;
-
-        console.log(`🔍 DEBUG ${fichier.numero_rapprochement}:`);
-        console.log(`   - Total transactions (DB + fichier_data): ${mergedRapprochements.length}`);
-        console.log(`   - Matched: ${matchedCount}`);
-        console.log(`   - Unmatched: ${unmatchedCount}`);
+        console.log(`✅ ${fichier.numero_rapprochement}: ${rapprochementsFromLignes.length} lignes chargées depuis lignes_rapprochement`);
 
         return {
           ...fichier,
-          fichier_data: {
-            ...fichier.fichier_data,
-            transactions: fichier.fichier_data?.transactions || [],
-            rapprochements: mergedRapprochements,
-            rapprochementsManuels: fichier.fichier_data?.rapprochementsManuels || [],
-          },
+          rapprochements: rapprochementsFromLignes,
           lignes_rapprochees: matchedCount,
         };
       }));
@@ -632,9 +535,10 @@ export default function RapprochementBancaire() {
       [key]: newStatus
     }));
 
+    // Mise à jour locale avec rapprochements (nouvelle structure)
     setFichiersRapprochement(prev => prev.map(fichier => {
-      if (fichier.id === fichierId && fichier.fichier_data) {
-        const updatedRapprochements = fichier.fichier_data.rapprochements.map(r => {
+      if (fichier.id === fichierId && fichier.rapprochements) {
+        const updatedRapprochements = fichier.rapprochements.map(r => {
           const rKey = r.transaction.numero_ligne || `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`;
           if (rKey === transactionKey) {
             return { ...r, status: newStatus };
@@ -644,10 +548,7 @@ export default function RapprochementBancaire() {
         
         return {
           ...fichier,
-          fichier_data: {
-            ...fichier.fichier_data,
-            rapprochements: updatedRapprochements
-          }
+          rapprochements: updatedRapprochements
         };
       }
       return fichier;
@@ -655,8 +556,8 @@ export default function RapprochementBancaire() {
 
     if (selectedFichier?.id === fichierId) {
       setSelectedFichier(prev => {
-        if (!prev || !prev.fichier_data) return prev;
-        const updatedRapprochements = prev.fichier_data.rapprochements.map(r => {
+        if (!prev || !prev.rapprochements) return prev;
+        const updatedRapprochements = prev.rapprochements.map(r => {
           const rKey = r.transaction.numero_ligne || `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`;
           if (rKey === transactionKey) {
             return { ...r, status: newStatus };
@@ -666,10 +567,7 @@ export default function RapprochementBancaire() {
         
         return {
           ...prev,
-          fichier_data: {
-            ...prev.fichier_data,
-            rapprochements: updatedRapprochements
-          }
+          rapprochements: updatedRapprochements
         };
       });
     }
@@ -681,14 +579,28 @@ export default function RapprochementBancaire() {
     setSavingHistorique(true);
     
     try {
-      const lignesRapprochees = selectedFichier.fichier_data.rapprochements.filter(
-        r => r.status === "matched"
-      ).length;
+      const rapprochements = selectedFichier.rapprochements || [];
+      const lignesRapprochees = rapprochements.filter(r => r.status === "matched").length;
 
+      // Mettre à jour chaque ligne dans lignes_rapprochement
+      for (const r of rapprochements) {
+        const numeroLigne = r.transaction.numero_ligne || r.numero_ligne;
+        if (numeroLigne) {
+          await supabase
+            .from('lignes_rapprochement')
+            .update({
+              statut: r.status,
+              updated_at: new Date().toISOString()
+            })
+            .eq('fichier_rapprochement_id', selectedFichier.id)
+            .eq('numero_ligne', numeroLigne);
+        }
+      }
+
+      // Mettre à jour le compteur
       const { error } = await supabase
         .from("fichiers_rapprochement")
         .update({
-          fichier_data: selectedFichier.fichier_data as any,
           lignes_rapprochees: lignesRapprochees,
           updated_at: new Date().toISOString()
         })
@@ -830,42 +742,49 @@ export default function RapprochementBancaire() {
         }
       }
 
-      // Mettre à jour le fichier de rapprochement dans la BD
+      // Mettre à jour la ligne dans lignes_rapprochement
+      const numeroLigne = rapprochement.transaction.numero_ligne || rapprochement.numero_ligne;
+      if (numeroLigne) {
+        const { error: updateLigneError } = await supabase
+          .from('lignes_rapprochement')
+          .update({
+            statut: 'unmatched',
+            facture_id: null,
+            factures_ids: null,
+            numero_facture: null,
+            abonnement_id: null,
+            declaration_charge_id: null,
+            fournisseur_detecte_id: null,
+            fournisseur_detecte_nom: null,
+            fournisseur_detecte_type: null,
+            score_detection: 0,
+            updated_at: new Date().toISOString()
+          })
+          .eq('fichier_rapprochement_id', fichierId)
+          .eq('numero_ligne', numeroLigne);
+
+        if (updateLigneError) {
+          console.error("❌ Erreur mise à jour ligne_rapprochement:", updateLigneError);
+        } else {
+          console.log("✅ Ligne de rapprochement mise à jour");
+        }
+      }
+
+      // Mettre à jour le compteur dans fichiers_rapprochement
       const fichier = fichiersRapprochement.find(f => f.id === fichierId);
-      if (fichier && fichier.fichier_data) {
-        // Garder la ligne mais changer son statut à "unmatched"
-        const updatedRapprochements = fichier.fichier_data.rapprochements.map(r => {
-          if (r.transaction.date === rapprochement.transaction.date &&
-              r.transaction.libelle === rapprochement.transaction.libelle &&
-              r.transaction.montant === rapprochement.transaction.montant) {
-            return {
-              ...r,
-              facture: undefined,
-              factureIds: undefined,
-              status: "unmatched" as const,
-              score: 0,
-              isManual: false
-            };
-          }
-          return r;
-        });
+      if (fichier && fichier.rapprochements) {
+        const newLignesRapprochees = fichier.rapprochements.filter(r => {
+          if (r.transaction.numero_ligne === numeroLigne) return false;
+          return r.status === "matched";
+        }).length;
 
-        const newLignesRapprochees = updatedRapprochements.filter(r => r.status === "matched").length;
-
-        const { error: updateFichierError } = await supabase
+        await supabase
           .from("fichiers_rapprochement")
           .update({
-            fichier_data: JSON.parse(JSON.stringify({
-              ...fichier.fichier_data,
-              rapprochements: updatedRapprochements
-            })),
             lignes_rapprochees: newLignesRapprochees,
             updated_at: new Date().toISOString()
           })
           .eq("id", fichierId);
-
-        if (updateFichierError) throw updateFichierError;
-        console.log("✅ Fichier de rapprochement mis à jour - ligne dé-rapprochée");
       }
 
       toast({
@@ -1213,11 +1132,7 @@ export default function RapprochementBancaire() {
           numero_rapprochement: `TEMP-${Date.now()}`,
           date_debut: dateDebut,
           date_fin: dateFin,
-          fichier_data: {
-            transactions: transactionsParsed,
-            rapprochements: rapprochementsResult,
-            rapprochementsManuels
-          } as any,
+          fichier_data: {} as any, // Vide - données dans lignes_rapprochement
           statut: 'EN_COURS',
           total_lignes: transactionsParsed.length,
           lignes_rapprochees: lignesRapprochees,
