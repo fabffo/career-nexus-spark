@@ -170,7 +170,8 @@ export default function FacturesAchats() {
   const fetchFactures = async () => {
     setLoading(true);
     try {
-      let query = supabase.from("factures").select("*").eq("type_facture", "ACHATS");
+      // Récupérer toutes les factures d'achat (ACHATS, ACHATS_GENERAUX, ACHATS_SERVICES, ACHATS_ETAT)
+      let query = supabase.from("factures").select("*").in("type_facture", ["ACHATS", "ACHATS_GENERAUX", "ACHATS_SERVICES", "ACHATS_ETAT"]);
 
       // Filtrer par année et mois si sélectionné
       if (selectedYear !== "all") {
