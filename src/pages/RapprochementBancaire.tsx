@@ -2253,6 +2253,13 @@ export default function RapprochementBancaire() {
               facturesGenerales.splice(factureIndex, 1);
             }
 
+            // Déterminer le type de fournisseur basé sur le type_facture
+            const getFournisseurType = (typeFacture: string | undefined | null): 'general' | 'services' | 'etat' => {
+              if (typeFacture === 'ACHATS_SERVICES') return 'services';
+              if (typeFacture === 'ACHATS_ETAT') return 'etat';
+              return 'general';
+            };
+
             // Toujours mettre à jour fournisseur_info avec les infos de la facture
             const updatedRapp: Rapprochement = {
               ...rapprochement,
@@ -2264,7 +2271,7 @@ export default function RapprochementBancaire() {
               fournisseur_info: {
                 id: facture.emetteur_id || rapprochement.fournisseur_info?.id || '',
                 nom: facture.emetteur_nom,
-                type: 'general' as const,
+                type: getFournisseurType(facture.type_facture),
               },
             };
 
