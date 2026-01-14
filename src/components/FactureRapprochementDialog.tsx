@@ -74,44 +74,25 @@ export default function FactureRapprochementDialog({
 
       console.log("📄 Numero ligne rapprochement:", factureData.numero_ligne_rapprochement);
 
-      // Charger le fichier de rapprochement
-      const { data: fichierData, error: fichierError } = await supabase
-        .from("fichiers_rapprochement")
-        .select("fichier_data, numero_rapprochement")
-        .eq("numero_rapprochement", factureData.numero_rapprochement)
-        .single();
+      // Charger la ligne de rapprochement depuis lignes_rapprochement
+      const { data: ligneRapprochement, error: ligneError } = await supabase
+        .from("lignes_rapprochement")
+        .select(`
+          *,
+          fichiers_rapprochement (numero_rapprochement)
+        `)
+        .eq("numero_ligne", factureData.numero_ligne_rapprochement)
+        .maybeSingle();
 
-      if (fichierError) throw fichierError;
-      
-      if (!fichierData?.fichier_data) {
-        console.log("Pas de fichier_data");
+      if (ligneError) {
+        console.error("Erreur chargement ligne:", ligneError);
+      }
+
+      if (!ligneRapprochement) {
+        console.log("Ligne de rapprochement non trouvée");
         setRapprochements([]);
         return;
       }
-
-      console.log("📦 Fichier data:", fichierData.fichier_data);
-
-      // Extraire les rapprochements du JSON avec un cast approprié
-      const fichierDataTyped = fichierData.fichier_data as any;
-      const allRapprochements = [
-        ...(fichierDataTyped?.rapprochements || []),
-        ...(fichierDataTyped?.rapprochementsManuels || [])
-      ];
-
-      console.log("📊 Total rapprochements dans le fichier:", allRapprochements.length);
-
-      // Trouver le rapprochement spécifique par numero_ligne
-      const rapprochementLigne = allRapprochements.find((item: any) => 
-        item.numero_ligne === factureData.numero_ligne_rapprochement
-      );
-
-      if (!rapprochementLigne) {
-        console.log("❌ Aucun rapprochement trouvé avec ce numero_ligne");
-        setRapprochements([]);
-        return;
-      }
-
-      console.log("✅ Rapprochement trouvé:", rapprochementLigne);
 
       // Récupérer toutes les factures associées à cette ligne
       const { data: facturesAssociees, error: facturesError } = await supabase
@@ -122,18 +103,17 @@ export default function FactureRapprochementDialog({
       if (facturesError) throw facturesError;
 
       console.log("📋 Factures associées à cette ligne:", facturesAssociees?.length);
-      console.log("🔢 Numéro de ligne à afficher:", factureData.numero_ligne_rapprochement);
 
-      // Transformer en format d'affichage - on utilise le numero_ligne_rapprochement de la BDD
+      // Transformer en format d'affichage
       const rapprochementInfo: RapprochementInfo = {
-        id: factureData.numero_ligne_rapprochement, // Le vrai numéro de ligne (RL-YYYYMMDD-XXXXX)
-        date: rapprochementLigne.transaction.date,
-        libelle: rapprochementLigne.transaction.libelle,
-        montant: rapprochementLigne.transaction.montant,
-        debit: rapprochementLigne.transaction.debit || 0,
-        credit: rapprochementLigne.transaction.credit || 0,
-        fichierNumero: fichierData.numero_rapprochement,
-        notes: rapprochementLigne.notes,
+        id: factureData.numero_ligne_rapprochement,
+        date: ligneRapprochement.transaction_date,
+        libelle: ligneRapprochement.transaction_libelle,
+        montant: ligneRapprochement.transaction_montant || 0,
+        debit: ligneRapprochement.transaction_debit || 0,
+        credit: ligneRapprochement.transaction_credit || 0,
+        fichierNumero: ligneRapprochement.fichiers_rapprochement?.numero_rapprochement || factureData.numero_rapprochement || "",
+        notes: ligneRapprochement.notes,
         facturesAssociees: facturesAssociees || []
       };
 
@@ -169,61 +149,19 @@ export default function FactureRapprochementDialog({
         throw new Error("Aucune facture trouvée pour ce numero_ligne");
       }
 
-      const numeroRapprochement = facturesAssociees[0].numero_rapprochement;
-
-      // Charger le fichier de rapprochement
-      const { data: fichierData, error: fichierError } = await supabase
-        .from("fichiers_rapprochement")
-        .select("id, fichier_data")
-        .eq("numero_rapprochement", numeroRapprochement)
-        .single();
-
-      if (fichierError) throw fichierError;
-      if (!fichierData?.fichier_data) {
-        throw new Error("Pas de fichier_data trouvé");
-      }
-
-      // Modifier le JSON pour mettre cette ligne en "unmatched" (complètement dé-rapprochée)
-      const fichierDataTyped = fichierData.fichier_data as any;
-      const updatedRapprochements = fichierDataTyped?.rapprochements?.map((item: any) => {
-        if (item.numero_ligne === numeroLigne) {
-          return {
-            ...item,
-            facture: undefined,
-            factureIds: undefined,
-            factures: undefined,
-            status: "unmatched"
-          };
-        }
-        return item;
-      }) || [];
-
-      const updatedManuels = fichierDataTyped?.rapprochementsManuels?.map((item: any) => {
-        if (item.numero_ligne === numeroLigne) {
-          return {
-            ...item,
-            facture: undefined,
-            factureIds: undefined,
-            factures: undefined,
-            status: "unmatched"
-          };
-        }
-        return item;
-      }) || [];
-
-      // Mettre à jour le fichier
-      const { error: updateFichierError } = await supabase
-        .from("fichiers_rapprochement")
+      // Mettre à jour la ligne de rapprochement pour la passer en "unmatched"
+      const { error: updateLigneError } = await supabase
+        .from("lignes_rapprochement")
         .update({
-          fichier_data: {
-            ...fichierDataTyped,
-            rapprochements: updatedRapprochements,
-            rapprochementsManuels: updatedManuels
-          } as any
+          statut: "unmatched",
+          facture_id: null,
+          factures_ids: null,
+          numero_facture: null,
+          updated_at: new Date().toISOString()
         })
-        .eq("id", fichierData.id);
+        .eq("numero_ligne", numeroLigne);
 
-      if (updateFichierError) throw updateFichierError;
+      if (updateLigneError) throw updateLigneError;
 
       // Mettre à jour toutes les factures associées
       const { error: updateFacturesError } = await supabase
