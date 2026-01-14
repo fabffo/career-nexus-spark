@@ -2388,19 +2388,21 @@ export default function RapprochementBancaire() {
 
       const allFournisseurServicesIds = new Set((allFournisseursServices || []).map(f => f.id));
 
-      // 4. Récupérer les factures d'achats non rapprochées
+      // 4. Récupérer les factures d'achats services non rapprochées
       const { data: facturesAchats, error: facturesError } = await supabase
         .from("factures")
-        .select("id, numero_facture, date_emission, date_echeance, emetteur_nom, emetteur_id, emetteur_type, type_frais, total_ttc, statut, numero_rapprochement")
-        .eq("type_facture", "ACHATS")
+        .select("id, numero_facture, type_facture, date_emission, date_echeance, emetteur_nom, emetteur_id, emetteur_type, type_frais, total_ttc, statut, numero_rapprochement")
+        .in("type_facture", ["ACHATS", "ACHATS_SERVICES"]) // Inclure les deux types
         .in("statut", ["VALIDEE", "PAYEE"])
         .is("numero_rapprochement", null);
 
       if (facturesError) throw facturesError;
 
-      // Filtrer pour ne garder que les factures dont l'émetteur est un fournisseur de services
+      // Filtrer pour ne garder que les factures de type ACHATS_SERVICES OU dont l'émetteur est un fournisseur de services
       const facturesServices = (facturesAchats || []).filter(f => 
-        f.emetteur_id && allFournisseurServicesIds.has(f.emetteur_id)
+        f.type_facture === "ACHATS_SERVICES" || 
+        (f.emetteur_id && allFournisseurServicesIds.has(f.emetteur_id)) ||
+        f.emetteur_type === "FOURNISSEUR_SERVICES"
       );
 
       if (facturesServices.length === 0) {
