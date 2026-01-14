@@ -78,16 +78,18 @@ interface FichierRapprochement {
   numero_rapprochement: string;
   date_debut: string;
   date_fin: string;
-  fichier_data: {
-    transactions: TransactionBancaire[];
-    rapprochements: Rapprochement[];
-    rapprochementsManuels: RapprochementManuel[];
+  fichier_data?: {
+    transactions?: TransactionBancaire[];
+    rapprochements?: Rapprochement[];
+    rapprochementsManuels?: RapprochementManuel[];
   };
   statut: string;
   total_lignes: number;
   lignes_rapprochees: number;
   created_at: string;
   created_by: string;
+  // Les rapprochements sont maintenant chargés depuis lignes_rapprochement
+  rapprochements?: Rapprochement[];
 }
 
 interface RegleRapprochement {
@@ -284,24 +286,70 @@ export default function RapprochementBancaire() {
       if (data) {
         setFichierEnCoursId(data.id);
         
-        // Restaurer les données du fichier EN_COURS
-        if (data.fichier_data) {
-          const fichierData = data.fichier_data as {
-            transactions?: TransactionBancaire[];
-            rapprochements?: Rapprochement[];
-            rapprochementsManuels?: RapprochementManuel[];
-          };
-          
-           if (fichierData.transactions) setTransactions(fichierData.transactions);
-           if (fichierData.rapprochements) {
-             setRapprochements(
-               fichierData.rapprochements.map((r) => ({
-                 ...r,
-                 status: deriveStatus(r),
-               }))
-             );
-           }
-           if (fichierData.rapprochementsManuels) setRapprochementsManuels(fichierData.rapprochementsManuels);
+        // Restaurer les données depuis lignes_rapprochement
+        const { data: lignes, error: lignesError } = await supabase
+          .from('lignes_rapprochement')
+          .select(`
+            *,
+            abonnements_partenaires (id, nom, montant_mensuel),
+            declarations_charges_sociales (id, nom, organisme)
+          `)
+          .eq('fichier_rapprochement_id', data.id)
+          .order('transaction_date', { ascending: true });
+
+        if (lignesError) {
+          console.error("Erreur chargement lignes:", lignesError);
+        } else if (lignes && lignes.length > 0) {
+          // Convertir les lignes en format Rapprochement
+          const rapprochementsRestores: Rapprochement[] = lignes.map(ligne => ({
+            transaction: {
+              date: ligne.transaction_date,
+              libelle: ligne.transaction_libelle,
+              debit: ligne.transaction_debit || 0,
+              credit: ligne.transaction_credit || 0,
+              montant: ligne.transaction_montant || 0,
+              numero_ligne: ligne.numero_ligne,
+            },
+            facture: ligne.facture_id ? {
+              id: ligne.facture_id,
+              numero_facture: ligne.numero_facture || '',
+              type_facture: 'ACHATS' as const,
+              date_emission: '',
+              partenaire_nom: '',
+              total_ttc: 0,
+              statut: '',
+            } : null,
+            factureIds: ligne.factures_ids || undefined,
+            score: ligne.score_detection || 0,
+            status: (ligne.statut as "matched" | "unmatched" | "uncertain") || "unmatched",
+            isManual: false,
+            notes: ligne.notes,
+            numero_ligne: ligne.numero_ligne,
+            abonnement_info: ligne.abonnements_partenaires ? {
+              id: ligne.abonnements_partenaires.id,
+              nom: ligne.abonnements_partenaires.nom,
+              montant_ttc: ligne.abonnements_partenaires.montant_mensuel,
+            } : undefined,
+            declaration_info: ligne.declarations_charges_sociales ? {
+              id: ligne.declarations_charges_sociales.id,
+              nom: ligne.declarations_charges_sociales.nom,
+              organisme: ligne.declarations_charges_sociales.organisme,
+            } : undefined,
+            fournisseur_info: ligne.fournisseur_detecte_id ? {
+              id: ligne.fournisseur_detecte_id,
+              nom: ligne.fournisseur_detecte_nom || '',
+              type: (ligne.fournisseur_detecte_type as any) || 'general',
+            } : undefined,
+          }));
+
+          // Dériver les statuts
+          const rapprochementsAvecStatut = rapprochementsRestores.map(r => ({
+            ...r,
+            status: deriveStatus(r),
+          }));
+
+          setRapprochements(rapprochementsAvecStatut);
+          setTransactions(rapprochementsAvecStatut.map(r => r.transaction));
 
           console.log("✅ Fichier EN_COURS restauré:", data.numero_rapprochement);
           toast({

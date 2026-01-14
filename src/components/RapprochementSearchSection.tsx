@@ -21,17 +21,15 @@ interface RapprochementSearchSectionProps {
 }
 
 interface TransactionEnCours {
-  index: number;
-  transaction: {
-    date: string;
-    libelle: string;
-    debit: number;
-    credit: number;
-    montant: number;
-    numero_ligne?: string;
-  };
-  status: "matched" | "unmatched" | "uncertain";
-  fichierId: string;
+  id: string;
+  numero_ligne: string;
+  transaction_date: string;
+  transaction_libelle: string;
+  transaction_debit: number | null;
+  transaction_credit: number | null;
+  transaction_montant: number | null;
+  statut: string;
+  fichier_rapprochement_id: string;
 }
 
 export function RapprochementSearchSection({ 
@@ -62,27 +60,38 @@ export function RapprochementSearchSection({
     setSearchKeyword(newValue);
   };
 
-  // Rechercher dans les fichiers de rapprochement EN_COURS
+  // Rechercher dans la table lignes_rapprochement pour les fichiers EN_COURS
   const { data: transactionsEnCours = [], isLoading, refetch } = useQuery({
     queryKey: ["rapprochement-search", searchTerm],
     queryFn: async () => {
       if (!searchTerm || searchTerm.trim().length < 2) return [];
 
       // Récupérer les fichiers en cours
-      const { data: fichiers, error } = await supabase
+      const { data: fichiers, error: fichiersError } = await supabase
         .from("fichiers_rapprochement")
-        .select("*")
+        .select("id")
         .eq("statut", "EN_COURS");
 
-      if (error) throw error;
+      if (fichiersError) throw fichiersError;
       if (!fichiers || fichiers.length === 0) return [];
 
-      const results: TransactionEnCours[] = [];
-      
+      const fichierIds = fichiers.map(f => f.id);
+
       // Parser la syntaxe de recherche
       // Virgule = OU, Espace = ET
       const orGroups = searchTerm.split(",").map(g => g.trim().toLowerCase()).filter(g => g.length > 0);
       
+      // Récupérer les lignes de rapprochement pour ces fichiers
+      const { data: lignes, error: lignesError } = await supabase
+        .from("lignes_rapprochement")
+        .select("*")
+        .in("fichier_rapprochement_id", fichierIds)
+        .in("statut", ["unmatched", "uncertain"]);
+
+      if (lignesError) throw lignesError;
+      if (!lignes) return [];
+
+      // Filtrer les résultats selon les mots-clés
       const matchesSearch = (libelle: string): boolean => {
         const libelleLower = libelle.toLowerCase();
         
@@ -93,29 +102,7 @@ export function RapprochementSearchSection({
         });
       };
 
-      fichiers.forEach((fichier) => {
-        const fichierData = fichier.fichier_data as any;
-        if (!fichierData?.rapprochements) return;
-
-        fichierData.rapprochements.forEach((rapp: any, index: number) => {
-          if (!rapp.transaction) return;
-          
-          const libelle = rapp.transaction.libelle || "";
-          if (matchesSearch(libelle)) {
-            // Ne montrer que les transactions non rapprochées
-            if (rapp.status === "unmatched" || rapp.status === "uncertain") {
-              results.push({
-                index,
-                transaction: rapp.transaction,
-                status: rapp.status,
-                fichierId: fichier.id,
-              });
-            }
-          }
-        });
-      });
-
-      return results;
+      return lignes.filter(ligne => matchesSearch(ligne.transaction_libelle));
     },
     enabled: searchTerm.length >= 2,
   });
@@ -132,78 +119,86 @@ export function RapprochementSearchSection({
     }
   };
 
-  const handleMatch = async (transaction: TransactionEnCours) => {
+  const handleMatch = async (ligne: TransactionEnCours) => {
     try {
-      // Récupérer le fichier actuel
-      const { data: fichier, error: fetchError } = await supabase
+      // Déterminer le type de fournisseur selon entityType
+      let fournisseurType: string | null = null;
+      switch (entityType) {
+        case "fournisseur":
+          fournisseurType = "general";
+          break;
+        case "fournisseur_services":
+          fournisseurType = "services";
+          break;
+        case "fournisseur_etat":
+          fournisseurType = "etat";
+          break;
+        case "client":
+          fournisseurType = "client";
+          break;
+        case "banque":
+          fournisseurType = "banque";
+          break;
+        case "prestataire":
+          fournisseurType = "prestataire";
+          break;
+        case "salarie":
+          fournisseurType = "salarie";
+          break;
+      }
+
+      // Préparer les données de mise à jour
+      const updateData: any = {
+        statut: "uncertain", // Partenaire seul = incertain
+        updated_at: new Date().toISOString(),
+      };
+
+      // Ajouter les infos selon le type d'entité
+      if (entityType === "abonnement") {
+        updateData.abonnement_id = entityId;
+        updateData.statut = "matched"; // Abonnement = rapproché
+      } else if (entityType === "declaration") {
+        updateData.declaration_charge_id = entityId;
+        updateData.statut = "matched"; // Déclaration = rapproché
+      } else if (fournisseurType) {
+        updateData.fournisseur_detecte_id = entityId;
+        updateData.fournisseur_detecte_nom = entityName;
+        updateData.fournisseur_detecte_type = fournisseurType;
+      }
+
+      // Mettre à jour la ligne de rapprochement
+      const { error: updateError } = await supabase
+        .from("lignes_rapprochement")
+        .update(updateData)
+        .eq("id", ligne.id);
+
+      if (updateError) throw updateError;
+
+      // Mettre à jour le compteur du fichier
+      const { data: fichier } = await supabase
         .from("fichiers_rapprochement")
-        .select("*")
-        .eq("id", transaction.fichierId)
+        .select("lignes_rapprochees")
+        .eq("id", ligne.fichier_rapprochement_id)
         .single();
 
-      if (fetchError) throw fetchError;
-
-      const fichierData = fichier.fichier_data as any;
-      
-      // Mettre à jour le rapprochement avec les infos de l'entité
-      const updatedRapprochements = [...fichierData.rapprochements];
-      const rapp = updatedRapprochements[transaction.index];
-      
-      if (rapp) {
-        rapp.status = "matched";
-        
-        // Ajouter les infos selon le type d'entité
-        switch (entityType) {
-          case "abonnement":
-            rapp.abonnement_info = { id: entityId, nom: entityName };
-            break;
-          case "declaration":
-            rapp.declaration_info = { id: entityId, nom: entityName, organisme: "" };
-            break;
-          case "fournisseur":
-            rapp.fournisseur_info = { id: entityId, nom: entityName, type: "general" };
-            break;
-          case "fournisseur_services":
-            rapp.fournisseur_info = { id: entityId, nom: entityName, type: "services" };
-            break;
-          case "fournisseur_etat":
-            rapp.fournisseur_info = { id: entityId, nom: entityName, type: "etat" };
-            break;
-          case "client":
-            rapp.client_info = { id: entityId, nom: entityName };
-            break;
-          case "prestataire":
-            rapp.prestataire_info = { id: entityId, nom: entityName };
-            break;
-          case "salarie":
-            rapp.salarie_info = { id: entityId, nom: entityName };
-            break;
-        }
-
-        // Sauvegarder
-        const { error: updateError } = await supabase
+      if (fichier && updateData.statut === "matched") {
+        await supabase
           .from("fichiers_rapprochement")
           .update({
-            fichier_data: {
-              ...fichierData,
-              rapprochements: updatedRapprochements,
-            },
-            lignes_rapprochees: fichier.lignes_rapprochees + 1,
+            lignes_rapprochees: (fichier.lignes_rapprochees || 0) + 1,
             updated_at: new Date().toISOString(),
           })
-          .eq("id", transaction.fichierId);
-
-        if (updateError) throw updateError;
-
-        toast.success("Transaction rapprochée avec succès");
-        
-        if (onMatch) {
-          onMatch(transaction.fichierId);
-        }
-        
-        // Rafraîchir les résultats
-        refetch();
+          .eq("id", ligne.fichier_rapprochement_id);
       }
+
+      toast.success("Transaction rapprochée avec succès");
+      
+      if (onMatch) {
+        onMatch(ligne.fichier_rapprochement_id);
+      }
+      
+      // Rafraîchir les résultats
+      refetch();
     } catch (error) {
       console.error("Erreur lors du rapprochement:", error);
       toast.error("Erreur lors du rapprochement");
@@ -282,40 +277,40 @@ export function RapprochementSearchSection({
                 <div className="space-y-2 max-h-[300px] overflow-y-auto">
                   {transactionsEnCours.map((t, idx) => (
                     <div
-                      key={`${t.fichierId}-${t.index}-${idx}`}
+                      key={t.id}
                       className="flex items-center justify-between p-3 bg-muted/50 rounded-lg text-sm border"
                     >
                       <div className="flex-1">
                         <div className="font-medium truncate max-w-md">
-                          {t.transaction.libelle}
+                          {t.transaction_libelle}
                         </div>
                         <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
                           <Calendar className="h-3 w-3" />
-                          {formatDate(t.transaction.date)}
-                          {t.transaction.numero_ligne && (
+                          {formatDate(t.transaction_date)}
+                          {t.numero_ligne && (
                             <>
                               <span className="text-muted-foreground">•</span>
-                              Ligne: {t.transaction.numero_ligne}
+                              Ligne: {t.numero_ligne}
                             </>
                           )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {t.transaction.debit && t.transaction.debit > 0 ? (
+                        {t.transaction_debit && t.transaction_debit > 0 ? (
                           <Badge variant="destructive">
-                            -{formatCurrency(t.transaction.debit)}
+                            -{formatCurrency(t.transaction_debit)}
                           </Badge>
-                        ) : t.transaction.credit && t.transaction.credit > 0 ? (
+                        ) : t.transaction_credit && t.transaction_credit > 0 ? (
                           <Badge variant="default" className="bg-green-600">
-                            +{formatCurrency(t.transaction.credit)}
+                            +{formatCurrency(t.transaction_credit)}
                           </Badge>
                         ) : (
                           <Badge variant="outline">
-                            {formatCurrency(Math.abs(t.transaction.montant))}
+                            {formatCurrency(Math.abs(t.transaction_montant || 0))}
                           </Badge>
                         )}
-                        <Badge variant={t.status === "uncertain" ? "secondary" : "outline"}>
-                          {t.status === "uncertain" ? "Incertain" : "Non rapproché"}
+                        <Badge variant={t.statut === "uncertain" ? "secondary" : "outline"}>
+                          {t.statut === "uncertain" ? "Incertain" : "Non rapproché"}
                         </Badge>
                         <Button
                           size="sm"
