@@ -2436,8 +2436,9 @@ export default function RapprochementBancaire() {
         const transactionMontant = Math.abs(rapprochement.transaction.montant);
 
         // Calculer le nombre de mois en arrière basé sur délai + écart
-        const delaiPaiement = fournisseur.delai_paiement_jours || 30;
-        const ecart = fournisseur.ecart_paiement_jours || 0;
+        // Utiliser ?? au lieu de || pour préserver la valeur 0
+        const delaiPaiement = fournisseur.delai_paiement_jours ?? 30;
+        const ecart = fournisseur.ecart_paiement_jours ?? 0;
         const joursTotal = delaiPaiement + ecart;
 
         // Calculer le nombre de mois: ex. 45j + 5j = 50j ≈ 2 mois
