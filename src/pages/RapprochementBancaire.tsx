@@ -2596,21 +2596,41 @@ export default function RapprochementBancaire() {
       let matchCount = 0;
       const facturesUtilisees = new Set<string>();
 
+      // Normalisation robuste pour comparer des noms (insensible casse/accents/ponctuation)
+      const normalizeName = (value: string | null | undefined) =>
+        (value ?? "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toUpperCase()
+          .replace(/[^A-Z0-9]+/g, " ")
+          .trim()
+          .replace(/\s+/g, " ");
+
       // Fonction pour trouver des combinaisons de factures dont la somme égale le montant cible
       const findMatchingCombination = (
         factures: typeof facturesVentes,
         targetAmount: number,
         moisCible: number,
         anneeCible: number,
-        clientId: string
+        clientId: string,
+        clientNom: string
       ): typeof facturesVentes => {
         // Filtrer les factures par mois et client
-        const facturesFiltrees = factures.filter(f => {
+        const facturesFiltrees = factures.filter((f) => {
           if (facturesUtilisees.has(f.id)) return false;
           const factureDate = new Date(f.date_emission);
-          const moisMatch = factureDate.getMonth() === moisCible && factureDate.getFullYear() === anneeCible;
+          const moisMatch =
+            factureDate.getMonth() === moisCible &&
+            factureDate.getFullYear() === anneeCible;
+
           // Vérifier si la facture correspond au client
-          const clientMatch = f.destinataire_id === clientId;
+          // - priorité sur destinataire_id
+          // - fallback sur destinataire_nom (certaines factures n'ont pas d'ID client)
+          const clientMatch =
+            f.destinataire_id === clientId ||
+            (f.destinataire_id == null &&
+              normalizeName(f.destinataire_nom) === normalizeName(clientNom));
+
           return moisMatch && clientMatch;
         });
 
@@ -2625,7 +2645,9 @@ export default function RapprochementBancaire() {
         // 2. Chercher une combinaison de 2 factures
         for (let i = 0; i < facturesFiltrees.length; i++) {
           for (let j = i + 1; j < facturesFiltrees.length; j++) {
-            const somme = Math.abs(facturesFiltrees[i].total_ttc || 0) + Math.abs(facturesFiltrees[j].total_ttc || 0);
+            const somme =
+              Math.abs(facturesFiltrees[i].total_ttc || 0) +
+              Math.abs(facturesFiltrees[j].total_ttc || 0);
             if (Math.abs(targetAmount - somme) < 0.01) {
               return [facturesFiltrees[i], facturesFiltrees[j]];
             }
@@ -2636,11 +2658,16 @@ export default function RapprochementBancaire() {
         for (let i = 0; i < facturesFiltrees.length; i++) {
           for (let j = i + 1; j < facturesFiltrees.length; j++) {
             for (let k = j + 1; k < facturesFiltrees.length; k++) {
-              const somme = Math.abs(facturesFiltrees[i].total_ttc || 0) + 
-                           Math.abs(facturesFiltrees[j].total_ttc || 0) + 
-                           Math.abs(facturesFiltrees[k].total_ttc || 0);
+              const somme =
+                Math.abs(facturesFiltrees[i].total_ttc || 0) +
+                Math.abs(facturesFiltrees[j].total_ttc || 0) +
+                Math.abs(facturesFiltrees[k].total_ttc || 0);
               if (Math.abs(targetAmount - somme) < 0.01) {
-                return [facturesFiltrees[i], facturesFiltrees[j], facturesFiltrees[k]];
+                return [
+                  facturesFiltrees[i],
+                  facturesFiltrees[j],
+                  facturesFiltrees[k],
+                ];
               }
             }
           }
@@ -2688,7 +2715,8 @@ export default function RapprochementBancaire() {
           transactionMontant,
           moisCible,
           anneeCible,
-          client.id
+          client.id,
+          client.raison_sociale
         );
 
         if (facturesMatchees.length > 0) {
