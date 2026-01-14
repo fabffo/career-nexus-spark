@@ -137,6 +137,7 @@ export default function RapprochementBancaire() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortColumn, setSortColumn] = useState<"date" | "libelle" | "debit" | "credit" | "partenaire" | "typePartenaire" | "score" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [typePartenaireFilter, setTypePartenaireFilter] = useState<string>("all");
   const { toast } = useToast();
 
   // Statut métier:
@@ -3412,11 +3413,27 @@ export default function RapprochementBancaire() {
     return "";
   };
 
-  // Filtrage par statut et recherche
+  // Liste des types de partenaires disponibles pour le filtre
+  const typesPartenaireDisponibles = useMemo(() => {
+    const types = new Set<string>();
+    rapprochements.forEach(r => {
+      const type = getPartenaireType(r);
+      if (type) types.add(type);
+    });
+    return Array.from(types).sort();
+  }, [rapprochements]);
+
+  // Filtrage par statut, type partenaire et recherche
   const filteredRapprochements = useMemo(() => {
     return rapprochements.filter(r => {
       // Filtre par statut
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      
+      // Filtre par type partenaire
+      if (typePartenaireFilter !== "all") {
+        const type = getPartenaireType(r);
+        if (type !== typePartenaireFilter) return false;
+      }
       
       // Filtre par recherche (libellé ou partenaire)
       if (searchTerm.trim()) {
@@ -3428,7 +3445,7 @@ export default function RapprochementBancaire() {
       
       return true;
     });
-  }, [rapprochements, statusFilter, searchTerm]);
+  }, [rapprochements, statusFilter, typePartenaireFilter, searchTerm]);
 
   // Tri des résultats
   const sortedRapprochements = useMemo(() => {
@@ -3855,6 +3872,34 @@ export default function RapprochementBancaire() {
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
+              </div>
+
+              {/* Filtre par type de partenaire */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Type partenaire :</span>
+                </div>
+                <Select value={typePartenaireFilter} onValueChange={(v) => { setTypePartenaireFilter(v); setCurrentPage(1); }}>
+                  <SelectTrigger className="w-[220px]">
+                    <SelectValue placeholder="Tous les types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les types</SelectItem>
+                    {typesPartenaireDisponibles.map((type) => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {typePartenaireFilter !== "all" && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setTypePartenaireFilter("all")}
+                  >
+                    Effacer
+                  </Button>
+                )}
               </div>
             </div>
           </CardHeader>
