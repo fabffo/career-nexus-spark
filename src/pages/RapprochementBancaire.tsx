@@ -2664,30 +2664,30 @@ export default function RapprochementBancaire() {
         const transactionDate = new Date(rapprochement.transaction.date);
         const transactionMontant = Math.abs(rapprochement.transaction.montant);
 
-        // Calculer le nombre de mois en arrière basé sur délai + écart
+        // Calculer la date cible de la facture en soustrayant les jours de délai + écart
         const delaiPaiement = client.delai_paiement_jours ?? 30;
         const ecart = client.ecart_paiement_jours ?? 0;
         const joursTotal = delaiPaiement + ecart;
 
-        // Calculer le nombre de mois: ex. 45j + 5j = 50j ≈ 2 mois
-        const moisEnArriere = Math.ceil(joursTotal / 30);
-
-        // Déterminer le mois cible des factures
-        const moisFacture = transactionDate.getMonth() - moisEnArriere;
-        const anneeFacture = transactionDate.getFullYear() + Math.floor(moisFacture / 12);
-        const moisCible = ((moisFacture % 12) + 12) % 12; // Gérer les mois négatifs
+        // Calculer la date exacte de rapprochement (date transaction - jours total)
+        const dateRapprochement = new Date(transactionDate);
+        dateRapprochement.setDate(dateRapprochement.getDate() - joursTotal);
+        
+        // Extraire le mois et l'année cibles
+        const moisCible = dateRapprochement.getMonth();
+        const anneeCible = dateRapprochement.getFullYear();
 
         console.log(`🔎 Ligne "${rapprochement.transaction.libelle}" - Client: ${client.raison_sociale}`);
         console.log(`   Montant: ${transactionMontant}€ - Date transaction: ${format(transactionDate, 'dd/MM/yyyy')}`);
-        console.log(`   Délai: ${delaiPaiement}j + Écart: ${ecart}j = ${joursTotal}j → ${moisEnArriere} mois en arrière`);
-        console.log(`   Mois cible des factures: ${moisCible + 1}/${anneeFacture}`);
+        console.log(`   Délai: ${delaiPaiement}j + Écart: ${ecart}j = ${joursTotal}j`);
+        console.log(`   Date rapprochement: ${format(dateRapprochement, 'dd/MM/yyyy')} → Mois cible: ${moisCible + 1}/${anneeCible}`);
 
         // Chercher des factures correspondantes (une ou plusieurs)
         const facturesMatchees = findMatchingCombination(
           facturesVentes,
           transactionMontant,
           moisCible,
-          anneeFacture,
+          anneeCible,
           client.id
         );
 
