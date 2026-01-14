@@ -2526,6 +2526,261 @@ export default function RapprochementBancaire() {
     }
   };
 
+  // Fonction de matching des clients (factures VENTES)
+  const handleMatchClients = async () => {
+    if (rapprochements.length === 0) {
+      toast({
+        title: "Erreur",
+        description: "Aucune transaction à traiter",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // 1. Récupérer les lignes avec fournisseur_info de type 'client'
+      const lignesClients = rapprochements.filter(
+        r => r.fournisseur_info?.type === 'client' && r.status !== 'matched'
+      );
+
+      if (lignesClients.length === 0) {
+        toast({
+          title: "Aucune ligne",
+          description: "Aucune ligne avec partenaire 'Client' à traiter. Lancez d'abord le matching 'Partenaires'.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      console.log(`🔍 Matching Clients: ${lignesClients.length} lignes à traiter`);
+
+      // 2. Récupérer les clients avec leurs délais de paiement
+      const clientIdsFromLines = [...new Set(lignesClients.map(l => l.fournisseur_info!.id))];
+      
+      const { data: clientsData, error: clientsError } = await supabase
+        .from("clients")
+        .select("id, raison_sociale, delai_paiement_jours, ecart_paiement_jours")
+        .in("id", clientIdsFromLines);
+
+      if (clientsError) throw clientsError;
+
+      const clientsMap = new Map(
+        (clientsData || []).map(c => [c.id, c])
+      );
+
+      // 3. Récupérer les factures VENTES non rapprochées
+      const { data: facturesVentes, error: facturesError } = await supabase
+        .from("factures")
+        .select("id, numero_facture, type_facture, date_emission, date_echeance, destinataire_nom, destinataire_id, destinataire_type, total_ttc, statut, numero_rapprochement")
+        .eq("type_facture", "VENTES")
+        .in("statut", ["VALIDEE", "PAYEE"])
+        .is("numero_rapprochement", null);
+
+      if (facturesError) throw facturesError;
+
+      if (!facturesVentes || facturesVentes.length === 0) {
+        toast({
+          title: "Aucune facture",
+          description: "Aucune facture de ventes disponible pour le rapprochement",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      console.log(`🔍 ${facturesVentes.length} factures de ventes disponibles`);
+
+      let matchCount = 0;
+      const facturesUtilisees = new Set<string>();
+
+      // Fonction pour trouver des combinaisons de factures dont la somme égale le montant cible
+      const findMatchingCombination = (
+        factures: typeof facturesVentes,
+        targetAmount: number,
+        moisCible: number,
+        anneeCible: number,
+        clientId: string
+      ): typeof facturesVentes => {
+        // Filtrer les factures par mois et client
+        const facturesFiltrees = factures.filter(f => {
+          if (facturesUtilisees.has(f.id)) return false;
+          const factureDate = new Date(f.date_emission);
+          const moisMatch = factureDate.getMonth() === moisCible && factureDate.getFullYear() === anneeCible;
+          // Vérifier si la facture correspond au client
+          const clientMatch = f.destinataire_id === clientId;
+          return moisMatch && clientMatch;
+        });
+
+        // 1. Chercher une facture unique avec montant exact
+        for (const facture of facturesFiltrees) {
+          const factureMontant = Math.abs(facture.total_ttc || 0);
+          if (Math.abs(targetAmount - factureMontant) < 0.01) {
+            return [facture];
+          }
+        }
+
+        // 2. Chercher une combinaison de 2 factures
+        for (let i = 0; i < facturesFiltrees.length; i++) {
+          for (let j = i + 1; j < facturesFiltrees.length; j++) {
+            const somme = Math.abs(facturesFiltrees[i].total_ttc || 0) + Math.abs(facturesFiltrees[j].total_ttc || 0);
+            if (Math.abs(targetAmount - somme) < 0.01) {
+              return [facturesFiltrees[i], facturesFiltrees[j]];
+            }
+          }
+        }
+
+        // 3. Chercher une combinaison de 3 factures
+        for (let i = 0; i < facturesFiltrees.length; i++) {
+          for (let j = i + 1; j < facturesFiltrees.length; j++) {
+            for (let k = j + 1; k < facturesFiltrees.length; k++) {
+              const somme = Math.abs(facturesFiltrees[i].total_ttc || 0) + 
+                           Math.abs(facturesFiltrees[j].total_ttc || 0) + 
+                           Math.abs(facturesFiltrees[k].total_ttc || 0);
+              if (Math.abs(targetAmount - somme) < 0.01) {
+                return [facturesFiltrees[i], facturesFiltrees[j], facturesFiltrees[k]];
+              }
+            }
+          }
+        }
+
+        return [];
+      };
+
+      const updatedRapprochements = rapprochements.map(rapprochement => {
+        // Ne traiter que les lignes Clients non matched
+        if (!rapprochement.fournisseur_info || rapprochement.fournisseur_info.type !== 'client' || rapprochement.status === 'matched') {
+          return rapprochement;
+        }
+
+        const client = clientsMap.get(rapprochement.fournisseur_info.id);
+        if (!client) {
+          console.log(`⚠️ Client non trouvé: ${rapprochement.fournisseur_info.id}`);
+          return rapprochement;
+        }
+
+        const transactionDate = new Date(rapprochement.transaction.date);
+        const transactionMontant = Math.abs(rapprochement.transaction.montant);
+
+        // Calculer le nombre de mois en arrière basé sur délai + écart
+        const delaiPaiement = client.delai_paiement_jours ?? 30;
+        const ecart = client.ecart_paiement_jours ?? 0;
+        const joursTotal = delaiPaiement + ecart;
+
+        // Calculer le nombre de mois: ex. 45j + 5j = 50j ≈ 2 mois
+        const moisEnArriere = Math.ceil(joursTotal / 30);
+
+        // Déterminer le mois cible des factures
+        const moisFacture = transactionDate.getMonth() - moisEnArriere;
+        const anneeFacture = transactionDate.getFullYear() + Math.floor(moisFacture / 12);
+        const moisCible = ((moisFacture % 12) + 12) % 12; // Gérer les mois négatifs
+
+        console.log(`🔎 Ligne "${rapprochement.transaction.libelle}" - Client: ${client.raison_sociale}`);
+        console.log(`   Montant: ${transactionMontant}€ - Date transaction: ${format(transactionDate, 'dd/MM/yyyy')}`);
+        console.log(`   Délai: ${delaiPaiement}j + Écart: ${ecart}j = ${joursTotal}j → ${moisEnArriere} mois en arrière`);
+        console.log(`   Mois cible des factures: ${moisCible + 1}/${anneeFacture}`);
+
+        // Chercher des factures correspondantes (une ou plusieurs)
+        const facturesMatchees = findMatchingCombination(
+          facturesVentes,
+          transactionMontant,
+          moisCible,
+          anneeFacture,
+          client.id
+        );
+
+        if (facturesMatchees.length > 0) {
+          matchCount++;
+          
+          // Marquer toutes les factures comme utilisées
+          facturesMatchees.forEach(f => facturesUtilisees.add(f.id));
+
+          const totalFactures = facturesMatchees.reduce((sum, f) => sum + Math.abs(f.total_ttc || 0), 0);
+          const numerosFactures = facturesMatchees.map(f => f.numero_facture).join(', ');
+          
+          console.log(`✅ Match trouvé: ${facturesMatchees.length} facture(s) - ${numerosFactures} - Total: ${totalFactures}€`);
+
+          // Si une seule facture, utiliser le format simple
+          if (facturesMatchees.length === 1) {
+            const facture = facturesMatchees[0];
+            const factureMatch: FactureMatch = {
+              id: facture.id,
+              numero_facture: facture.numero_facture,
+              type_facture: "VENTES",
+              date_emission: facture.date_emission,
+              partenaire_nom: facture.destinataire_nom,
+              total_ttc: facture.total_ttc || 0,
+              statut: facture.statut || "VALIDEE",
+              emetteur_type: "CLIENT",
+            };
+
+            return {
+              ...rapprochement,
+              facture: factureMatch,
+              factureIds: [facture.id],
+              score: 100,
+              status: 'matched' as const,
+              fournisseur_info: {
+                id: facture.destinataire_id || rapprochement.fournisseur_info?.id || '',
+                nom: facture.destinataire_nom,
+                type: 'client' as const,
+              },
+            };
+          } else {
+            // Plusieurs factures - créer une facture agrégée pour l'affichage
+            const factureMatch: FactureMatch = {
+              id: facturesMatchees[0].id,
+              numero_facture: numerosFactures,
+              type_facture: "VENTES",
+              date_emission: facturesMatchees[0].date_emission,
+              partenaire_nom: facturesMatchees[0].destinataire_nom,
+              total_ttc: totalFactures,
+              statut: "VALIDEE",
+              emetteur_type: "CLIENT",
+            };
+
+            return {
+              ...rapprochement,
+              facture: factureMatch,
+              factureIds: facturesMatchees.map(f => f.id),
+              score: 100,
+              status: 'matched' as const,
+              fournisseur_info: {
+                id: client.id,
+                nom: client.raison_sociale,
+                type: 'client' as const,
+              },
+            };
+          }
+        }
+
+        console.log(`❌ Aucune facture correspondante trouvée`);
+        return rapprochement;
+      });
+
+      setRapprochements(updatedRapprochements);
+
+      toast({
+        title: "Matching Clients terminé",
+        description: matchCount > 0 
+          ? `${matchCount} ligne(s) rapprochée(s) avec des factures clients`
+          : "Aucune correspondance trouvée",
+      });
+
+    } catch (error) {
+      console.error("Erreur lors du matching Clients:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'effectuer le matching Clients",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fonction de matching des déclarations de charges sociales
   const handleMatchDeclarationsCharges = async () => {
     if (rapprochements.length === 0) {
@@ -3799,7 +4054,16 @@ export default function RapprochementBancaire() {
                     {loading ? "Matching..." : "Frns Services"}
                   </Button>
                   <Button 
-                    onClick={handleAnnulerFichierEnCours} 
+                    onClick={handleMatchClients} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={loading}
+                  >
+                    <Users className="h-4 w-4 mr-2" />
+                    {loading ? "Matching..." : "Clients"}
+                  </Button>
+                  <Button 
+                    onClick={handleAnnulerFichierEnCours}
                     variant="destructive" 
                     size="sm"
                     disabled={loading || !fichierEnCoursId}
