@@ -2259,13 +2259,13 @@ export default function RapprochementBancaire() {
             const factureMatch: FactureMatch = {
               id: facture.id,
               numero_facture: facture.numero_facture,
-              type_facture: "ACHATS",
+              type_facture: "ACHATS_GENERAUX",
               date_emission: facture.date_emission,
               partenaire_nom: facture.emetteur_nom,
               total_ttc: facture.total_ttc || 0,
               statut: facture.statut || "VALIDEE",
-              emetteur_type: facture.emetteur_type || "FOURNISSEUR_GENERAL",
-              type_frais: facture.type_frais,
+              emetteur_type: "FOURNISSEUR_GENERAL", // Toujours FOURNISSEUR_GENERAL pour achats généraux
+              type_frais: facture.type_frais || "general",
             };
 
             // Retirer cette facture de la liste pour ne pas la réutiliser
