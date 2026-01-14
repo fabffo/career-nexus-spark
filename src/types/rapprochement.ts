@@ -9,6 +9,9 @@ export type StatutRapprochement = 'EN_ATTENTE' | 'RAPPROCHE' | 'PARTIEL' | 'IGNO
 // Type de rapprochement
 export type TypeRapprochement = 'FACTURE' | 'ABONNEMENT' | 'DECLARATION_CHARGE' | 'MULTIPLE';
 
+// Types de factures supportés
+export type TypeFacture = 'VENTES' | 'ACHATS' | 'ACHATS_GENERAUX' | 'ACHATS_SERVICES' | 'ACHATS_ETAT';
+
 // Structure d'une transaction bancaire dans le fichier_data
 export interface TransactionBancaire {
   numero_ligne: string; // Format: RL-YYYYMMDD-XXXXX

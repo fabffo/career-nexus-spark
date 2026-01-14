@@ -34,7 +34,7 @@ interface TransactionBancaire {
 interface FactureMatch {
   id: string;
   numero_facture: string;
-  type_facture: "VENTES" | "ACHATS";
+  type_facture: "VENTES" | "ACHATS" | "ACHATS_GENERAUX" | "ACHATS_SERVICES" | "ACHATS_ETAT";
   date_emission: string;
   partenaire_nom: string;
   total_ttc: number;
@@ -4071,6 +4071,8 @@ export default function RapprochementBancaire() {
                                 {(() => {
                                   if (rapprochement.facture.type_facture === "VENTES") return "Client";
 
+                                  // Déduire le type effectif depuis emetteur_type, type_frais ou type_facture
+                                  const typeFacture = rapprochement.facture.type_facture;
                                   const effectiveType =
                                     rapprochement.facture.emetteur_type ??
                                     (rapprochement.facture.type_frais
@@ -4084,7 +4086,13 @@ export default function RapprochementBancaire() {
                                   if (effectiveType === "banque") return "Banque";
                                   if (effectiveType === "prestataire") return "Prestataire";
                                   if (effectiveType === "salarie") return "Salarié";
-                                  return "Fournisseur";
+                                  
+                                  // Fallback basé sur type_facture si pas de type partenaire explicite
+                                  if (typeFacture === "ACHATS_GENERAUX") return "Fournisseur général";
+                                  if (typeFacture === "ACHATS_SERVICES") return "Fournisseur de services";
+                                  if (typeFacture === "ACHATS_ETAT") return "Fournisseur État & organismes";
+                                  
+                                  return "Fournisseur général";
                                 })()}
                               </Badge>
                             ) : rapprochement.abonnement_info ? (
