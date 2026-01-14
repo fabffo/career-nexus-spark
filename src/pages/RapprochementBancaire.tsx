@@ -2460,13 +2460,13 @@ export default function RapprochementBancaire() {
             const factureMatch: FactureMatch = {
               id: facture.id,
               numero_facture: facture.numero_facture,
-              type_facture: "ACHATS",
+              type_facture: "ACHATS_SERVICES",
               date_emission: facture.date_emission,
               partenaire_nom: facture.emetteur_nom,
               total_ttc: facture.total_ttc || 0,
               statut: facture.statut || "VALIDEE",
-              emetteur_type: facture.emetteur_type,
-              type_frais: facture.type_frais,
+              emetteur_type: "FOURNISSEUR_SERVICES", // Toujours FOURNISSEUR_SERVICES pour achats services
+              type_frais: facture.type_frais || "services",
             };
 
             return {
@@ -3366,16 +3366,22 @@ export default function RapprochementBancaire() {
       FOURNISSEUR_GENERAL: "Fournisseur général",
       FOURNISSEUR_SERVICES: "Fournisseur de services",
       FOURNISSEUR_ETAT_ORGANISME: "Fournisseur État & organismes",
+      // Mapping des types de factures vers les types de partenaires
+      ACHATS_GENERAUX: "Fournisseur général",
+      ACHATS_SERVICES: "Fournisseur de services",
+      ACHATS_ETAT: "Fournisseur État & organismes",
     };
 
     if (r.facture) {
       if (r.facture.type_facture === "VENTES") return "Client";
 
+      // Priorité: emetteur_type > type_facture > type_frais
       const effectiveType =
         r.facture.emetteur_type ??
+        r.facture.type_facture ??
         (r.facture.type_frais ? getFournisseurTypeFromAchatType(r.facture.type_frais) : undefined);
 
-      return effectiveType ? typeLabels[effectiveType] || "Fournisseur" : "Fournisseur";
+      return effectiveType ? typeLabels[effectiveType] || "Fournisseur général" : "Fournisseur général";
     }
     if (r.abonnement_info) return "Abonnement";
     if (r.declaration_info) return "Organisme";
