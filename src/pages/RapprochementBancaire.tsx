@@ -43,6 +43,7 @@ interface FactureMatch {
   date_rapprochement?: string;
   numero_ligne_rapprochement?: string;
   emetteur_type?: string | null; // Pour les factures ACHATS, le type de fournisseur
+  emetteur_id?: string | null; // ID de l'émetteur pour le fournisseur_info
   type_frais?: string | null; // Fallback pour déduire le type fournisseur si emetteur_type est vide
 }
 
@@ -237,6 +238,7 @@ export default function RapprochementBancaire() {
         date_rapprochement: f.date_rapprochement,
         numero_ligne_rapprochement: f.numero_ligne_rapprochement,
         emetteur_type: f.emetteur_type,
+        emetteur_id: f.type_facture === "VENTES" ? f.destinataire_id : f.emetteur_id,
         type_frais: f.type_frais,
       }));
 
@@ -1518,12 +1520,26 @@ export default function RapprochementBancaire() {
           status = "uncertain";
         }
 
+        // Déterminer le type de fournisseur basé sur le type de facture
+        const getFournisseurType = (facture: FactureMatch): 'general' | 'services' | 'etat' | 'client' => {
+          if (facture.type_facture === 'VENTES') return 'client';
+          if (facture.type_facture === 'ACHATS_SERVICES' || facture.emetteur_type === 'FOURNISSEUR_SERVICES') return 'services';
+          if (facture.type_facture === 'ACHATS_ETAT' || facture.emetteur_type === 'FOURNISSEUR_ETAT_ORGANISME') return 'etat';
+          return 'general';
+        };
+
         results.push({
           transaction: match.transaction,
           facture: match.facture,
           score: match.score,
           status,
           isManual: false,
+          // Renseigner fournisseur_info pour que lignes_rapprochement soit correctement alimenté
+          fournisseur_info: {
+            id: match.facture.emetteur_id || '',
+            nom: match.facture.partenaire_nom,
+            type: getFournisseurType(match.facture),
+          },
         });
       }
     });
@@ -2274,24 +2290,20 @@ export default function RapprochementBancaire() {
               facturesGenerales.splice(factureIndex, 1);
             }
 
-            // Cas 1: Partenaire déjà = Fournisseur général -> maj juste facture
-            // Cas 2: Pas de partenaire -> maj facture + partenaire
+            // Toujours mettre à jour fournisseur_info avec les infos de la facture
             const updatedRapp: Rapprochement = {
               ...rapprochement,
               facture: factureMatch,
               factureIds: [facture.id],
               score: 100,
               status: 'matched' as const,
-            };
-
-            // Cas 2: si pas de partenaire, on ajoute le fournisseur de la facture
-            if (!hasPartenaire && facture.emetteur_id) {
-              updatedRapp.fournisseur_info = {
-                id: facture.emetteur_id,
+              // Toujours renseigner fournisseur_info pour que lignes_rapprochement soit correctement alimenté
+              fournisseur_info: {
+                id: facture.emetteur_id || rapprochement.fournisseur_info?.id || '',
                 nom: facture.emetteur_nom,
                 type: 'general' as const,
-              };
-            }
+              },
+            };
 
             return updatedRapp;
           }
@@ -2475,6 +2487,12 @@ export default function RapprochementBancaire() {
               factureIds: [facture.id],
               score: 100,
               status: 'matched' as const,
+              // Toujours renseigner fournisseur_info pour que lignes_rapprochement soit correctement alimenté
+              fournisseur_info: {
+                id: facture.emetteur_id || rapprochement.fournisseur_info?.id || '',
+                nom: facture.emetteur_nom,
+                type: 'services' as const,
+              },
             };
           }
         }
@@ -3286,6 +3304,7 @@ export default function RapprochementBancaire() {
           date_rapprochement: f.date_rapprochement,
           numero_ligne_rapprochement: f.numero_ligne_rapprochement,
           emetteur_type: f.emetteur_type,
+          emetteur_id: f.type_facture === "VENTES" ? f.destinataire_id : f.emetteur_id,
           type_frais: f.type_frais,
         }));
         setFactures(facturesFormatted);
