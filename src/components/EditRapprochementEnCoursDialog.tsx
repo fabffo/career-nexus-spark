@@ -25,7 +25,7 @@ interface TransactionBancaire {
 interface FactureMatch {
   id: string;
   numero_facture: string;
-  type_facture: "VENTES" | "ACHATS";
+  type_facture: "VENTES" | "ACHATS" | "ACHATS_GENERAUX" | "ACHATS_SERVICES" | "ACHATS_ETAT";
   date_emission: string;
   partenaire_nom: string;
   total_ttc: number;
