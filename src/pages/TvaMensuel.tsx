@@ -513,9 +513,23 @@ export default function TvaMensuel() {
         });
       }
 
-      // ⭐ Utiliser les rapprochements du fichier_data (qui contiennent les vrais statuts)
-      const rapprochementsFromFile = (fichiers.fichier_data as any)?.rapprochements || [];
-      console.log("📦 Rapprochements depuis fichier_data:", rapprochementsFromFile.length);
+      // ⭐ Charger les lignes depuis lignes_rapprochement (nouvelle structure)
+      const { data: lignesRapprochement, error: lignesError } = await supabase
+        .from('lignes_rapprochement')
+        .select(`
+          *,
+          abonnements_partenaires (id, nom, montant_mensuel, type),
+          declarations_charges_sociales (id, nom, organisme)
+        `)
+        .eq('fichier_rapprochement_id', fichiers.id)
+        .order('transaction_date', { ascending: true });
+
+      if (lignesError) {
+        console.error("Erreur chargement lignes_rapprochement:", lignesError);
+        throw lignesError;
+      }
+
+      console.log("📦 Lignes depuis lignes_rapprochement:", lignesRapprochement?.length || 0);
       
       // Créer une Map numero_ligne -> factures depuis DB pour enrichir les données
       const facturesParNumeroLigne = new Map<string, any[]>();
@@ -526,26 +540,40 @@ export default function TvaMensuel() {
         }
       });
       
-      // Enrichir les rapprochements du fichier avec les factures depuis la DB
-      const rapprochementsReconstruits: any[] = rapprochementsFromFile.map((rapp: any) => {
-        const numeroLigne = rapp.numero_ligne || rapp.transaction?.numero_ligne;
+      // Convertir les lignes en format rapprochement
+      const rapprochementsReconstruits: any[] = (lignesRapprochement || []).map((ligne: any) => {
+        const numeroLigne = ligne.numero_ligne;
         const facturesFromDB = numeroLigne ? facturesParNumeroLigne.get(numeroLigne) : null;
         
         const rapprochement: any = {
-          transaction: rapp.transaction,
-          facture: rapp.facture || null,
-          factureIds: rapp.factureIds || [],
-          score: rapp.score || 0,
-          status: rapp.status || "unmatched", // ⭐ Utiliser le vrai statut du fichier
-          isManual: rapp.isManual || false,
-          notes: rapp.notes,
-          abonnement_info: rapp.abonnement_info,
-          declaration_info: rapp.declaration_info,
+          transaction: {
+            date: ligne.transaction_date,
+            libelle: ligne.transaction_libelle,
+            debit: ligne.transaction_debit || 0,
+            credit: ligne.transaction_credit || 0,
+            montant: ligne.transaction_montant || 0,
+            numero_ligne: ligne.numero_ligne,
+          },
+          facture: ligne.facture_id ? { id: ligne.facture_id, numero_facture: ligne.numero_facture || '' } : null,
+          factureIds: ligne.factures_ids || [],
+          score: ligne.score_detection || 0,
+          status: ligne.statut || "unmatched",
+          isManual: ligne.statut === 'matched',
+          notes: ligne.notes,
+          abonnement_info: ligne.abonnements_partenaires ? {
+            id: ligne.abonnements_partenaires.id,
+            nom: ligne.abonnements_partenaires.nom,
+            type: ligne.abonnements_partenaires.type,
+          } : undefined,
+          declaration_info: ligne.declarations_charges_sociales ? {
+            id: ligne.declarations_charges_sociales.id,
+            nom: ligne.declarations_charges_sociales.nom,
+            organisme: ligne.declarations_charges_sociales.organisme,
+          } : undefined,
         };
         
         // ⭐ Enrichir avec les factures de la DB si disponibles
         if (facturesFromDB && facturesFromDB.length > 0) {
-          // Si des factures existent dans la DB, considérer comme rapproché
           rapprochement.status = "matched";
           
           if (facturesFromDB.length === 1) {
@@ -574,7 +602,6 @@ export default function TvaMensuel() {
       console.log("  - Matched:", tousLesRapprochements.filter(r => r.status === "matched").length);
       console.log("  - Uncertain:", tousLesRapprochements.filter(r => r.status === "uncertain").length);
       console.log("  - Unmatched:", tousLesRapprochements.filter(r => r.status === "unmatched").length);
-      console.log("📦 Exemple de rapprochement:", tousLesRapprochements[0]);
 
       if (tousLesRapprochements.length === 0) {
         console.log("⚠️ Aucun rapprochement trouvé dans le fichier");

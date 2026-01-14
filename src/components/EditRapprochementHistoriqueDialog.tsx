@@ -367,47 +367,44 @@ export default function EditRapprochementHistoriqueDialog({
           console.log(`✅ Rapprochement ${numeroLigne} complètement supprimé`);
         }
 
-        // 7. Mettre à jour le statut dans le fichier de rapprochement
-        const { data: fichierData } = await supabase
-          .from("fichiers_rapprochement")
-          .select("fichier_data")
-          .eq("id", fichierId)
-          .single();
+        // 7. Mettre à jour la ligne dans lignes_rapprochement
+        const { error: updateLigneError } = await supabase
+          .from('lignes_rapprochement')
+          .update({
+            statut: 'unmatched',
+            facture_id: null,
+            factures_ids: null,
+            numero_facture: null,
+            abonnement_id: null,
+            declaration_charge_id: null,
+            fournisseur_detecte_id: null,
+            fournisseur_detecte_nom: null,
+            fournisseur_detecte_type: null,
+            score_detection: 0,
+            notes,
+            updated_at: new Date().toISOString()
+          })
+          .eq('fichier_rapprochement_id', fichierId)
+          .eq('numero_ligne', numeroLigne);
 
-        if (fichierData && fichierData.fichier_data && typeof fichierData.fichier_data === 'object') {
-          const fichierDataObj = fichierData.fichier_data as any;
-          const rapprochements = fichierDataObj?.rapprochements || [];
-          const rapprochementIndex = rapprochements.findIndex(
-            (r: any) =>
-              r.transaction.date === transaction.date &&
-              r.transaction.libelle === transaction.libelle &&
-              r.transaction.montant === transaction.montant
-          );
-
-          if (rapprochementIndex >= 0) {
-            rapprochements[rapprochementIndex] = {
-              ...rapprochements[rapprochementIndex],
-              status: "unmatched",
-              notes,
-              numero_ligne: numeroLigne,
-            };
-          }
-
-          // Recalculer lignes_rapprochees
-          const lignesRapprochees = rapprochements.filter((r: any) => r.status === "matched").length;
-
-          await supabase
-            .from("fichiers_rapprochement")
-            .update({
-              fichier_data: {
-                ...fichierDataObj,
-                rapprochements,
-              } as any,
-              lignes_rapprochees: lignesRapprochees,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", fichierId);
+        if (updateLigneError) {
+          console.error("Erreur mise à jour ligne_rapprochement:", updateLigneError);
         }
+
+        // Recalculer lignes_rapprochees
+        const { count: matchedCount } = await supabase
+          .from('lignes_rapprochement')
+          .select('id', { count: 'exact', head: true })
+          .eq('fichier_rapprochement_id', fichierId)
+          .eq('statut', 'matched');
+
+        await supabase
+          .from("fichiers_rapprochement")
+          .update({
+            lignes_rapprochees: matchedCount || 0,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", fichierId);
 
         toast({
           title: "Succès",
@@ -628,65 +625,40 @@ export default function EditRapprochementHistoriqueDialog({
         }
       }
 
-      // ⭐ 3. Mettre à jour le fichier de rapprochement pour recalculer le nombre de lignes rapprochées
-      const { data: fichierDataFull } = await supabase
-        .from("fichiers_rapprochement")
-        .select("*")
-        .eq("id", fichierId)
-        .single();
-
-      if (fichierDataFull) {
-        // ⭐ Récupérer TOUS les rapprochements bancaires liés aux transactions de ce fichier
-        const fichierData = fichierDataFull.fichier_data as any;
-        const transactionsFichier = fichierData?.transactions || [];
-        const numerosLignesFichier = transactionsFichier
-          .map((t: any) => t.numero_ligne)
-          .filter(Boolean);
-
-        let lignesRapprochees = 0;
-        
-        if (numerosLignesFichier.length > 0) {
-          const { data: rapprochementsLinked, count } = await supabase
-            .from("rapprochements_bancaires")
-            .select("numero_ligne", { count: "exact" })
-            .in("numero_ligne", numerosLignesFichier);
-          
-          lignesRapprochees = count || 0;
-        }
-
-        // Mettre à jour le rapprochement dans fichier_data.rapprochements
-        const rapprochements = fichierData?.rapprochements || [];
-        const rapprochementIndex = rapprochements.findIndex(
-          (r: any) =>
-            r.transaction.date === transaction.date &&
-            r.transaction.libelle === transaction.libelle &&
-            r.transaction.montant === transaction.montant
-        );
-
-        if (rapprochementIndex >= 0) {
-          rapprochements[rapprochementIndex] = {
-            ...rapprochements[rapprochementIndex],
-            status,
-            isManual: true,
-            notes,
-            numero_ligne: numeroLigne,
-          };
-        }
-
-        const { error: updateFichierError } = await supabase
-          .from("fichiers_rapprochement")
+      // ⭐ 3. Mettre à jour la ligne dans lignes_rapprochement
+      const numeroLigneToUpdate = numeroLigne || transaction.numero_ligne;
+      if (numeroLigneToUpdate) {
+        const { error: updateLigneError } = await supabase
+          .from('lignes_rapprochement')
           .update({
-            fichier_data: {
-              ...fichierData,
-              rapprochements,
-            } as any,
-            lignes_rapprochees: lignesRapprochees,
-            updated_at: new Date().toISOString(),
+            statut: status,
+            abonnement_id: selectedAbonnementId && selectedAbonnementId !== "none" ? selectedAbonnementId : null,
+            declaration_charge_id: selectedDeclarationId && selectedDeclarationId !== "none" ? selectedDeclarationId : null,
+            notes,
+            updated_at: new Date().toISOString()
           })
-          .eq("id", fichierId);
+          .eq('fichier_rapprochement_id', fichierId)
+          .eq('numero_ligne', numeroLigneToUpdate);
 
-        if (updateFichierError) throw updateFichierError;
+        if (updateLigneError) {
+          console.error("Erreur mise à jour ligne_rapprochement:", updateLigneError);
+        }
       }
+
+      // Recalculer lignes_rapprochees
+      const { count: matchedCount } = await supabase
+        .from('lignes_rapprochement')
+        .select('id', { count: 'exact', head: true })
+        .eq('fichier_rapprochement_id', fichierId)
+        .eq('statut', 'matched');
+
+      await supabase
+        .from("fichiers_rapprochement")
+        .update({
+          lignes_rapprochees: matchedCount || 0,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", fichierId);
 
       toast({
         title: "Succès",

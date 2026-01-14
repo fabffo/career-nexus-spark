@@ -12,7 +12,7 @@ export type TypeRapprochement = 'FACTURE' | 'ABONNEMENT' | 'DECLARATION_CHARGE' 
 // Types de factures supportés
 export type TypeFacture = 'VENTES' | 'ACHATS' | 'ACHATS_GENERAUX' | 'ACHATS_SERVICES' | 'ACHATS_ETAT';
 
-// Structure d'une transaction bancaire dans le fichier_data
+// Structure d'une transaction bancaire (stockée dans lignes_rapprochement)
 export interface TransactionBancaire {
   numero_ligne: string; // Format: RL-YYYYMMDD-XXXXX
   date: string;
@@ -20,7 +20,7 @@ export interface TransactionBancaire {
   debit: number;
   credit: number;
   montant: number;
-  statut: StatutRapprochement;
+  statut?: StatutRapprochement;
   facture_id?: string;
   numero_facture?: string;
   abonnement_id?: string;
@@ -30,13 +30,14 @@ export interface TransactionBancaire {
 }
 
 // Structure du fichier de rapprochement
+// Note: fichier_data est déprécié, utiliser lignes_rapprochement à la place
 export interface FichierRapprochement {
   id: string;
   numero_rapprochement: string; // Format: RAP-YYMM-NN
   date_debut: string;
   date_fin: string;
-  fichier_data: {
-    transactions: TransactionBancaire[];
+  fichier_data?: {
+    transactions?: TransactionBancaire[];
   };
   total_lignes: number;
   lignes_rapprochees: number;
@@ -44,6 +45,8 @@ export interface FichierRapprochement {
   created_by: string;
   created_at: string;
   updated_at: string;
+  // Les rapprochements sont maintenant chargés depuis lignes_rapprochement
+  rapprochements?: Rapprochement[];
 }
 
 // Structure d'un rapprochement bancaire

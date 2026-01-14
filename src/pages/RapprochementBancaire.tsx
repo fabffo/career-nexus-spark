@@ -1674,30 +1674,29 @@ export default function RapprochementBancaire() {
         throw new Error("Fichier introuvable");
       }
 
-      // 2. Collecter tous les IDs de rapprochements manuels et factures
+      // 2. Collecter tous les IDs de rapprochements manuels et factures depuis rapprochements (nouvelle structure)
       const rapprochementsManuelsIds: string[] = [];
       const liaisonFactureIds: string[] = [];
       const factureIds: string[] = [];
       
-      if (fichier.fichier_data?.rapprochements) {
-        fichier.fichier_data.rapprochements.forEach((r: any) => {
-          if (r.isManual && r.manualId) {
-            // Séparer les vrais rapprochements bancaires des liaisons de factures
-            if (r.manualId.startsWith("liaison_")) {
-              const liaisonId = r.manualId.replace("liaison_", "");
-              liaisonFactureIds.push(liaisonId);
-            } else {
-              rapprochementsManuelsIds.push(r.manualId);
-            }
+      const rapprochementsList = fichier.rapprochements || [];
+      rapprochementsList.forEach((r: any) => {
+        if (r.isManual && r.manualId) {
+          // Séparer les vrais rapprochements bancaires des liaisons de factures
+          if (r.manualId.startsWith("liaison_")) {
+            const liaisonId = r.manualId.replace("liaison_", "");
+            liaisonFactureIds.push(liaisonId);
+          } else {
+            rapprochementsManuelsIds.push(r.manualId);
           }
-          if (r.facture?.id) {
-            factureIds.push(r.facture.id);
-          }
-          if (r.factureIds && r.factureIds.length > 0) {
-            factureIds.push(...r.factureIds);
-          }
-        });
-      }
+        }
+        if (r.facture?.id) {
+          factureIds.push(r.facture.id);
+        }
+        if (r.factureIds && r.factureIds.length > 0) {
+          factureIds.push(...r.factureIds);
+        }
+      });
 
       console.log("📋 Rapprochements manuels (bancaires) à supprimer:", rapprochementsManuelsIds.length);
       console.log("📋 Liaisons factures à supprimer:", liaisonFactureIds.length);
@@ -3263,22 +3262,20 @@ export default function RapprochementBancaire() {
         console.log("✅ Fichier EN_COURS converti en VALIDE");
       } else {
         // Fallback: créer un nouveau fichier VALIDE
-        const { error: insertError } = await supabase
+        const { data: newFichier, error: insertError } = await supabase
           .from('fichiers_rapprochement')
           .insert({
             numero_rapprochement: numeroRapprochement,
             date_debut: dateDebut,
             date_fin: dateFin,
-            fichier_data: {
-              transactions,
-              rapprochements,
-              rapprochementsManuels
-            } as any,
+            fichier_data: {} as any, // Vide - données dans lignes_rapprochement
             statut: 'VALIDE',
             total_lignes: transactions.length,
             lignes_rapprochees: lignesRapprochees,
             created_by: user?.id
-          } as any);
+          } as any)
+          .select()
+          .single();
 
         if (insertError) {
           console.error("Erreur lors de l'enregistrement:", insertError);
@@ -4601,7 +4598,7 @@ export default function RapprochementBancaire() {
                         </div>
 
                         {/* Détails du rapprochement */}
-                        {selectedFichier?.id === fichier.id && fichier.fichier_data && (
+                        {selectedFichier?.id === fichier.id && fichier.rapprochements && (
                           <div className="mt-6 pt-6 border-t">
                             <div className="mb-4 flex items-center justify-between">
                               <h4 className="font-semibold">Détails des transactions</h4>
@@ -4662,7 +4659,7 @@ export default function RapprochementBancaire() {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                   {fichier.fichier_data.rapprochements
+                                   {fichier.rapprochements
                                     .filter(r => statusFilter === "all" || r.status === statusFilter)
                                     .map((rapprochement, index) => (
                                       <tr 
