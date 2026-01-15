@@ -6,11 +6,12 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Euro, FileText, Info } from "lucide-react";
+import { Calendar, Euro, FileText, Info, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { MatchingHistorySection } from "./MatchingHistorySection";
 import { RapprochementSearchSection } from "./RapprochementSearchSection";
+import { usePartenaireLabel, getPartenaireTypeLabel } from "./PartenaireSelect";
 
 const NATURE_LABELS: Record<string, string> = {
   RELEVE_BANQUE: "Relevé Banque",
@@ -51,11 +52,15 @@ interface ViewAbonnementDialogProps {
     jour_prelevement: number;
     actif: boolean;
     notes: string;
+    partenaire_type?: string | null;
+    partenaire_id?: string | null;
     documents?: Array<{ id: string; document_url: string; nom_fichier: string; created_at: string }>;
   } | null;
 }
 
 export function ViewAbonnementDialog({ open, onOpenChange, abonnement }: ViewAbonnementDialogProps) {
+  const partenaireLabel = usePartenaireLabel(abonnement?.partenaire_type || null, abonnement?.partenaire_id || null);
+  
   if (!abonnement) return null;
 
   const handleDownload = async (doc: { document_url: string; nom_fichier: string }) => {
@@ -99,6 +104,22 @@ export function ViewAbonnementDialog({ open, onOpenChange, abonnement }: ViewAbo
               </CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
+              {/* Partenaire */}
+              {abonnement.partenaire_type && (
+                <>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Type de partenaire</p>
+                    <div className="flex items-center gap-1 font-medium">
+                      <Users className="h-4 w-4" />
+                      {getPartenaireTypeLabel(abonnement.partenaire_type)}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Partenaire</p>
+                    <p className="font-medium">{partenaireLabel || "-"}</p>
+                  </div>
+                </>
+              )}
               <div>
                 <p className="text-sm text-muted-foreground">Nature</p>
                 <Badge className={NATURE_COLORS[abonnement.nature]}>
@@ -116,6 +137,15 @@ export function ViewAbonnementDialog({ open, onOpenChange, abonnement }: ViewAbo
                 <Badge variant="secondary">
                   {TVA_LABELS[abonnement.tva] || abonnement.tva}
                 </Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Montant mensuel</p>
+                <div className="flex items-center gap-1 font-medium">
+                  <Euro className="h-4 w-4" />
+                  {abonnement.montant_mensuel
+                    ? `${Number(abonnement.montant_mensuel).toFixed(2)} €`
+                    : "-"}
+                </div>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Montant mensuel</p>
