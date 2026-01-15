@@ -139,6 +139,10 @@ export function PartenaireSelect({
     enabled: !!partenaireType,
   });
 
+  const selectedLabel = usePartenaireLabel(partenaireType, partenaireId);
+  const shouldInjectSelected =
+    !!partenaireId && !!selectedLabel && !entities.some((e: { id: string }) => e.id === partenaireId);
+
   // Reset entity when type changes
   useEffect(() => {
     if (partenaireType === null) {
@@ -206,6 +210,11 @@ export function PartenaireSelect({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">-- Aucun --</SelectItem>
+
+            {shouldInjectSelected && partenaireId && (
+              <SelectItem value={partenaireId}>{selectedLabel} (actuel)</SelectItem>
+            )}
+
             {entities.map((entity: { id: string; label: string }) => (
               <SelectItem key={entity.id} value={entity.id}>
                 {entity.label}
