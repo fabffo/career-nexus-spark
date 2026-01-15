@@ -3685,8 +3685,8 @@ export default function RapprochementBancaire() {
         Crédit: r.transaction.credit || "",
         Statut: r.status === "matched" ? "Rapproché" : r.status === "uncertain" ? "Incertain" : "Non rapproché",
         "N° Facture": r.facture?.numero_facture || "",
-        "Type Facture": r.facture?.type_facture || r.abonnement_info ? "ABONNEMENT" : r.declaration_info ? "DECLARATION" : r.fournisseur_info ? "FOURNISSEUR" : "",
-        Partenaire: r.facture?.partenaire_nom || r.abonnement_info?.nom || (r.declaration_info ? `${r.declaration_info.nom} (${r.declaration_info.organisme})` : "") || r.fournisseur_info?.nom || "",
+        "Type Facture": r.facture?.type_facture || r.fournisseur_info ? "FOURNISSEUR" : r.abonnement_info ? "ABONNEMENT" : r.declaration_info ? "DECLARATION" : "",
+        Partenaire: r.facture?.partenaire_nom || r.fournisseur_info?.nom || r.abonnement_info?.nom || (r.declaration_info ? `${r.declaration_info.nom} (${r.declaration_info.organisme})` : "") || "",
         "Montant Facture": r.facture?.total_ttc || "",
         "Score %": r.score,
       }))
@@ -4478,20 +4478,20 @@ export default function RapprochementBancaire() {
                             className="p-2 align-middle truncate max-w-0 text-sm"
                             title={
                               rapprochement.facture?.partenaire_nom ||
+                              rapprochement.fournisseur_info?.nom ||
                               rapprochement.abonnement_info?.nom ||
                               (rapprochement.declaration_info
                                 ? `${rapprochement.declaration_info.nom}`
                                 : "") ||
-                              rapprochement.fournisseur_info?.nom ||
                               ""
                             }
                           >
                             {rapprochement.facture?.partenaire_nom ||
+                              rapprochement.fournisseur_info?.nom ||
                               rapprochement.abonnement_info?.nom ||
                               (rapprochement.declaration_info
                                 ? `${rapprochement.declaration_info.nom}`
                                 : "") ||
-                              rapprochement.fournisseur_info?.nom ||
                               "-"}
                           </td>
                           <td className="p-2 align-middle text-xs">
@@ -4524,14 +4524,6 @@ export default function RapprochementBancaire() {
                                   return "Fournisseur général";
                                 })()}
                               </Badge>
-                            ) : rapprochement.abonnement_info ? (
-                              <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
-                                Abonnement
-                              </Badge>
-                            ) : rapprochement.declaration_info ? (
-                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                Organisme
-                              </Badge>
                             ) : rapprochement.fournisseur_info ? (
                               <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
                                 {rapprochement.fournisseur_info.type === "general" ? "Fournisseur général" :
@@ -4542,6 +4534,14 @@ export default function RapprochementBancaire() {
                                  rapprochement.fournisseur_info.type === "prestataire" ? "Prestataire" :
                                  rapprochement.fournisseur_info.type === "salarie" ? "Salarié" :
                                  "Autre"}
+                              </Badge>
+                            ) : rapprochement.abonnement_info ? (
+                              <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                                Abonnement
+                              </Badge>
+                            ) : rapprochement.declaration_info ? (
+                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                Organisme
                               </Badge>
                             ) : (
                               <span className="text-muted-foreground">-</span>
