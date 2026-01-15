@@ -3134,6 +3134,7 @@ export default function RapprochementBancaire() {
               const updatedRapp = {
                 ...rapprochement,
                 abonnement_info: { id: abonnement.id, nom: abonnement.nom, montant_ttc: transactionMontant },
+                // Préserver fournisseur_info existant, sinon ne pas modifier
               };
               return { ...updatedRapp, status: determineStatus(updatedRapp, true) };
             }
@@ -3149,6 +3150,7 @@ export default function RapprochementBancaire() {
             const updatedRapp = {
               ...rapprochement,
               abonnement_info: { id: abonnement.id, nom: abonnement.nom, montant_ttc: transactionMontant },
+              // Préserver fournisseur_info existant, sinon ne pas modifier
             };
             return { ...updatedRapp, status: determineStatus(updatedRapp, true) };
           }
