@@ -196,7 +196,7 @@ export function PartenaireSelect({
       <div className="space-y-2">
         <Label>Partenaire</Label>
         <Select
-          value={partenaireId || "none"}
+          value={isLoading ? "loading" : (partenaireId || "none")}
           onValueChange={handleEntityChange}
           disabled={disabled || !partenaireType || isLoading}
         >
@@ -204,12 +204,18 @@ export function PartenaireSelect({
             <SelectValue placeholder={isLoading ? "Chargement..." : "Sélectionner"} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">-- Aucun --</SelectItem>
-            {entities.map((entity: { id: string; label: string }) => (
-              <SelectItem key={entity.id} value={entity.id}>
-                {entity.label}
-              </SelectItem>
-            ))}
+            {isLoading ? (
+              <SelectItem value="loading" disabled>Chargement...</SelectItem>
+            ) : (
+              <>
+                <SelectItem value="none">-- Aucun --</SelectItem>
+                {entities.map((entity: { id: string; label: string }) => (
+                  <SelectItem key={entity.id} value={entity.id}>
+                    {entity.label}
+                  </SelectItem>
+                ))}
+              </>
+            )}
           </SelectContent>
         </Select>
       </div>
