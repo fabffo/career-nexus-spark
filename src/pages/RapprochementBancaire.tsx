@@ -3178,6 +3178,92 @@ export default function RapprochementBancaire() {
     }
   };
 
+  // Fonction pour dérapprocher toutes les lignes en cours
+  const handleDerapprocheTout = async () => {
+    if (rapprochements.length === 0) {
+      toast({
+        title: "Erreur",
+        description: "Aucune transaction à traiter",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Vérifier s'il y a des lignes rapprochées
+    const lignesRapprochees = rapprochements.filter(r => r.status === 'matched' || r.status === 'uncertain');
+    if (lignesRapprochees.length === 0) {
+      toast({
+        title: "Aucune ligne rapprochée",
+        description: "Toutes les lignes sont déjà non rapprochées",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Réinitialiser tous les rapprochements à l'état "unmatched"
+      const updatedRapprochements = rapprochements.map(r => ({
+        ...r,
+        facture: null,
+        factureIds: undefined,
+        abonnement_info: undefined,
+        declaration_info: undefined,
+        fournisseur_info: undefined,
+        score: 0,
+        status: 'unmatched' as const,
+        notes: undefined,
+      }));
+
+      setRapprochements(updatedRapprochements);
+
+      // Si on a un fichier en cours, mettre à jour les lignes dans la base de données
+      if (fichierEnCoursId) {
+        const { error } = await supabase
+          .from('lignes_rapprochement')
+          .update({
+            statut: 'unmatched',
+            facture_id: null,
+            factures_ids: null,
+            abonnement_id: null,
+            declaration_charge_id: null,
+            fournisseur_detecte_id: null,
+            fournisseur_detecte_nom: null,
+            fournisseur_detecte_type: null,
+            score_detection: null,
+            notes: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('fichier_rapprochement_id', fichierEnCoursId);
+
+        if (error) {
+          console.error("Erreur lors du dérapprochement:", error);
+          throw error;
+        }
+
+        // Mettre à jour le compteur de lignes rapprochées
+        await supabase
+          .from('fichiers_rapprochement')
+          .update({ lignes_rapprochees: 0 })
+          .eq('id', fichierEnCoursId);
+      }
+
+      toast({
+        title: "Dérapprochement effectué",
+        description: `${lignesRapprochees.length} ligne(s) dérapprochée(s)`,
+      });
+    } catch (error) {
+      console.error("Erreur lors du dérapprochement:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de dérapprocher les lignes",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleValidateRapprochement = async () => {
     if (transactions.length === 0 || rapprochements.length === 0) {
       toast({
@@ -4056,6 +4142,15 @@ export default function RapprochementBancaire() {
                   >
                     <Users className="h-4 w-4 mr-2" />
                     {loading ? "Matching..." : "Clients"}
+                  </Button>
+                  <Button 
+                    onClick={handleDerapprocheTout}
+                    variant="outline" 
+                    size="sm"
+                    disabled={loading || rapprochements.length === 0}
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Dérapprocher tout
                   </Button>
                   <Button 
                     onClick={handleAnnulerFichierEnCours}
