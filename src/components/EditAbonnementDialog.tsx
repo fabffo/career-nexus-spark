@@ -56,8 +56,6 @@ export function EditAbonnementDialog({
   const { uploadFile, deleteFile } = useFileUpload();
   const [newDocumentFiles, setNewDocumentFiles] = useState<File[]>([]);
   const [existingDocuments, setExistingDocuments] = useState<any[]>([]);
-  const [partenaireType, setPartenaireType] = useState<string | null>(null);
-  const [partenaireId, setPartenaireId] = useState<string | null>(null);
   const [initializedAbonnementId, setInitializedAbonnementId] = useState<string | null>(null);
   
   // Charger les taux de TVA depuis la table paramètre
@@ -73,20 +71,36 @@ export function EditAbonnementDialog({
     },
   });
 
-  const { register, handleSubmit, reset, setValue, watch } = useForm();
+  const { register, handleSubmit, reset, setValue, watch } = useForm({
+    defaultValues: {
+      nom: "",
+      nature: "",
+      type: "CHARGE",
+      tva: "normal",
+      montant_mensuel: "",
+      jour_prelevement: "",
+      actif: true,
+      notes: "",
+      mots_cles_rapprochement: "",
+      partenaire_type: null as string | null,
+      partenaire_id: null as string | null,
+    }
+  });
 
   const nature = watch("nature");
   const type = watch("type");
   const tva = watch("tva");
   const actif = watch("actif");
+  const partenaireType = watch("partenaire_type");
+  const partenaireId = watch("partenaire_id");
 
   const handlePartenaireTypeChange = useCallback((type: string | null) => {
-    setPartenaireType(type);
-  }, []);
+    setValue("partenaire_type", type);
+  }, [setValue]);
 
   const handlePartenaireIdChange = useCallback((id: string | null) => {
-    setPartenaireId(id);
-  }, []);
+    setValue("partenaire_id", id);
+  }, [setValue]);
 
   useEffect(() => {
     // Ne réinitialiser que si c'est un nouvel abonnement (différent de l'actuel)
@@ -101,11 +115,9 @@ export function EditAbonnementDialog({
         actif: abonnement.actif,
         notes: abonnement.notes || "",
         mots_cles_rapprochement: abonnement.mots_cles_rapprochement || abonnement.nom,
+        partenaire_type: abonnement.partenaire_type || null,
+        partenaire_id: abonnement.partenaire_id || null,
       });
-      
-      // Set partenaire values
-      setPartenaireType(abonnement.partenaire_type || null);
-      setPartenaireId(abonnement.partenaire_id || null);
       
       // Charger les documents existants
       const loadDocuments = async () => {
@@ -146,8 +158,8 @@ export function EditAbonnementDialog({
           actif: data.actif,
           notes: data.notes || null,
           mots_cles_rapprochement: data.mots_cles_rapprochement || null,
-          partenaire_type: partenaireType,
-          partenaire_id: partenaireId,
+          partenaire_type: data.partenaire_type,
+          partenaire_id: data.partenaire_id,
         })
         .eq("id", abonnement.id);
 
