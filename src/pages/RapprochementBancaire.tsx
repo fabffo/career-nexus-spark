@@ -4523,57 +4523,62 @@ export default function RapprochementBancaire() {
                               "-"}
                           </td>
                           <td className="p-2 align-middle text-xs">
-                            {rapprochement.facture ? (
-                              <Badge variant="outline" className="text-xs">
-                                {(() => {
-                                  if (rapprochement.facture.type_facture === "VENTES") return "Client";
+                            {(() => {
+                              // Priorité 1: utiliser fournisseur_info.type qui vient de la base de données
+                              if (rapprochement.fournisseur_info?.type) {
+                                const type = rapprochement.fournisseur_info.type;
+                                return (
+                                  <Badge variant="outline" className="text-xs">
+                                    {type === "general" ? "Fournisseur général" :
+                                     type === "services" ? "Fournisseur de services" :
+                                     type === "etat" ? "Fournisseur État & organismes" :
+                                     type === "client" ? "Client" :
+                                     type === "banque" ? "Banque" :
+                                     type === "prestataire" ? "Prestataire" :
+                                     type === "salarie" ? "Salarié" :
+                                     "Autre"}
+                                  </Badge>
+                                );
+                              }
+                              
+                              // Priorité 2: déduire depuis la facture
+                              if (rapprochement.facture) {
+                                if (rapprochement.facture.type_facture === "VENTES") {
+                                  return <Badge variant="outline" className="text-xs">Client</Badge>;
+                                }
 
-                                  // Déduire le type effectif depuis emetteur_type, type_frais ou type_facture
-                                  const typeFacture = rapprochement.facture.type_facture;
-                                  const effectiveType =
-                                    rapprochement.facture.emetteur_type ??
-                                    (rapprochement.facture.type_frais
-                                      ? getFournisseurTypeFromAchatType(rapprochement.facture.type_frais)
-                                      : undefined);
+                                const typeFacture = rapprochement.facture.type_facture;
+                                const effectiveType =
+                                  rapprochement.facture.emetteur_type ??
+                                  (rapprochement.facture.type_frais
+                                    ? getFournisseurTypeFromAchatType(rapprochement.facture.type_frais)
+                                    : undefined);
 
-                                  if (effectiveType === "general" || effectiveType === "FOURNISSEUR_GENERAL") return "Fournisseur général";
-                                  if (effectiveType === "services" || effectiveType === "FOURNISSEUR_SERVICES") return "Fournisseur de services";
-                                  if (effectiveType === "etat" || effectiveType === "FOURNISSEUR_ETAT_ORGANISME") return "Fournisseur État & organismes";
-                                  if (effectiveType === "client") return "Client";
-                                  if (effectiveType === "banque") return "Banque";
-                                  if (effectiveType === "prestataire") return "Prestataire";
-                                  if (effectiveType === "salarie") return "Salarié";
-                                  
-                                  // Fallback basé sur type_facture si pas de type partenaire explicite
-                                  if (typeFacture === "ACHATS_GENERAUX") return "Fournisseur général";
-                                  if (typeFacture === "ACHATS_SERVICES") return "Fournisseur de services";
-                                  if (typeFacture === "ACHATS_ETAT") return "Fournisseur État & organismes";
-                                  
-                                  return "Fournisseur général";
-                                })()}
-                              </Badge>
-                            ) : rapprochement.fournisseur_info ? (
-                              <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
-                                {rapprochement.fournisseur_info.type === "general" ? "Fournisseur général" :
-                                 rapprochement.fournisseur_info.type === "services" ? "Fournisseur de services" :
-                                 rapprochement.fournisseur_info.type === "etat" ? "Fournisseur État & organismes" :
-                                 rapprochement.fournisseur_info.type === "client" ? "Client" :
-                                 rapprochement.fournisseur_info.type === "banque" ? "Banque" :
-                                 rapprochement.fournisseur_info.type === "prestataire" ? "Prestataire" :
-                                 rapprochement.fournisseur_info.type === "salarie" ? "Salarié" :
-                                 "Autre"}
-                              </Badge>
-                            ) : rapprochement.abonnement_info ? (
-                              <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
-                                Abonnement
-                              </Badge>
-                            ) : rapprochement.declaration_info ? (
-                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                Organisme
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
+                                let label = "Fournisseur général";
+                                if (effectiveType === "general" || effectiveType === "FOURNISSEUR_GENERAL") label = "Fournisseur général";
+                                else if (effectiveType === "services" || effectiveType === "FOURNISSEUR_SERVICES") label = "Fournisseur de services";
+                                else if (effectiveType === "etat" || effectiveType === "FOURNISSEUR_ETAT_ORGANISME") label = "Fournisseur État & organismes";
+                                else if (effectiveType === "client") label = "Client";
+                                else if (effectiveType === "banque") label = "Banque";
+                                else if (effectiveType === "prestataire") label = "Prestataire";
+                                else if (effectiveType === "salarie") label = "Salarié";
+                                else if (typeFacture === "ACHATS_GENERAUX") label = "Fournisseur général";
+                                else if (typeFacture === "ACHATS_SERVICES") label = "Fournisseur de services";
+                                else if (typeFacture === "ACHATS_ETAT") label = "Fournisseur État & organismes";
+
+                                return <Badge variant="outline" className="text-xs">{label}</Badge>;
+                              }
+                              
+                              // Priorité 3: abonnement ou déclaration
+                              if (rapprochement.abonnement_info) {
+                                return <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">Abonnement</Badge>;
+                              }
+                              if (rapprochement.declaration_info) {
+                                return <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">Organisme</Badge>;
+                              }
+                              
+                              return <span className="text-muted-foreground">-</span>;
+                            })()}
                           </td>
                         <td className="p-2 align-middle text-right text-sm">
                           {rapprochement.montant_facture
