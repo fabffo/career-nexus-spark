@@ -5274,6 +5274,10 @@ export default function RapprochementBancaire() {
             // Préserver le fournisseur_info original
             const originalFournisseurInfo = selectedEnCoursRapprochement.fournisseur_info;
             
+            // Calculer le montant total des factures sélectionnées
+            const facturesSelectionnees = factures.filter(f => factureIds.includes(f.id));
+            const montantFacture = facturesSelectionnees.reduce((sum, f) => sum + Math.abs(f.total_ttc || 0), 0);
+            
             if (factureIds.length === 0) {
               setRapprochements(prev => prev.map(r => {
                 const key = getTransactionKey(r.transaction);
@@ -5285,6 +5289,7 @@ export default function RapprochementBancaire() {
                     ...r,
                     facture: null,
                     factureIds: undefined,
+                    montant_facture: 0,
                     status: newStatus,
                     fournisseur_info: originalFournisseurInfo, // Préserver le type de partenaire
                   };
@@ -5300,6 +5305,7 @@ export default function RapprochementBancaire() {
                   return {
                     ...r,
                     facture: facture || null,
+                    montant_facture: montantFacture,
                     status: facture ? "matched" as const : r.status,
                     factureIds: undefined,
                     fournisseur_info: originalFournisseurInfo, // Préserver le type de partenaire
@@ -5316,6 +5322,7 @@ export default function RapprochementBancaire() {
                     ...r,
                     facture: null,
                     factureIds: factureIds,
+                    montant_facture: montantFacture,
                     status: "matched" as const,
                     isManual: true,
                     fournisseur_info: originalFournisseurInfo, // Préserver le type de partenaire
