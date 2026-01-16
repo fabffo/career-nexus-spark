@@ -71,6 +71,7 @@ interface Rapprochement {
   declaration_info?: { id: string; nom: string; organisme: string };
   fournisseur_info?: { id: string; nom: string; type: 'general' | 'services' | 'etat' | 'client' | 'banque' | 'prestataire' | 'salarie' };
   factureIds?: string[]; // Pour les rapprochements avec plusieurs factures
+  montant_facture?: number; // Montant total des factures rapprochées
 }
 
 interface FichierRapprochement {
@@ -399,6 +400,7 @@ export default function RapprochementBancaire() {
               declaration_charge_id: r.declaration_info?.id || null,
               score_detection: r.score || null,
               notes: r.notes || null,
+              montant_facture: r.montant_facture || null,
               updated_at: new Date().toISOString()
             })
             .eq('fichier_rapprochement_id', fichierEnCoursId)
@@ -482,6 +484,7 @@ export default function RapprochementBancaire() {
               nom: ligne.fournisseur_detecte_nom || '',
               type: (ligne.fournisseur_detecte_type as any) || 'general',
             } : undefined,
+            montant_facture: ligne.montant_facture || undefined,
           };
 
           // Dériver le statut

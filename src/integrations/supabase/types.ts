@@ -1469,6 +1469,7 @@ export type Database = {
           fournisseur_detecte_nom: string | null
           fournisseur_detecte_type: string | null
           id: string
+          montant_facture: number | null
           notes: string | null
           numero_facture: string | null
           numero_ligne: string
@@ -1492,6 +1493,7 @@ export type Database = {
           fournisseur_detecte_nom?: string | null
           fournisseur_detecte_type?: string | null
           id?: string
+          montant_facture?: number | null
           notes?: string | null
           numero_facture?: string | null
           numero_ligne: string
@@ -1515,6 +1517,7 @@ export type Database = {
           fournisseur_detecte_nom?: string | null
           fournisseur_detecte_type?: string | null
           id?: string
+          montant_facture?: number | null
           notes?: string | null
           numero_facture?: string | null
           numero_ligne?: string
