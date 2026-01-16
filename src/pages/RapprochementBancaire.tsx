@@ -2642,6 +2642,29 @@ export default function RapprochementBancaire() {
           }
         }
 
+        // 4. Chercher une combinaison de 4 factures
+        for (let i = 0; i < facturesFiltrees.length; i++) {
+          for (let j = i + 1; j < facturesFiltrees.length; j++) {
+            for (let k = j + 1; k < facturesFiltrees.length; k++) {
+              for (let l = k + 1; l < facturesFiltrees.length; l++) {
+                const somme =
+                  Math.abs(facturesFiltrees[i].total_ttc || 0) +
+                  Math.abs(facturesFiltrees[j].total_ttc || 0) +
+                  Math.abs(facturesFiltrees[k].total_ttc || 0) +
+                  Math.abs(facturesFiltrees[l].total_ttc || 0);
+                if (Math.abs(targetAmount - somme) < 0.01) {
+                  return [
+                    facturesFiltrees[i],
+                    facturesFiltrees[j],
+                    facturesFiltrees[k],
+                    facturesFiltrees[l],
+                  ];
+                }
+              }
+            }
+          }
+        }
+
         return [];
       };
 
