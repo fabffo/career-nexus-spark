@@ -4576,7 +4576,12 @@ export default function RapprochementBancaire() {
                             )}
                           </td>
                         <td className="p-2 align-middle text-right text-sm">
-                          {rapprochement.facture
+                          {rapprochement.montant_facture
+                            ? new Intl.NumberFormat("fr-FR", {
+                                style: "currency",
+                                currency: "EUR",
+                              }).format(rapprochement.montant_facture)
+                            : rapprochement.facture
                             ? new Intl.NumberFormat("fr-FR", {
                                 style: "currency",
                                 currency: "EUR",
