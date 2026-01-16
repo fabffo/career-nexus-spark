@@ -2740,6 +2740,7 @@ export default function RapprochementBancaire() {
               ...rapprochement,
               facture: factureMatch,
               factureIds: [facture.id],
+              montant_facture: totalFactures,
               score: 100,
               status: 'matched' as const,
               fournisseur_info: {
@@ -2765,6 +2766,7 @@ export default function RapprochementBancaire() {
               ...rapprochement,
               facture: factureMatch,
               factureIds: facturesMatchees.map(f => f.id),
+              montant_facture: totalFactures,
               score: 100,
               status: 'matched' as const,
               fournisseur_info: {
