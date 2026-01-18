@@ -246,10 +246,13 @@ export default function EditRapprochementEnCoursDialog({
 
   const facturesAchats = facturesDisponibles.filter((f) => {
     const search = searchTerm.toLowerCase();
-    const matchesSearch = f.numero_facture.toLowerCase().includes(search) ||
+    const matchesSearch =
+      f.numero_facture.toLowerCase().includes(search) ||
       f.partenaire_nom.toLowerCase().includes(search) ||
       f.total_ttc.toString().includes(search);
-    return f.type_facture === "ACHATS" && matchesSearch;
+
+    // Inclure toutes les factures d'achats (ACHATS, ACHATS_SERVICES, ACHATS_GENERAUX, ACHATS_ETAT)
+    return f.type_facture !== "VENTES" && matchesSearch;
   });
 
   // Récupérer les factures sélectionnées depuis la liste disponible
