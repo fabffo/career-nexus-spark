@@ -3812,13 +3812,25 @@ export default function RapprochementBancaire() {
     if (r.facture) {
       if (r.facture.type_facture === "VENTES") return "Client";
 
-      // Priorité: emetteur_type > type_facture > type_frais
-      const effectiveType =
-        r.facture.emetteur_type ??
-        r.facture.type_facture ??
-        (r.facture.type_frais ? getFournisseurTypeFromAchatType(r.facture.type_frais) : undefined);
+      // Priorité: type_facture (car emetteur_type est souvent juste "Fournisseur" sans précision)
+      // On vérifie d'abord si emetteur_type est dans le mapping, sinon on utilise type_facture
+      const emetteurLabel = r.facture.emetteur_type ? typeLabels[r.facture.emetteur_type] : undefined;
+      if (emetteurLabel) return emetteurLabel;
+      
+      // Si emetteur_type n'est pas dans le mapping (ex: "Fournisseur"), utiliser type_facture
+      if (r.facture.type_facture && typeLabels[r.facture.type_facture]) {
+        return typeLabels[r.facture.type_facture];
+      }
+      
+      // Fallback sur type_frais
+      if (r.facture.type_frais) {
+        const fournisseurType = getFournisseurTypeFromAchatType(r.facture.type_frais);
+        if (typeLabels[fournisseurType]) {
+          return typeLabels[fournisseurType];
+        }
+      }
 
-      return effectiveType ? typeLabels[effectiveType] || "Fournisseur général" : "Fournisseur général";
+      return "Fournisseur général";
     }
     if (r.abonnement_info) return "Abonnement";
     if (r.declaration_info) return "Organisme";
