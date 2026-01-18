@@ -2711,23 +2711,24 @@ export default function RapprochementBancaire() {
         const transactionDate = new Date(rapprochement.transaction.date);
         const transactionMontant = Math.abs(rapprochement.transaction.montant);
 
-        // Calculer la date cible de la facture en soustrayant les jours de délai + écart
+        // Calculer le mois cible en utilisant des tranches de 30 jours
+        // 0-29j = mois courant, 30-59j = M-1, 60-89j = M-2, etc.
         const delaiPaiement = client.delai_paiement_jours ?? 30;
         const ecart = client.ecart_paiement_jours ?? 0;
         const joursTotal = delaiPaiement + ecart;
 
-        // Calculer la date exacte de rapprochement (date transaction - jours total)
-        const dateRapprochement = new Date(transactionDate);
-        dateRapprochement.setDate(dateRapprochement.getDate() - joursTotal);
-        
-        // Extraire le mois et l'année cibles
-        const moisCible = dateRapprochement.getMonth();
-        const anneeCible = dateRapprochement.getFullYear();
+        // Calculer le nombre de mois en arrière (tranches de 30 jours)
+        const moisEnArriere = Math.floor(joursTotal / 30);
+
+        // Déterminer le mois et l'année cibles
+        const moisCalcule = transactionDate.getMonth() - moisEnArriere;
+        const anneeCible = transactionDate.getFullYear() + Math.floor(moisCalcule / 12);
+        const moisCible = ((moisCalcule % 12) + 12) % 12; // Gérer les mois négatifs
 
         console.log(`🔎 Ligne "${rapprochement.transaction.libelle}" - Client: ${client.raison_sociale}`);
         console.log(`   Montant: ${transactionMontant}€ - Date transaction: ${format(transactionDate, 'dd/MM/yyyy')}`);
-        console.log(`   Délai: ${delaiPaiement}j + Écart: ${ecart}j = ${joursTotal}j`);
-        console.log(`   Date rapprochement: ${format(dateRapprochement, 'dd/MM/yyyy')} → Mois cible: ${moisCible + 1}/${anneeCible}`);
+        console.log(`   Délai: ${delaiPaiement}j + Écart: ${ecart}j = ${joursTotal}j → ${moisEnArriere} mois en arrière`);
+        console.log(`   Mois cible des factures: ${moisCible + 1}/${anneeCible}`);
 
         // Chercher des factures correspondantes (une ou plusieurs)
         // IMPORTANT: on tente d'abord le mois calculé via le délai,
@@ -2742,10 +2743,10 @@ export default function RapprochementBancaire() {
         );
 
         if (facturesMatchees.length === 0) {
-          const dateMoisPrecedent = new Date(dateRapprochement);
-          dateMoisPrecedent.setMonth(dateMoisPrecedent.getMonth() - 1);
-          const moisAlt = dateMoisPrecedent.getMonth();
-          const anneeAlt = dateMoisPrecedent.getFullYear();
+          // Calculer le mois précédent à partir du mois cible
+          const moisAltCalcule = moisCible - 1;
+          const anneeAlt = anneeCible + Math.floor(moisAltCalcule / 12);
+          const moisAlt = ((moisAltCalcule % 12) + 12) % 12;
 
           console.log(
             `   ↩️ Aucun match sur ${moisCible + 1}/${anneeCible}, essai sur ${moisAlt + 1}/${anneeAlt}`
