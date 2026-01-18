@@ -2730,7 +2730,9 @@ export default function RapprochementBancaire() {
         console.log(`   Date rapprochement: ${format(dateRapprochement, 'dd/MM/yyyy')} → Mois cible: ${moisCible + 1}/${anneeCible}`);
 
         // Chercher des factures correspondantes (une ou plusieurs)
-        const facturesMatchees = findMatchingCombination(
+        // IMPORTANT: on tente d'abord le mois calculé via le délai,
+        // puis (si rien trouvé) le mois précédent (cas fréquent quand le délai tombe en début de mois).
+        let facturesMatchees = findMatchingCombination(
           facturesVentes,
           transactionMontant,
           moisCible,
@@ -2739,13 +2741,33 @@ export default function RapprochementBancaire() {
           client.raison_sociale
         );
 
+        if (facturesMatchees.length === 0) {
+          const dateMoisPrecedent = new Date(dateRapprochement);
+          dateMoisPrecedent.setMonth(dateMoisPrecedent.getMonth() - 1);
+          const moisAlt = dateMoisPrecedent.getMonth();
+          const anneeAlt = dateMoisPrecedent.getFullYear();
+
+          console.log(
+            `   ↩️ Aucun match sur ${moisCible + 1}/${anneeCible}, essai sur ${moisAlt + 1}/${anneeAlt}`
+          );
+
+          facturesMatchees = findMatchingCombination(
+            facturesVentes,
+            transactionMontant,
+            moisAlt,
+            anneeAlt,
+            client.id,
+            client.raison_sociale
+          );
+        }
+
         if (facturesMatchees.length > 0) {
           matchCount++;
-          
+
           // Marquer toutes les factures comme utilisées
           facturesMatchees.forEach(f => facturesUtilisees.add(f.id));
 
-          const totalFactures = facturesMatchees.reduce((sum, f) => sum + Math.abs(f.total_ttc || 0), 0);
+          const totalFactures = facturesMatchees.reduce((sum, f) => sum + (f.total_ttc || 0), 0);
           const numerosFactures = facturesMatchees.map(f => f.numero_facture).join(', ');
           
           console.log(`✅ Match trouvé: ${facturesMatchees.length} facture(s) - ${numerosFactures} - Total: ${totalFactures}€`);
