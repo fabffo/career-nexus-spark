@@ -2612,9 +2612,12 @@ export default function RapprochementBancaire() {
           return moisMatch && clientMatch;
         });
 
+        // Helper pour calculer le montant d'une facture (garde le signe pour les avoirs)
+        const getMontant = (f: typeof facturesFiltrees[0]) => f.total_ttc || 0;
+
         // 1. Chercher une facture unique avec montant exact
         for (const facture of facturesFiltrees) {
-          const factureMontant = Math.abs(facture.total_ttc || 0);
+          const factureMontant = getMontant(facture);
           if (Math.abs(targetAmount - factureMontant) < 0.01) {
             return [facture];
           }
@@ -2623,9 +2626,7 @@ export default function RapprochementBancaire() {
         // 2. Chercher une combinaison de 2 factures
         for (let i = 0; i < facturesFiltrees.length; i++) {
           for (let j = i + 1; j < facturesFiltrees.length; j++) {
-            const somme =
-              Math.abs(facturesFiltrees[i].total_ttc || 0) +
-              Math.abs(facturesFiltrees[j].total_ttc || 0);
+            const somme = getMontant(facturesFiltrees[i]) + getMontant(facturesFiltrees[j]);
             if (Math.abs(targetAmount - somme) < 0.01) {
               return [facturesFiltrees[i], facturesFiltrees[j]];
             }
@@ -2636,16 +2637,9 @@ export default function RapprochementBancaire() {
         for (let i = 0; i < facturesFiltrees.length; i++) {
           for (let j = i + 1; j < facturesFiltrees.length; j++) {
             for (let k = j + 1; k < facturesFiltrees.length; k++) {
-              const somme =
-                Math.abs(facturesFiltrees[i].total_ttc || 0) +
-                Math.abs(facturesFiltrees[j].total_ttc || 0) +
-                Math.abs(facturesFiltrees[k].total_ttc || 0);
+              const somme = getMontant(facturesFiltrees[i]) + getMontant(facturesFiltrees[j]) + getMontant(facturesFiltrees[k]);
               if (Math.abs(targetAmount - somme) < 0.01) {
-                return [
-                  facturesFiltrees[i],
-                  facturesFiltrees[j],
-                  facturesFiltrees[k],
-                ];
+                return [facturesFiltrees[i], facturesFiltrees[j], facturesFiltrees[k]];
               }
             }
           }
@@ -2656,18 +2650,43 @@ export default function RapprochementBancaire() {
           for (let j = i + 1; j < facturesFiltrees.length; j++) {
             for (let k = j + 1; k < facturesFiltrees.length; k++) {
               for (let l = k + 1; l < facturesFiltrees.length; l++) {
-                const somme =
-                  Math.abs(facturesFiltrees[i].total_ttc || 0) +
-                  Math.abs(facturesFiltrees[j].total_ttc || 0) +
-                  Math.abs(facturesFiltrees[k].total_ttc || 0) +
-                  Math.abs(facturesFiltrees[l].total_ttc || 0);
+                const somme = getMontant(facturesFiltrees[i]) + getMontant(facturesFiltrees[j]) + getMontant(facturesFiltrees[k]) + getMontant(facturesFiltrees[l]);
                 if (Math.abs(targetAmount - somme) < 0.01) {
-                  return [
-                    facturesFiltrees[i],
-                    facturesFiltrees[j],
-                    facturesFiltrees[k],
-                    facturesFiltrees[l],
-                  ];
+                  return [facturesFiltrees[i], facturesFiltrees[j], facturesFiltrees[k], facturesFiltrees[l]];
+                }
+              }
+            }
+          }
+        }
+
+        // 5. Chercher une combinaison de 5 factures (pour supporter les avoirs)
+        for (let i = 0; i < facturesFiltrees.length; i++) {
+          for (let j = i + 1; j < facturesFiltrees.length; j++) {
+            for (let k = j + 1; k < facturesFiltrees.length; k++) {
+              for (let l = k + 1; l < facturesFiltrees.length; l++) {
+                for (let m = l + 1; m < facturesFiltrees.length; m++) {
+                  const somme = getMontant(facturesFiltrees[i]) + getMontant(facturesFiltrees[j]) + getMontant(facturesFiltrees[k]) + getMontant(facturesFiltrees[l]) + getMontant(facturesFiltrees[m]);
+                  if (Math.abs(targetAmount - somme) < 0.01) {
+                    return [facturesFiltrees[i], facturesFiltrees[j], facturesFiltrees[k], facturesFiltrees[l], facturesFiltrees[m]];
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // 6. Chercher une combinaison de 6 factures
+        for (let i = 0; i < facturesFiltrees.length; i++) {
+          for (let j = i + 1; j < facturesFiltrees.length; j++) {
+            for (let k = j + 1; k < facturesFiltrees.length; k++) {
+              for (let l = k + 1; l < facturesFiltrees.length; l++) {
+                for (let m = l + 1; m < facturesFiltrees.length; m++) {
+                  for (let n = m + 1; n < facturesFiltrees.length; n++) {
+                    const somme = getMontant(facturesFiltrees[i]) + getMontant(facturesFiltrees[j]) + getMontant(facturesFiltrees[k]) + getMontant(facturesFiltrees[l]) + getMontant(facturesFiltrees[m]) + getMontant(facturesFiltrees[n]);
+                    if (Math.abs(targetAmount - somme) < 0.01) {
+                      return [facturesFiltrees[i], facturesFiltrees[j], facturesFiltrees[k], facturesFiltrees[l], facturesFiltrees[m], facturesFiltrees[n]];
+                    }
+                  }
                 }
               }
             }
