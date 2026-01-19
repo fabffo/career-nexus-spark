@@ -367,37 +367,61 @@ export default function FacturesAchats() {
 
     for (const factureId of Array.from(selectedFactureIds)) {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-facture-pdf`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ facture_id: factureId }),
-        });
-
-        if (!response.ok) throw new Error("Erreur lors de la génération du PDF");
-
-        const blob = await response.blob();
         const facture = factures.find((f) => f.id === factureId);
+        
+        if (!facture) {
+          errorCount++;
+          continue;
+        }
 
-        // Nettoyer les noms pour le fichier
-        const cleanName = (name: string) => name.replace(/[^a-zA-Z0-9-_]/g, "_");
-        const emetteur = cleanName(facture?.emetteur_nom || "Emetteur");
-        const destinataire = cleanName(facture?.destinataire_nom || "Destinataire");
-        const filename = `${facture?.numero_facture || factureId}_${emetteur}_${destinataire}.pdf`;
+        // Pour les factures d'achat, télécharger le fichier original depuis le storage
+        if (facture.reference_societe) {
+          let bucket = "factures";
+          let filePath = facture.reference_societe;
 
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+          // Gérer les anciens formats d'URL (URL complète dans candidats-files)
+          if (filePath.includes("candidats-files")) {
+            bucket = "candidats-files";
+            const match = filePath.match(/candidats-files\/(.+)$/);
+            if (match) {
+              filePath = match[1];
+            }
+          }
+
+          console.log("Téléchargement depuis bucket:", bucket, "chemin:", filePath);
+
+          const { data, error } = await supabase.storage.from(bucket).download(filePath);
+
+          if (error) {
+            console.error("Erreur storage download:", error);
+            throw error;
+          }
+
+          if (!data) {
+            throw new Error("Aucune donnée reçue");
+          }
+
+          // Créer un blob et télécharger
+          const downloadUrl = window.URL.createObjectURL(data);
+          const link = document.createElement("a");
+          link.href = downloadUrl;
+
+          // Extraire l'extension du fichier original
+          const extension = filePath.split(".").pop() || "pdf";
+          const cleanName = (name: string) => name.replace(/[^a-zA-Z0-9-_]/g, "_");
+          const emetteur = cleanName(facture.emetteur_nom || "Emetteur");
+          link.download = `${facture.numero_facture}_${emetteur}.${extension}`;
+
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(downloadUrl);
+        } else {
+          // Si pas de fichier uploadé, afficher une erreur
+          console.warn(`Aucun fichier uploadé pour la facture ${facture.numero_facture}`);
+          errorCount++;
+          continue;
+        }
 
         successCount++;
 
