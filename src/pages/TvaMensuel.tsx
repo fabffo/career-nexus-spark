@@ -573,9 +573,13 @@ export default function TvaMensuel() {
         };
         
         // ⭐ Enrichir avec les factures de la DB si disponibles
-        if (facturesFromDB && facturesFromDB.length > 0) {
+        // IMPORTANT: la table lignes_rapprochement est la source de vérité.
+        // On n'utilise la table de liaison (rapprochements_factures) QUE pour compléter
+        // les cas où aucune facture n'est déjà associée sur la ligne.
+        const hasFactureOnLine = Boolean(ligne.facture_id) || (Array.isArray(ligne.factures_ids) && ligne.factures_ids.length > 0);
+        if (!hasFactureOnLine && facturesFromDB && facturesFromDB.length > 0) {
           rapprochement.status = "matched";
-          
+
           if (facturesFromDB.length === 1) {
             rapprochement.facture = {
               id: facturesFromDB[0].id,
@@ -583,8 +587,8 @@ export default function TvaMensuel() {
               type_facture: facturesFromDB[0].type_facture,
               total_ttc: facturesFromDB[0].total_ttc,
               total_tva: facturesFromDB[0].total_tva,
-              partenaire_nom: facturesFromDB[0].type_facture === "VENTES" 
-                ? facturesFromDB[0].destinataire_nom 
+              partenaire_nom: facturesFromDB[0].type_facture === "VENTES"
+                ? facturesFromDB[0].destinataire_nom
                 : facturesFromDB[0].emetteur_nom,
             };
           } else {
