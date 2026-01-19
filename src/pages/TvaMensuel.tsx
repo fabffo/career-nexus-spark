@@ -431,39 +431,7 @@ export default function TvaMensuel() {
         return;
       }
 
-      // 2. Charger les données depuis rapprochements_bancaires pour les associations factures
-      const { data: allRapprochementsDetails } = await supabase
-        .from("rapprochements_bancaires")
-        .select(`
-          id,
-          numero_ligne
-        `)
-        .gte("transaction_date", fichiers.date_debut)
-        .lte("transaction_date", fichiers.date_fin);
-
-      const rapprochementIds = (allRapprochementsDetails || []).map(r => r.id);
-
-      // Récupérer les factures associées via la table de liaison
-      const { data: rapprochementsViaLiaison } = await supabase
-        .from("rapprochements_factures")
-        .select(`
-          id,
-          rapprochement_id,
-          factures (
-            id,
-            numero_facture,
-            type_facture,
-            total_ttc,
-            total_tva,
-            destinataire_nom,
-            emetteur_nom,
-            activite,
-            type_frais
-          )
-        `)
-        .in("rapprochement_id", rapprochementIds.length > 0 ? rapprochementIds : ["00000000-0000-0000-0000-000000000000"]);
-
-      // Récupérer les abonnements pour les lignes avec abonnement
+      // 2. Charger les référentiels nécessaires (abonnements, déclarations, fournisseurs)
       const { data: abonnementsData } = await supabase
         .from("abonnements_partenaires")
         .select("id, type, nom");
@@ -471,7 +439,6 @@ export default function TvaMensuel() {
       const abonnementsMap = new Map<string, any>();
       abonnementsData?.forEach(a => abonnementsMap.set(a.id, a));
 
-      // Récupérer les déclarations de charges pour les lignes avec déclaration
       const { data: declarationsData } = await supabase
         .from("declarations_charges_sociales")
         .select("id, organisme, nom");
@@ -479,11 +446,10 @@ export default function TvaMensuel() {
       const declarationsMap = new Map<string, any>();
       declarationsData?.forEach(d => declarationsMap.set(d.id, d));
 
-      // Récupérer les fournisseurs pour déterminer le type (Généraux/Services)
       const { data: fournisseursServices } = await supabase
         .from("fournisseurs_services")
         .select("raison_sociale");
-      
+
       const { data: fournisseursGeneraux } = await supabase
         .from("fournisseurs_generaux")
         .select("raison_sociale");
@@ -500,29 +466,16 @@ export default function TvaMensuel() {
         }
       });
 
-      // Créer une Map des factures par rapprochement_id
-      const facturesParRapprochement = new Map<string, any[]>();
-      if (rapprochementsViaLiaison) {
-        rapprochementsViaLiaison.forEach((liaison: any) => {
-          if (liaison.factures) {
-            if (!facturesParRapprochement.has(liaison.rapprochement_id)) {
-              facturesParRapprochement.set(liaison.rapprochement_id, []);
-            }
-            facturesParRapprochement.get(liaison.rapprochement_id)!.push(liaison.factures);
-          }
-        });
-      }
-
-      // ⭐ Charger les lignes depuis lignes_rapprochement (nouvelle structure)
+      // ⭐ Charger les lignes depuis lignes_rapprochement (source de vérité)
       const { data: lignesRapprochement, error: lignesError } = await supabase
-        .from('lignes_rapprochement')
+        .from("lignes_rapprochement")
         .select(`
           *,
           abonnements_partenaires (id, nom, montant_mensuel, type),
           declarations_charges_sociales (id, nom, organisme)
         `)
-        .eq('fichier_rapprochement_id', fichiers.id)
-        .order('transaction_date', { ascending: true });
+        .eq("fichier_rapprochement_id", fichiers.id)
+        .order("transaction_date", { ascending: true });
 
       if (lignesError) {
         console.error("Erreur chargement lignes_rapprochement:", lignesError);
@@ -530,21 +483,12 @@ export default function TvaMensuel() {
       }
 
       console.log("📦 Lignes depuis lignes_rapprochement:", lignesRapprochement?.length || 0);
-      
-      // Créer une Map numero_ligne -> factures depuis DB pour enrichir les données
-      const facturesParNumeroLigne = new Map<string, any[]>();
-      (allRapprochementsDetails || []).forEach((rb: any) => {
-        const factures = facturesParRapprochement.get(rb.id) || [];
-        if (factures.length > 0 && rb.numero_ligne) {
-          facturesParNumeroLigne.set(rb.numero_ligne, factures);
-        }
-      });
-      
+
       // Convertir les lignes en format rapprochement
+      // IMPORTANT: on ne complète plus via rapprochements_factures ici, car ça peut sur-compter
+      // si des liaisons historiques existent. La TVA mensuelle se base sur les associations
+      // présentes sur lignes_rapprochement (facture_id / factures_ids).
       const rapprochementsReconstruits: any[] = (lignesRapprochement || []).map((ligne: any) => {
-        const numeroLigne = ligne.numero_ligne;
-        const facturesFromDB = numeroLigne ? facturesParNumeroLigne.get(numeroLigne) : null;
-        
         const rapprochement: any = {
           transaction: {
             date: ligne.transaction_date,
@@ -554,48 +498,28 @@ export default function TvaMensuel() {
             montant: ligne.transaction_montant || 0,
             numero_ligne: ligne.numero_ligne,
           },
-          facture: ligne.facture_id ? { id: ligne.facture_id, numero_facture: ligne.numero_facture || '' } : null,
-          factureIds: ligne.factures_ids || [],
+          facture: ligne.facture_id ? { id: ligne.facture_id, numero_facture: ligne.numero_facture || "" } : null,
+          factureIds: Array.isArray(ligne.factures_ids) ? ligne.factures_ids : [],
           score: ligne.score_detection || 0,
           status: ligne.statut || "unmatched",
-          isManual: ligne.statut === 'matched',
+          isManual: ligne.statut === "matched",
           notes: ligne.notes,
-          abonnement_info: ligne.abonnements_partenaires ? {
-            id: ligne.abonnements_partenaires.id,
-            nom: ligne.abonnements_partenaires.nom,
-            type: ligne.abonnements_partenaires.type,
-          } : undefined,
-          declaration_info: ligne.declarations_charges_sociales ? {
-            id: ligne.declarations_charges_sociales.id,
-            nom: ligne.declarations_charges_sociales.nom,
-            organisme: ligne.declarations_charges_sociales.organisme,
-          } : undefined,
+          abonnement_info: ligne.abonnements_partenaires
+            ? {
+                id: ligne.abonnements_partenaires.id,
+                nom: ligne.abonnements_partenaires.nom,
+                type: ligne.abonnements_partenaires.type,
+              }
+            : undefined,
+          declaration_info: ligne.declarations_charges_sociales
+            ? {
+                id: ligne.declarations_charges_sociales.id,
+                nom: ligne.declarations_charges_sociales.nom,
+                organisme: ligne.declarations_charges_sociales.organisme,
+              }
+            : undefined,
         };
-        
-        // ⭐ Enrichir avec les factures de la DB si disponibles
-        // IMPORTANT: la table lignes_rapprochement est la source de vérité.
-        // On n'utilise la table de liaison (rapprochements_factures) QUE pour compléter
-        // les cas où aucune facture n'est déjà associée sur la ligne.
-        const hasFactureOnLine = Boolean(ligne.facture_id) || (Array.isArray(ligne.factures_ids) && ligne.factures_ids.length > 0);
-        if (!hasFactureOnLine && facturesFromDB && facturesFromDB.length > 0) {
-          rapprochement.status = "matched";
 
-          if (facturesFromDB.length === 1) {
-            rapprochement.facture = {
-              id: facturesFromDB[0].id,
-              numero_facture: facturesFromDB[0].numero_facture,
-              type_facture: facturesFromDB[0].type_facture,
-              total_ttc: facturesFromDB[0].total_ttc,
-              total_tva: facturesFromDB[0].total_tva,
-              partenaire_nom: facturesFromDB[0].type_facture === "VENTES"
-                ? facturesFromDB[0].destinataire_nom
-                : facturesFromDB[0].emetteur_nom,
-            };
-          } else {
-            rapprochement.factureIds = facturesFromDB.map(f => f.id);
-          }
-        }
-        
         return rapprochement;
       });
 
@@ -892,14 +816,14 @@ export default function TvaMensuel() {
             const type = ligne.factures[0].type_facture;
             if (type === "VENTES") {
               tva_collectee += tva;
-            } else if (type === "ACHATS") {
+            } else if (type && type.startsWith("ACHATS")) {
               tva_deductible += tva;
             }
           } else if (ligne.facture) {
             const tva = ligne.facture.total_tva || 0;
             if (ligne.facture.type_facture === "VENTES") {
               tva_collectee += tva;
-            } else if (ligne.facture.type_facture === "ACHATS") {
+            } else if (ligne.facture.type_facture && ligne.facture.type_facture.startsWith("ACHATS")) {
               tva_deductible += tva;
             }
           }
