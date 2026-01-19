@@ -67,92 +67,98 @@ export default function ViewFactureDialog({
 
   const handleDownload = async () => {
     try {
-      // Pour les factures d'achat, télécharger le fichier depuis le storage
-      if (facture.type_facture === 'ACHATS') {
+      const isAchat = (facture.type_facture || "").startsWith("ACHATS");
+
+      // Pour les factures d'achat, télécharger le fichier depuis le storage (PDF originel)
+      if (isAchat) {
         if (!facture.reference_societe) {
-          alert('Aucun fichier n\'a été uploadé pour cette facture d\'achat.');
+          alert("Aucun fichier n'a été uploadé pour cette facture d'achat.");
           return;
         }
-        
-        console.log('Téléchargement facture achat, chemin:', facture.reference_societe);
-        
-        let bucket = 'factures';
+
+        console.log("Téléchargement facture achat, chemin:", facture.reference_societe);
+
+        let bucket = "factures";
         let filePath = facture.reference_societe;
-        
-        // Gérer les anciens formats d'URL (URL complète dans candidats-files)
-        if (filePath.includes('candidats-files')) {
-          bucket = 'candidats-files';
-          // Extraire le chemin depuis l'URL
-          const match = filePath.match(/candidats-files\/(.+)$/);
-          if (match) {
-            filePath = match[1];
+
+        // Normaliser si on reçoit une URL complète
+        if (filePath.startsWith("http")) {
+          if (filePath.includes("candidats-files")) {
+            bucket = "candidats-files";
+            const match = filePath.match(/candidats-files\/(.+)$/);
+            if (match) filePath = match[1];
+          } else if (filePath.includes("factures")) {
+            bucket = "factures";
+            const match = filePath.match(/factures\/(.+)$/);
+            if (match) filePath = match[1];
           }
         }
-        
-        console.log('Téléchargement depuis bucket:', bucket, 'chemin:', filePath);
-        
-        // Télécharger directement depuis le bucket
-        const { data, error } = await supabase.storage
-          .from(bucket)
-          .download(filePath);
+
+        // Normaliser si on reçoit un chemin préfixé
+        if (filePath.startsWith("factures/")) {
+          filePath = filePath.replace(/^factures\//, "");
+        }
+
+        console.log("Téléchargement depuis bucket:", bucket, "chemin:", filePath);
+
+        const { data, error } = await supabase.storage.from(bucket).download(filePath);
 
         if (error) {
-          console.error('Erreur storage download:', error);
+          console.error("Erreur storage download:", error);
           throw error;
         }
-        if (!data) throw new Error('Aucune donnée reçue');
+        if (!data) throw new Error("Aucune donnée reçue");
 
-        // Créer un blob et télécharger
         const downloadUrl = window.URL.createObjectURL(data);
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = downloadUrl;
-        
+
         // Extraire l'extension du fichier original
-        const extension = filePath.split('.').pop() || 'pdf';
+        const extension = filePath.split(".").pop() || "pdf";
         link.download = `facture_${facture.numero_facture}.${extension}`;
-        
+
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(downloadUrl);
-      } else {
-        // Pour les factures de vente, générer le PDF via l'edge function
-        console.log('Génération PDF pour facture vente ID:', facture.id);
-        
-        const { data: { session } } = await supabase.auth.getSession();
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        
-        const response = await fetch(
-          `${supabaseUrl}/functions/v1/generate-facture-pdf`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session?.access_token}`,
-            },
-            body: JSON.stringify({ facture_id: facture.id }),
-          }
-        );
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Erreur lors de la génération du PDF:', errorText);
-          throw new Error('Erreur lors de la génération du PDF');
-        }
-
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `facture_${facture.numero_facture}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
+        return;
       }
+
+      // Pour les factures de vente, générer le PDF via la function
+      console.log("Génération PDF pour facture vente ID:", facture.id);
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/generate-facture-pdf`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ facture_id: facture.id }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Erreur lors de la génération du PDF:", errorText);
+        throw new Error("Erreur lors de la génération du PDF");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `facture_${facture.numero_facture}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Erreur lors du téléchargement:', error);
-      alert('Erreur lors du téléchargement du fichier. Veuillez réessayer.');
+      console.error("Erreur lors du téléchargement:", error);
+      alert("Erreur lors du téléchargement du fichier. Veuillez réessayer.");
     }
   };
 
@@ -179,10 +185,10 @@ export default function ViewFactureDialog({
             <Button 
               onClick={handleDownload} 
               variant="outline"
-              disabled={facture.type_facture === 'ACHATS' && !facture.reference_societe}
+              disabled={(facture.type_facture || "").startsWith("ACHATS") && !facture.reference_societe}
             >
               <Download className="h-4 w-4 mr-2" /> 
-              {facture.type_facture === 'ACHATS' && !facture.reference_societe 
+              {(facture.type_facture || "").startsWith("ACHATS") && !facture.reference_societe 
                 ? 'Aucun fichier' 
                 : 'Télécharger'}
             </Button>
@@ -261,10 +267,10 @@ export default function ViewFactureDialog({
                 {facture.destinataire_email && (
                   <p className="text-sm">Email: {facture.destinataire_email}</p>
                 )}
-                {facture.type_facture === 'ACHATS' && societeInterne?.siren && (
+                {(facture.type_facture || "").startsWith('ACHATS') && societeInterne?.siren && (
                   <p className="text-sm">SIREN: {societeInterne.siren}</p>
                 )}
-                {facture.type_facture === 'ACHATS' && societeInterne?.tva && (
+                {(facture.type_facture || "").startsWith('ACHATS') && societeInterne?.tva && (
                   <p className="text-sm">N° TVA: {societeInterne.tva}</p>
                 )}
               </div>
