@@ -683,10 +683,11 @@ export default function TvaMensuel() {
           tvaLigne = facturesData.reduce((sum, f) => sum + (f.total_tva || 0), 0);
 
           const typeFacture = facturesData[0].type_facture;
-          // Accumuler dans les totaux
+          // Accumuler dans les totaux - VENTES = collectée, ACHATS* = déductible
           if (typeFacture === "VENTES") {
             totalTvaCollectee += tvaLigne;
-          } else if (typeFacture === "ACHATS") {
+          } else if (typeFacture && typeFacture.startsWith("ACHATS")) {
+            // Inclut ACHATS, ACHATS_GENERAUX, ACHATS_SERVICES, etc.
             totalTvaDeductible += tvaLigne;
           }
         }
