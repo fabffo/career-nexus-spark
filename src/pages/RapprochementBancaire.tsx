@@ -3691,6 +3691,116 @@ export default function RapprochementBancaire() {
         }
       }
 
+      // ⭐ CRÉER LES CHARGES MENSUELLES pour toutes les transactions matched (achats, abonnements, déclarations)
+      console.log(`📊 Création des charges mensuelles...`);
+      const rapprochementsMatched = rapprochements.filter(r => r.status === 'matched');
+      
+      for (const r of rapprochementsMatched) {
+        try {
+          const transactionDate = new Date(r.transaction.date);
+          const periodeAnnee = transactionDate.getFullYear();
+          const periodeMois = transactionDate.getMonth() + 1;
+
+          // Récupérer le rapprochement bancaire et le fichier
+          const { data: rapprochementBancaire } = await supabase
+            .from('rapprochements_bancaires')
+            .select('id')
+            .eq('numero_ligne', r.numero_ligne)
+            .single();
+
+          // Déterminer le type et l'activité
+          let type = 'Achat';
+          let activite = 'Généraux';
+          let factureId: string | null = null;
+          let numeroFacture: string | null = null;
+          let totalHt: number | null = null;
+          let totalTtc: number | null = null;
+          let totalTva: number | null = null;
+
+          // Si c'est un rapprochement avec facture(s)
+          if (r.facture || (r.factureIds && r.factureIds.length > 0)) {
+            const factureIds = r.facture?.id ? [r.facture.id] : (r.factureIds || []);
+            
+            // Récupérer les détails des factures
+            const { data: facturesDetails } = await supabase
+              .from('factures')
+              .select('id, numero_facture, type_facture, type_frais, total_ht, total_ttc, total_tva')
+              .in('id', factureIds);
+            
+            if (facturesDetails && facturesDetails.length > 0) {
+              // Utiliser la première facture pour le type
+              const premiereFacture = facturesDetails[0];
+              factureId = premiereFacture.id;
+              numeroFacture = premiereFacture.numero_facture;
+              
+              // Calculer les totaux
+              totalHt = facturesDetails.reduce((sum, f) => sum + (f.total_ht || 0), 0);
+              totalTtc = facturesDetails.reduce((sum, f) => sum + (f.total_ttc || 0), 0);
+              totalTva = facturesDetails.reduce((sum, f) => sum + (f.total_tva || 0), 0);
+              
+              // Déterminer le type selon le type_facture
+              if (premiereFacture.type_facture === 'VENTES') {
+                type = 'Vente';
+              } else {
+                type = 'Achat';
+              }
+              
+              // Déterminer l'activité selon le type_frais ou type_facture
+              if (premiereFacture.type_frais === 'PRODUCTION' || premiereFacture.type_facture === 'ACHATS_SERVICES') {
+                activite = 'Production';
+              } else if (premiereFacture.type_facture === 'ACHATS_ETAT') {
+                activite = 'Fiscaux';
+              } else {
+                activite = 'Généraux';
+              }
+            }
+          }
+          // Si c'est un abonnement
+          else if (r.abonnement_info) {
+            type = 'Abonnement';
+            activite = 'Généraux';
+            totalTtc = Math.abs(r.transaction.montant);
+          }
+          // Si c'est une déclaration de charges sociales
+          else if (r.declaration_info) {
+            type = 'Charges sociales';
+            activite = 'Social';
+            totalTtc = Math.abs(r.transaction.montant);
+          }
+
+          // Insérer la charge mensuelle
+          const { error: chargeError } = await supabase
+            .from('charges_mensuelles')
+            .insert({
+              periode_mois: periodeMois,
+              periode_annee: periodeAnnee,
+              transaction_date: r.transaction.date,
+              transaction_libelle: r.transaction.libelle,
+              transaction_montant: Math.abs(r.transaction.montant),
+              total_ht: totalHt,
+              total_ttc: totalTtc || Math.abs(r.transaction.montant),
+              total_tva: totalTva,
+              numero_facture: numeroFacture,
+              facture_id: factureId,
+              type: type,
+              activite: activite,
+              fichier_rapprochement_id: fichierEnCoursId,
+              rapprochement_id: rapprochementBancaire?.id || null,
+              created_by: user?.id
+            });
+
+          if (chargeError) {
+            console.error(`❌ Erreur création charge mensuelle pour ${r.numero_ligne}:`, chargeError);
+          } else {
+            console.log(`✅ Charge mensuelle créée: ${type}/${activite} - ${Math.abs(r.transaction.montant)}€`);
+          }
+        } catch (chargeErr) {
+          console.error(`❌ Erreur traitement charge mensuelle:`, chargeErr);
+        }
+      }
+      
+      console.log(`✅ ${rapprochementsMatched.length} charges mensuelles créées`);
+
       const statsFinales = {
         total: rapprochements.length,
         matched: rapprochements.filter(r => r.status === 'matched').length,
