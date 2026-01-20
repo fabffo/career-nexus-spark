@@ -2811,6 +2811,108 @@ export type Database = {
         }
         Relationships: []
       }
+      tva_mensuel_detail: {
+        Row: {
+          created_at: string
+          date_operation: string
+          entete_id: string
+          id: string
+          libelle: string | null
+          ligne_rapprochement_id: string | null
+          montant_ht: number
+          numero_facture: string | null
+          partenaire_nom: string | null
+          tva_collectee: number
+          tva_deductible: number
+          type_operation: string
+          type_partenaire: string | null
+        }
+        Insert: {
+          created_at?: string
+          date_operation: string
+          entete_id: string
+          id?: string
+          libelle?: string | null
+          ligne_rapprochement_id?: string | null
+          montant_ht?: number
+          numero_facture?: string | null
+          partenaire_nom?: string | null
+          tva_collectee?: number
+          tva_deductible?: number
+          type_operation: string
+          type_partenaire?: string | null
+        }
+        Update: {
+          created_at?: string
+          date_operation?: string
+          entete_id?: string
+          id?: string
+          libelle?: string | null
+          ligne_rapprochement_id?: string | null
+          montant_ht?: number
+          numero_facture?: string | null
+          partenaire_nom?: string | null
+          tva_collectee?: number
+          tva_deductible?: number
+          type_operation?: string
+          type_partenaire?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tva_mensuel_detail_entete_id_fkey"
+            columns: ["entete_id"]
+            isOneToOne: false
+            referencedRelation: "tva_mensuel_entete"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tva_mensuel_detail_ligne_rapprochement_id_fkey"
+            columns: ["ligne_rapprochement_id"]
+            isOneToOne: false
+            referencedRelation: "lignes_rapprochement"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tva_mensuel_entete: {
+        Row: {
+          annee: number
+          created_at: string
+          date_validation: string | null
+          id: string
+          mois: number
+          statut: string
+          tva_a_payer: number | null
+          tva_collectee: number
+          tva_deductible: number
+          updated_at: string
+        }
+        Insert: {
+          annee: number
+          created_at?: string
+          date_validation?: string | null
+          id?: string
+          mois: number
+          statut?: string
+          tva_a_payer?: number | null
+          tva_collectee?: number
+          tva_deductible?: number
+          updated_at?: string
+        }
+        Update: {
+          annee?: number
+          created_at?: string
+          date_validation?: string | null
+          id?: string
+          mois?: number
+          statut?: string
+          tva_a_payer?: number | null
+          tva_collectee?: number
+          tva_deductible?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       two_factor_codes: {
         Row: {
           attempts: number | null
