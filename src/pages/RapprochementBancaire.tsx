@@ -185,9 +185,10 @@ export default function RapprochementBancaire() {
       const isAchat = typeFacture.startsWith('ACHATS');
       
       // Utiliser les valeurs réelles HT, TVA, TTC de la facture
-      const ht = r.facture.total_ht || 0;
-      const tva = r.facture.total_tva || 0;
       const ttc = r.facture.total_ttc || 0;
+      const tva = r.facture.total_tva || 0;
+      // Si HT est null/0 mais TTC existe, alors HT = TTC (pas de TVA)
+      const ht = r.facture.total_ht || ttc;
       
       // Appliquer le signe selon le type
       if (isVente) {
