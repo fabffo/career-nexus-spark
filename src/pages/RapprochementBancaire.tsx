@@ -223,14 +223,12 @@ export default function RapprochementBancaire() {
       return { total_ht: ttc * sign, total_tva: 0, total_ttc: ttc * sign };
     }
 
-    // Ligne non rapprochée: considérer comme ACHATS_GENERAUX par défaut
-    // Positif pour débit, négatif pour crédit
+    // Ligne non rapprochée: pas de calcul de TVA (on ne peut pas deviner)
+    // On affiche uniquement le montant TTC sans ventilation HT/TVA
     const ttc = transactionAmount;
-    const tvaRate = 20; // TVA normale par défaut
-    const ht = ttc / (1 + tvaRate / 100);
-    const tva = ttc - ht;
     const sign = debit > 0 ? 1 : -1;
-    return { total_ht: ht * sign, total_tva: tva * sign, total_ttc: ttc * sign };
+    // HT = TTC et TVA = 0 car ligne non rapprochée
+    return { total_ht: ttc * sign, total_tva: 0, total_ttc: ttc * sign };
   };
 
   // Fonction pour formater les montants financiers avec couleur
