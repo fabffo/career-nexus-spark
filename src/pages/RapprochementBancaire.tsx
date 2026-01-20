@@ -37,6 +37,8 @@ interface FactureMatch {
   type_facture: "VENTES" | "ACHATS" | "ACHATS_GENERAUX" | "ACHATS_SERVICES" | "ACHATS_ETAT";
   date_emission: string;
   partenaire_nom: string;
+  total_ht: number;
+  total_tva: number;
   total_ttc: number;
   statut: string;
   numero_rapprochement?: string;
@@ -176,19 +178,16 @@ export default function RapprochementBancaire() {
     const credit = r.transaction.credit || 0;
     const transactionAmount = debit > 0 ? debit : credit;
 
-    // Si rapproché avec facture(s)
+    // Si rapproché avec facture(s) - utiliser les valeurs réelles de la facture
     if (r.facture) {
       const typeFacture = r.facture.type_facture;
       const isVente = typeFacture === 'VENTES';
       const isAchat = typeFacture.startsWith('ACHATS');
       
-      // Récupérer les montants depuis la facture (on suppose que total_ttc contient les vraies valeurs)
-      // Note: Pour un calcul précis, il faudrait stocker total_ht et total_tva dans facture
+      // Utiliser les valeurs réelles HT, TVA, TTC de la facture
+      const ht = r.facture.total_ht || 0;
+      const tva = r.facture.total_tva || 0;
       const ttc = r.facture.total_ttc || 0;
-      // Estimation: on considère TVA 20% par défaut si non précisé
-      const tvaRate = 20; // À améliorer: récupérer le vrai taux depuis les lignes facture
-      const ht = ttc / (1 + tvaRate / 100);
-      const tva = ttc - ht;
       
       // Appliquer le signe selon le type
       if (isVente) {
@@ -343,6 +342,8 @@ export default function RapprochementBancaire() {
         type_facture: f.type_facture as "VENTES" | "ACHATS",
         date_emission: f.date_emission,
         partenaire_nom: f.type_facture === "VENTES" ? f.destinataire_nom : f.emetteur_nom,
+        total_ht: f.total_ht || 0,
+        total_tva: f.total_tva || 0,
         total_ttc: f.total_ttc || 0,
         statut: f.statut,
         numero_rapprochement: f.numero_rapprochement,
@@ -427,6 +428,8 @@ export default function RapprochementBancaire() {
                 type_facture: factureData.type_facture || 'ACHATS',
                 date_emission: factureData.date_emission || '',
                 partenaire_nom: factureData.type_facture === 'VENTES' ? factureData.destinataire_nom : factureData.emetteur_nom || '',
+                total_ht: factureData.total_ht || 0,
+                total_tva: factureData.total_tva || 0,
                 total_ttc: factureData.total_ttc || 0,
                 statut: factureData.statut || '',
                 emetteur_type: factureData.emetteur_type,
@@ -602,6 +605,8 @@ export default function RapprochementBancaire() {
               date_emission: factureData.date_emission || '',
               partenaire_nom: factureData.type_facture === 'VENTES' ? factureData.destinataire_nom : factureData.emetteur_nom || '',
               emetteur_type: factureData.emetteur_type,
+              total_ht: factureData.total_ht || 0,
+              total_tva: factureData.total_tva || 0,
               total_ttc: factureData.total_ttc || 0,
               statut: factureData.statut || '',
               type_frais: factureData.type_frais,
@@ -2303,7 +2308,7 @@ export default function RapprochementBancaire() {
       // On cherche ACHATS_GENERAUX (nouveau format) ou ACHATS avec type_frais général (ancien format)
       const { data: facturesAchats, error: facturesError } = await supabase
         .from("factures")
-        .select("id, numero_facture, date_emission, emetteur_nom, emetteur_id, emetteur_type, type_frais, type_facture, total_ttc, statut, numero_rapprochement")
+        .select("id, numero_facture, date_emission, emetteur_nom, emetteur_id, emetteur_type, type_frais, type_facture, total_ht, total_tva, total_ttc, statut, numero_rapprochement")
         .in("type_facture", ["ACHATS_GENERAUX", "ACHATS"])
         .in("statut", ["VALIDEE", "PAYEE"])
         .is("numero_rapprochement", null);
@@ -2388,6 +2393,8 @@ export default function RapprochementBancaire() {
               type_facture: "ACHATS_GENERAUX",
               date_emission: facture.date_emission,
               partenaire_nom: facture.emetteur_nom,
+              total_ht: facture.total_ht || 0,
+              total_tva: facture.total_tva || 0,
               total_ttc: facture.total_ttc || 0,
               statut: facture.statut || "VALIDEE",
               emetteur_type: "FOURNISSEUR_GENERAL", // Toujours FOURNISSEUR_GENERAL pour achats généraux
@@ -2507,7 +2514,7 @@ export default function RapprochementBancaire() {
       // 4. Récupérer les factures d'achats services non rapprochées
       const { data: facturesAchats, error: facturesError } = await supabase
         .from("factures")
-        .select("id, numero_facture, type_facture, date_emission, date_echeance, emetteur_nom, emetteur_id, emetteur_type, type_frais, total_ttc, statut, numero_rapprochement")
+        .select("id, numero_facture, type_facture, date_emission, date_echeance, emetteur_nom, emetteur_id, emetteur_type, type_frais, total_ht, total_tva, total_ttc, statut, numero_rapprochement")
         .in("type_facture", ["ACHATS", "ACHATS_SERVICES"]) // Inclure les deux types
         .in("statut", ["VALIDEE", "PAYEE"])
         .is("numero_rapprochement", null);
@@ -2595,6 +2602,8 @@ export default function RapprochementBancaire() {
               type_facture: "ACHATS_SERVICES",
               date_emission: facture.date_emission,
               partenaire_nom: facture.emetteur_nom,
+              total_ht: facture.total_ht || 0,
+              total_tva: facture.total_tva || 0,
               total_ttc: facture.total_ttc || 0,
               statut: facture.statut || "VALIDEE",
               emetteur_type: "FOURNISSEUR_SERVICES", // Toujours FOURNISSEUR_SERVICES pour achats services
@@ -2690,7 +2699,7 @@ export default function RapprochementBancaire() {
       // 3. Récupérer les factures VENTES non rapprochées
       const { data: facturesVentes, error: facturesError } = await supabase
         .from("factures")
-        .select("id, numero_facture, type_facture, date_emission, date_echeance, destinataire_nom, destinataire_id, destinataire_type, total_ttc, statut, numero_rapprochement")
+        .select("id, numero_facture, type_facture, date_emission, date_echeance, destinataire_nom, destinataire_id, destinataire_type, total_ht, total_tva, total_ttc, statut, numero_rapprochement")
         .eq("type_facture", "VENTES")
         .in("statut", ["VALIDEE", "PAYEE"])
         .is("numero_rapprochement", null);
@@ -2920,6 +2929,8 @@ export default function RapprochementBancaire() {
               type_facture: "VENTES",
               date_emission: facture.date_emission,
               partenaire_nom: facture.destinataire_nom,
+              total_ht: facture.total_ht || 0,
+              total_tva: facture.total_tva || 0,
               total_ttc: facture.total_ttc || 0,
               statut: facture.statut || "VALIDEE",
               emetteur_type: "CLIENT",
@@ -2946,6 +2957,8 @@ export default function RapprochementBancaire() {
               type_facture: "VENTES",
               date_emission: facturesMatchees[0].date_emission,
               partenaire_nom: facturesMatchees[0].destinataire_nom,
+              total_ht: facturesMatchees.reduce((sum, f) => sum + (f.total_ht || 0), 0),
+              total_tva: facturesMatchees.reduce((sum, f) => sum + (f.total_tva || 0), 0),
               total_ttc: totalFactures,
               statut: "VALIDEE",
               emetteur_type: "CLIENT",
@@ -3964,6 +3977,8 @@ export default function RapprochementBancaire() {
           type_facture: f.type_facture as "VENTES" | "ACHATS",
           date_emission: f.date_emission,
           partenaire_nom: f.type_facture === "VENTES" ? f.destinataire_nom : f.emetteur_nom,
+          total_ht: f.total_ht || 0,
+          total_tva: f.total_tva || 0,
           total_ttc: f.total_ttc || 0,
           statut: f.statut,
           numero_rapprochement: f.numero_rapprochement,
