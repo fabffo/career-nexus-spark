@@ -67,11 +67,15 @@ interface Rapprochement {
   manualId?: string;
   notes?: string | null;
   numero_ligne?: string; // Numéro unique de la ligne de rapprochement (format: RL-YYYYMMDD-XXXXX)
-  abonnement_info?: { id: string; nom: string; montant_ttc?: number };
+  abonnement_info?: { id: string; nom: string; montant_ttc?: number; tva?: string };
   declaration_info?: { id: string; nom: string; organisme: string };
   fournisseur_info?: { id: string; nom: string; type: 'general' | 'services' | 'etat' | 'client' | 'banque' | 'prestataire' | 'salarie' };
   factureIds?: string[]; // Pour les rapprochements avec plusieurs factures
   montant_facture?: number; // Montant total des factures rapprochées
+  // Champs financiers calculés
+  total_ht?: number;
+  total_tva?: number;
+  total_ttc?: number;
 }
 
 interface FichierRapprochement {
@@ -151,6 +155,100 @@ export default function RapprochementBancaire() {
   const [itemsPerPageHistorique, setItemsPerPageHistorique] = useState(20);
   
   const { toast } = useToast();
+
+  // Map des taux TVA par code/libellé
+  const tvaRatesMap: Record<string, number> = {
+    'normal': 20,
+    'intermediaire': 10,
+    'reduit': 5.5,
+    'super_reduit': 2.1,
+    'exonere': 0,
+    'TVA normale - 20%': 20,
+    'TVA intermédiaire - 10%': 10,
+    'TVA réduite - 5,5%': 5.5,
+    'TVA super réduite - 2,1%': 2.1,
+    'Exonéré de TVA': 0,
+  };
+
+  // Fonction pour calculer les montants HT, TVA, TTC d'un rapprochement
+  const calculateFinancialAmounts = (r: Rapprochement): { total_ht: number; total_tva: number; total_ttc: number } => {
+    const debit = r.transaction.debit || 0;
+    const credit = r.transaction.credit || 0;
+    const transactionAmount = debit > 0 ? debit : credit;
+
+    // Si rapproché avec facture(s)
+    if (r.facture) {
+      const typeFacture = r.facture.type_facture;
+      const isVente = typeFacture === 'VENTES';
+      const isAchat = typeFacture.startsWith('ACHATS');
+      
+      // Récupérer les montants depuis la facture (on suppose que total_ttc contient les vraies valeurs)
+      // Note: Pour un calcul précis, il faudrait stocker total_ht et total_tva dans facture
+      const ttc = r.facture.total_ttc || 0;
+      // Estimation: on considère TVA 20% par défaut si non précisé
+      const tvaRate = 20; // À améliorer: récupérer le vrai taux depuis les lignes facture
+      const ht = ttc / (1 + tvaRate / 100);
+      const tva = ttc - ht;
+      
+      // Appliquer le signe selon le type
+      if (isVente) {
+        // VENTES: négatif pour débit, positif pour crédit
+        const sign = debit > 0 ? -1 : 1;
+        return { total_ht: ht * sign, total_tva: tva * sign, total_ttc: ttc * sign };
+      } else if (isAchat) {
+        // ACHATS: positif pour débit, négatif pour crédit
+        const sign = debit > 0 ? 1 : -1;
+        return { total_ht: ht * sign, total_tva: tva * sign, total_ttc: ttc * sign };
+      }
+    }
+
+    // Si rapproché avec abonnement
+    if (r.abonnement_info) {
+      const ttc = r.abonnement_info.montant_ttc || transactionAmount;
+      const tvaCode = r.abonnement_info.tva || 'normal';
+      const tvaRate = tvaRatesMap[tvaCode] ?? 20;
+      const ht = ttc / (1 + tvaRate / 100);
+      const tva = ttc - ht;
+      
+      // Abonnement = charge, donc positif pour débit, négatif pour crédit
+      const sign = debit > 0 ? 1 : -1;
+      return { total_ht: ht * sign, total_tva: tva * sign, total_ttc: ttc * sign };
+    }
+
+    // Si rapproché avec déclaration de charge sociale
+    if (r.declaration_info) {
+      // Charges sociales: pas de TVA
+      const ttc = transactionAmount;
+      // Positif pour débit, négatif pour crédit
+      const sign = debit > 0 ? 1 : -1;
+      return { total_ht: ttc * sign, total_tva: 0, total_ttc: ttc * sign };
+    }
+
+    // Ligne non rapprochée: considérer comme ACHATS_GENERAUX par défaut
+    // Positif pour débit, négatif pour crédit
+    const ttc = transactionAmount;
+    const tvaRate = 20; // TVA normale par défaut
+    const ht = ttc / (1 + tvaRate / 100);
+    const tva = ttc - ht;
+    const sign = debit > 0 ? 1 : -1;
+    return { total_ht: ht * sign, total_tva: tva * sign, total_ttc: ttc * sign };
+  };
+
+  // Fonction pour formater les montants financiers avec couleur
+  const formatFinancialAmount = (amount: number | undefined): { text: string; className: string } => {
+    if (amount === undefined || amount === 0) {
+      return { text: '-', className: 'text-muted-foreground' };
+    }
+    const formatted = new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: "EUR",
+    }).format(Math.abs(amount));
+    
+    return {
+      text: amount >= 0 ? formatted : `-${formatted}`,
+      className: amount >= 0 ? 'text-green-600' : 'text-red-600'
+    };
+  };
 
   // Statut métier:
   // - matched    = Facture + Montant facturé renseignés (facture/abonnement/déclaration)
@@ -301,9 +399,9 @@ export default function RapprochementBancaire() {
           .from('lignes_rapprochement')
           .select(`
             *,
-            abonnements_partenaires (id, nom, montant_mensuel),
+            abonnements_partenaires (id, nom, montant_mensuel, tva),
             declarations_charges_sociales (id, nom, organisme),
-            factures (id, numero_facture, type_facture, date_emission, total_ttc, statut, emetteur_nom, destinataire_nom, emetteur_type, type_frais)
+            factures (id, numero_facture, type_facture, date_emission, total_ht, total_tva, total_ttc, statut, emetteur_nom, destinataire_nom, emetteur_type, type_frais)
           `)
           .eq('fichier_rapprochement_id', data.id)
           .order('transaction_date', { ascending: true });
@@ -344,6 +442,7 @@ export default function RapprochementBancaire() {
                 id: ligne.abonnements_partenaires.id,
                 nom: ligne.abonnements_partenaires.nom,
                 montant_ttc: ligne.abonnements_partenaires.montant_mensuel,
+                tva: ligne.abonnements_partenaires.tva,
               } : undefined,
               declaration_info: ligne.declarations_charges_sociales ? {
                 id: ligne.declarations_charges_sociales.id,
@@ -447,7 +546,7 @@ export default function RapprochementBancaire() {
           .from('lignes_rapprochement')
           .select(`
             *,
-            abonnements_partenaires (id, nom, montant_mensuel),
+            abonnements_partenaires (id, nom, montant_mensuel, tva),
             declarations_charges_sociales (id, nom, organisme)
           `)
           .eq('fichier_rapprochement_id', fichier.id)
@@ -472,7 +571,7 @@ export default function RapprochementBancaire() {
         if (factureIds.size > 0) {
           const { data: facturesData } = await supabase
             .from('factures')
-            .select('id, numero_facture, type_facture, date_emission, emetteur_nom, destinataire_nom, emetteur_type, total_ttc, statut, type_frais')
+            .select('id, numero_facture, type_facture, date_emission, emetteur_nom, destinataire_nom, emetteur_type, total_ht, total_tva, total_ttc, statut, type_frais')
             .in('id', Array.from(factureIds));
 
           if (facturesData) {
@@ -517,6 +616,7 @@ export default function RapprochementBancaire() {
               id: ligne.abonnements_partenaires.id,
               nom: ligne.abonnements_partenaires.nom,
               montant_ttc: ligne.abonnements_partenaires.montant_mensuel,
+              tva: ligne.abonnements_partenaires.tva,
             } : undefined,
             declaration_info: ligne.declarations_charges_sociales ? {
               id: ligne.declarations_charges_sociales.id,
@@ -4701,10 +4801,12 @@ export default function RapprochementBancaire() {
                             <SortIcon column="typePartenaire" />
                           </div>
                         </th>
-                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Mnt Fact.</th>
+                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '85px' }}>HT</th>
+                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '70px' }}>TVA</th>
+                        <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '85px' }}>TTC</th>
                         <th 
                           className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
-                          style={{ width: '80px' }}
+                          style={{ width: '70px' }}
                           onClick={() => handleSort("score")}
                         >
                           <div className="flex items-center justify-end">
@@ -4882,29 +4984,26 @@ export default function RapprochementBancaire() {
                               return <span className="text-muted-foreground">-</span>;
                             })()}
                           </td>
-                        <td className="p-2 align-middle text-right text-sm">
-                          {rapprochement.montant_facture
-                            ? new Intl.NumberFormat("fr-FR", {
-                                style: "currency",
-                                currency: "EUR",
-                              }).format(rapprochement.montant_facture)
-                            : rapprochement.facture
-                            ? new Intl.NumberFormat("fr-FR", {
-                                style: "currency",
-                                currency: "EUR",
-                              }).format(rapprochement.facture.total_ttc)
-                            : rapprochement.abonnement_info?.montant_ttc
-                            ? new Intl.NumberFormat("fr-FR", {
-                                style: "currency",
-                                currency: "EUR",
-                              }).format(rapprochement.abonnement_info.montant_ttc)
-                            : rapprochement.declaration_info
-                            ? new Intl.NumberFormat("fr-FR", {
-                                style: "currency",
-                                currency: "EUR",
-                              }).format(rapprochement.transaction.debit > 0 ? rapprochement.transaction.debit : rapprochement.transaction.credit)
-                            : "-"}
-                        </td>
+                        {/* Colonnes HT, TVA, TTC */}
+                        {(() => {
+                          const amounts = calculateFinancialAmounts(rapprochement);
+                          const htFormatted = formatFinancialAmount(amounts.total_ht);
+                          const tvaFormatted = formatFinancialAmount(amounts.total_tva);
+                          const ttcFormatted = formatFinancialAmount(amounts.total_ttc);
+                          return (
+                            <>
+                              <td className={`p-2 align-middle text-right text-sm ${htFormatted.className}`}>
+                                {htFormatted.text}
+                              </td>
+                              <td className={`p-2 align-middle text-right text-sm ${tvaFormatted.className}`}>
+                                {tvaFormatted.text}
+                              </td>
+                              <td className={`p-2 align-middle text-right text-sm ${ttcFormatted.className}`}>
+                                {ttcFormatted.text}
+                              </td>
+                            </>
+                          );
+                        })()}
                         <td className="p-2 align-middle text-right">
                           {rapprochement.isManual ? (
                             <Badge variant="outline" className="border-blue-600 text-blue-600 text-xs">
@@ -5295,6 +5394,9 @@ export default function RapprochementBancaire() {
                                         <SortIconHistorique column="typePartenaire" />
                                       </div>
                                     </th>
+                                    <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '85px' }}>HT</th>
+                                    <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '70px' }}>TVA</th>
+                                    <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '85px' }}>TTC</th>
                                     <th 
                                       className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
                                       style={{ width: '70px' }}
@@ -5473,6 +5575,26 @@ export default function RapprochementBancaire() {
                                               return <span className="text-muted-foreground">-</span>;
                                             })()}
                                           </td>
+                                          {/* Colonnes HT, TVA, TTC */}
+                                          {(() => {
+                                            const amounts = calculateFinancialAmounts(rapprochement);
+                                            const htFormatted = formatFinancialAmount(amounts.total_ht);
+                                            const tvaFormatted = formatFinancialAmount(amounts.total_tva);
+                                            const ttcFormatted = formatFinancialAmount(amounts.total_ttc);
+                                            return (
+                                              <>
+                                                <td className={`p-2 align-middle text-right text-sm ${htFormatted.className}`}>
+                                                  {htFormatted.text}
+                                                </td>
+                                                <td className={`p-2 align-middle text-right text-sm ${tvaFormatted.className}`}>
+                                                  {tvaFormatted.text}
+                                                </td>
+                                                <td className={`p-2 align-middle text-right text-sm ${ttcFormatted.className}`}>
+                                                  {ttcFormatted.text}
+                                                </td>
+                                              </>
+                                            );
+                                          })()}
                                           <td className="p-2 align-middle text-right">
                                            {rapprochement.isManual ? (
                                              <Badge variant="outline" className="border-blue-600 text-blue-600 text-xs">

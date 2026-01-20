@@ -1475,6 +1475,9 @@ export type Database = {
           numero_ligne: string
           score_detection: number | null
           statut: string
+          total_ht: number | null
+          total_ttc: number | null
+          total_tva: number | null
           transaction_credit: number | null
           transaction_date: string
           transaction_debit: number | null
@@ -1499,6 +1502,9 @@ export type Database = {
           numero_ligne: string
           score_detection?: number | null
           statut?: string
+          total_ht?: number | null
+          total_ttc?: number | null
+          total_tva?: number | null
           transaction_credit?: number | null
           transaction_date: string
           transaction_debit?: number | null
@@ -1523,6 +1529,9 @@ export type Database = {
           numero_ligne?: string
           score_detection?: number | null
           statut?: string
+          total_ht?: number | null
+          total_ttc?: number | null
+          total_tva?: number | null
           transaction_credit?: number | null
           transaction_date?: string
           transaction_debit?: number | null
