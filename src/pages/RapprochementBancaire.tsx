@@ -141,6 +141,15 @@ export default function RapprochementBancaire() {
   const [sortColumn, setSortColumn] = useState<"date" | "libelle" | "debit" | "credit" | "partenaire" | "typePartenaire" | "score" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [typePartenaireFilter, setTypePartenaireFilter] = useState<string>("all");
+  
+  // États pour l'onglet Historique
+  const [searchTermHistorique, setSearchTermHistorique] = useState("");
+  const [sortColumnHistorique, setSortColumnHistorique] = useState<"date" | "libelle" | "debit" | "credit" | "partenaire" | "typePartenaire" | "score" | null>(null);
+  const [sortDirectionHistorique, setSortDirectionHistorique] = useState<"asc" | "desc">("asc");
+  const [typePartenaireFilterHistorique, setTypePartenaireFilterHistorique] = useState<string>("all");
+  const [currentPageHistorique, setCurrentPageHistorique] = useState(1);
+  const [itemsPerPageHistorique, setItemsPerPageHistorique] = useState(20);
+  
   const { toast } = useToast();
 
   // Statut métier:
@@ -4048,6 +4057,100 @@ export default function RapprochementBancaire() {
       : <ArrowDown className="h-3 w-3 ml-1" />;
   };
 
+  // Icône de tri pour l'historique
+  const SortIconHistorique = ({ column }: { column: typeof sortColumnHistorique }) => {
+    if (sortColumnHistorique !== column) {
+      return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
+    }
+    return sortDirectionHistorique === "asc" 
+      ? <ArrowUp className="h-3 w-3 ml-1" />
+      : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
+
+  // Gestion du tri pour l'historique
+  const handleSortHistorique = (column: typeof sortColumnHistorique) => {
+    if (sortColumnHistorique === column) {
+      setSortDirectionHistorique(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumnHistorique(column);
+      setSortDirectionHistorique("asc");
+    }
+    setCurrentPageHistorique(1);
+  };
+
+  // Fonction pour obtenir les rapprochements filtrés et triés d'un fichier historique
+  const getFilteredHistoriqueRapprochements = (rapprochementsList: Rapprochement[]) => {
+    // Filtre par statut
+    let filtered = rapprochementsList.filter(r => 
+      statusFilter === "all" || r.status === statusFilter
+    );
+    
+    // Filtre par type partenaire
+    if (typePartenaireFilterHistorique !== "all") {
+      filtered = filtered.filter(r => {
+        const type = getPartenaireType(r);
+        return type === typePartenaireFilterHistorique;
+      });
+    }
+    
+    // Filtre par recherche
+    if (searchTermHistorique.trim()) {
+      const searchLower = searchTermHistorique.toLowerCase();
+      filtered = filtered.filter(r => {
+        const libelleMatch = r.transaction.libelle.toLowerCase().includes(searchLower);
+        const partenaireMatch = getPartenaireName(r).includes(searchLower);
+        return libelleMatch || partenaireMatch;
+      });
+    }
+    
+    // Tri
+    if (sortColumnHistorique) {
+      filtered = [...filtered].sort((a, b) => {
+        let comparison = 0;
+        
+        switch (sortColumnHistorique) {
+          case "date":
+            comparison = new Date(a.transaction.date).getTime() - new Date(b.transaction.date).getTime();
+            break;
+          case "libelle":
+            comparison = a.transaction.libelle.localeCompare(b.transaction.libelle);
+            break;
+          case "debit":
+            comparison = (a.transaction.debit || 0) - (b.transaction.debit || 0);
+            break;
+          case "credit":
+            comparison = (a.transaction.credit || 0) - (b.transaction.credit || 0);
+            break;
+          case "partenaire":
+            comparison = getPartenaireName(a).localeCompare(getPartenaireName(b));
+            break;
+          case "typePartenaire":
+            comparison = getPartenaireType(a).localeCompare(getPartenaireType(b));
+            break;
+          case "score":
+            comparison = a.score - b.score;
+            break;
+        }
+        
+        return sortDirectionHistorique === "asc" ? comparison : -comparison;
+      });
+    }
+    
+    return filtered;
+  };
+
+  // Liste des types de partenaires disponibles pour l'historique
+  const typesPartenaireHistoriqueDisponibles = useMemo(() => {
+    const types = new Set<string>();
+    fichiersRapprochement.forEach(fichier => {
+      fichier.rapprochements?.forEach(r => {
+        const type = getPartenaireType(r);
+        if (type) types.add(type);
+      });
+    });
+    return Array.from(types).sort();
+  }, [fichiersRapprochement]);
+
   // Statistiques par statut
   const stats = {
     all: rapprochements.length,
@@ -4910,71 +5013,274 @@ export default function RapprochementBancaire() {
                         </div>
 
                         {/* Détails du rapprochement */}
-                        {selectedFichier?.id === fichier.id && fichier.rapprochements && (
+                        {selectedFichier?.id === fichier.id && fichier.rapprochements && (() => {
+                          const filteredRappros = getFilteredHistoriqueRapprochements(fichier.rapprochements);
+                          const totalPagesHist = Math.ceil(filteredRappros.length / itemsPerPageHistorique);
+                          const startIndexHist = (currentPageHistorique - 1) * itemsPerPageHistorique;
+                          const endIndexHist = startIndexHist + itemsPerPageHistorique;
+                          const currentRapprosHist = filteredRappros.slice(startIndexHist, endIndexHist);
+                          
+                          return (
                           <div className="mt-6 pt-6 border-t">
-                            <div className="mb-4 flex items-center justify-between">
-                              <h4 className="font-semibold">Détails des transactions</h4>
-                              <div className="flex items-center gap-2">
-                                <Select
-                                  value={statusFilter}
-                                  onValueChange={(v) => setStatusFilter(v as any)}
-                                >
-                                  <SelectTrigger className="w-[180px] h-9">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="all">Toutes</SelectItem>
-                                    <SelectItem value="matched">Rapprochées</SelectItem>
-                                    <SelectItem value="uncertain">Incertaines</SelectItem>
-                                    <SelectItem value="unmatched">Non rapprochées</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                {hasHistoriqueChanges(fichier.id) && (
-                                  <Button
-                                    size="sm"
-                                    onClick={handleSaveHistoriqueChanges}
-                                    disabled={savingHistorique}
+                            {/* Zone de recherche */}
+                            <div className="mb-4 space-y-4">
+                              <div className="flex items-center gap-4">
+                                <div className="relative flex-1 max-w-md">
+                                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                  <Input
+                                    type="text"
+                                    placeholder="Rechercher par libellé ou partenaire..."
+                                    value={searchTermHistorique}
+                                    onChange={(e) => {
+                                      setSearchTermHistorique(e.target.value);
+                                      setCurrentPageHistorique(1);
+                                    }}
+                                    className="pl-9"
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </div>
+                                {searchTermHistorique && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={(e) => { e.stopPropagation(); setSearchTermHistorique(""); }}
                                   >
-                                    <Check className="h-4 w-4 mr-2" />
-                                    {savingHistorique ? "Enregistrement..." : "Enregistrer"}
+                                    Effacer
                                   </Button>
                                 )}
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAnnulerFichierComplet(fichier.id);
-                                  }}
-                                  disabled={loading}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Annuler le rapprochement
-                                </Button>
+                              </div>
+
+                              {/* Filtres */}
+                              <div className="flex items-center justify-between flex-wrap gap-4">
+                                <div className="flex items-center gap-4 flex-wrap">
+                                  {/* Filtre par statut */}
+                                  <div className="flex items-center gap-2">
+                                    <Filter className="w-4 h-4 text-muted-foreground" />
+                                    <Select
+                                      value={statusFilter}
+                                      onValueChange={(v) => { setStatusFilter(v as any); setCurrentPageHistorique(1); }}
+                                    >
+                                      <SelectTrigger className="w-[180px] h-9" onClick={(e) => e.stopPropagation()}>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="all">Toutes</SelectItem>
+                                        <SelectItem value="matched">Rapprochées</SelectItem>
+                                        <SelectItem value="uncertain">Incertaines</SelectItem>
+                                        <SelectItem value="unmatched">Non rapprochées</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  
+                                  {/* Filtre par type partenaire */}
+                                  <div className="flex items-center gap-2">
+                                    <Users className="w-4 h-4 text-muted-foreground" />
+                                    <Select 
+                                      value={typePartenaireFilterHistorique} 
+                                      onValueChange={(v) => { setTypePartenaireFilterHistorique(v); setCurrentPageHistorique(1); }}
+                                    >
+                                      <SelectTrigger className="w-[220px] h-9" onClick={(e) => e.stopPropagation()}>
+                                        <SelectValue placeholder="Tous les types" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="all">Tous les types</SelectItem>
+                                        {typesPartenaireHistoriqueDisponibles.map((type) => (
+                                          <SelectItem key={type} value={type}>{type}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    {typePartenaireFilterHistorique !== "all" && (
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        onClick={(e) => { e.stopPropagation(); setTypePartenaireFilterHistorique("all"); }}
+                                      >
+                                        Effacer
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                {/* Actions */}
+                                <div className="flex items-center gap-2">
+                                  {hasHistoriqueChanges(fichier.id) && (
+                                    <Button
+                                      size="sm"
+                                      onClick={(e) => { e.stopPropagation(); handleSaveHistoriqueChanges(); }}
+                                      disabled={savingHistorique}
+                                    >
+                                      <Check className="h-4 w-4 mr-2" />
+                                      {savingHistorique ? "Enregistrement..." : "Enregistrer"}
+                                    </Button>
+                                  )}
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAnnulerFichierComplet(fichier.id);
+                                    }}
+                                    disabled={loading}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Annuler le rapprochement
+                                  </Button>
+                                </div>
+                              </div>
+                              
+                              {/* Info résultats et pagination */}
+                              <div className="flex items-center justify-between">
+                                <div className="text-sm text-muted-foreground">
+                                  Affichage de {startIndexHist + 1} à {Math.min(endIndexHist, filteredRappros.length)} sur {filteredRappros.length} transaction(s)
+                                  {(statusFilter !== "all" || searchTermHistorique || typePartenaireFilterHistorique !== "all") && ` (${fichier.rapprochements.length} au total)`}
+                                  {searchTermHistorique && ` - Recherche: "${searchTermHistorique}"`}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Select
+                                    value={itemsPerPageHistorique.toString()}
+                                    onValueChange={(value) => {
+                                      setItemsPerPageHistorique(parseInt(value));
+                                      setCurrentPageHistorique(1);
+                                    }}
+                                  >
+                                    <SelectTrigger className="w-[130px] h-8" onClick={(e) => e.stopPropagation()}>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="10">10 par page</SelectItem>
+                                      <SelectItem value="20">20 par page</SelectItem>
+                                      <SelectItem value="50">50 par page</SelectItem>
+                                      <SelectItem value="100">100 par page</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={(e) => { e.stopPropagation(); setCurrentPageHistorique(1); }}
+                                      disabled={currentPageHistorique === 1}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <ChevronsLeft className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={(e) => { e.stopPropagation(); setCurrentPageHistorique(prev => Math.max(1, prev - 1)); }}
+                                      disabled={currentPageHistorique === 1}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <span className="text-sm px-2">
+                                      Page {currentPageHistorique} / {totalPagesHist || 1}
+                                    </span>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={(e) => { e.stopPropagation(); setCurrentPageHistorique(prev => Math.min(totalPagesHist, prev + 1)); }}
+                                      disabled={currentPageHistorique >= totalPagesHist}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={(e) => { e.stopPropagation(); setCurrentPageHistorique(totalPagesHist); }}
+                                      disabled={currentPageHistorique >= totalPagesHist}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <ChevronsRight className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                            <div className="rounded-md border overflow-auto" style={{ maxHeight: 'calc(100vh - 520px)', minHeight: '600px' }}>
+                            
+                            <div className="rounded-md border overflow-auto" style={{ maxHeight: 'calc(100vh - 620px)', minHeight: '500px' }}>
                               <table className="w-full border-collapse">
                                 <thead className="bg-muted sticky top-0 z-10">
                                   <tr className="border-b">
                                     <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '60px' }}>Statut</th>
                                     <th className="h-12 px-2 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ width: '80px' }}>Type</th>
                                     <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '140px' }}>N° Ligne</th>
-                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '90px' }}>Date</th>
-                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '18%' }}>Libellé</th>
-                                    <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Débit</th>
-                                    <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Crédit</th>
+                                    <th 
+                                      className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
+                                      style={{ width: '90px' }}
+                                      onClick={(e) => { e.stopPropagation(); handleSortHistorique("date"); }}
+                                    >
+                                      <div className="flex items-center">
+                                        Date
+                                        <SortIconHistorique column="date" />
+                                      </div>
+                                    </th>
+                                    <th 
+                                      className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
+                                      style={{ width: '18%' }}
+                                      onClick={(e) => { e.stopPropagation(); handleSortHistorique("libelle"); }}
+                                    >
+                                      <div className="flex items-center">
+                                        Libellé
+                                        <SortIconHistorique column="libelle" />
+                                      </div>
+                                    </th>
+                                    <th 
+                                      className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
+                                      style={{ width: '100px' }}
+                                      onClick={(e) => { e.stopPropagation(); handleSortHistorique("debit"); }}
+                                    >
+                                      <div className="flex items-center justify-end">
+                                        Débit
+                                        <SortIconHistorique column="debit" />
+                                      </div>
+                                    </th>
+                                    <th 
+                                      className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
+                                      style={{ width: '100px' }}
+                                      onClick={(e) => { e.stopPropagation(); handleSortHistorique("credit"); }}
+                                    >
+                                      <div className="flex items-center justify-end">
+                                        Crédit
+                                        <SortIconHistorique column="credit" />
+                                      </div>
+                                    </th>
                                     <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '10%' }}>Facture</th>
-                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '12%' }}>Partenaire</th>
-                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '90px' }}>Type Part.</th>
-                                    <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '70px' }}>Score</th>
+                                    <th 
+                                      className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
+                                      style={{ width: '12%' }}
+                                      onClick={(e) => { e.stopPropagation(); handleSortHistorique("partenaire"); }}
+                                    >
+                                      <div className="flex items-center">
+                                        Partenaire
+                                        <SortIconHistorique column="partenaire" />
+                                      </div>
+                                    </th>
+                                    <th 
+                                      className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
+                                      style={{ width: '90px' }}
+                                      onClick={(e) => { e.stopPropagation(); handleSortHistorique("typePartenaire"); }}
+                                    >
+                                      <div className="flex items-center">
+                                        Type Part.
+                                        <SortIconHistorique column="typePartenaire" />
+                                      </div>
+                                    </th>
+                                    <th 
+                                      className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted cursor-pointer hover:bg-muted/80 select-none" 
+                                      style={{ width: '70px' }}
+                                      onClick={(e) => { e.stopPropagation(); handleSortHistorique("score"); }}
+                                    >
+                                      <div className="flex items-center justify-end">
+                                        Score
+                                        <SortIconHistorique column="score" />
+                                      </div>
+                                    </th>
                                     <th className="h-12 px-2 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ width: '90px' }}>Actions</th>
                                   </tr>
                                 </thead>
                                 <tbody>
-                                   {fichier.rapprochements
-                                    .filter(r => statusFilter === "all" || r.status === statusFilter)
-                                    .map((rapprochement, index) => (
+                                   {currentRapprosHist.map((rapprochement, index) => (
                                       <tr 
                                         key={index}
                                         className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
@@ -5194,7 +5500,8 @@ export default function RapprochementBancaire() {
                               </table>
                             </div>
                           </div>
-                        )}
+                          );
+                        })()}
                       </CardContent>
                     </Card>
                   ))}
