@@ -8,44 +8,35 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { Receipt, RefreshCcw } from "lucide-react";
+import { Receipt, RefreshCcw, Save, CheckCircle } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 
-interface RapprochementLigne {
+type TypeOperation = 'VENTES' | 'ACHAT_GENERAUX' | 'ACHAT_SERVICES' | 'ABONNEMENT' | 'CHARGES_SOCIALES';
+
+interface TvaMensuelDetail {
   id: string;
-  transaction_date: string;
-  transaction_libelle: string;
-  transaction_montant: number;
-  transaction_credit: number;
-  transaction_debit: number;
-  statut: string;
-  facture?: {
-    numero_facture: string;
-    total_tva: number;
-    type_facture: string;
-    activite?: string;
-    type_frais?: string;
-    type_fournisseur?: string;
-    emetteur_nom?: string;
-  };
-  factures?: {
-    numero_facture: string;
-    total_tva: number;
-    type_facture: string;
-    activite?: string;
-    type_frais?: string;
-    type_fournisseur?: string;
-    emetteur_nom?: string;
-  }[];
-  total_tva?: number;
-  manualId?: string;
-  abonnementId?: string;
-  declarationId?: string;
-  notes?: string;
-  abonnement_type?: string;
-  abonnement_nom?: string;
-  declaration_organisme?: string;
+  ligne_rapprochement_id?: string;
+  date_operation: string;
+  libelle: string;
+  numero_facture?: string;
+  type_operation: TypeOperation;
+  type_partenaire?: string;
+  partenaire_nom?: string;
+  montant_ht: number;
+  tva_deductible: number;
+  tva_collectee: number;
+}
+
+interface TvaMensuelEntete {
+  id: string;
+  annee: number;
+  mois: number;
+  tva_collectee: number;
+  tva_deductible: number;
+  tva_a_payer: number;
+  statut: 'BROUILLON' | 'VALIDE';
+  date_validation?: string;
 }
 
 interface PeriodeStat {
@@ -58,12 +49,15 @@ export default function TvaMensuel() {
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [availablePeriods, setAvailablePeriods] = useState<{ month: string; year: string }[]>([]);
-  const [lignes, setLignes] = useState<RapprochementLigne[]>([]);
+  const [lignes, setLignes] = useState<TvaMensuelDetail[]>([]);
   const [stats, setStats] = useState<PeriodeStat>({ tva_collectee: 0, tva_deductible: 0, tva_a_payer: 0 });
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
   const [filterStatut, setFilterStatut] = useState<string>("all");
   const [filterTypeTva, setFilterTypeTva] = useState<string>("all");
+  const [entete, setEntete] = useState<TvaMensuelEntete | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const { toast } = useToast();
 
   const toggleLineSelection = (lineId: string) => {
@@ -86,7 +80,7 @@ export default function TvaMensuel() {
     }
   };
 
-  const columns: ColumnDef<RapprochementLigne>[] = [
+  const columns: ColumnDef<TvaMensuelDetail>[] = [
     {
       id: "select",
       header: ({ table }) => (
@@ -104,246 +98,92 @@ export default function TvaMensuel() {
       enableSorting: false,
     },
     {
-      accessorKey: "transaction_date",
+      accessorKey: "date_operation",
       header: "Date",
       cell: ({ row }) => 
-        row.original.transaction_date 
-          ? format(new Date(row.original.transaction_date), "dd/MM/yyyy", { locale: fr })
+        row.original.date_operation 
+          ? format(new Date(row.original.date_operation), "dd/MM/yyyy", { locale: fr })
           : "",
       sortingFn: (rowA, rowB) => {
-        const dateA = new Date(rowA.original.transaction_date);
-        const dateB = new Date(rowB.original.transaction_date);
+        const dateA = new Date(rowA.original.date_operation);
+        const dateB = new Date(rowB.original.date_operation);
         return dateA.getTime() - dateB.getTime();
       },
       enableSorting: true,
     },
     {
-      accessorKey: "transaction_libelle",
+      accessorKey: "libelle",
       header: "Libellé",
       enableSorting: true,
     },
     {
-      accessorKey: "transaction_montant",
-      header: "Montant",
+      accessorKey: "numero_facture",
+      header: "Facture",
+      cell: ({ row }) => row.original.numero_facture || "—",
+      enableSorting: true,
+    },
+    {
+      accessorKey: "type_operation",
+      header: "Type",
+      cell: ({ row }) => {
+        const typeLabels: Record<TypeOperation, string> = {
+          'VENTES': 'Vente',
+          'ACHAT_GENERAUX': 'Achat Généraux',
+          'ACHAT_SERVICES': 'Achat Services',
+          'ABONNEMENT': 'Abonnement',
+          'CHARGES_SOCIALES': 'Charges Sociales',
+        };
+        return typeLabels[row.original.type_operation] || row.original.type_operation;
+      },
+      enableSorting: true,
+    },
+    {
+      accessorKey: "type_partenaire",
+      header: "Type Partenaire",
+      cell: ({ row }) => row.original.type_partenaire || "—",
+      enableSorting: true,
+    },
+    {
+      accessorKey: "partenaire_nom",
+      header: "Partenaire",
+      cell: ({ row }) => row.original.partenaire_nom || "—",
+      enableSorting: true,
+    },
+    {
+      accessorKey: "montant_ht",
+      header: "HT",
       cell: ({ row }) => 
         new Intl.NumberFormat("fr-FR", {
           style: "currency",
           currency: "EUR",
-        }).format(row.original.transaction_montant),
-      sortingFn: (rowA, rowB) => {
-        return rowA.original.transaction_montant - rowB.original.transaction_montant;
-      },
+        }).format(row.original.montant_ht),
+      sortingFn: (rowA, rowB) => rowA.original.montant_ht - rowB.original.montant_ht,
       enableSorting: true,
     },
     {
-      accessorKey: "statut",
-      header: "Statut",
-      cell: ({ row }) => (
-        <Badge variant={row.original.statut === "RAPPROCHE" ? "default" : "outline"}>
-          {row.original.statut === "RAPPROCHE" ? "Rapprochée" : "Non rapprochée"}
-        </Badge>
-      ),
-      sortingFn: (rowA, rowB) => {
-        const statusOrder = { "RAPPROCHE": 1, "NON_RAPPROCHE": 0 };
-        return (statusOrder[rowA.original.statut as keyof typeof statusOrder] || 0) - 
-               (statusOrder[rowB.original.statut as keyof typeof statusOrder] || 0);
-      },
-      enableSorting: true,
-    },
-    {
-      id: "facture",
-      header: "Facture",
-      cell: ({ row }) => {
-        // Si c'est un abonnement, afficher le nom
-        if (row.original.abonnementId) {
-          return row.original.abonnement_nom || "Abonnement";
-        }
-        // Si c'est une déclaration de charges
-        if (row.original.declarationId) {
-          return "Déclaration";
-        }
-        // Si c'est une ou plusieurs factures
-        if (row.original.factures && row.original.factures.length > 0) {
-          return row.original.factures.map(f => f.numero_facture).join(", ");
-        }
-        if (row.original.facture?.numero_facture) {
-          return row.original.facture.numero_facture;
-        }
-        // Par défaut pour les lignes non rapprochées: facDefaut
-        if (row.original.statut !== "RAPPROCHE") {
-          return "facDefaut";
-        }
-        return "—";
-      },
-      enableSorting: false,
-    },
-    {
-      id: "type",
-      header: "Type",
-      cell: ({ row }) => {
-        // Si c'est un abonnement
-        if (row.original.abonnementId) {
-          return "Abonnement";
-        }
-        // Si c'est une déclaration de charges
-        if (row.original.declarationId) {
-          return "Déclaration";
-        }
-        // Si c'est une ou plusieurs factures
-        if (row.original.factures && row.original.factures.length > 0) {
-          return row.original.factures[0].type_facture === "VENTES" ? "Vente" : "Achat";
-        }
-        if (row.original.facture) {
-          return row.original.facture.type_facture === "VENTES" ? "Vente" 
-            : row.original.facture.type_facture === "ACHATS" ? "Achat" : "—";
-        }
-        // Par défaut pour les lignes non rapprochées: Achat
-        if (row.original.statut !== "RAPPROCHE") {
-          return "Achat";
-        }
-        return "—";
-      },
-      sortingFn: (rowA, rowB) => {
-        const getType = (row: any) => {
-          if (row.original.abonnementId) return "Abonnement";
-          if (row.original.declarationId) return "Déclaration";
-          if (row.original.factures && row.original.factures.length > 0) {
-            return row.original.factures[0].type_facture;
-          }
-          if (row.original.facture?.type_facture) return row.original.facture.type_facture;
-          if (row.original.statut !== "RAPPROCHE") return "ACHATS";
-          return "";
-        };
-        return getType(rowA).localeCompare(getType(rowB));
-      },
-      enableSorting: true,
-    },
-    {
-      id: "activite",
-      header: "Activité",
-      cell: ({ row }) => {
-        // Si c'est un abonnement, on affiche le type d'abonnement
-        if (row.original.abonnementId) {
-          return row.original.abonnement_type || "—";
-        }
-        // Si c'est une déclaration de charges, on affiche l'organisme
-        if (row.original.declarationId) {
-          return row.original.declaration_organisme || "—";
-        }
-        // Si c'est une ou plusieurs factures
-        if (row.original.factures && row.original.factures.length > 0) {
-          const firstFacture = row.original.factures[0];
-          // Pour les ventes: on utilise activite
-          if (firstFacture.type_facture === "VENTES") {
-            return firstFacture.activite || "—";
-          }
-          // Pour les achats: on utilise type_fournisseur (Généraux/Services)
-          if (firstFacture.type_facture === "ACHATS") {
-            return firstFacture.type_fournisseur || "—";
-          }
-        }
-        if (row.original.facture) {
-          if (row.original.facture.type_facture === "VENTES") {
-            return row.original.facture.activite || "—";
-          }
-          if (row.original.facture.type_facture === "ACHATS") {
-            return row.original.facture.type_fournisseur || "—";
-          }
-        }
-        // Par défaut pour les lignes non rapprochées: Généraux
-        if (row.original.statut !== "RAPPROCHE") {
-          return "Généraux";
-        }
-        return "—";
-      },
-      sortingFn: (rowA, rowB) => {
-        const getActivite = (row: any) => {
-          if (row.original.abonnementId) return row.original.abonnement_type || "";
-          if (row.original.declarationId) return row.original.declaration_organisme || "";
-          if (row.original.factures && row.original.factures.length > 0) {
-            const f = row.original.factures[0];
-            return f.type_facture === "VENTES" ? (f.activite || "") : (f.type_fournisseur || "");
-          }
-          if (row.original.facture) {
-            const f = row.original.facture;
-            return f.type_facture === "VENTES" ? (f.activite || "") : (f.type_fournisseur || "");
-          }
-          if (row.original.statut !== "RAPPROCHE") return "Généraux";
-          return "";
-        };
-        return getActivite(rowA).localeCompare(getActivite(rowB));
-      },
-      enableSorting: true,
-    },
-    {
-      id: "total_tva",
-      header: "TVA",
-      cell: ({ row }) => {
-        // Pas de TVA pour les abonnements et déclarations
-        if (row.original.abonnementId || row.original.declarationId) {
-          return "—";
-        }
-        // TVA pour les factures
-        const tva = row.original.total_tva ?? row.original.facture?.total_tva;
-        return tva !== undefined
+      accessorKey: "tva_deductible",
+      header: "TVA Déductible",
+      cell: ({ row }) => 
+        row.original.tva_deductible > 0
           ? new Intl.NumberFormat("fr-FR", {
               style: "currency",
               currency: "EUR",
-            }).format(tva)
-          : "—";
-      },
-      sortingFn: (rowA, rowB) => {
-        // Pas de TVA pour abonnements et déclarations
-        const tvaA = (rowA.original.abonnementId || rowA.original.declarationId) 
-          ? 0 
-          : (rowA.original.total_tva ?? rowA.original.facture?.total_tva ?? 0);
-        const tvaB = (rowB.original.abonnementId || rowB.original.declarationId) 
-          ? 0 
-          : (rowB.original.total_tva ?? rowB.original.facture?.total_tva ?? 0);
-        return tvaA - tvaB;
-      },
+            }).format(row.original.tva_deductible)
+          : "—",
+      sortingFn: (rowA, rowB) => rowA.original.tva_deductible - rowB.original.tva_deductible,
       enableSorting: true,
     },
     {
-      id: "type_tva",
-      header: "Type TVA",
-      cell: ({ row }) => {
-        // Pas de TVA pour les abonnements et déclarations
-        if (row.original.abonnementId || row.original.declarationId) {
-          return "—";
-        }
-        // Déterminer le type TVA selon le type de facture
-        if (row.original.factures && row.original.factures.length > 0) {
-          const typeTva = row.original.factures[0].type_facture === "VENTES" ? "Collectée" : "Déductible";
-          return (
-            <Badge variant={typeTva === "Collectée" ? "default" : "secondary"}>
-              {typeTva}
-            </Badge>
-          );
-        }
-        if (row.original.facture) {
-          const typeTva = row.original.facture.type_facture === "VENTES" ? "Collectée" : "Déductible";
-          return (
-            <Badge variant={typeTva === "Collectée" ? "default" : "secondary"}>
-              {typeTva}
-            </Badge>
-          );
-        }
-        return "—";
-      },
-      sortingFn: (rowA, rowB) => {
-        const getTypeTva = (row: any) => {
-          if (row.original.abonnementId || row.original.declarationId) return "";
-          if (row.original.factures && row.original.factures.length > 0) {
-            return row.original.factures[0].type_facture === "VENTES" ? "Collectée" : "Déductible";
-          }
-          if (row.original.facture) {
-            return row.original.facture.type_facture === "VENTES" ? "Collectée" : "Déductible";
-          }
-          return "";
-        };
-        return getTypeTva(rowA).localeCompare(getTypeTva(rowB));
-      },
+      accessorKey: "tva_collectee",
+      header: "TVA Collectée",
+      cell: ({ row }) => 
+        row.original.tva_collectee > 0
+          ? new Intl.NumberFormat("fr-FR", {
+              style: "currency",
+              currency: "EUR",
+            }).format(row.original.tva_collectee)
+          : "—",
+      sortingFn: (rowA, rowB) => rowA.original.tva_collectee - rowB.original.tva_collectee,
       enableSorting: true,
     },
   ];
@@ -402,16 +242,100 @@ export default function TvaMensuel() {
     try {
       const year = parseInt(selectedYear);
       const month = parseInt(selectedMonth);
+
+      // 1. Vérifier si l'entête existe déjà
+      const { data: existingEntete, error: enteteError } = await supabase
+        .from("tva_mensuel_entete")
+        .select("*")
+        .eq("annee", year)
+        .eq("mois", month)
+        .maybeSingle();
+
+      if (enteteError) throw enteteError;
+
+      if (existingEntete) {
+        // Charger depuis les tables TVA
+        setEntete(existingEntete as TvaMensuelEntete);
+        
+        const { data: details, error: detailsError } = await supabase
+          .from("tva_mensuel_detail")
+          .select("*")
+          .eq("entete_id", existingEntete.id)
+          .order("date_operation", { ascending: true });
+
+        if (detailsError) throw detailsError;
+
+        setLignes(details as TvaMensuelDetail[] || []);
+        setStats({
+          tva_collectee: existingEntete.tva_collectee,
+          tva_deductible: existingEntete.tva_deductible,
+          tva_a_payer: existingEntete.tva_a_payer,
+        });
+        setHasUnsavedChanges(false);
+      } else {
+        // Pas de données sauvegardées, charger depuis lignes_rapprochement
+        setEntete(null);
+        await recalculerTVAFromLignesRapprochement();
+      }
+    } catch (error: any) {
+      console.error("Erreur chargement TVA:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les données TVA",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getMonthName = (month: string) => {
+    const date = new Date(2024, parseInt(month) - 1, 1);
+    return format(date, "MMMM", { locale: fr });
+  };
+
+  const determineTypeOperation = (ligne: any, facture: any): TypeOperation => {
+    // Si c'est un abonnement
+    if (ligne.abonnement_id) {
+      return 'ABONNEMENT';
+    }
+    
+    // Si c'est une déclaration de charges sociales
+    if (ligne.declaration_charge_id) {
+      return 'CHARGES_SOCIALES';
+    }
+    
+    // Si c'est une facture
+    if (facture) {
+      if (facture.type_facture === 'VENTES') {
+        return 'VENTES';
+      }
+      // Pour les achats, déterminer si c'est généraux ou services
+      if (facture.type_fournisseur === 'Services' || facture.type_fournisseur === 'SERVICES') {
+        return 'ACHAT_SERVICES';
+      }
+      return 'ACHAT_GENERAUX';
+    }
+    
+    // Par défaut pour les lignes sans association (débits = achats généraux)
+    if (ligne.transaction_debit > 0) {
+      return 'ACHAT_GENERAUX';
+    }
+    
+    return 'VENTES';
+  };
+
+  const recalculerTVAFromLignesRapprochement = async () => {
+    setIsRecalculating(true);
+    try {
+      const year = parseInt(selectedYear);
+      const month = parseInt(selectedMonth);
       const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
       const lastDay = new Date(year, month, 0).getDate();
       const endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
 
-      console.log("Chargement TVA pour période:", startDate, "->", endDate);
-
-      // 1. Charger le fichier de rapprochement validé pour cette période
-      const { data: fichiers, error: fichierError } = await supabase
+      // Charger le fichier de rapprochement validé
+      const { data: fichier, error: fichierError } = await supabase
         .from("fichiers_rapprochement")
-        .select("*")
+        .select("id")
         .eq("statut", "VALIDE")
         .gte("date_debut", startDate)
         .lte("date_fin", endDate)
@@ -419,37 +343,52 @@ export default function TvaMensuel() {
         .limit(1)
         .maybeSingle();
 
-      if (fichierError) {
-        console.error("Erreur chargement fichier:", fichierError);
-        throw fichierError;
-      }
+      if (fichierError) throw fichierError;
 
-      if (!fichiers) {
-        console.log("Aucun fichier de rapprochement validé trouvé pour cette période");
+      if (!fichier) {
         setLignes([]);
         setStats({ tva_collectee: 0, tva_deductible: 0, tva_a_payer: 0 });
+        setHasUnsavedChanges(false);
         return;
       }
 
-      // 2. Charger les référentiels nécessaires (abonnements, déclarations, fournisseurs)
-      const { data: abonnementsData } = await supabase
-        .from("abonnements_partenaires")
-        .select("id, type, nom");
+      // Charger les lignes de rapprochement avec leurs associations
+      const { data: lignesRapprochement, error: lignesError } = await supabase
+        .from("lignes_rapprochement")
+        .select(`
+          *,
+          abonnements_partenaires (id, nom, type),
+          declarations_charges_sociales (id, nom, organisme)
+        `)
+        .eq("fichier_rapprochement_id", fichier.id)
+        .order("transaction_date", { ascending: true });
 
-      const abonnementsMap = new Map<string, any>();
-      abonnementsData?.forEach(a => abonnementsMap.set(a.id, a));
+      if (lignesError) throw lignesError;
 
-      const { data: declarationsData } = await supabase
-        .from("declarations_charges_sociales")
-        .select("id, organisme, nom");
+      // Collecter tous les IDs de factures
+      const factureIds = new Set<string>();
+      lignesRapprochement?.forEach((ligne: any) => {
+        if (ligne.facture_id) factureIds.add(ligne.facture_id);
+        if (Array.isArray(ligne.factures_ids)) {
+          ligne.factures_ids.forEach((id: string) => factureIds.add(id));
+        }
+      });
 
-      const declarationsMap = new Map<string, any>();
-      declarationsData?.forEach(d => declarationsMap.set(d.id, d));
+      // Charger les factures
+      let facturesMap = new Map<string, any>();
+      if (factureIds.size > 0) {
+        const { data: factures } = await supabase
+          .from("factures")
+          .select("id, numero_facture, type_facture, total_tva, total_ht, total_ttc, emetteur_nom, destinataire_nom")
+          .in("id", Array.from(factureIds));
+        
+        factures?.forEach(f => facturesMap.set(f.id, f));
+      }
 
+      // Charger les types de fournisseurs
       const { data: fournisseursServices } = await supabase
         .from("fournisseurs_services")
         .select("raison_sociale");
-
       const { data: fournisseursGeneraux } = await supabase
         .from("fournisseurs_generaux")
         .select("raison_sociale");
@@ -466,207 +405,74 @@ export default function TvaMensuel() {
         }
       });
 
-      // ⭐ Charger les lignes depuis lignes_rapprochement (source de vérité)
-      const { data: lignesRapprochement, error: lignesError } = await supabase
-        .from("lignes_rapprochement")
-        .select(`
-          *,
-          abonnements_partenaires (id, nom, montant_mensuel, type),
-          declarations_charges_sociales (id, nom, organisme)
-        `)
-        .eq("fichier_rapprochement_id", fichiers.id)
-        .order("transaction_date", { ascending: true });
-
-      if (lignesError) {
-        console.error("Erreur chargement lignes_rapprochement:", lignesError);
-        throw lignesError;
-      }
-
-      console.log("📦 Lignes depuis lignes_rapprochement:", lignesRapprochement?.length || 0);
-
-      // Convertir les lignes en format rapprochement
-      // IMPORTANT: on ne complète plus via rapprochements_factures ici, car ça peut sur-compter
-      // si des liaisons historiques existent. La TVA mensuelle se base sur les associations
-      // présentes sur lignes_rapprochement (facture_id / factures_ids).
-      const rapprochementsReconstruits: any[] = (lignesRapprochement || []).map((ligne: any) => {
-        const rapprochement: any = {
-          transaction: {
-            date: ligne.transaction_date,
-            libelle: ligne.transaction_libelle,
-            debit: ligne.transaction_debit || 0,
-            credit: ligne.transaction_credit || 0,
-            montant: ligne.transaction_montant || 0,
-            numero_ligne: ligne.numero_ligne,
-          },
-          facture: ligne.facture_id ? { id: ligne.facture_id, numero_facture: ligne.numero_facture || "" } : null,
-          factureIds: Array.isArray(ligne.factures_ids) ? ligne.factures_ids : [],
-          score: ligne.score_detection || 0,
-          status: ligne.statut || "unmatched",
-          isManual: ligne.statut === "matched",
-          notes: ligne.notes,
-          abonnement_info: ligne.abonnements_partenaires
-            ? {
-                id: ligne.abonnements_partenaires.id,
-                nom: ligne.abonnements_partenaires.nom,
-                type: ligne.abonnements_partenaires.type,
-              }
-            : undefined,
-          declaration_info: ligne.declarations_charges_sociales
-            ? {
-                id: ligne.declarations_charges_sociales.id,
-                nom: ligne.declarations_charges_sociales.nom,
-                organisme: ligne.declarations_charges_sociales.organisme,
-              }
-            : undefined,
-        };
-
-        return rapprochement;
-      });
-
-      const tousLesRapprochements = rapprochementsReconstruits;
-      
-      console.log("📦 Total rapprochements:", tousLesRapprochements.length);
-      console.log("📊 Répartition par statut:");
-      console.log("  - Matched:", tousLesRapprochements.filter(r => r.status === "matched").length);
-      console.log("  - Uncertain:", tousLesRapprochements.filter(r => r.status === "uncertain").length);
-      console.log("  - Unmatched:", tousLesRapprochements.filter(r => r.status === "unmatched").length);
-
-      if (tousLesRapprochements.length === 0) {
-        console.log("⚠️ Aucun rapprochement trouvé dans le fichier");
-        setLignes([]);
-        setStats({ tva_collectee: 0, tva_deductible: 0, tva_a_payer: 0 });
-        return;
-      }
-
-      // 3. Récupérer tous les IDs de factures depuis les rapprochements matched
-      const factureIds = new Set<string>();
-      tousLesRapprochements.forEach((rapp: any) => {
-        if (rapp.status === 'matched') {
-          if (rapp.facture?.id) {
-            factureIds.add(rapp.facture.id);
-          }
-          if (rapp.factureIds && Array.isArray(rapp.factureIds)) {
-            rapp.factureIds.forEach((id: string) => factureIds.add(id));
-          }
-        }
-      });
-
-      console.log("📋 Total factures uniques trouvées:", factureIds.size);
-
-      // 4. Charger toutes les factures nécessaires
-      let facturesMap = new Map<string, any>();
-      
-      if (factureIds.size > 0) {
-        const { data: factures, error: facturesError } = await supabase
-          .from("factures")
-          .select("id, numero_facture, type_facture, total_tva, total_ttc, statut, date_emission, activite, type_frais, emetteur_nom")
-          .in("id", Array.from(factureIds));
-
-        if (facturesError) {
-          console.error("❌ Erreur chargement factures:", facturesError);
-        } else if (factures) {
-          console.log("✅ Factures chargées:", factures.length);
-          factures.forEach(f => facturesMap.set(f.id, f));
-        }
-      }
-
-      // 5. Créer les lignes TVA à partir de TOUS les rapprochements
-      const nouvLignes: RapprochementLigne[] = [];
+      // Construire les lignes TVA
+      const nouvLignes: TvaMensuelDetail[] = [];
       let totalTvaCollectee = 0;
       let totalTvaDeductible = 0;
-      let countRapprochees = 0;
 
-      tousLesRapprochements.forEach((rapp: any, index: number) => {
-        // ⭐ Compter les lignes RAPPROCHE comme rapprochées
-        const estRapproche = rapp.status === 'matched' || rapp.status === 'RAPPROCHE';
-        if (estRapproche) {
-          countRapprochees++;
-        }
-
-        // Récupérer les factures depuis le rapprochement
-        let facturesData: any[] = [];
+      lignesRapprochement?.forEach((ligne: any, index: number) => {
+        // Récupérer la facture principale
+        let facture = ligne.facture_id ? facturesMap.get(ligne.facture_id) : null;
         
-        // Cas 1: Facture unique
-        if (rapp.facture?.id) {
-          const facture = facturesMap.get(rapp.facture.id);
-          if (facture) {
-            facturesData.push(facture);
-          }
+        // Si plusieurs factures, prendre la première
+        if (!facture && Array.isArray(ligne.factures_ids) && ligne.factures_ids.length > 0) {
+          facture = facturesMap.get(ligne.factures_ids[0]);
         }
+
+        // Déterminer le type d'opération
+        const typeOperation = determineTypeOperation(ligne, facture);
+
+        // Déterminer le type de partenaire et le nom
+        let typePartenaire = '';
+        let partenaireNom = '';
         
-        // Cas 2: Factures multiples
-        if (rapp.factureIds && Array.isArray(rapp.factureIds)) {
-          rapp.factureIds.forEach((factureId: string) => {
-            const facture = facturesMap.get(factureId);
-            if (facture) {
-              facturesData.push(facture);
-            }
-          });
+        if (ligne.abonnement_id && ligne.abonnements_partenaires) {
+          typePartenaire = ligne.abonnements_partenaires.type || 'Abonnement';
+          partenaireNom = ligne.abonnements_partenaires.nom || '';
+        } else if (ligne.declaration_charge_id && ligne.declarations_charges_sociales) {
+          typePartenaire = 'Charges Sociales';
+          partenaireNom = ligne.declarations_charges_sociales.organisme || ligne.declarations_charges_sociales.nom || '';
+        } else if (facture) {
+          // Déterminer le type de fournisseur
+          const nomFournisseur = facture.emetteur_nom || facture.destinataire_nom || '';
+          typePartenaire = fournisseurTypesMap.get(nomFournisseur.toLowerCase().trim()) || 
+            (facture.type_facture === 'VENTES' ? 'Client' : 'Fournisseur');
+          partenaireNom = nomFournisseur;
         }
 
-        // Calculer TVA UNIQUEMENT pour les lignes rapprochées (matched)
-        let tvaLigne = 0;
+        // Calculer les montants HT et TVA
+        const montantHt = ligne.total_ht || facture?.total_ht || Math.abs(ligne.transaction_debit - ligne.transaction_credit);
+        const tva = ligne.total_tva || facture?.total_tva || 0;
 
-        if (estRapproche && facturesData.length > 0) {
-          tvaLigne = facturesData.reduce((sum, f) => sum + (f.total_tva || 0), 0);
+        // Répartir la TVA selon le type d'opération
+        let tvaDeductible = 0;
+        let tvaCollectee = 0;
 
-          const typeFacture = facturesData[0].type_facture;
-          // Accumuler dans les totaux - VENTES = collectée, ACHATS* = déductible
-          if (typeFacture === "VENTES") {
-            totalTvaCollectee += tvaLigne;
-          } else if (typeFacture && typeFacture.startsWith("ACHATS")) {
-            // Inclut ACHATS, ACHATS_GENERAUX, ACHATS_SERVICES, etc.
-            totalTvaDeductible += tvaLigne;
-          }
+        if (typeOperation === 'VENTES') {
+          tvaCollectee = tva;
+          totalTvaCollectee += tva;
+        } else {
+          // ACHAT_GENERAUX, ACHAT_SERVICES, ABONNEMENT, CHARGES_SOCIALES = TVA déductible
+          tvaDeductible = tva;
+          totalTvaDeductible += tva;
         }
 
-        // Récupérer les infos d'abonnement et déclaration
-        const abonnementInfo = rapp.abonnement_info?.id ? abonnementsMap.get(rapp.abonnement_info.id) : null;
-        const declarationInfo = rapp.declaration_info?.id ? declarationsMap.get(rapp.declaration_info.id) : null;
-
-        const ligne: RapprochementLigne = {
-          id: `${rapp.transaction.date}_${rapp.transaction.libelle}_${index}`,
-          transaction_date: rapp.transaction.date,
-          transaction_libelle: rapp.transaction.libelle,
-          transaction_debit: rapp.transaction.debit || 0,
-          transaction_credit: rapp.transaction.credit || 0,
-          transaction_montant: rapp.transaction.montant,
-          statut: estRapproche ? 'RAPPROCHE' : 'NON_RAPPROCHE', // ⭐ Statut basé sur status du rapprochement
-          abonnementId: rapp.abonnement_info?.id,
-          declarationId: rapp.declaration_info?.id,
-          notes: rapp.notes,
-          abonnement_type: abonnementInfo?.type,
-          abonnement_nom: abonnementInfo?.nom,
-          declaration_organisme: declarationInfo?.organisme,
+        const ligneDetail: TvaMensuelDetail = {
+          id: ligne.id || `${ligne.transaction_date}_${index}`,
+          ligne_rapprochement_id: ligne.id,
+          date_operation: ligne.transaction_date,
+          libelle: ligne.transaction_libelle || '',
+          numero_facture: facture?.numero_facture || ligne.numero_facture || '',
+          type_operation: typeOperation,
+          type_partenaire: typePartenaire,
+          partenaire_nom: partenaireNom,
+          montant_ht: montantHt,
+          tva_deductible: tvaDeductible,
+          tva_collectee: tvaCollectee,
         };
 
-        if (facturesData.length > 0) {
-          ligne.factures = facturesData.map(f => {
-            // Déterminer le type de fournisseur pour les achats
-            let typeFournisseur: string | undefined;
-            if (f.type_facture === "ACHATS" && f.emetteur_nom) {
-              typeFournisseur = fournisseurTypesMap.get(f.emetteur_nom.toLowerCase().trim());
-            }
-            return {
-              numero_facture: f.numero_facture,
-              total_tva: f.total_tva || 0,
-              type_facture: f.type_facture,
-              activite: f.activite,
-              type_frais: f.type_frais,
-              type_fournisseur: typeFournisseur,
-              emetteur_nom: f.emetteur_nom,
-            };
-          });
-          ligne.total_tva = tvaLigne;
-        }
-
-        nouvLignes.push(ligne);
+        nouvLignes.push(ligneDetail);
       });
-
-      console.log("📊 Total lignes:", nouvLignes.length);
-      console.log("✅ Lignes rapprochées:", countRapprochees);
-      console.log("💰 TVA collectée:", totalTvaCollectee);
-      console.log("💸 TVA déductible:", totalTvaDeductible);
 
       setLignes(nouvLignes);
       setStats({
@@ -674,171 +480,11 @@ export default function TvaMensuel() {
         tva_deductible: totalTvaDeductible,
         tva_a_payer: totalTvaCollectee - totalTvaDeductible,
       });
-    } catch (error: any) {
-      console.error("Erreur chargement TVA:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les données TVA",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const getMonthName = (month: string) => {
-    const date = new Date(2024, parseInt(month) - 1, 1);
-    return format(date, "MMMM", { locale: fr });
-  };
-
-  const recalculerTVA = async () => {
-    if (!selectedMonth || !selectedYear) return;
-    
-    setIsRecalculating(true);
-    try {
-      // Récupérer toutes les factures validées
-      const { data: factures, error: facturesError } = await supabase
-        .from("factures")
-        .select("id, numero_facture, type_facture, total_tva, total_ttc")
-        .in("statut", ["VALIDEE", "PAYEE"]);
-
-      if (facturesError) throw facturesError;
-
-      // Créer une map pour recherche rapide par numéro de facture
-      const factureMapByNumero = new Map(factures?.map(f => [f.numero_facture, f]) || []);
-      
-      // Créer une map pour recherche par montant approximatif (±1%)
-      const factureMapByMontant = new Map<number, typeof factures>();
-      factures?.forEach(f => {
-        const montantKey = Math.round(f.total_ttc * 100) / 100;
-        if (!factureMapByMontant.has(montantKey)) {
-          factureMapByMontant.set(montantKey, []);
-        }
-        factureMapByMontant.get(montantKey)?.push(f);
-      });
-
-      // Parcourir les lignes et essayer d'associer les factures manquantes
-      const updatedLignes = lignes.map(ligne => {
-        // Ne pas toucher les lignes qui sont déjà correctement rapprochées avec factures
-        if (ligne.factures && ligne.factures.length > 0) {
-          return ligne;
-        }
-        
-        // Ne pas toucher les abonnements et déclarations
-        if (ligne.abonnementId || ligne.declarationId) {
-          return ligne;
-        }
-        
-        // Si la ligne a déjà une facture avec TVA, ne pas toucher
-        if (ligne.facture && ligne.facture.total_tva !== undefined && ligne.facture.total_tva > 0) {
-          return ligne;
-        }
-
-        // Chercher une facture correspondante UNIQUEMENT pour les lignes sans facture
-        let factureCorrespondante = null;
-
-        // 1. Recherche par numéro de facture si présent dans le libellé
-        if (ligne.facture?.numero_facture) {
-          factureCorrespondante = factureMapByNumero.get(ligne.facture.numero_facture);
-        }
-        
-        // 2. Recherche dans le libellé de la transaction
-        if (!factureCorrespondante) {
-          // Extraire les numéros de facture du libellé (format FAC-XXX, F XXX, etc.)
-          const facRegex = /(?:FAC|F)[\s-]*([A-Z0-9-]+)/gi;
-          const matches = ligne.transaction_libelle.matchAll(facRegex);
-          
-          for (const match of matches) {
-            const numeroFacture = match[0].replace(/\s+/g, '-').toUpperCase();
-            const facture = Array.from(factureMapByNumero.values()).find(f => 
-              f.numero_facture.includes(match[1]) || 
-              numeroFacture.includes(f.numero_facture)
-            );
-            if (facture) {
-              factureCorrespondante = facture;
-              break;
-            }
-          }
-        }
-
-        // 3. Recherche par montant si pas trouvé
-        if (!factureCorrespondante) {
-          const montantTransaction = Math.abs(ligne.transaction_montant);
-          const montantKey = Math.round(montantTransaction * 100) / 100;
-          
-          // Chercher avec une tolérance de ±2%
-          for (let tolerance = 0; tolerance <= 2; tolerance += 0.5) {
-            const montantMin = montantKey * (1 - tolerance / 100);
-            const montantMax = montantKey * (1 + tolerance / 100);
-            
-            for (const [key, facturesList] of factureMapByMontant.entries()) {
-              if (key >= montantMin && key <= montantMax) {
-                // Prendre la première facture correspondante
-                const facture = facturesList.find(f => 
-                  (ligne.transaction_credit > 0 && f.type_facture === "VENTES") ||
-                  (ligne.transaction_debit > 0 && f.type_facture === "ACHATS")
-                );
-                if (facture) {
-                  factureCorrespondante = facture;
-                  break;
-                }
-              }
-            }
-            if (factureCorrespondante) break;
-          }
-        }
-
-        // Si une facture a été trouvée, mettre à jour la ligne
-        if (factureCorrespondante) {
-          console.log(`Facture trouvée pour ${ligne.transaction_libelle}:`, factureCorrespondante);
-          return {
-            ...ligne,
-            facture: {
-              numero_facture: factureCorrespondante.numero_facture,
-              total_tva: factureCorrespondante.total_tva || 0,
-              type_facture: factureCorrespondante.type_facture,
-            }
-          };
-        }
-
-        return ligne;
-      });
-
-      setLignes(updatedLignes);
-
-      // Recalculer les stats
-      let tva_collectee = 0;
-      let tva_deductible = 0;
-
-      updatedLignes.forEach(ligne => {
-        if (ligne.statut === "RAPPROCHE") {
-          // Si plusieurs factures, utiliser total_tva
-          if (ligne.factures && ligne.factures.length > 0) {
-            const tva = ligne.total_tva || 0;
-            const type = ligne.factures[0].type_facture;
-            if (type === "VENTES") {
-              tva_collectee += tva;
-            } else if (type && type.startsWith("ACHATS")) {
-              tva_deductible += tva;
-            }
-          } else if (ligne.facture) {
-            const tva = ligne.facture.total_tva || 0;
-            if (ligne.facture.type_facture === "VENTES") {
-              tva_collectee += tva;
-            } else if (ligne.facture.type_facture && ligne.facture.type_facture.startsWith("ACHATS")) {
-              tva_deductible += tva;
-            }
-          }
-        }
-      });
-
-      setStats({
-        tva_collectee,
-        tva_deductible,
-        tva_a_payer: tva_collectee - tva_deductible,
-      });
+      setHasUnsavedChanges(true);
 
       toast({
         title: "Recalcul terminé",
-        description: "Les factures et TVA ont été recalculées",
+        description: `${nouvLignes.length} lignes chargées depuis le rapprochement bancaire`,
       });
     } catch (error: any) {
       console.error("Erreur recalcul:", error);
@@ -852,6 +498,119 @@ export default function TvaMensuel() {
     }
   };
 
+  const sauvegarderTVA = async () => {
+    if (!selectedMonth || !selectedYear || lignes.length === 0) return;
+    
+    setIsSaving(true);
+    try {
+      const year = parseInt(selectedYear);
+      const month = parseInt(selectedMonth);
+
+      // Supprimer l'ancienne entête et ses détails si existant
+      if (entete?.id) {
+        await supabase
+          .from("tva_mensuel_detail")
+          .delete()
+          .eq("entete_id", entete.id);
+        
+        await supabase
+          .from("tva_mensuel_entete")
+          .delete()
+          .eq("id", entete.id);
+      }
+
+      // Créer la nouvelle entête
+      const { data: newEntete, error: enteteError } = await supabase
+        .from("tva_mensuel_entete")
+        .insert({
+          annee: year,
+          mois: month,
+          tva_collectee: stats.tva_collectee,
+          tva_deductible: stats.tva_deductible,
+          statut: 'BROUILLON',
+        })
+        .select()
+        .single();
+
+      if (enteteError) throw enteteError;
+
+      // Créer les détails
+      const detailsToInsert = lignes.map(ligne => ({
+        entete_id: newEntete.id,
+        ligne_rapprochement_id: ligne.ligne_rapprochement_id,
+        date_operation: ligne.date_operation,
+        libelle: ligne.libelle,
+        numero_facture: ligne.numero_facture,
+        type_operation: ligne.type_operation,
+        type_partenaire: ligne.type_partenaire,
+        partenaire_nom: ligne.partenaire_nom,
+        montant_ht: ligne.montant_ht,
+        tva_deductible: ligne.tva_deductible,
+        tva_collectee: ligne.tva_collectee,
+      }));
+
+      const { error: detailsError } = await supabase
+        .from("tva_mensuel_detail")
+        .insert(detailsToInsert);
+
+      if (detailsError) throw detailsError;
+
+      setEntete(newEntete as TvaMensuelEntete);
+      setHasUnsavedChanges(false);
+
+      toast({
+        title: "Sauvegarde réussie",
+        description: `TVA du mois ${getMonthName(selectedMonth)} ${selectedYear} sauvegardée`,
+      });
+    } catch (error: any) {
+      console.error("Erreur sauvegarde:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de sauvegarder la TVA",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const validerTVA = async () => {
+    if (!entete?.id) {
+      toast({
+        title: "Attention",
+        description: "Veuillez d'abord sauvegarder les données avant de valider",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("tva_mensuel_entete")
+        .update({
+          statut: 'VALIDE',
+          date_validation: new Date().toISOString(),
+        })
+        .eq("id", entete.id);
+
+      if (error) throw error;
+
+      setEntete({ ...entete, statut: 'VALIDE', date_validation: new Date().toISOString() });
+
+      toast({
+        title: "Validation réussie",
+        description: `TVA du mois ${getMonthName(selectedMonth)} ${selectedYear} validée`,
+      });
+    } catch (error: any) {
+      console.error("Erreur validation:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de valider la TVA",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -859,6 +618,12 @@ export default function TvaMensuel() {
           <Receipt className="h-8 w-8 text-primary" />
           <h1 className="text-3xl font-bold">TVA Mensuel</h1>
         </div>
+        {entete?.statut === 'VALIDE' && (
+          <Badge variant="default" className="text-sm">
+            <CheckCircle className="h-4 w-4 mr-1" />
+            Validé le {format(new Date(entete.date_validation!), "dd/MM/yyyy", { locale: fr })}
+          </Badge>
+        )}
       </div>
 
       {/* Filtres de période */}
@@ -907,15 +672,18 @@ export default function TvaMensuel() {
           </CardHeader>
           <CardContent className="flex gap-4">
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">Statut</label>
+              <label className="text-sm font-medium">Type d'opération</label>
               <Select value={filterStatut} onValueChange={setFilterStatut}>
                 <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Tous les statuts" />
+                  <SelectValue placeholder="Tous les types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tous les statuts</SelectItem>
-                  <SelectItem value="RAPPROCHE">Rapprochées</SelectItem>
-                  <SelectItem value="NON_RAPPROCHE">Non rapprochées</SelectItem>
+                  <SelectItem value="all">Tous les types</SelectItem>
+                  <SelectItem value="VENTES">Ventes</SelectItem>
+                  <SelectItem value="ACHAT_GENERAUX">Achats Généraux</SelectItem>
+                  <SelectItem value="ACHAT_SERVICES">Achats Services</SelectItem>
+                  <SelectItem value="ABONNEMENT">Abonnements</SelectItem>
+                  <SelectItem value="CHARGES_SOCIALES">Charges Sociales</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -930,7 +698,6 @@ export default function TvaMensuel() {
                   <SelectItem value="all">Tous les types</SelectItem>
                   <SelectItem value="COLLECTEE">TVA Collectée</SelectItem>
                   <SelectItem value="DEDUCTIBLE">TVA Déductible</SelectItem>
-                  <SelectItem value="NONE">Sans TVA</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -945,21 +712,27 @@ export default function TvaMensuel() {
             <CardTitle>Statistiques des lignes</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="text-center">
                 <div className="text-sm text-muted-foreground">Total lignes</div>
                 <div className="text-2xl font-bold">{lignes.length}</div>
               </div>
               <div className="text-center">
-                <div className="text-sm text-muted-foreground">Rapprochées</div>
+                <div className="text-sm text-muted-foreground">Ventes</div>
                 <div className="text-2xl font-bold text-green-600">
-                  {lignes.filter(l => l.statut === "RAPPROCHE").length}
+                  {lignes.filter(l => l.type_operation === 'VENTES').length}
                 </div>
               </div>
               <div className="text-center">
-                <div className="text-sm text-muted-foreground">Non rapprochées</div>
-                <div className="text-2xl font-bold text-orange-600">
-                  {lignes.filter(l => l.statut === "NON_RAPPROCHE").length}
+                <div className="text-sm text-muted-foreground">Achats</div>
+                <div className="text-2xl font-bold text-blue-600">
+                  {lignes.filter(l => l.type_operation === 'ACHAT_GENERAUX' || l.type_operation === 'ACHAT_SERVICES').length}
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-muted-foreground">Abonnements</div>
+                <div className="text-2xl font-bold text-purple-600">
+                  {lignes.filter(l => l.type_operation === 'ABONNEMENT').length}
                 </div>
               </div>
               <div className="text-center">
@@ -978,15 +751,34 @@ export default function TvaMensuel() {
             <h2 className="text-xl font-semibold">
               Résumé TVA - {getMonthName(selectedMonth)} {selectedYear}
             </h2>
-            <Button
-              onClick={recalculerTVA}
-              disabled={isRecalculating}
-              variant="outline"
-              size="sm"
-            >
-              <RefreshCcw className={`h-4 w-4 mr-2 ${isRecalculating ? "animate-spin" : ""}`} />
-              Recalculer TVA
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={recalculerTVAFromLignesRapprochement}
+                disabled={isRecalculating || entete?.statut === 'VALIDE'}
+                variant="outline"
+                size="sm"
+              >
+                <RefreshCcw className={`h-4 w-4 mr-2 ${isRecalculating ? "animate-spin" : ""}`} />
+                Recalculer TVA
+              </Button>
+              <Button
+                onClick={sauvegarderTVA}
+                disabled={isSaving || !hasUnsavedChanges || entete?.statut === 'VALIDE'}
+                variant="outline"
+                size="sm"
+              >
+                <Save className={`h-4 w-4 mr-2 ${isSaving ? "animate-spin" : ""}`} />
+                Sauvegarder
+              </Button>
+              <Button
+                onClick={validerTVA}
+                disabled={!entete || hasUnsavedChanges || entete?.statut === 'VALIDE'}
+                size="sm"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Valider TVA
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1017,7 +809,7 @@ export default function TvaMensuel() {
                 <CardTitle className="text-lg">TVA à Payer</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-orange-600">
+                <div className={`text-3xl font-bold ${stats.tva_a_payer >= 0 ? 'text-orange-600' : 'text-green-600'}`}>
                   {stats.tva_a_payer.toFixed(2)} €
                 </div>
               </CardContent>
@@ -1033,22 +825,17 @@ export default function TvaMensuel() {
               <DataTable
                 columns={columns}
                 data={lignes.filter(ligne => {
-                  // Filtre par statut
-                  if (filterStatut !== "all" && ligne.statut !== filterStatut) {
+                  // Filtre par type d'opération
+                  if (filterStatut !== "all" && ligne.type_operation !== filterStatut) {
                     return false;
                   }
 
                   // Filtre par type TVA
                   if (filterTypeTva !== "all") {
-                    // Déterminer le type TVA de la ligne
-                    let typeTvaLigne = "NONE";
-                    if (ligne.factures && ligne.factures.length > 0) {
-                      typeTvaLigne = ligne.factures[0].type_facture === "VENTES" ? "COLLECTEE" : "DEDUCTIBLE";
-                    } else if (ligne.facture) {
-                      typeTvaLigne = ligne.facture.type_facture === "VENTES" ? "COLLECTEE" : "DEDUCTIBLE";
+                    if (filterTypeTva === "COLLECTEE" && ligne.tva_collectee <= 0) {
+                      return false;
                     }
-
-                    if (typeTvaLigne !== filterTypeTva) {
+                    if (filterTypeTva === "DEDUCTIBLE" && ligne.tva_deductible <= 0) {
                       return false;
                     }
                   }
