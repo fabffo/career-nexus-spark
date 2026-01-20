@@ -204,10 +204,11 @@ export default function RapprochementBancaire() {
     // Si rapproché avec abonnement
     if (r.abonnement_info) {
       const ttc = r.abonnement_info.montant_ttc || transactionAmount;
-      const tvaCode = r.abonnement_info.tva || 'normal';
-      const tvaRate = tvaRatesMap[tvaCode] ?? 20;
-      const ht = ttc / (1 + tvaRate / 100);
-      const tva = ttc - ht;
+      const tvaCode = r.abonnement_info.tva;
+      // Si pas de taux TVA défini, pas de calcul de TVA (HT = TTC, TVA = 0)
+      const tvaRate = tvaCode ? (tvaRatesMap[tvaCode] ?? 0) : 0;
+      const ht = tvaRate > 0 ? ttc / (1 + tvaRate / 100) : ttc;
+      const tva = tvaRate > 0 ? ttc - ht : 0;
       
       // Abonnement = charge, donc positif pour débit, négatif pour crédit
       const sign = debit > 0 ? 1 : -1;
