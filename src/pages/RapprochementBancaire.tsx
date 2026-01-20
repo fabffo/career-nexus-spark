@@ -502,6 +502,9 @@ export default function RapprochementBancaire() {
       for (const r of rapprochements) {
         const numeroLigne = r.transaction.numero_ligne || r.numero_ligne;
         if (numeroLigne) {
+          // Calculer les montants financiers
+          const financialAmounts = calculateFinancialAmounts(r);
+          
           await supabase
             .from('lignes_rapprochement')
             .update({
@@ -517,6 +520,9 @@ export default function RapprochementBancaire() {
               score_detection: r.score || null,
               notes: r.notes || null,
               montant_facture: r.montant_facture || null,
+              total_ht: financialAmounts.total_ht,
+              total_tva: financialAmounts.total_tva,
+              total_ttc: financialAmounts.total_ttc,
               updated_at: new Date().toISOString()
             })
             .eq('fichier_rapprochement_id', fichierEnCoursId)
@@ -737,10 +743,16 @@ export default function RapprochementBancaire() {
       for (const r of rapprochements) {
         const numeroLigne = r.transaction.numero_ligne || r.numero_ligne;
         if (numeroLigne) {
+          // Calculer les montants financiers
+          const financialAmounts = calculateFinancialAmounts(r);
+          
           await supabase
             .from('lignes_rapprochement')
             .update({
               statut: r.status,
+              total_ht: financialAmounts.total_ht,
+              total_tva: financialAmounts.total_tva,
+              total_ttc: financialAmounts.total_ttc,
               updated_at: new Date().toISOString()
             })
             .eq('fichier_rapprochement_id', selectedFichier.id)
@@ -909,6 +921,9 @@ export default function RapprochementBancaire() {
             fournisseur_detecte_nom: null,
             fournisseur_detecte_type: null,
             score_detection: 0,
+            total_ht: null,
+            total_tva: null,
+            total_ttc: null,
             updated_at: new Date().toISOString()
           })
           .eq('fichier_rapprochement_id', fichierId)
@@ -1298,26 +1313,34 @@ export default function RapprochementBancaire() {
       console.log("✅ Fichier EN_COURS créé:", fichier.numero_rapprochement);
 
       // Alimenter la table lignes_rapprochement
-      const lignesAInserer = rapprochementsResult.map((r, index) => ({
-        fichier_rapprochement_id: fichier.id,
-        numero_ligne: r.transaction.numero_ligne || `RL-${format(new Date(r.transaction.date), 'yyyyMMdd')}-${String(index + 1).padStart(5, '0')}`,
-        transaction_date: r.transaction.date,
-        transaction_libelle: r.transaction.libelle,
-        transaction_debit: r.transaction.debit || null,
-        transaction_credit: r.transaction.credit || null,
-        transaction_montant: r.transaction.montant,
-        statut: r.status,
-        facture_id: r.facture?.id || null,
-        factures_ids: r.factureIds || null,
-        numero_facture: r.facture?.numero_facture || null,
-        fournisseur_detecte_id: r.fournisseur_info?.id || null,
-        fournisseur_detecte_nom: r.fournisseur_info?.nom || null,
-        fournisseur_detecte_type: r.fournisseur_info?.type || null,
-        abonnement_id: r.abonnement_info?.id || null,
-        declaration_charge_id: r.declaration_info?.id || null,
-        score_detection: r.score || null,
-        notes: r.notes || null
-      }));
+      const lignesAInserer = rapprochementsResult.map((r, index) => {
+        // Calculer les montants financiers
+        const financialAmounts = calculateFinancialAmounts(r);
+        
+        return {
+          fichier_rapprochement_id: fichier.id,
+          numero_ligne: r.transaction.numero_ligne || `RL-${format(new Date(r.transaction.date), 'yyyyMMdd')}-${String(index + 1).padStart(5, '0')}`,
+          transaction_date: r.transaction.date,
+          transaction_libelle: r.transaction.libelle,
+          transaction_debit: r.transaction.debit || null,
+          transaction_credit: r.transaction.credit || null,
+          transaction_montant: r.transaction.montant,
+          statut: r.status,
+          facture_id: r.facture?.id || null,
+          factures_ids: r.factureIds || null,
+          numero_facture: r.facture?.numero_facture || null,
+          fournisseur_detecte_id: r.fournisseur_info?.id || null,
+          fournisseur_detecte_nom: r.fournisseur_info?.nom || null,
+          fournisseur_detecte_type: r.fournisseur_info?.type || null,
+          abonnement_id: r.abonnement_info?.id || null,
+          declaration_charge_id: r.declaration_info?.id || null,
+          score_detection: r.score || null,
+          notes: r.notes || null,
+          total_ht: financialAmounts.total_ht,
+          total_tva: financialAmounts.total_tva,
+          total_ttc: financialAmounts.total_ttc
+        };
+      });
 
       const { error: insertError } = await supabase
         .from('lignes_rapprochement')
