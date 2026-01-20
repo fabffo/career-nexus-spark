@@ -458,8 +458,35 @@ export default function RapprochementBancaire() {
           return fichier;
         }
 
+        // Collecter tous les IDs de factures à charger
+        const factureIds = new Set<string>();
+        (lignes || []).forEach(ligne => {
+          if (ligne.facture_id) factureIds.add(ligne.facture_id);
+          if (ligne.factures_ids) {
+            ligne.factures_ids.forEach((id: string) => factureIds.add(id));
+          }
+        });
+
+        // Charger les factures en une seule requête
+        let facturesMap: Record<string, any> = {};
+        if (factureIds.size > 0) {
+          const { data: facturesData } = await supabase
+            .from('factures')
+            .select('id, numero_facture, type_facture, date_emission, emetteur_nom, destinataire_nom, emetteur_type, total_ttc, statut, type_frais')
+            .in('id', Array.from(factureIds));
+
+          if (facturesData) {
+            facturesData.forEach(f => {
+              facturesMap[f.id] = f;
+            });
+          }
+        }
+
         // Convertir les lignes en format Rapprochement
         const rapprochementsFromLignes: Rapprochement[] = (lignes || []).map(ligne => {
+          // Récupérer la facture complète si elle existe
+          const factureData = ligne.facture_id ? facturesMap[ligne.facture_id] : null;
+          
           const rapprochement: Rapprochement = {
             transaction: {
               date: ligne.transaction_date,
@@ -469,14 +496,16 @@ export default function RapprochementBancaire() {
               montant: ligne.transaction_montant || 0,
               numero_ligne: ligne.numero_ligne,
             },
-            facture: ligne.facture_id ? {
-              id: ligne.facture_id,
-              numero_facture: ligne.numero_facture || '',
-              type_facture: 'ACHATS' as const,
-              date_emission: '',
-              partenaire_nom: '',
-              total_ttc: 0,
-              statut: '',
+            facture: factureData ? {
+              id: factureData.id,
+              numero_facture: factureData.numero_facture || ligne.numero_facture || '',
+              type_facture: factureData.type_facture || 'ACHATS',
+              date_emission: factureData.date_emission || '',
+              partenaire_nom: factureData.type_facture === 'VENTES' ? factureData.destinataire_nom : factureData.emetteur_nom || '',
+              emetteur_type: factureData.emetteur_type,
+              total_ttc: factureData.total_ttc || 0,
+              statut: factureData.statut || '',
+              type_frais: factureData.type_frais,
             } : null,
             factureIds: ligne.factures_ids || undefined,
             score: ligne.score_detection || 0,
