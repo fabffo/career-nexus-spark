@@ -4961,13 +4961,14 @@ export default function RapprochementBancaire() {
                                     <th className="h-12 px-2 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ width: '80px' }}>Type</th>
                                     <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '140px' }}>N° Ligne</th>
                                     <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '90px' }}>Date</th>
-                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '22%' }}>Libellé</th>
+                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '18%' }}>Libellé</th>
                                     <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Débit</th>
                                     <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Crédit</th>
-                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '12%' }}>Facture</th>
-                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '14%' }}>Partenaire</th>
-                                    <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '80px' }}>Score</th>
-                                    <th className="h-12 px-2 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ width: '100px' }}>Actions</th>
+                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '10%' }}>Facture</th>
+                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '12%' }}>Partenaire</th>
+                                    <th className="h-12 px-2 text-left align-middle font-medium text-muted-foreground bg-muted" style={{ width: '90px' }}>Type Part.</th>
+                                    <th className="h-12 px-2 text-right align-middle font-medium text-muted-foreground bg-muted" style={{ width: '70px' }}>Score</th>
+                                    <th className="h-12 px-2 text-center align-middle font-medium text-muted-foreground bg-muted" style={{ width: '90px' }}>Actions</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -5049,13 +5050,85 @@ export default function RapprochementBancaire() {
                                              "-"
                                            )}
                                          </td>
-                                         <td className="p-2 align-middle truncate max-w-0 text-sm" title={rapprochement.facture?.partenaire_nom || ""}>
-                                           {rapprochement.facture?.partenaire_nom || 
-                                            rapprochement.abonnement_info?.nom || 
-                                            (rapprochement.declaration_info ? `${rapprochement.declaration_info.nom}` : "") ||
-                                            "-"}
-                                         </td>
-                                         <td className="p-2 align-middle text-right">
+                                         <td
+                                            className="p-2 align-middle truncate max-w-0 text-sm"
+                                            title={
+                                              rapprochement.facture?.partenaire_nom ||
+                                              rapprochement.fournisseur_info?.nom ||
+                                              rapprochement.abonnement_info?.nom ||
+                                              (rapprochement.declaration_info
+                                                ? `${rapprochement.declaration_info.nom}`
+                                                : "") ||
+                                              ""
+                                            }
+                                          >
+                                            {rapprochement.facture?.partenaire_nom ||
+                                              rapprochement.fournisseur_info?.nom ||
+                                              rapprochement.abonnement_info?.nom ||
+                                              (rapprochement.declaration_info
+                                                ? `${rapprochement.declaration_info.nom}`
+                                                : "") ||
+                                              "-"}
+                                          </td>
+                                          <td className="p-2 align-middle text-xs">
+                                            {(() => {
+                                              // Priorité 1: utiliser fournisseur_info.type qui vient de la base de données
+                                              if (rapprochement.fournisseur_info?.type) {
+                                                const type = rapprochement.fournisseur_info.type;
+                                                return (
+                                                  <Badge variant="outline" className="text-xs">
+                                                    {type === "general" ? "Fournisseur général" :
+                                                     type === "services" ? "Fournisseur de services" :
+                                                     type === "etat" ? "Fournisseur État & organismes" :
+                                                     type === "client" ? "Client" :
+                                                     type === "banque" ? "Banque" :
+                                                     type === "prestataire" ? "Prestataire" :
+                                                     type === "salarie" ? "Salarié" :
+                                                     "Autre"}
+                                                  </Badge>
+                                                );
+                                              }
+                                              
+                                              // Priorité 2: déduire depuis la facture
+                                              if (rapprochement.facture) {
+                                                if (rapprochement.facture.type_facture === "VENTES") {
+                                                  return <Badge variant="outline" className="text-xs">Client</Badge>;
+                                                }
+
+                                                const typeFacture = rapprochement.facture.type_facture;
+                                                const effectiveType =
+                                                  rapprochement.facture.emetteur_type ??
+                                                  (rapprochement.facture.type_frais
+                                                    ? getFournisseurTypeFromAchatType(rapprochement.facture.type_frais)
+                                                    : undefined);
+
+                                                let label = "Fournisseur général";
+                                                if (effectiveType === "general" || effectiveType === "FOURNISSEUR_GENERAL") label = "Fournisseur général";
+                                                else if (effectiveType === "services" || effectiveType === "FOURNISSEUR_SERVICES") label = "Fournisseur de services";
+                                                else if (effectiveType === "etat" || effectiveType === "FOURNISSEUR_ETAT_ORGANISME") label = "Fournisseur État & organismes";
+                                                else if (effectiveType === "client") label = "Client";
+                                                else if (effectiveType === "banque") label = "Banque";
+                                                else if (effectiveType === "prestataire") label = "Prestataire";
+                                                else if (effectiveType === "salarie") label = "Salarié";
+                                                else if (typeFacture === "ACHATS_GENERAUX") label = "Fournisseur général";
+                                                else if (typeFacture === "ACHATS_SERVICES") label = "Fournisseur de services";
+                                                else if (typeFacture === "ACHATS_ETAT") label = "Fournisseur État & organismes";
+
+                                                return <Badge variant="outline" className="text-xs">{label}</Badge>;
+                                              }
+                                              
+                                              // Priorité 3: abonnement ou déclaration
+                                              if (rapprochement.abonnement_info) {
+                                                return <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">Abonnement</Badge>;
+                                              }
+                                              if (rapprochement.declaration_info) {
+                                                return <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">Organisme</Badge>;
+                                              }
+                                              
+                                              return <span className="text-muted-foreground">-</span>;
+                                            })()}
+                                          </td>
+                                          <td className="p-2 align-middle text-right">
                                            {rapprochement.isManual ? (
                                              <Badge variant="outline" className="border-blue-600 text-blue-600 text-xs">
                                                100%
