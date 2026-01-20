@@ -5046,6 +5046,16 @@ export default function RapprochementBancaire() {
                                              </div>
                                            ) : rapprochement.factureIds && rapprochement.factureIds.length > 0 ? (
                                              <Badge variant="outline" className="text-xs">{rapprochement.factureIds.length} fact.</Badge>
+                                           ) : rapprochement.abonnement_info ? (
+                                             <div className="flex flex-col">
+                                               <span className="font-medium text-sm truncate">{rapprochement.abonnement_info.nom}</span>
+                                               <span className="text-xs text-muted-foreground">ABONNEMENT</span>
+                                             </div>
+                                           ) : rapprochement.declaration_info ? (
+                                             <div className="flex flex-col">
+                                               <span className="font-medium text-sm truncate">{rapprochement.declaration_info.nom}</span>
+                                               <span className="text-xs text-muted-foreground">CHARGE SOCIALE</span>
+                                             </div>
                                            ) : (
                                              "-"
                                            )}
