@@ -523,12 +523,48 @@ export default function RapprochementBancaire() {
 
       if (error) throw error;
 
+      // Collecter tous les IDs de factures référencés par les rapprochements
+      const allFactureIds = new Set<string>();
+      rapprochements.forEach(r => {
+        if (r.facture?.id) allFactureIds.add(r.facture.id);
+        if (r.factureIds) r.factureIds.forEach(id => allFactureIds.add(id));
+      });
+      
+      // Charger toutes les factures nécessaires depuis la base
+      let allFacturesMap: FactureMatch[] = [...factures];
+      if (allFactureIds.size > 0) {
+        const missingIds = Array.from(allFactureIds).filter(id => !factures.find(f => f.id === id));
+        if (missingIds.length > 0) {
+          const { data: missingFactures } = await supabase
+            .from('factures')
+            .select('id, numero_facture, type_facture, date_emission, emetteur_nom, destinataire_nom, emetteur_type, total_ht, total_tva, total_ttc, statut, type_frais')
+            .in('id', missingIds);
+          
+          if (missingFactures) {
+            const missingFormatted: FactureMatch[] = missingFactures.map(f => ({
+              id: f.id,
+              numero_facture: f.numero_facture,
+              type_facture: f.type_facture as "VENTES" | "ACHATS",
+              date_emission: f.date_emission,
+              partenaire_nom: f.type_facture === "VENTES" ? f.destinataire_nom : f.emetteur_nom,
+              total_ht: f.total_ht || 0,
+              total_tva: f.total_tva || 0,
+              total_ttc: f.total_ttc || 0,
+              statut: f.statut,
+              emetteur_type: f.emetteur_type,
+              type_frais: f.type_frais,
+            }));
+            allFacturesMap = [...factures, ...missingFormatted];
+          }
+        }
+      }
+      
       // Synchroniser les lignes dans lignes_rapprochement
       for (const r of rapprochements) {
         const numeroLigne = r.transaction.numero_ligne || r.numero_ligne;
         if (numeroLigne) {
           // Calculer les montants financiers (TTC = transaction, HT/TVA = factures liées)
-          const financialAmounts = calculateFinancialAmounts(r, factures);
+          const financialAmounts = calculateFinancialAmounts(r, allFacturesMap);
           
           await supabase
             .from('lignes_rapprochement')
@@ -764,12 +800,48 @@ export default function RapprochementBancaire() {
       const rapprochements = selectedFichier.rapprochements || [];
       const lignesRapprochees = rapprochements.filter(r => r.status === "matched").length;
 
+      // Collecter tous les IDs de factures référencés par les rapprochements
+      const allFactureIds = new Set<string>();
+      rapprochements.forEach(r => {
+        if (r.facture?.id) allFactureIds.add(r.facture.id);
+        if (r.factureIds) r.factureIds.forEach(id => allFactureIds.add(id));
+      });
+      
+      // Charger toutes les factures nécessaires depuis la base
+      let allFacturesMap: FactureMatch[] = [...factures];
+      if (allFactureIds.size > 0) {
+        const missingIds = Array.from(allFactureIds).filter(id => !factures.find(f => f.id === id));
+        if (missingIds.length > 0) {
+          const { data: missingFactures } = await supabase
+            .from('factures')
+            .select('id, numero_facture, type_facture, date_emission, emetteur_nom, destinataire_nom, emetteur_type, total_ht, total_tva, total_ttc, statut, type_frais')
+            .in('id', missingIds);
+          
+          if (missingFactures) {
+            const missingFormatted: FactureMatch[] = missingFactures.map(f => ({
+              id: f.id,
+              numero_facture: f.numero_facture,
+              type_facture: f.type_facture as "VENTES" | "ACHATS",
+              date_emission: f.date_emission,
+              partenaire_nom: f.type_facture === "VENTES" ? f.destinataire_nom : f.emetteur_nom,
+              total_ht: f.total_ht || 0,
+              total_tva: f.total_tva || 0,
+              total_ttc: f.total_ttc || 0,
+              statut: f.statut,
+              emetteur_type: f.emetteur_type,
+              type_frais: f.type_frais,
+            }));
+            allFacturesMap = [...factures, ...missingFormatted];
+          }
+        }
+      }
+
       // Mettre à jour chaque ligne dans lignes_rapprochement
       for (const r of rapprochements) {
         const numeroLigne = r.transaction.numero_ligne || r.numero_ligne;
         if (numeroLigne) {
           // Calculer les montants financiers (TTC = transaction, HT/TVA = factures liées)
-          const financialAmounts = calculateFinancialAmounts(r, factures);
+          const financialAmounts = calculateFinancialAmounts(r, allFacturesMap);
           
           await supabase
             .from('lignes_rapprochement')
@@ -3802,9 +3874,71 @@ export default function RapprochementBancaire() {
             console.log(`✅ ${r.factureIds.length} factures mises à jour avec numero_ligne ${numeroLigne}`);
           }
         }
+        
+        // ⭐ Mettre à jour les montants HT/TVA/TTC dans lignes_rapprochement
+        // Pour les lignes multi-factures, charger et cumuler les montants de toutes les factures
+        const factureIdsForCalc = r.facture?.id ? [r.facture.id] : (r.factureIds || []);
+        let totalHt = 0;
+        let totalTva = 0;
+        let totalTtc = Math.abs(r.transaction.debit || r.transaction.credit || 0);
+        
+        if (factureIdsForCalc.length > 0) {
+          const { data: facturesForCalc } = await supabase
+            .from('factures')
+            .select('id, type_facture, total_ht, total_tva, total_ttc')
+            .in('id', factureIdsForCalc);
+          
+          if (facturesForCalc && facturesForCalc.length > 0) {
+            totalHt = facturesForCalc.reduce((sum, f) => sum + (f.total_ht || 0), 0);
+            totalTva = facturesForCalc.reduce((sum, f) => sum + (f.total_tva || 0), 0);
+            
+            // Déterminer le signe selon le type (VENTES vs ACHATS)
+            const isVente = facturesForCalc.some(f => f.type_facture === 'VENTES');
+            const debit = r.transaction.debit || 0;
+            const sign = isVente 
+              ? (debit > 0 ? -1 : 1)  // VENTES: négatif si débit
+              : (debit > 0 ? 1 : -1); // ACHATS: positif si débit
+            
+            totalHt = totalHt * sign;
+            totalTva = totalTva * sign;
+            totalTtc = totalTtc * sign;
+          }
+        } else if (r.abonnement_info) {
+          // Abonnement: calculer selon le taux TVA
+          const sign = (r.transaction.debit || 0) > 0 ? 1 : -1;
+          totalHt = totalTtc * sign;
+          totalTva = 0;
+          totalTtc = totalTtc * sign;
+        } else if (r.declaration_info) {
+          // Charges sociales: pas de TVA
+          const sign = (r.transaction.debit || 0) > 0 ? 1 : -1;
+          totalHt = totalTtc * sign;
+          totalTva = 0;
+          totalTtc = totalTtc * sign;
+        } else {
+          // Ligne non rapprochée
+          const sign = (r.transaction.debit || 0) > 0 ? 1 : -1;
+          totalHt = totalTtc * sign;
+          totalTva = 0;
+          totalTtc = totalTtc * sign;
+        }
+        
+        // Mettre à jour lignes_rapprochement avec les montants calculés
+        if (numeroLigne && fichierEnCoursId) {
+          await supabase
+            .from('lignes_rapprochement')
+            .update({
+              total_ht: totalHt,
+              total_tva: totalTva,
+              total_ttc: totalTtc,
+              updated_at: new Date().toISOString()
+            })
+            .eq('fichier_rapprochement_id', fichierEnCoursId)
+            .eq('numero_ligne', numeroLigne);
+        }
       }
       
-      console.log("✅ Tous les rapprochements ont été sauvegardés");
+      console.log("✅ Tous les rapprochements ont été sauvegardés (montants HT/TVA/TTC mis à jour)");
       console.log(`📊 Récapitulatif final:`);
       console.log(`  - Total transactions sauvegardées: ${rapprochements.length}`);
       console.log(`  - Matched: ${rapprochements.filter(r => r.status === 'matched').length}`);
