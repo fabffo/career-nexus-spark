@@ -411,16 +411,31 @@ export default function TvaMensuel() {
       let totalTvaDeductible = 0;
 
       lignesRapprochement?.forEach((ligne: any, index: number) => {
-        // Récupérer la facture principale
-        let facture = ligne.facture_id ? facturesMap.get(ligne.facture_id) : null;
+        // Récupérer toutes les factures liées (single ou multi)
+        const facturesLiees: any[] = [];
         
-        // Si plusieurs factures, prendre la première
-        if (!facture && Array.isArray(ligne.factures_ids) && ligne.factures_ids.length > 0) {
-          facture = facturesMap.get(ligne.factures_ids[0]);
+        // Facture unique
+        if (ligne.facture_id) {
+          const f = facturesMap.get(ligne.facture_id);
+          if (f) facturesLiees.push(f);
+        }
+        
+        // Multi-factures
+        if (Array.isArray(ligne.factures_ids)) {
+          ligne.factures_ids.forEach((fid: string) => {
+            const f = facturesMap.get(fid);
+            // Éviter les doublons si facture_id est aussi dans factures_ids
+            if (f && !facturesLiees.some(fl => fl.id === f.id)) {
+              facturesLiees.push(f);
+            }
+          });
         }
 
+        // Prendre la première facture pour les métadonnées (type, partenaire)
+        const facturePrincipale = facturesLiees.length > 0 ? facturesLiees[0] : null;
+
         // Déterminer le type d'opération
-        const typeOperation = determineTypeOperation(ligne, facture);
+        const typeOperation = determineTypeOperation(ligne, facturePrincipale);
 
         // Déterminer le type de partenaire et le nom
         let typePartenaire = '';
@@ -432,22 +447,40 @@ export default function TvaMensuel() {
         } else if (ligne.declaration_charge_id && ligne.declarations_charges_sociales) {
           typePartenaire = 'Charges Sociales';
           partenaireNom = ligne.declarations_charges_sociales.organisme || ligne.declarations_charges_sociales.nom || '';
-        } else if (facture) {
+        } else if (facturePrincipale) {
           // Pour les VENTES: utiliser destinataire_nom (le client)
           // Pour les ACHATS: utiliser emetteur_nom (le fournisseur)
-          if (facture.type_facture === 'VENTES') {
+          if (facturePrincipale.type_facture === 'VENTES') {
             typePartenaire = 'Client';
-            partenaireNom = facture.destinataire_nom || '';
+            partenaireNom = facturePrincipale.destinataire_nom || '';
           } else {
-            const nomFournisseur = facture.emetteur_nom || '';
+            const nomFournisseur = facturePrincipale.emetteur_nom || '';
             typePartenaire = fournisseurTypesMap.get(nomFournisseur.toLowerCase().trim()) || 'Fournisseur';
             partenaireNom = nomFournisseur;
           }
         }
 
-        // Calculer les montants HT et TVA
-        const montantHt = ligne.total_ht || facture?.total_ht || Math.abs(ligne.transaction_debit - ligne.transaction_credit);
-        const tva = ligne.total_tva || facture?.total_tva || 0;
+        // Calculer les montants HT et TVA en cumulant toutes les factures liées
+        let montantHt = 0;
+        let tva = 0;
+        
+        if (facturesLiees.length > 0) {
+          // Cumuler HT et TVA de toutes les factures
+          facturesLiees.forEach(f => {
+            montantHt += f.total_ht || 0;
+            tva += f.total_tva || 0;
+          });
+        } else {
+          // Fallback sur les valeurs de la ligne ou montant brut
+          montantHt = ligne.total_ht || Math.abs(ligne.transaction_debit - ligne.transaction_credit);
+          tva = ligne.total_tva || 0;
+        }
+
+        // Construire le numéro de facture (liste si plusieurs)
+        const numerosFactures = facturesLiees
+          .map(f => f.numero_facture)
+          .filter(Boolean)
+          .join(', ') || ligne.numero_facture || '';
 
         // Répartir la TVA selon le type d'opération
         let tvaDeductible = 0;
@@ -467,7 +500,7 @@ export default function TvaMensuel() {
           ligne_rapprochement_id: ligne.id,
           date_operation: ligne.transaction_date,
           libelle: ligne.transaction_libelle || '',
-          numero_facture: facture?.numero_facture || ligne.numero_facture || '',
+          numero_facture: numerosFactures,
           type_operation: typeOperation,
           type_partenaire: typePartenaire,
           partenaire_nom: partenaireNom,
