@@ -173,62 +173,69 @@ export default function RapprochementBancaire() {
   };
 
   // Fonction pour calculer les montants HT, TVA, TTC d'un rapprochement
-  const calculateFinancialAmounts = (r: Rapprochement): { total_ht: number; total_tva: number; total_ttc: number } => {
+  // TTC = toujours la valeur du débit ou crédit de la ligne bancaire
+  // HT et TVA = somme des valeurs des factures liées si rapprochée
+  const calculateFinancialAmounts = (r: Rapprochement, allFactures?: FactureMatch[]): { total_ht: number; total_tva: number; total_ttc: number } => {
     const debit = r.transaction.debit || 0;
     const credit = r.transaction.credit || 0;
     const transactionAmount = debit > 0 ? debit : credit;
+    
+    // TTC = toujours le montant de la transaction bancaire
+    const ttc = transactionAmount;
+    const sign = debit > 0 ? 1 : -1;
 
-    // Si rapproché avec facture(s) - utiliser les valeurs réelles de la facture
-    if (r.facture) {
-      const typeFacture = r.facture.type_facture;
-      const isVente = typeFacture === 'VENTES';
-      const isAchat = typeFacture.startsWith('ACHATS');
+    // Si rapproché avec facture(s) - calculer HT/TVA depuis les factures liées
+    if (r.facture || (r.factureIds && r.factureIds.length > 0)) {
+      let totalHt = 0;
+      let totalTva = 0;
       
-      // Utiliser les valeurs réelles HT, TVA, TTC de la facture
-      const ttc = r.facture.total_ttc || 0;
-      const tva = r.facture.total_tva || 0;
-      // Si HT est null/0 mais TTC existe, alors HT = TTC (pas de TVA)
-      const ht = r.facture.total_ht || ttc;
-      
-      // Appliquer le signe selon le type
-      if (isVente) {
-        // VENTES: négatif pour débit, positif pour crédit
-        const sign = debit > 0 ? -1 : 1;
-        return { total_ht: ht * sign, total_tva: tva * sign, total_ttc: ttc * sign };
-      } else if (isAchat) {
-        // ACHATS: positif pour débit, négatif pour crédit
-        const sign = debit > 0 ? 1 : -1;
-        return { total_ht: ht * sign, total_tva: tva * sign, total_ttc: ttc * sign };
+      // Si une seule facture principale
+      if (r.facture) {
+        totalHt = r.facture.total_ht || r.facture.total_ttc || 0;
+        totalTva = r.facture.total_tva || 0;
       }
+      
+      // Si plusieurs factures (factureIds), additionner les valeurs
+      if (r.factureIds && r.factureIds.length > 0 && allFactures) {
+        // Réinitialiser si on a des factureIds (ils peuvent inclure la facture principale)
+        totalHt = 0;
+        totalTva = 0;
+        
+        for (const factureId of r.factureIds) {
+          const facture = allFactures.find(f => f.id === factureId);
+          if (facture) {
+            totalHt += facture.total_ht || facture.total_ttc || 0;
+            totalTva += facture.total_tva || 0;
+          }
+        }
+      }
+      
+      // Si HT est 0 mais TTC existe, fallback HT = TTC (pas de TVA)
+      if (totalHt === 0 && ttc > 0) {
+        totalHt = ttc;
+      }
+      
+      return { total_ht: totalHt * sign, total_tva: totalTva * sign, total_ttc: ttc * sign };
     }
 
     // Si rapproché avec abonnement
     if (r.abonnement_info) {
-      const ttc = r.abonnement_info.montant_ttc || transactionAmount;
       const tvaCode = r.abonnement_info.tva;
       // Si pas de taux TVA défini, pas de calcul de TVA (HT = TTC, TVA = 0)
       const tvaRate = tvaCode ? (tvaRatesMap[tvaCode] ?? 0) : 0;
       const ht = tvaRate > 0 ? ttc / (1 + tvaRate / 100) : ttc;
       const tva = tvaRate > 0 ? ttc - ht : 0;
       
-      // Abonnement = charge, donc positif pour débit, négatif pour crédit
-      const sign = debit > 0 ? 1 : -1;
       return { total_ht: ht * sign, total_tva: tva * sign, total_ttc: ttc * sign };
     }
 
     // Si rapproché avec déclaration de charge sociale
     if (r.declaration_info) {
       // Charges sociales: pas de TVA
-      const ttc = transactionAmount;
-      // Positif pour débit, négatif pour crédit
-      const sign = debit > 0 ? 1 : -1;
       return { total_ht: ttc * sign, total_tva: 0, total_ttc: ttc * sign };
     }
 
     // Ligne non rapprochée: pas de calcul de TVA (on ne peut pas deviner)
-    // On affiche uniquement le montant TTC sans ventilation HT/TVA
-    const ttc = transactionAmount;
-    const sign = debit > 0 ? 1 : -1;
     // HT = TTC et TVA = 0 car ligne non rapprochée
     return { total_ht: ttc * sign, total_tva: 0, total_ttc: ttc * sign };
   };
@@ -503,8 +510,8 @@ export default function RapprochementBancaire() {
       for (const r of rapprochements) {
         const numeroLigne = r.transaction.numero_ligne || r.numero_ligne;
         if (numeroLigne) {
-          // Calculer les montants financiers
-          const financialAmounts = calculateFinancialAmounts(r);
+          // Calculer les montants financiers (TTC = transaction, HT/TVA = factures liées)
+          const financialAmounts = calculateFinancialAmounts(r, factures);
           
           await supabase
             .from('lignes_rapprochement')
@@ -744,8 +751,8 @@ export default function RapprochementBancaire() {
       for (const r of rapprochements) {
         const numeroLigne = r.transaction.numero_ligne || r.numero_ligne;
         if (numeroLigne) {
-          // Calculer les montants financiers
-          const financialAmounts = calculateFinancialAmounts(r);
+          // Calculer les montants financiers (TTC = transaction, HT/TVA = factures liées)
+          const financialAmounts = calculateFinancialAmounts(r, factures);
           
           await supabase
             .from('lignes_rapprochement')
@@ -1315,8 +1322,8 @@ export default function RapprochementBancaire() {
 
       // Alimenter la table lignes_rapprochement
       const lignesAInserer = rapprochementsResult.map((r, index) => {
-        // Calculer les montants financiers
-        const financialAmounts = calculateFinancialAmounts(r);
+        // Calculer les montants financiers (TTC = transaction, HT/TVA = factures liées)
+        const financialAmounts = calculateFinancialAmounts(r, factures);
         
         return {
           fichier_rapprochement_id: fichier.id,
@@ -5024,7 +5031,7 @@ export default function RapprochementBancaire() {
                           </td>
                         {/* Colonnes HT, TVA, TTC */}
                         {(() => {
-                          const amounts = calculateFinancialAmounts(rapprochement);
+                          const amounts = calculateFinancialAmounts(rapprochement, factures);
                           const htFormatted = formatFinancialAmount(amounts.total_ht);
                           const tvaFormatted = formatFinancialAmount(amounts.total_tva);
                           const ttcFormatted = formatFinancialAmount(amounts.total_ttc);
@@ -5615,7 +5622,7 @@ export default function RapprochementBancaire() {
                                           </td>
                                           {/* Colonnes HT, TVA, TTC */}
                                           {(() => {
-                                            const amounts = calculateFinancialAmounts(rapprochement);
+                                            const amounts = calculateFinancialAmounts(rapprochement, factures);
                                             const htFormatted = formatFinancialAmount(amounts.total_ht);
                                             const tvaFormatted = formatFinancialAmount(amounts.total_tva);
                                             const ttcFormatted = formatFinancialAmount(amounts.total_ttc);
