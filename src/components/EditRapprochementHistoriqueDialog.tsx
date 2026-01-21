@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -78,6 +78,7 @@ export default function EditRapprochementHistoriqueDialog({
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [extraFactures, setExtraFactures] = useState<FactureMatch[]>([]);
   const { toast } = useToast();
 
   // Réinitialiser les états quand le dialogue se ferme
@@ -91,6 +92,7 @@ export default function EditRapprochementHistoriqueDialog({
       setNotes("");
       setSearchTerm("");
       setFacturesNonRapprochees([]);
+      setExtraFactures([]);
     }
   }, [open]);
 
@@ -267,27 +269,101 @@ export default function EditRapprochementHistoriqueDialog({
     }
   }, [rapprochement, open]);
 
+  // Charger les factures manquantes (qui ne sont pas dans la liste props ni dans facturesNonRapprochees)
+  useEffect(() => {
+    const loadMissingFactures = async () => {
+      if (!open || !rapprochement) return;
+
+      const idsWanted = Array.from(
+        new Set<string>([
+          ...selectedFactureIds,
+          ...(rapprochement.facture ? [rapprochement.facture.id] : []),
+        ])
+      ).filter(Boolean);
+
+      if (idsWanted.length === 0) return;
+
+      const inProps = new Set(factures.map((f) => f.id));
+      const inNonRapprochees = new Set(facturesNonRapprochees.map((f) => f.id));
+      const inExtra = new Set(extraFactures.map((f) => f.id));
+      const missing = idsWanted.filter((id) => !inProps.has(id) && !inNonRapprochees.has(id) && !inExtra.has(id));
+      if (missing.length === 0) return;
+
+      const { data, error } = await supabase
+        .from("factures")
+        .select(
+          "id, numero_facture, type_facture, date_emission, total_ttc, statut, numero_rapprochement, date_rapprochement, numero_ligne_rapprochement, emetteur_nom, destinataire_nom"
+        )
+        .in("id", missing);
+
+      if (error) {
+        console.error("Erreur chargement factures manquantes (historique):", error);
+        return;
+      }
+
+      const formatted: FactureMatch[] = (data ?? []).map((f: any) => ({
+        id: f.id,
+        numero_facture: f.numero_facture,
+        type_facture: f.type_facture,
+        date_emission: f.date_emission,
+        partenaire_nom: f.type_facture === "VENTES" ? f.destinataire_nom : f.emetteur_nom,
+        total_ttc: f.total_ttc ?? 0,
+        statut: f.statut ?? "",
+        numero_rapprochement: f.numero_rapprochement ?? undefined,
+        date_rapprochement: f.date_rapprochement ?? undefined,
+        numero_ligne_rapprochement: f.numero_ligne_rapprochement ?? undefined,
+      }));
+
+      setExtraFactures((prev) => {
+        const map = new Map<string, FactureMatch>(prev.map((x) => [x.id, x]));
+        formatted.forEach((x) => map.set(x.id, x));
+        return Array.from(map.values());
+      });
+    };
+
+    loadMissingFactures();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, rapprochement, selectedFactureIds, factures, facturesNonRapprochees]);
+
+  // Combiner toutes les factures disponibles
+  const allFactures = useMemo(() => {
+    const map = new Map<string, FactureMatch>();
+    factures.forEach((f) => map.set(f.id, f));
+    facturesNonRapprochees.forEach((f) => map.set(f.id, f));
+    extraFactures.forEach((f) => map.set(f.id, f));
+    return Array.from(map.values());
+  }, [factures, facturesNonRapprochees, extraFactures]);
+
   // Filtrer les factures de ventes et d'achats
-  const facturesVentes = facturesNonRapprochees.filter((f) => {
+  const facturesVentes = allFactures.filter((f) => {
     const search = searchTerm.toLowerCase();
     const matchesSearch = f.numero_facture.toLowerCase().includes(search) ||
       f.partenaire_nom.toLowerCase().includes(search) ||
       f.total_ttc.toString().includes(search);
-    return f.type_facture === "VENTES" && matchesSearch;
+    
+    // Exclure les factures rapprochées avec une autre ligne
+    const numeroLigneActuel = rapprochement?.transaction?.numero_ligne;
+    const isAvailable = !f.numero_ligne_rapprochement || f.numero_ligne_rapprochement === numeroLigneActuel || selectedFactureIds.includes(f.id);
+    
+    return f.type_facture === "VENTES" && matchesSearch && isAvailable;
   });
 
-  const facturesAchats = facturesNonRapprochees.filter((f) => {
+  const facturesAchats = allFactures.filter((f) => {
     const search = searchTerm.toLowerCase();
     const matchesSearch =
       f.numero_facture.toLowerCase().includes(search) ||
       f.partenaire_nom.toLowerCase().includes(search) ||
       f.total_ttc.toString().includes(search);
 
+    // Exclure les factures rapprochées avec une autre ligne
+    const numeroLigneActuel = rapprochement?.transaction?.numero_ligne;
+    const isAvailable = !f.numero_ligne_rapprochement || f.numero_ligne_rapprochement === numeroLigneActuel || selectedFactureIds.includes(f.id);
+
     // Inclure toutes les factures d'achats (ACHATS, ACHATS_SERVICES, ACHATS_GENERAUX, ACHATS_ETAT)
-    return f.type_facture !== "VENTES" && matchesSearch;
+    return f.type_facture !== "VENTES" && matchesSearch && isAvailable;
   });
 
-  const selectedFactures = facturesNonRapprochees.filter((f) => selectedFactureIds.includes(f.id));
+  const selectedFactures = allFactures.filter((f) => selectedFactureIds.includes(f.id));
   const totalFacturesSelectionnees = selectedFactures.reduce((sum, f) => sum + f.total_ttc, 0);
 
   const toggleFactureSelection = (factureId: string) => {
