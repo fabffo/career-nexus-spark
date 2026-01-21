@@ -433,11 +433,16 @@ export default function TvaMensuel() {
           typePartenaire = 'Charges Sociales';
           partenaireNom = ligne.declarations_charges_sociales.organisme || ligne.declarations_charges_sociales.nom || '';
         } else if (facture) {
-          // Déterminer le type de fournisseur
-          const nomFournisseur = facture.emetteur_nom || facture.destinataire_nom || '';
-          typePartenaire = fournisseurTypesMap.get(nomFournisseur.toLowerCase().trim()) || 
-            (facture.type_facture === 'VENTES' ? 'Client' : 'Fournisseur');
-          partenaireNom = nomFournisseur;
+          // Pour les VENTES: utiliser destinataire_nom (le client)
+          // Pour les ACHATS: utiliser emetteur_nom (le fournisseur)
+          if (facture.type_facture === 'VENTES') {
+            typePartenaire = 'Client';
+            partenaireNom = facture.destinataire_nom || '';
+          } else {
+            const nomFournisseur = facture.emetteur_nom || '';
+            typePartenaire = fournisseurTypesMap.get(nomFournisseur.toLowerCase().trim()) || 'Fournisseur';
+            partenaireNom = nomFournisseur;
+          }
         }
 
         // Calculer les montants HT et TVA
