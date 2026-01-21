@@ -105,51 +105,21 @@ export default function DashboardFinancier() {
       .gte("date_emission", format(debut, "yyyy-MM-dd"))
       .lte("date_emission", format(fin, "yyyy-MM-dd"));
 
-    // Toutes les factures d'achat avec vérification fournisseurs de services et prestataires
-    const { data: toutesFacturesAchats } = await supabase
+    // Factures d'achat SERVICES
+    const { data: facturesAchatsServices } = await supabase
       .from("factures")
-      .select(`
-        total_ht, 
-        emetteur_nom,
-        emetteur_id
-      `)
-      .eq("type_facture", "ACHATS")
+      .select("total_ht")
+      .eq("type_facture", "ACHATS_SERVICES")
       .gte("date_emission", format(debut, "yyyy-MM-dd"))
       .lte("date_emission", format(fin, "yyyy-MM-dd"));
 
-    // Récupérer tous les types de fournisseurs pour identification correcte
-    const { data: fournisseursServices } = await supabase
-      .from("fournisseurs_services")
-      .select("raison_sociale");
-    
-    const { data: fournisseursGeneraux } = await supabase
-      .from("fournisseurs_generaux")
-      .select("raison_sociale");
-    
-    const { data: fournisseursEtatOrganismes } = await supabase
-      .from("fournisseurs_etat_organismes")
-      .select("raison_sociale");
-
-    // Créer une map des types de fournisseurs (même logique que FacturesAchats)
-    const fournisseurTypesMap = new Map<string, string>();
-    
-    fournisseursServices?.forEach(f => {
-      if (f.raison_sociale) {
-        fournisseurTypesMap.set(f.raison_sociale.toLowerCase().trim(), "SERVICES");
-      }
-    });
-    
-    fournisseursGeneraux?.forEach(f => {
-      if (f.raison_sociale) {
-        fournisseurTypesMap.set(f.raison_sociale.toLowerCase().trim(), "GENERAUX");
-      }
-    });
-    
-    fournisseursEtatOrganismes?.forEach(f => {
-      if (f.raison_sociale) {
-        fournisseurTypesMap.set(f.raison_sociale.toLowerCase().trim(), "ETAT_ORGANISMES");
-      }
-    });
+    // Factures d'achat GENERAUX
+    const { data: facturesAchatsGeneraux } = await supabase
+      .from("factures")
+      .select("total_ht")
+      .eq("type_facture", "ACHATS_GENERAUX")
+      .gte("date_emission", format(debut, "yyyy-MM-dd"))
+      .lte("date_emission", format(fin, "yyyy-MM-dd"));
 
     // Abonnements - uniquement ceux de type CHARGE, calculer HT à partir du TTC
     const { data: paiementsAbonnements } = await supabase
@@ -223,28 +193,9 @@ export default function DashboardFinancier() {
 
     const ca = facturesVentes?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
     
-    // Séparer achat services et autres achats (même logique que FacturesAchats)
-    let achatServices = 0;
-    let autresAchatsTotal = 0;
-    
-    toutesFacturesAchats?.forEach((f: any) => {
-      const montant = Number(f.total_ht || 0);
-      if (!f.emetteur_nom) {
-        autresAchatsTotal += montant;
-        return;
-      }
-      
-      const emetteurKey = f.emetteur_nom.toLowerCase().trim();
-      const typeFournisseur = fournisseurTypesMap.get(emetteurKey);
-      
-      // Les achats SERVICES sont comptés séparément
-      if (typeFournisseur === "SERVICES") {
-        achatServices += montant;
-      } else {
-        // GENERAUX, ETAT_ORGANISMES et non identifiés vont dans autres achats
-        autresAchatsTotal += montant;
-      }
-    });
+    // ⭐ Calcul direct depuis les types de facture ACHATS_SERVICES et ACHATS_GENERAUX
+    const achatServices = facturesAchatsServices?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
+    const achat = facturesAchatsGeneraux?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
     
     const abonnementsTotal = paiementsAbonnements?.reduce((sum, p: any) => {
       const montantHT = calculerMontantHT(Number(p.montant || 0), p.abonnement?.tva);
@@ -257,8 +208,6 @@ export default function DashboardFinancier() {
       0
     );
     
-    // Achat = uniquement les factures d'achat généraux (hors services)
-    const achat = autresAchatsTotal;
     const margeBrute = ca - achatServices;
     // Marge nette = Marge brute - Achat - Abonnements - Charges sociales
     const margeNette = margeBrute - achat - abonnementsTotal - chargesTotal;
