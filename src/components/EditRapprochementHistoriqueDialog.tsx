@@ -370,7 +370,7 @@ export default function EditRapprochementHistoriqueDialog({
           console.log(`✅ Rapprochement ${numeroLigne} complètement supprimé`);
         }
 
-        // 7. Mettre à jour la ligne dans lignes_rapprochement
+        // 7. Mettre à jour la ligne dans lignes_rapprochement - EFFACER TOUS les champs liés
         const { error: updateLigneError } = await supabase
           .from('lignes_rapprochement')
           .update({
@@ -378,12 +378,16 @@ export default function EditRapprochementHistoriqueDialog({
             facture_id: null,
             factures_ids: null,
             numero_facture: null,
+            montant_facture: null,
             abonnement_id: null,
             declaration_charge_id: null,
             fournisseur_detecte_id: null,
             fournisseur_detecte_nom: null,
             fournisseur_detecte_type: null,
             score_detection: 0,
+            total_ht: null,
+            total_tva: null,
+            total_ttc: null,
             notes,
             updated_at: new Date().toISOString()
           })
