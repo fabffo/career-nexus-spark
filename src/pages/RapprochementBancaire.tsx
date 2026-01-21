@@ -175,24 +175,28 @@ export default function RapprochementBancaire() {
   // Fonction pour calculer les montants HT, TVA, TTC d'un rapprochement
   // TTC = toujours la valeur du débit ou crédit de la ligne bancaire
   // HT et TVA = somme des valeurs des factures liées si rapprochée
+  // Signes:
+  // - ACHATS, ABONNEMENT, CHARGES SOCIALES: positif si débit, négatif si crédit
+  // - VENTES: négatif si débit, positif si crédit
   const calculateFinancialAmounts = (r: Rapprochement, allFactures?: FactureMatch[]): { total_ht: number; total_tva: number; total_ttc: number } => {
     const debit = r.transaction.debit || 0;
     const credit = r.transaction.credit || 0;
     const transactionAmount = debit > 0 ? debit : credit;
     
-    // TTC = toujours le montant de la transaction bancaire
+    // TTC = toujours le montant de la transaction bancaire (valeur absolue)
     const ttc = transactionAmount;
-    const sign = debit > 0 ? 1 : -1;
 
     // Si rapproché avec facture(s) - calculer HT/TVA depuis les factures liées
     if (r.facture || (r.factureIds && r.factureIds.length > 0)) {
       let totalHt = 0;
       let totalTva = 0;
+      let isVente = false;
       
       // Si une seule facture principale
       if (r.facture) {
         totalHt = r.facture.total_ht || r.facture.total_ttc || 0;
         totalTva = r.facture.total_tva || 0;
+        isVente = r.facture.type_facture === 'VENTES';
       }
       
       // Si plusieurs factures (factureIds), additionner les valeurs
@@ -206,6 +210,10 @@ export default function RapprochementBancaire() {
           if (facture) {
             totalHt += facture.total_ht || facture.total_ttc || 0;
             totalTva += facture.total_tva || 0;
+            // Prendre le type de la première facture pour le signe
+            if (!isVente && facture.type_facture === 'VENTES') {
+              isVente = true;
+            }
           }
         }
       }
@@ -215,11 +223,18 @@ export default function RapprochementBancaire() {
         totalHt = ttc;
       }
       
+      // VENTES: négatif si débit, positif si crédit
+      // ACHATS: positif si débit, négatif si crédit
+      const sign = isVente 
+        ? (debit > 0 ? -1 : 1)  // VENTES
+        : (debit > 0 ? 1 : -1); // ACHATS
+      
       return { total_ht: totalHt * sign, total_tva: totalTva * sign, total_ttc: ttc * sign };
     }
 
-    // Si rapproché avec abonnement
+    // Si rapproché avec abonnement - positif si débit, négatif si crédit
     if (r.abonnement_info) {
+      const sign = debit > 0 ? 1 : -1;
       const tvaCode = r.abonnement_info.tva;
       // Si pas de taux TVA défini, pas de calcul de TVA (HT = TTC, TVA = 0)
       const tvaRate = tvaCode ? (tvaRatesMap[tvaCode] ?? 0) : 0;
@@ -229,13 +244,15 @@ export default function RapprochementBancaire() {
       return { total_ht: ht * sign, total_tva: tva * sign, total_ttc: ttc * sign };
     }
 
-    // Si rapproché avec déclaration de charge sociale
+    // Si rapproché avec déclaration de charge sociale - positif si débit, négatif si crédit
     if (r.declaration_info) {
+      const sign = debit > 0 ? 1 : -1;
       // Charges sociales: pas de TVA
       return { total_ht: ttc * sign, total_tva: 0, total_ttc: ttc * sign };
     }
 
-    // Ligne non rapprochée: pas de calcul de TVA (on ne peut pas deviner)
+    // Ligne non rapprochée: positif si débit, négatif si crédit (par défaut comme achat)
+    const sign = debit > 0 ? 1 : -1;
     // HT = TTC et TVA = 0 car ligne non rapprochée
     return { total_ht: ttc * sign, total_tva: 0, total_ttc: ttc * sign };
   };
