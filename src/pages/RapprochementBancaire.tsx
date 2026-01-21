@@ -744,6 +744,23 @@ export default function RapprochementBancaire() {
     setRapprochements(prev => prev.map(r => {
       const key = r.transaction.numero_ligne || `${r.transaction.date}-${r.transaction.libelle}-${r.transaction.montant}`;
       if (key === transactionKey) {
+        // ⭐ Si "unmatched", effacer toutes les associations (factures, partenaire, abonnement, etc.)
+        if (newStatus === "unmatched") {
+          return { 
+            ...r, 
+            status: newStatus,
+            facture: null,
+            factureIds: undefined,
+            fournisseur_info: undefined,
+            abonnement_info: undefined,
+            declaration_info: undefined,
+            score: 0,
+            montant_facture: undefined,
+            total_ht: undefined,
+            total_tva: undefined,
+            total_ttc: undefined,
+          };
+        }
         return { ...r, status: newStatus };
       }
       return r;
