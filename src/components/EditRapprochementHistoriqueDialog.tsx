@@ -628,18 +628,70 @@ export default function EditRapprochementHistoriqueDialog({
         }
       }
 
-      // ⭐ 3. Mettre à jour la ligne dans lignes_rapprochement
+      // ⭐ 3. Mettre à jour la ligne dans lignes_rapprochement avec factures et montants
       const numeroLigneToUpdate = numeroLigne || transaction.numero_ligne;
       if (numeroLigneToUpdate) {
+        // Calculer les montants HT/TVA/TTC à partir des factures sélectionnées
+        let totalHt = 0;
+        let totalTva = 0;
+        let numerosFactures: string[] = [];
+        
+        if (selectedFactureIds.length > 0) {
+          // Récupérer les détails des factures sélectionnées
+          const { data: facturesDetails } = await supabase
+            .from('factures')
+            .select('id, numero_facture, total_ht, total_tva, total_ttc')
+            .in('id', selectedFactureIds);
+          
+          if (facturesDetails) {
+            facturesDetails.forEach(f => {
+              totalHt += f.total_ht || 0;
+              totalTva += f.total_tva || 0;
+              if (f.numero_facture) numerosFactures.push(f.numero_facture);
+            });
+          }
+        }
+        
+        // Calculer TTC à partir du montant de la transaction
+        const totalTtc = Math.abs(transaction.credit || 0) || Math.abs(transaction.debit || 0);
+        
+        // Si pas de factures, HT = TTC et TVA = 0
+        if (selectedFactureIds.length === 0) {
+          totalHt = totalTtc;
+          totalTva = 0;
+        }
+        
+        // Préparer les données de mise à jour
+        const updateData: any = {
+          statut: status,
+          abonnement_id: selectedAbonnementId && selectedAbonnementId !== "none" ? selectedAbonnementId : null,
+          declaration_charge_id: selectedDeclarationId && selectedDeclarationId !== "none" ? selectedDeclarationId : null,
+          notes,
+          total_ht: totalHt,
+          total_tva: totalTva,
+          total_ttc: totalTtc,
+          updated_at: new Date().toISOString()
+        };
+        
+        // Mettre à jour les champs de factures
+        if (selectedFactureIds.length === 0) {
+          updateData.facture_id = null;
+          updateData.factures_ids = null;
+          updateData.numero_facture = null;
+        } else if (selectedFactureIds.length === 1) {
+          updateData.facture_id = selectedFactureIds[0];
+          updateData.factures_ids = null;
+          updateData.numero_facture = numerosFactures[0] || null;
+        } else {
+          // Multi-factures : facture_id = première, factures_ids = toutes
+          updateData.facture_id = selectedFactureIds[0];
+          updateData.factures_ids = selectedFactureIds;
+          updateData.numero_facture = numerosFactures.join(', ');
+        }
+        
         const { error: updateLigneError } = await supabase
           .from('lignes_rapprochement')
-          .update({
-            statut: status,
-            abonnement_id: selectedAbonnementId && selectedAbonnementId !== "none" ? selectedAbonnementId : null,
-            declaration_charge_id: selectedDeclarationId && selectedDeclarationId !== "none" ? selectedDeclarationId : null,
-            notes,
-            updated_at: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('fichier_rapprochement_id', fichierId)
           .eq('numero_ligne', numeroLigneToUpdate);
 
