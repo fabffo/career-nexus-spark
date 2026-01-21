@@ -700,6 +700,10 @@ export default function RapprochementBancaire() {
               type: (ligne.fournisseur_detecte_type as any) || 'general',
             } : undefined,
             montant_facture: ligne.montant_facture || undefined,
+            // ⭐ Copier les montants financiers stockés dans lignes_rapprochement
+            total_ht: ligne.total_ht ?? undefined,
+            total_tva: ligne.total_tva ?? undefined,
+            total_ttc: ligne.total_ttc ?? undefined,
           };
 
           // Dériver le statut
@@ -5773,7 +5777,17 @@ export default function RapprochementBancaire() {
                                           </td>
                                           {/* Colonnes HT, TVA, TTC */}
                                           {(() => {
-                                            const amounts = calculateFinancialAmounts(rapprochement, factures);
+                                            // ⭐ Utiliser les valeurs stockées si disponibles, sinon recalculer
+                                            let amounts;
+                                            if (rapprochement.total_ht !== undefined || rapprochement.total_tva !== undefined || rapprochement.total_ttc !== undefined) {
+                                              amounts = {
+                                                total_ht: rapprochement.total_ht || 0,
+                                                total_tva: rapprochement.total_tva || 0,
+                                                total_ttc: rapprochement.total_ttc || Math.abs(rapprochement.transaction.credit || rapprochement.transaction.debit || 0),
+                                              };
+                                            } else {
+                                              amounts = calculateFinancialAmounts(rapprochement, factures);
+                                            }
                                             const htFormatted = formatFinancialAmount(amounts.total_ht);
                                             const tvaFormatted = formatFinancialAmount(amounts.total_tva);
                                             const ttcFormatted = formatFinancialAmount(amounts.total_ttc);
