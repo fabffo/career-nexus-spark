@@ -97,11 +97,11 @@ export default function DashboardFinancier() {
       ? endOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
       : endOfYear(new Date(anneeSelectionnee, 11, 31));
 
-    // CA = Factures de ventes
+    // CA = Factures de ventes uniquement (type_facture = 'VENTES')
     const { data: facturesVentes } = await supabase
       .from("factures")
       .select("total_ht")
-      .neq("type_facture", "ACHATS")
+      .eq("type_facture", "VENTES")
       .gte("date_emission", format(debut, "yyyy-MM-dd"))
       .lte("date_emission", format(fin, "yyyy-MM-dd"));
 
