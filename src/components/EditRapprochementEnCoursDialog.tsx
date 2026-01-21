@@ -12,6 +12,7 @@ import { CheckCircle, XCircle, AlertCircle, X, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMemo } from "react";
 
 interface TransactionBancaire {
   date: string;
@@ -75,6 +76,7 @@ export default function EditRapprochementEnCoursDialog({
   const [searchTerm, setSearchTerm] = useState("");
   const [associatedFactures, setAssociatedFactures] = useState<any[]>([]);
   const [loadingAssociated, setLoadingAssociated] = useState(false);
+  const [extraFactures, setExtraFactures] = useState<FactureMatch[]>([]);
   const [abonnements, setAbonnements] = useState<any[]>([]);
   const [declarations, setDeclarations] = useState<any[]>([]);
   const [selectedAbonnementId, setSelectedAbonnementId] = useState<string | null>(null);
@@ -90,6 +92,7 @@ export default function EditRapprochementEnCoursDialog({
       setSearchTerm("");
       setSelectedAbonnementId(null);
       setSelectedDeclarationId(null);
+      setExtraFactures([]);
     }
   }, [open]);
 
@@ -133,6 +136,69 @@ export default function EditRapprochementEnCoursDialog({
       }
     }
   }, [rapprochement, open, isHistorique]);
+
+  // Certaines factures liées peuvent ne pas être présentes dans la liste `factures` (ex: statut différent).
+  // On va donc charger les détails manquants pour afficher correctement toutes les factures sélectionnées.
+  useEffect(() => {
+    const loadMissingFactures = async () => {
+      if (!open || isHistorique || !rapprochement) return;
+
+      const idsWanted = Array.from(
+        new Set<string>([
+          ...selectedFactureIds,
+          ...((((rapprochement as any).factureIds as string[]) ?? []) as string[]),
+          ...(rapprochement.facture ? [rapprochement.facture.id] : []),
+        ])
+      ).filter(Boolean);
+
+      if (idsWanted.length === 0) return;
+
+      const inProps = new Set(factures.map((f) => f.id));
+      const inExtra = new Set(extraFactures.map((f) => f.id));
+      const missing = idsWanted.filter((id) => !inProps.has(id) && !inExtra.has(id));
+      if (missing.length === 0) return;
+
+      const { data, error } = await supabase
+        .from("factures")
+        .select(
+          "id, numero_facture, type_facture, date_emission, total_ttc, statut, numero_rapprochement, date_rapprochement, emetteur_nom, destinataire_nom"
+        )
+        .in("id", missing);
+
+      if (error) {
+        console.error("Erreur chargement factures manquantes:", error);
+        return;
+      }
+
+      const formatted: FactureMatch[] = (data ?? []).map((f: any) => ({
+        id: f.id,
+        numero_facture: f.numero_facture,
+        type_facture: f.type_facture,
+        date_emission: f.date_emission,
+        partenaire_nom: f.type_facture === "VENTES" ? f.destinataire_nom : f.emetteur_nom,
+        total_ttc: f.total_ttc ?? 0,
+        statut: f.statut ?? "",
+        numero_rapprochement: f.numero_rapprochement ?? undefined,
+        date_rapprochement: f.date_rapprochement ?? undefined,
+      }));
+
+      setExtraFactures((prev) => {
+        const map = new Map<string, FactureMatch>(prev.map((x) => [x.id, x]));
+        formatted.forEach((x) => map.set(x.id, x));
+        return Array.from(map.values());
+      });
+    };
+
+    loadMissingFactures();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isHistorique, rapprochement, selectedFactureIds, factures]);
+
+  const allFactures = useMemo(() => {
+    const map = new Map<string, FactureMatch>();
+    factures.forEach((f) => map.set(f.id, f));
+    extraFactures.forEach((f) => map.set(f.id, f));
+    return Array.from(map.values());
+  }, [factures, extraFactures]);
 
   const loadAbonnements = async () => {
     try {
@@ -242,7 +308,7 @@ export default function EditRapprochementEnCoursDialog({
     ...(((rapprochement as any)?.factureIds as string[]) ?? []),
     ...(rapprochement?.facture ? [rapprochement.facture.id] : []),
   ]);
-  const facturesDisponibles = factures.filter((f) => !f.numero_rapprochement || linkedIds.has(f.id));
+  const facturesDisponibles = allFactures.filter((f) => !f.numero_rapprochement || linkedIds.has(f.id));
 
   // Filtrer les factures de ventes et d'achats
   const facturesVentes = facturesDisponibles.filter((f) => {
