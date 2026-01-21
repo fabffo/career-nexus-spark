@@ -109,11 +109,14 @@ export default function EditRapprochementEnCoursDialog({
       
       // Pour les transactions en cours, utiliser les données du prop
       if (!isHistorique) {
-        if (rapprochement.facture) {
-          setSelectedFactureIds([rapprochement.facture.id]);
-        } else if ((rapprochement as any).factureIds) {
-          setSelectedFactureIds((rapprochement as any).factureIds);
-        }
+        // IMPORTANT: une ligne peut avoir à la fois facture_id (facture) ET factures_ids (multi-factures).
+        // Dans ce cas, il faut privilégier factures_ids pour afficher toutes les factures liées.
+        const multiIds = ((rapprochement as any).factureIds as string[] | undefined) ?? undefined;
+        const initialIds = (multiIds && multiIds.length > 0)
+          ? multiIds
+          : (rapprochement.facture ? [rapprochement.facture.id] : []);
+
+        setSelectedFactureIds(Array.from(new Set(initialIds)));
         
         if ((rapprochement as any).abonnement_info) {
           setSelectedAbonnementId((rapprochement as any).abonnement_info.id);
@@ -233,7 +236,13 @@ export default function EditRapprochementEnCoursDialog({
   };
 
   // Filtrer les factures disponibles (non rapprochées)
-  const facturesDisponibles = factures.filter(f => !f.numero_rapprochement || (rapprochement?.facture && f.id === rapprochement.facture.id));
+  // Inclure aussi les factures déjà liées à cette ligne (multi-factures), sinon elles n'apparaissent pas dans le dialog.
+  const linkedIds = new Set<string>([
+    ...selectedFactureIds,
+    ...(((rapprochement as any)?.factureIds as string[]) ?? []),
+    ...(rapprochement?.facture ? [rapprochement.facture.id] : []),
+  ]);
+  const facturesDisponibles = factures.filter((f) => !f.numero_rapprochement || linkedIds.has(f.id));
 
   // Filtrer les factures de ventes et d'achats
   const facturesVentes = facturesDisponibles.filter((f) => {
