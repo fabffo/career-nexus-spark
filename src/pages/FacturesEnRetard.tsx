@@ -5,10 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable } from "@/components/ui/data-table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColumnDef } from "@tanstack/react-table";
-import { format, differenceInDays, addMonths, parseISO } from "date-fns";
+import { format, differenceInDays, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
-import { AlertTriangle, Clock, CalendarX, TrendingDown, RefreshCw } from "lucide-react";
+import { AlertTriangle, Clock, CalendarX, TrendingDown, RefreshCw, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
 
 // Types
@@ -67,10 +68,40 @@ const normalizePartenaireType = (type: string): string => {
   return "AUTRE";
 };
 
+// Compute stats for a given list of invoices
+const computeStats = (facturesList: FactureEnRetard[]) => {
+  const total = facturesList.length;
+  const montantTotal = facturesList.reduce((sum, f) => sum + f.total_ttc, 0);
+
+  const parTranche: Record<string, { count: number; montant: number }> = {};
+  TRANCHES.forEach((t) => {
+    parTranche[t] = { count: 0, montant: 0 };
+  });
+  facturesList.forEach((f) => {
+    parTranche[f.tranche_retard].count++;
+    parTranche[f.tranche_retard].montant += f.total_ttc;
+  });
+
+  const parPartenaire: Record<string, { count: number; montant: number }> = {
+    CLIENT: { count: 0, montant: 0 },
+    FOURNISSEUR: { count: 0, montant: 0 },
+    PRESTATAIRE: { count: 0, montant: 0 },
+  };
+  facturesList.forEach((f) => {
+    if (parPartenaire[f.partenaire_type]) {
+      parPartenaire[f.partenaire_type].count++;
+      parPartenaire[f.partenaire_type].montant += f.total_ttc;
+    }
+  });
+
+  return { total, montantTotal, parTranche, parPartenaire };
+};
+
 export default function FacturesEnRetard() {
   const [loading, setLoading] = useState(true);
   const [factures, setFactures] = useState<FactureEnRetard[]>([]);
   const [filtrePartenaire, setFiltrePartenaire] = useState<PartenaireFilter>("TOUS");
+  const [activeTab, setActiveTab] = useState<"ventes" | "achats">("ventes");
 
   const loadFactures = async () => {
     setLoading(true);
@@ -132,40 +163,22 @@ export default function FacturesEnRetard() {
     loadFactures();
   }, []);
 
-  // Filtered data
+  // Separate ventes and achats
+  const facturesVentes = useMemo(() => factures.filter((f) => f.type_facture === "VENTES"), [factures]);
+  const facturesAchats = useMemo(() => factures.filter((f) => f.type_facture !== "VENTES"), [factures]);
+
+  // Filtered data based on active tab
+  const facturesActives = activeTab === "ventes" ? facturesVentes : facturesAchats;
+
   const facturesFiltrees = useMemo(() => {
-    if (filtrePartenaire === "TOUS") return factures;
-    return factures.filter((f) => f.partenaire_type === filtrePartenaire);
-  }, [factures, filtrePartenaire]);
+    if (filtrePartenaire === "TOUS") return facturesActives;
+    return facturesActives.filter((f) => f.partenaire_type === filtrePartenaire);
+  }, [facturesActives, filtrePartenaire]);
 
   // Statistics
-  const stats = useMemo(() => {
-    const total = facturesFiltrees.length;
-    const montantTotal = facturesFiltrees.reduce((sum, f) => sum + f.total_ttc, 0);
-
-    const parTranche: Record<string, { count: number; montant: number }> = {};
-    TRANCHES.forEach((t) => {
-      parTranche[t] = { count: 0, montant: 0 };
-    });
-    facturesFiltrees.forEach((f) => {
-      parTranche[f.tranche_retard].count++;
-      parTranche[f.tranche_retard].montant += f.total_ttc;
-    });
-
-    const parPartenaire: Record<string, { count: number; montant: number }> = {
-      CLIENT: { count: 0, montant: 0 },
-      FOURNISSEUR: { count: 0, montant: 0 },
-      PRESTATAIRE: { count: 0, montant: 0 },
-    };
-    facturesFiltrees.forEach((f) => {
-      if (parPartenaire[f.partenaire_type]) {
-        parPartenaire[f.partenaire_type].count++;
-        parPartenaire[f.partenaire_type].montant += f.total_ttc;
-      }
-    });
-
-    return { total, montantTotal, parTranche, parPartenaire };
-  }, [facturesFiltrees]);
+  const stats = useMemo(() => computeStats(facturesFiltrees), [facturesFiltrees]);
+  const statsVentes = useMemo(() => computeStats(facturesVentes), [facturesVentes]);
+  const statsAchats = useMemo(() => computeStats(facturesAchats), [facturesAchats]);
 
   // Chart data
   const pieData = useMemo(() => {
@@ -190,15 +203,6 @@ export default function FacturesEnRetard() {
       accessorKey: "numero_facture",
       header: "N° Facture",
       cell: ({ row }) => <span className="font-medium">{row.original.numero_facture}</span>,
-    },
-    {
-      accessorKey: "type_facture",
-      header: "Type",
-      cell: ({ row }) => (
-        <Badge variant={row.original.type_facture === "VENTES" ? "default" : "secondary"}>
-          {row.original.type_facture === "VENTES" ? "Vente" : "Achat"}
-        </Badge>
-      ),
     },
     {
       accessorKey: "partenaire_nom",
@@ -271,13 +275,80 @@ export default function FacturesEnRetard() {
         </Button>
       </div>
 
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "ventes" | "achats")}>
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="ventes" className="flex items-center gap-2">
+            <ArrowUpRight className="h-4 w-4" />
+            Ventes ({statsVentes.total})
+          </TabsTrigger>
+          <TabsTrigger value="achats" className="flex items-center gap-2">
+            <ArrowDownLeft className="h-4 w-4" />
+            Achats ({statsAchats.total})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="ventes" className="space-y-6 mt-6">
+          <FacturesContent
+            stats={stats}
+            pieData={pieData}
+            barData={barData}
+            facturesFiltrees={facturesFiltrees}
+            columns={columns}
+            filtrePartenaire={filtrePartenaire}
+            setFiltrePartenaire={setFiltrePartenaire}
+            typeLabel="Ventes"
+          />
+        </TabsContent>
+
+        <TabsContent value="achats" className="space-y-6 mt-6">
+          <FacturesContent
+            stats={stats}
+            pieData={pieData}
+            barData={barData}
+            facturesFiltrees={facturesFiltrees}
+            columns={columns}
+            filtrePartenaire={filtrePartenaire}
+            setFiltrePartenaire={setFiltrePartenaire}
+            typeLabel="Achats"
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+// Extracted content component
+interface FacturesContentProps {
+  stats: ReturnType<typeof computeStats>;
+  pieData: { name: string; value: number; count: number }[];
+  barData: { name: string; Montant: number; Factures: number }[];
+  facturesFiltrees: FactureEnRetard[];
+  columns: ColumnDef<FactureEnRetard>[];
+  filtrePartenaire: PartenaireFilter;
+  setFiltrePartenaire: (v: PartenaireFilter) => void;
+  typeLabel: string;
+}
+
+function FacturesContent({
+  stats,
+  pieData,
+  barData,
+  facturesFiltrees,
+  columns,
+  filtrePartenaire,
+  setFiltrePartenaire,
+  typeLabel,
+}: FacturesContentProps) {
+  return (
+    <>
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <CalendarX className="h-4 w-4" />
-              Factures en Retard
+              {typeLabel} en Retard
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -459,6 +530,6 @@ export default function FacturesEnRetard() {
           <DataTable columns={columns} data={facturesFiltrees} searchPlaceholder="Rechercher une facture..." />
         </CardContent>
       </Card>
-    </div>
+    </>
   );
 }
