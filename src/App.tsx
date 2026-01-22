@@ -62,6 +62,7 @@ import DashboardFinancier from "./pages/DashboardFinancier";
 import AnalyseFinanciere from "./pages/AnalyseFinanciere";
 import ChargesMensuelles from "./pages/ChargesMensuelles";
 import Banques from "./pages/Banques";
+import FacturesEnRetard from "./pages/FacturesEnRetard";
 
 const queryClient = new QueryClient();
 
@@ -154,6 +155,7 @@ const App = () => (
               <Route path="analyse-financiere" element={<AnalyseFinanciere />} />
               <Route path="charges-mensuelles" element={<ChargesMensuelles />} />
               <Route path="banques" element={<Banques />} />
+              <Route path="factures-en-retard" element={<FacturesEnRetard />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />

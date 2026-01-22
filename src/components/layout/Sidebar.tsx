@@ -22,6 +22,7 @@ import {
   Activity,
   Sparkles,
   Landmark,
+  AlertTriangle,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -100,6 +101,7 @@ export function Sidebar() {
         { path: '/factures', label: 'Toutes les factures', icon: FileText },
         { path: '/factures-ventes', label: 'Factures de vente', icon: FileText },
         { path: '/factures-achats', label: 'Factures d\'achat', icon: FileText },
+        { path: '/factures-en-retard', label: 'Factures en Retard', icon: AlertTriangle },
         { path: '/rapprochement-bancaire', label: 'Rapprochement bancaire', icon: FileText },
         { path: '/abonnements-partenaires', label: 'Abonnements Partenaires', icon: FileText },
         { path: '/paiements-abonnements', label: 'Paiements Abonnements', icon: FileText },
