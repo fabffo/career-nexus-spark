@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Upload,
   Download,
@@ -15,6 +15,8 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
+  Building2,
+  Briefcase,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -27,6 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface FactureLigne {
   description: string;
@@ -55,6 +58,9 @@ interface FactureData {
   montant_tva: number | null;
   date_facture: string | null;
   lignes?: FactureLigne[];
+  // Nouveau: données de corrélation
+  fournisseur_id?: string | null;
+  fournisseur_score?: number;
 }
 
 interface FactureExtraite {
@@ -66,12 +72,23 @@ interface FactureExtraite {
   tokens?: { input: number; output: number };
   cout_estime?: number;
   erreur?: string;
+  // Nouveau: type de fournisseur utilisé pour l'extraction
+  typeFournisseur?: "services" | "generaux";
 }
 
 interface ExtractionFactureDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+}
+
+// Types pour les fournisseurs référents
+type TypeFournisseur = "services" | "generaux";
+
+interface FournisseurReferent {
+  id: string;
+  raison_sociale: string;
+  mots_cles_rapprochement: string | null;
 }
 
 // ========== SYSTÈME DE NORMALISATION DES FOURNISSEURS ==========
@@ -211,6 +228,103 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
   const itemsPerPage = 3;
   const { toast } = useToast();
 
+  // Nouveau: État pour le type de fournisseur et les référents
+  const [typeFournisseur, setTypeFournisseur] = useState<TypeFournisseur>("services");
+  const [fournisseursReferents, setFournisseursReferents] = useState<FournisseurReferent[]>([]);
+  const [isLoadingReferents, setIsLoadingReferents] = useState(false);
+
+  // Charger les fournisseurs référents selon le type sélectionné
+  useEffect(() => {
+    if (!open) return;
+    
+    const loadFournisseursReferents = async () => {
+      setIsLoadingReferents(true);
+      try {
+        const tableName = typeFournisseur === "services" ? "fournisseurs_services" : "fournisseurs_generaux";
+        
+        const { data, error } = await supabase
+          .from(tableName)
+          .select("id, raison_sociale, mots_cles_rapprochement")
+          .order("raison_sociale");
+
+        if (error) throw error;
+        
+        setFournisseursReferents(data || []);
+        console.log(`📋 ${data?.length || 0} fournisseurs ${typeFournisseur} chargés`);
+      } catch (error) {
+        console.error("Erreur chargement fournisseurs référents:", error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les fournisseurs référents",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingReferents(false);
+      }
+    };
+
+    loadFournisseursReferents();
+  }, [open, typeFournisseur]);
+
+  // Fonction de corrélation intelligente
+  const correlerFournisseur = (nomExtrait: string): { id: string | null; score: number; nom: string } => {
+    if (!nomExtrait || fournisseursReferents.length === 0) {
+      return { id: null, score: 0, nom: nomExtrait };
+    }
+
+    const nomExtraitLower = nomExtrait.toLowerCase().trim();
+    const nomExtraitNormalise = normaliserPourComparaison(nomExtraitLower);
+    
+    let meilleurMatch: { id: string; score: number; nom: string } | null = null;
+
+    for (const ref of fournisseursReferents) {
+      let score = 0;
+      
+      // 1. Correspondance exacte sur raison_sociale
+      const raisonSocialeLower = ref.raison_sociale.toLowerCase().trim();
+      const raisonSocialeNormalisee = normaliserPourComparaison(raisonSocialeLower);
+      
+      if (nomExtraitNormalise === raisonSocialeNormalisee) {
+        score = 100;
+      } else if (nomExtraitLower.includes(raisonSocialeLower) || raisonSocialeLower.includes(nomExtraitLower)) {
+        score = 80;
+      }
+      
+      // 2. Correspondance sur mots-clés de rapprochement
+      if (ref.mots_cles_rapprochement) {
+        const motsClésGroupes = ref.mots_cles_rapprochement.split(",").map(g => g.trim());
+        
+        for (const groupe of motsClésGroupes) {
+          const motsClés = groupe.split(" ").map(m => m.toLowerCase().trim()).filter(Boolean);
+          
+          // Tous les mots du groupe doivent être présents (opérateur ET)
+          const tousPresents = motsClés.every(mot => nomExtraitLower.includes(mot));
+          
+          if (tousPresents && motsClés.length > 0) {
+            const scoreMotsCles = 70 + (motsClés.length * 5); // Plus de mots = meilleur score
+            score = Math.max(score, Math.min(scoreMotsCles, 95));
+          }
+        }
+      }
+      
+      if (score > 0 && (!meilleurMatch || score > meilleurMatch.score)) {
+        meilleurMatch = { id: ref.id, score, nom: ref.raison_sociale };
+      }
+    }
+
+    return meilleurMatch || { id: null, score: 0, nom: nomExtrait };
+  };
+
+  // Normaliser pour comparaison (retire accents, ponctuation, suffixes juridiques)
+  const normaliserPourComparaison = (texte: string): string => {
+    return texte
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Retire accents
+      .replace(/[^a-z0-9\s]/g, "") // Garde uniquement alphanumérique
+      .replace(/\b(sas|sarl|sa|eurl|sasu|ltd|llc|inc|gmbh|bv|nv)\b/gi, "") // Retire suffixes juridiques
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
   // Fonction utilitaire pour attendre
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -257,12 +371,31 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           const base64Data = (reader.result as string).split(",")[1];
           console.log("✓ Base64 encodé:", base64Data.length, "bytes");
 
+          // Préparer les mots-clés des fournisseurs référents pour le contexte IA
+          const fournisseursContext = fournisseursReferents
+            .filter(f => f.raison_sociale)
+            .map(f => ({
+              nom: f.raison_sociale,
+              mots_cles: f.mots_cles_rapprochement || ""
+            }));
+
+          // Enrichir le prompt avec le contexte des fournisseurs référents
+          let promptEnrichi = prompt;
+          if (fournisseursContext.length > 0) {
+            const listeNoms = fournisseursContext.map(f => f.nom).join(", ");
+            promptEnrichi += `\n\n📌 FOURNISSEURS RÉFÉRENTS (${typeFournisseur === "services" ? "Services" : "Généraux"}) :\nSi le fournisseur de la facture correspond à l'un de ces noms (ou variante proche), utilise le nom exact de la liste :\n${listeNoms}`;
+          }
+
           // Appel de l'edge function
           console.log("🚀 Appel edge function extraire-facture...");
+          console.log(`📋 Contexte: ${fournisseursContext.length} fournisseurs référents (${typeFournisseur})`);
+          
           const { data, error } = await supabase.functions.invoke("extraire-facture", {
             body: {
               pdfBase64: base64Data,
-              prompt: prompt,
+              prompt: promptEnrichi,
+              typeFournisseur: typeFournisseur,
+              fournisseursReferents: fournisseursContext,
             },
           });
 
@@ -315,6 +448,24 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           }
           // ==================================================
 
+          // ========== CORRÉLATION AVEC FOURNISSEURS RÉFÉRENTS ==========
+          if (donnees.fournisseur) {
+            const correlation = correlerFournisseur(donnees.fournisseur);
+            donnees.fournisseur_id = correlation.id;
+            donnees.fournisseur_score = correlation.score;
+            
+            if (correlation.score >= 70) {
+              console.log(`🔗 Corrélation trouvée: "${donnees.fournisseur}" → "${correlation.nom}" (score: ${correlation.score}%)`);
+              // Utiliser le nom du référent si le score est suffisant
+              donnees.fournisseur = correlation.nom;
+            } else if (correlation.score > 0) {
+              console.log(`⚠️ Corrélation faible: "${donnees.fournisseur}" ≈ "${correlation.nom}" (score: ${correlation.score}%)`);
+            } else {
+              console.log(`❌ Aucune corrélation pour: "${donnees.fournisseur}"`);
+            }
+          }
+          // =============================================================
+
           // Validation détaillée avec génération de messages d'erreur
           const errors: string[] = [];
           const warnings: string[] = [];
@@ -322,6 +473,11 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           if (!donnees.fournisseur) errors.push("Fournisseur manquant");
           if (!donnees.montant_ttc) errors.push("Montant TTC manquant");
           if (!donnees.numero_facture) warnings.push("Numéro de facture sera généré automatiquement");
+          
+          // Avertissement si fournisseur non corrélé
+          if (donnees.fournisseur && (!donnees.fournisseur_id || donnees.fournisseur_score! < 70)) {
+            warnings.push("Fournisseur non trouvé dans les référents");
+          }
 
           const valide = errors.length === 0; // Valide si fournisseur + montant présents
           const erreur = errors.length > 0 ? errors.join(", ") : warnings.length > 0 ? warnings.join(", ") : undefined;
@@ -337,6 +493,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
             erreur,
             tokens: data.tokens,
             cout_estime: data.cout_estime,
+            typeFournisseur: typeFournisseur,
           };
 
           resolve(facture);
@@ -497,66 +654,33 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           throw new Error(`Impossible de sauvegarder car la facture "${numeroFacture}" existe déjà`);
         }
 
-        // Déterminer le type de facture en cherchant le fournisseur dans les tables
-        let typeFacture = "ACHATS";
-        let emetteurType = "Fournisseur";
-        let emetteurId: string | null = null;
+        // Utiliser l'ID corrélé ou déterminer le type de facture selon le type sélectionné
+        let typeFacture = facture.typeFournisseur === "services" ? "ACHATS_SERVICES" : "ACHATS_GENERAUX";
+        let emetteurType = facture.typeFournisseur === "services" ? "FOURNISSEUR_SERVICES" : "FOURNISSEUR_GENERAL";
+        let emetteurId: string | null = facture.donnees.fournisseur_id || null;
         const fournisseurNom = facture.donnees.fournisseur || "";
         
-        if (fournisseurNom) {
+        // Si pas d'ID corrélé, essayer de trouver le fournisseur dans la table correspondante
+        if (!emetteurId && fournisseurNom) {
+          const tableName = facture.typeFournisseur === "services" ? "fournisseurs_services" : "fournisseurs_generaux";
           const fournisseurNomLower = fournisseurNom.toLowerCase();
           
-          // Chercher dans les fournisseurs de services
-          const { data: fournServicesData } = await supabase
-            .from("fournisseurs_services")
+          const { data: fournisseursData } = await supabase
+            .from(tableName)
             .select("id, raison_sociale");
           
-          const fournService = fournServicesData?.find(f => 
+          const fournisseurTrouve = fournisseursData?.find(f => 
             f.raison_sociale.toLowerCase().includes(fournisseurNomLower) ||
             fournisseurNomLower.includes(f.raison_sociale.toLowerCase())
           );
           
-          if (fournService) {
-            typeFacture = "ACHATS_SERVICES";
-            emetteurType = "FOURNISSEUR_SERVICE";
-            emetteurId = fournService.id;
-            console.log("🔍 Fournisseur services trouvé:", fournService.raison_sociale);
-          } else {
-            // Chercher dans les fournisseurs généraux
-            const { data: fournGenerauxData } = await supabase
-              .from("fournisseurs_generaux")
-              .select("id, raison_sociale");
-            
-            const fournGeneral = fournGenerauxData?.find(f => 
-              f.raison_sociale.toLowerCase().includes(fournisseurNomLower) ||
-              fournisseurNomLower.includes(f.raison_sociale.toLowerCase())
-            );
-            
-            if (fournGeneral) {
-              typeFacture = "ACHATS_GENERAUX";
-              emetteurType = "FOURNISSEUR_GENERAL";
-              emetteurId = fournGeneral.id;
-              console.log("🔍 Fournisseur général trouvé:", fournGeneral.raison_sociale);
-            } else {
-              // Chercher dans les fournisseurs État/Organismes
-              const { data: fournEtatData } = await supabase
-                .from("fournisseurs_etat_organismes")
-                .select("id, raison_sociale");
-              
-              const fournEtat = fournEtatData?.find(f => 
-                f.raison_sociale.toLowerCase().includes(fournisseurNomLower) ||
-                fournisseurNomLower.includes(f.raison_sociale.toLowerCase())
-              );
-              
-              if (fournEtat) {
-                typeFacture = "ACHATS_ETAT";
-                emetteurType = "FOURNISSEUR_ETAT";
-                emetteurId = fournEtat.id;
-                console.log("🔍 Fournisseur État/Organisme trouvé:", fournEtat.raison_sociale);
-              }
-            }
+          if (fournisseurTrouve) {
+            emetteurId = fournisseurTrouve.id;
+            console.log(`🔍 Fournisseur ${facture.typeFournisseur} trouvé:`, fournisseurTrouve.raison_sociale);
           }
         }
+        
+        console.log(`📋 Type: ${typeFacture}, ID corrélé: ${emetteurId || 'aucun'}, Score: ${facture.donnees.fournisseur_score || 0}%`);
 
         const factureData: any = {
           numero_facture: numeroFacture,
@@ -819,6 +943,50 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           </TabsList>
 
           <TabsContent value="extraction" className="flex-1 overflow-hidden flex flex-col space-y-3 mt-2">
+            {/* Sélecteur du type de fournisseur */}
+            <Card className="flex-shrink-0">
+              <CardContent className="py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Label className="text-sm font-medium">Type de fournisseur :</Label>
+                    <RadioGroup
+                      value={typeFournisseur}
+                      onValueChange={(value) => setTypeFournisseur(value as TypeFournisseur)}
+                      className="flex gap-4"
+                      disabled={isProcessing}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="services" id="services" />
+                        <Label htmlFor="services" className="flex items-center gap-1 cursor-pointer">
+                          <Briefcase className="h-4 w-4 text-blue-600" />
+                          Services
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="generaux" id="generaux" />
+                        <Label htmlFor="generaux" className="flex items-center gap-1 cursor-pointer">
+                          <Building2 className="h-4 w-4 text-green-600" />
+                          Généraux
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    {isLoadingReferents ? (
+                      <span className="flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Chargement...
+                      </span>
+                    ) : (
+                      <Badge variant="secondary">
+                        {fournisseursReferents.length} fournisseurs référents
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Zone d'upload compacte quand il y a des factures */}
             <Card className="flex-shrink-0">
               <CardContent className={factures.length > 0 ? "py-2" : "pt-6"}>
@@ -832,7 +1000,7 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                     multiple
                     accept="application/pdf"
                     onChange={handleFileUpload}
-                    disabled={isProcessing}
+                    disabled={isProcessing || isLoadingReferents}
                     className="hidden"
                   />
                 </label>
@@ -941,13 +1109,23 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                             </span>
                           </div>
 
-                          <div className="col-span-2 flex items-center min-w-0">
+                          <div className="col-span-2 flex items-center gap-1 min-w-0">
                             <span
                               className={`text-sm truncate ${!facture.donnees.fournisseur ? "text-red-600 font-semibold" : ""}`}
-                              title={facture.donnees.fournisseur || "Fournisseur manquant"}
+                              title={`${facture.donnees.fournisseur || "Fournisseur manquant"}${facture.donnees.fournisseur_score ? ` (score: ${facture.donnees.fournisseur_score}%)` : ""}`}
                             >
                               {facture.donnees.fournisseur || "⚠ Manquant"}
                             </span>
+                            {facture.donnees.fournisseur_id && facture.donnees.fournisseur_score && facture.donnees.fournisseur_score >= 70 && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-green-50 text-green-700 border-green-200">
+                                ✓ {facture.donnees.fournisseur_score}%
+                              </Badge>
+                            )}
+                            {facture.donnees.fournisseur && !facture.donnees.fournisseur_id && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-amber-50 text-amber-700 border-amber-200">
+                                ?
+                              </Badge>
+                            )}
                           </div>
 
                           <div className="col-span-2 flex items-center min-w-0">
