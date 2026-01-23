@@ -106,10 +106,13 @@ const FOURNISSEURS_REGLES = {
   Uber: ["Uber B.V.", "Uber BV", "Uber France", "UBER EATS"],
 
   // Services IT
-  OpenAI: ["OpenAI, LLC", "OpenAI Inc"],
-  LinkedIn: ["LinkedIn Ireland Unlimited Company", "LinkedIn Corporation"],
-  Indeed: ["Indeed Ireland Operations Limited", "Indeed Inc"],
-  Microsoft: ["Microsoft Corporation", "Microsoft Ireland"],
+  OpenAI: ["OpenAI, LLC", "OpenAI Inc", "OPENAI", "OPEN AI", "OpenAI LLC"],
+  LinkedIn: ["LinkedIn Ireland Unlimited Company", "LinkedIn Corporation", "LINKEDIN"],
+  Indeed: ["Indeed Ireland Operations Limited", "Indeed Inc", "INDEED"],
+  Microsoft: ["Microsoft Corporation", "Microsoft Ireland", "MICROSOFT"],
+
+  // Télécoms
+  Orange: ["ORANGE", "ORANGE SA", "ORANGE FRANCE", "ORANGE BUSINESS", "ORANGE BUSINESS SERVICES"],
 
   // Restaurants
   "AU BUREAU": ["AU BUREAU PUB & BRASSERIE", "AU BUREAU PUB BRASSERIE"],
