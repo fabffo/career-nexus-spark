@@ -20,7 +20,7 @@ serve(async (req) => {
     const body = await req.json();
     console.log('Body parsed, keys:', Object.keys(body));
     
-    const { pdfBase64, prompt } = body;
+    const { pdfBase64, prompt, typeFournisseur, fournisseursReferents } = body;
 
     if (!pdfBase64) {
       console.error('❌ PDF base64 manquant');
@@ -40,6 +40,8 @@ serve(async (req) => {
 
     console.log('✓ PDF base64 size:', pdfBase64.length, 'bytes');
     console.log('✓ Prompt length:', prompt.length, 'chars');
+    console.log('✓ Type fournisseur:', typeFournisseur || 'non spécifié');
+    console.log('✓ Fournisseurs référents:', fournisseursReferents?.length || 0);
 
     console.log('Checking ANTHROPIC_API_KEY...');
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
