@@ -95,6 +95,40 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
     }
   }, [open]);
 
+  // Fonction utilitaire pour attendre
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Fonction d'extraction avec retry et gestion du rate limit
+  const extraireFactureAvecRetry = async (file: File, maxRetries = 3, baseDelay = 10000): Promise<FactureExtraite> => {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await extraireFacture(file);
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        
+        // Vérifier si c'est une erreur de rate limit
+        const isRateLimit = lastError.message.includes('429') || 
+                           lastError.message.includes('rate_limit') ||
+                           lastError.message.includes('rate limit') ||
+                           lastError.message.includes('tokens per minute');
+        
+        if (isRateLimit && attempt < maxRetries) {
+          const delay = baseDelay * attempt; // Délai exponentiel: 10s, 20s, 30s
+          console.log(`⏳ Rate limit atteint, tentative ${attempt}/${maxRetries}. Attente de ${delay/1000}s...`);
+          setCurrentFile(`${file.name} (attente ${delay/1000}s - rate limit)`);
+          await sleep(delay);
+        } else if (!isRateLimit) {
+          // Si ce n'est pas un rate limit, ne pas réessayer
+          break;
+        }
+      }
+    }
+    
+    throw lastError || new Error("Erreur d'extraction après plusieurs tentatives");
+  };
+
   const extraireFacture = async (file: File): Promise<FactureExtraite> => {
     setCurrentFile(file.name);
 
@@ -120,11 +154,23 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
 
           if (error) {
             console.error("❌ Erreur edge function:", error);
+            
+            // Propager l'erreur 429 pour le retry
+            if (error.message?.includes('429')) {
+              throw new Error(`Rate limit (429): ${error.message}`);
+            }
+            
             throw new Error(`Erreur serveur: ${error.message}`);
           }
 
           if (data?.error) {
             console.error("❌ Erreur dans la réponse:", data.error);
+            
+            // Propager l'erreur de rate limit pour le retry
+            if (typeof data.error === 'string' && (data.error.includes('rate_limit') || data.error.includes('429') || data.details?.includes('rate_limit'))) {
+              throw new Error(`Rate limit (429): ${data.error}`);
+            }
+            
             throw new Error(data.error);
           }
 
@@ -206,15 +252,28 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
     setProgress(0);
     const nouvelles: FactureExtraite[] = [];
 
+    // Traitement SÉQUENTIEL avec délai entre chaque fichier pour éviter les rate limits
+    const DELAY_BETWEEN_FILES = 3000; // 3 secondes entre chaque fichier
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       setProgress(Math.round(((i + 1) / files.length) * 100));
 
+      // Attendre entre les fichiers (sauf pour le premier)
+      if (i > 0) {
+        setCurrentFile(`Attente avant ${file.name}...`);
+        await sleep(DELAY_BETWEEN_FILES);
+      }
+
       try {
-        const facture = await extraireFacture(file);
+        // Utiliser la version avec retry pour gérer les rate limits
+        const facture = await extraireFactureAvecRetry(file);
         nouvelles.push(facture);
+        
+        // Mise à jour en temps réel pour afficher les résultats au fur et à mesure
+        setFactures((prev) => [facture, ...prev]);
       } catch (error) {
-        nouvelles.push({
+        const factureErreur: FactureExtraite = {
           id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
           fichier: file.name,
           fileObject: file,
@@ -230,19 +289,31 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
           },
           valide: false,
           erreur: error instanceof Error ? error.message : "Erreur inconnue",
-        });
+        };
+        nouvelles.push(factureErreur);
+        setFactures((prev) => [factureErreur, ...prev]);
       }
     }
 
-    setFactures((prev) => [...nouvelles, ...prev]);
     setIsProcessing(false);
     setCurrentFile("");
     setProgress(0);
 
-    toast({
-      title: "Extraction terminée",
-      description: `${nouvelles.filter((f) => f.valide).length}/${nouvelles.length} factures extraites avec succès`,
-    });
+    const successCount = nouvelles.filter((f) => f.valide).length;
+    const rateLimitErrors = nouvelles.filter((f) => f.erreur?.includes('rate_limit') || f.erreur?.includes('429')).length;
+    
+    if (rateLimitErrors > 0) {
+      toast({
+        title: "Extraction terminée avec limites",
+        description: `${successCount}/${nouvelles.length} factures extraites. ${rateLimitErrors} fichier(s) bloqué(s) par le rate limit Anthropic. Réessayez dans quelques minutes.`,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Extraction terminée",
+        description: `${successCount}/${nouvelles.length} factures extraites avec succès`,
+      });
+    }
   };
 
   const sauvegarderFactures = async () => {
