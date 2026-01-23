@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, FileText, Eye, Pencil, Copy, Trash2, TrendingUp, Download, Sparkles, ArrowUpDown, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Search as SearchIcon, FileX } from "lucide-react";
+import { Plus, FileText, Eye, Pencil, Copy, Trash2, TrendingUp, Download, Sparkles, ArrowUpDown, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Search as SearchIcon, FileX, Link2 } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,7 @@ import EditFactureDialog from "@/components/EditFactureDialog";
 import ViewFactureDialog from "@/components/ViewFactureDialog";
 import ExtractionFactureVenteDialog from "@/components/ExtractionFactureVenteDialog";
 import RapprochementDetailDialog from "@/components/RapprochementDetailDialog";
+import RapprochementAvoirDialog from "@/components/RapprochementAvoirDialog";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -104,6 +105,7 @@ export default function FacturesVentes() {
   const [openViewDialog, setOpenViewDialog] = useState(false);
   const [openExtractionDialog, setOpenExtractionDialog] = useState(false);
   const [openDetailRapprochementDialog, setOpenDetailRapprochementDialog] = useState(false);
+  const [openRapprochementAvoirDialog, setOpenRapprochementAvoirDialog] = useState(false);
   const [selectedNumeroLigne, setSelectedNumeroLigne] = useState<string>("");
   const [selectedFacture, setSelectedFacture] = useState<Facture | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -747,6 +749,21 @@ export default function FacturesVentes() {
           >
             <FileX className="h-4 w-4" />
           </Button>
+          {/* Bouton rapprochement avec avoir - visible seulement pour les factures non rapprochées et positives */}
+          {!row.original.numero_ligne_rapprochement && (row.original.total_ttc || 0) > 0 && row.original.statut !== 'BROUILLON' && row.original.statut !== 'ANNULEE' && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setSelectedFacture(row.original);
+                setOpenRapprochementAvoirDialog(true);
+              }}
+              title="Rapprocher avec un avoir"
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            >
+              <Link2 className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -1194,6 +1211,13 @@ export default function FacturesVentes() {
             open={openViewDialog}
             onOpenChange={setOpenViewDialog}
             facture={selectedFacture}
+          />
+
+          <RapprochementAvoirDialog
+            open={openRapprochementAvoirDialog}
+            onOpenChange={setOpenRapprochementAvoirDialog}
+            facture={selectedFacture}
+            onSuccess={fetchFactures}
           />
         </>
       )}
