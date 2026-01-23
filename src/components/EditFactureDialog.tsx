@@ -24,6 +24,11 @@ interface EditFactureDialogProps {
   facture: Facture;
 }
 
+// Helper pour détecter les types d'achat
+const isAchatType = (type: string) => {
+  return type === 'ACHATS' || type === 'ACHATS_GENERAUX' || type === 'ACHATS_SERVICES' || type === 'ACHATS_ETAT';
+};
+
 export default function EditFactureDialog({ 
   open, 
   onOpenChange, 
@@ -39,6 +44,12 @@ export default function EditFactureDialog({
   const [typesMission, setTypesMission] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [clientPopoverOpen, setClientPopoverOpen] = useState(false);
+  
+  // État pour les fournisseurs (achats)
+  const [fournisseursGeneraux, setFournisseursGeneraux] = useState<any[]>([]);
+  const [fournisseursServices, setFournisseursServices] = useState<any[]>([]);
+  const [fournisseursEtat, setFournisseursEtat] = useState<any[]>([]);
+  const [fournisseurPopoverOpen, setFournisseurPopoverOpen] = useState(false);
 
   useEffect(() => {
     if (open && facture) {
@@ -47,7 +58,13 @@ export default function EditFactureDialog({
       fetchMissions();
       fetchTypesMission();
       fetchSocieteInterne();
-      fetchClients();
+      
+      // Charger clients ou fournisseurs selon le type
+      if (isAchatType(facture.type_facture)) {
+        fetchFournisseurs();
+      } else {
+        fetchClients();
+      }
     }
   }, [open, facture]);
 
@@ -62,6 +79,38 @@ export default function EditFactureDialog({
     } catch (error) {
       console.error('Erreur lors du chargement des clients:', error);
     }
+  };
+
+  const fetchFournisseurs = async () => {
+    try {
+      const [generaux, services, etat] = await Promise.all([
+        supabase.from('fournisseurs_generaux').select('*').order('raison_sociale'),
+        supabase.from('fournisseurs_services').select('*').order('raison_sociale'),
+        supabase.from('fournisseurs_etat_organismes').select('*').order('raison_sociale')
+      ]);
+      
+      setFournisseursGeneraux(generaux.data || []);
+      setFournisseursServices(services.data || []);
+      setFournisseursEtat(etat.data || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des fournisseurs:', error);
+    }
+  };
+
+  // Obtenir la liste de fournisseurs appropriée selon le type de facture
+  const getFournisseursList = () => {
+    const type = facture.type_facture as string;
+    if (type === 'ACHATS_SERVICES') return fournisseursServices;
+    if (type === 'ACHATS_ETAT') return fournisseursEtat;
+    return fournisseursGeneraux; // ACHATS_GENERAUX, ACHATS ou défaut
+  };
+
+  // Label pour le type de fournisseur
+  const getFournisseurLabel = () => {
+    const type = facture.type_facture as string;
+    if (type === 'ACHATS_SERVICES') return 'fournisseur de services';
+    if (type === 'ACHATS_ETAT') return 'fournisseur État/organisme';
+    return 'fournisseur général';
   };
 
   const handleClientSelect = (client: any) => {
@@ -80,6 +129,18 @@ export default function EditFactureDialog({
       destinataire_telephone: client.telephone || '',
     }));
     setClientPopoverOpen(false);
+  };
+
+  const handleFournisseurSelect = (fournisseur: any) => {
+    setFormData(prev => ({
+      ...prev,
+      emetteur_id: fournisseur.id,
+      emetteur_nom: fournisseur.raison_sociale,
+      emetteur_adresse: fournisseur.adresse || '',
+      emetteur_email: fournisseur.email || '',
+      emetteur_telephone: fournisseur.telephone || '',
+    }));
+    setFournisseurPopoverOpen(false);
   };
 
   const fetchLignes = async () => {
@@ -280,15 +341,19 @@ export default function EditFactureDialog({
         reference_societe: formData.reference_societe,
       };
 
-      // Pour les factures d'achat, permettre la modification de date_emission, emetteur_nom, destinataire_nom
-      if (facture.type_facture === 'ACHATS') {
+      // Pour les factures d'achat, permettre la modification de date_emission, emetteur_nom, emetteur_id
+      if (isAchatType(facture.type_facture as string)) {
         updateData.date_emission = format(new Date(formData.date_emission), 'yyyy-MM-dd');
         updateData.emetteur_nom = formData.emetteur_nom;
-        updateData.destinataire_nom = formData.destinataire_nom;
+        updateData.emetteur_id = formData.emetteur_id || null;
+        updateData.emetteur_adresse = formData.emetteur_adresse || null;
+        updateData.emetteur_email = formData.emetteur_email || null;
+        updateData.emetteur_telephone = formData.emetteur_telephone || null;
       }
 
       // Pour les factures de vente, permettre la modification du destinataire
       if (facture.type_facture === 'VENTES') {
+        updateData.destinataire_id = formData.destinataire_id || null;
         updateData.destinataire_nom = formData.destinataire_nom;
         updateData.destinataire_adresse = formData.destinataire_adresse;
         updateData.destinataire_email = formData.destinataire_email;
@@ -366,60 +431,112 @@ export default function EditFactureDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Informations - modifiables pour ACHATS */}
-          {facture.type_facture === 'ACHATS' ? (
-            <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Type</p>
-                <p className="font-medium">{facture.type_facture}</p>
+          {/* Informations - modifiables pour types d'ACHAT */}
+          {isAchatType(facture.type_facture as string) ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Type</p>
+                  <p className="font-medium">{facture.type_facture}</p>
+                </div>
+                <div>
+                  <Label>Date d'émission</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.date_emission && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.date_emission ? (
+                          format(new Date(formData.date_emission), "dd/MM/yyyy", { locale: fr })
+                        ) : (
+                          <span>Sélectionner une date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={new Date(formData.date_emission)}
+                        onSelect={(date) => date && setFormData(prev => ({ ...prev, date_emission: format(date, 'yyyy-MM-dd') }))}
+                        locale={fr}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
-              <div>
-                <Label>Date d'émission</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !formData.date_emission && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.date_emission ? (
-                        format(new Date(formData.date_emission), "dd/MM/yyyy", { locale: fr })
-                      ) : (
-                        <span>Sélectionner une date</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={new Date(formData.date_emission)}
-                      onSelect={(date) => date && setFormData(prev => ({ ...prev, date_emission: format(date, 'yyyy-MM-dd') }))}
-                      locale={fr}
-                      initialFocus
+
+              {/* Émetteur (Fournisseur) avec sélection */}
+              <div className="p-4 border rounded-lg space-y-3">
+                <p className="text-sm font-medium text-muted-foreground">Émetteur (Fournisseur)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <Label>Sélectionner un {getFournisseurLabel()}</Label>
+                    <Popover open={fournisseurPopoverOpen} onOpenChange={setFournisseurPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={fournisseurPopoverOpen}
+                          className="w-full justify-between"
+                        >
+                          {formData.emetteur_id 
+                            ? getFournisseursList().find(f => f.id === formData.emetteur_id)?.raison_sociale || formData.emetteur_nom
+                            : formData.emetteur_nom || `Choisir un ${getFournisseurLabel()}...`}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[400px] p-0">
+                        <Command>
+                          <CommandInput placeholder={`Rechercher un ${getFournisseurLabel()}...`} />
+                          <CommandEmpty>Aucun fournisseur trouvé.</CommandEmpty>
+                          <CommandGroup className="max-h-[300px] overflow-y-auto">
+                            {getFournisseursList().map((fournisseur) => (
+                              <CommandItem
+                                key={fournisseur.id}
+                                value={fournisseur.raison_sociale}
+                                onSelect={() => handleFournisseurSelect(fournisseur)}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.emetteur_id === fournisseur.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div>
+                                  <div>{fournisseur.raison_sociale}</div>
+                                  {fournisseur.secteur_activite && (
+                                    <div className="text-xs text-muted-foreground">{fournisseur.secteur_activite}</div>
+                                  )}
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="emetteur_nom">Nom</Label>
+                    <Input
+                      id="emetteur_nom"
+                      value={formData.emetteur_nom}
+                      onChange={(e) => setFormData(prev => ({ ...prev, emetteur_nom: e.target.value }))}
+                      placeholder="Nom de l'émetteur"
                     />
-                  </PopoverContent>
-                </Popover>
+                  </div>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="emetteur_nom">Émetteur</Label>
-                <Input
-                  id="emetteur_nom"
-                  value={formData.emetteur_nom}
-                  onChange={(e) => setFormData(prev => ({ ...prev, emetteur_nom: e.target.value }))}
-                  placeholder="Nom de l'émetteur"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="destinataire_nom">Destinataire</Label>
-                <Input
-                  id="destinataire_nom"
-                  value={formData.destinataire_nom}
-                  onChange={(e) => setFormData(prev => ({ ...prev, destinataire_nom: e.target.value }))}
-                  placeholder="Nom du destinataire"
-                />
+
+              {/* Destinataire (Société) - lecture seule */}
+              <div className="p-4 border rounded-lg bg-muted/50 space-y-2">
+                <p className="text-sm text-muted-foreground">Destinataire</p>
+                <p className="font-medium">{formData.destinataire_nom}</p>
                 {societeInterne?.siren && <p className="text-sm text-muted-foreground">SIREN: {societeInterne.siren}</p>}
                 {societeInterne?.tva && <p className="text-sm text-muted-foreground">N° TVA: {societeInterne.tva}</p>}
               </div>
