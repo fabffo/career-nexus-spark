@@ -634,7 +634,25 @@ export default function FacturesVentes() {
     },
     {
       accessorKey: "numero_rapprochement",
-      header: "Rapprochement",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="hover:bg-accent p-0 h-auto"
+        >
+          Rapprochement
+          <ArrowUpDown className="ml-1 h-3 w-3" />
+        </Button>
+      ),
+      sortingFn: (rowA, rowB) => {
+        const a = rowA.getValue("numero_rapprochement") as string | null;
+        const b = rowB.getValue("numero_rapprochement") as string | null;
+        // Mettre les non-rapprochées en dernier
+        if (!a && !b) return 0;
+        if (!a) return 1;
+        if (!b) return -1;
+        return a.localeCompare(b);
+      },
       cell: ({ row }) => {
         const numero = row.getValue("numero_rapprochement") as string;
         return numero ? (
@@ -648,7 +666,24 @@ export default function FacturesVentes() {
     },
     {
       accessorKey: "numero_ligne_rapprochement",
-      header: "N° Ligne Rapprochement",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="hover:bg-accent p-0 h-auto"
+        >
+          N° Ligne
+          <ArrowUpDown className="ml-1 h-3 w-3" />
+        </Button>
+      ),
+      sortingFn: (rowA, rowB) => {
+        const a = rowA.getValue("numero_ligne_rapprochement") as string | null;
+        const b = rowB.getValue("numero_ligne_rapprochement") as string | null;
+        if (!a && !b) return 0;
+        if (!a) return 1;
+        if (!b) return -1;
+        return a.localeCompare(b);
+      },
       cell: ({ row }) => {
         const numeroLigne = row.getValue("numero_ligne_rapprochement") as string;
         return numeroLigne ? (
