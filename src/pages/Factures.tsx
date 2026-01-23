@@ -37,10 +37,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+export type TypeFacture = 'VENTES' | 'ACHATS' | 'ACHATS_GENERAUX' | 'ACHATS_SERVICES' | 'ACHATS_ETAT';
+
 export interface Facture {
   id: string;
   numero_facture: string;
-  type_facture: 'VENTES' | 'ACHATS';
+  type_facture: TypeFacture;
   date_emission: string;
   date_echeance: string;
   emetteur_type: string;

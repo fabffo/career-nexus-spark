@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Facture, FactureLigne } from "@/pages/Factures";
+import type { Facture, FactureLigne, TypeFacture } from "@/pages/Factures";
 import type { Mission } from "@/types/mission";
 
 interface AddFactureDialogProps {
@@ -38,7 +38,7 @@ export default function AddFactureDialog({
   const [typesMission, setTypesMission] = useState<any[]>([]);
   
   const [formData, setFormData] = useState({
-    type_facture: 'VENTES' as 'VENTES' | 'ACHATS',
+    type_facture: 'VENTES' as TypeFacture,
     numero_facture: '',
     date_emission: new Date().toISOString().split('T')[0],
     date_echeance: '',

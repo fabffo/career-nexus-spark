@@ -97,9 +97,9 @@ export default function EditFactureDialog({
     }
   };
 
-  // Obtenir la liste de fournisseurs appropriée selon le type de facture
+  // Obtenir la liste de fournisseurs appropriée selon le type de facture (utilise formData pour être dynamique)
   const getFournisseursList = () => {
-    const type = facture.type_facture as string;
+    const type = formData.type_facture as string;
     if (type === 'ACHATS_SERVICES') return fournisseursServices;
     if (type === 'ACHATS_ETAT') return fournisseursEtat;
     return fournisseursGeneraux; // ACHATS_GENERAUX, ACHATS ou défaut
@@ -107,10 +107,24 @@ export default function EditFactureDialog({
 
   // Label pour le type de fournisseur
   const getFournisseurLabel = () => {
-    const type = facture.type_facture as string;
+    const type = formData.type_facture as string;
     if (type === 'ACHATS_SERVICES') return 'fournisseur de services';
     if (type === 'ACHATS_ETAT') return 'fournisseur État/organisme';
     return 'fournisseur général';
+  };
+
+  // Gérer le changement de type d'achat
+  const handleTypeAchatChange = (newType: string) => {
+    setFormData(prev => ({
+      ...prev,
+      type_facture: newType as Facture['type_facture'],
+      // Réinitialiser le fournisseur quand on change de type
+      emetteur_id: undefined,
+      emetteur_nom: '',
+      emetteur_adresse: '',
+      emetteur_email: '',
+      emetteur_telephone: '',
+    }));
   };
 
   const handleClientSelect = (client: any) => {
@@ -341,8 +355,9 @@ export default function EditFactureDialog({
         reference_societe: formData.reference_societe,
       };
 
-      // Pour les factures d'achat, permettre la modification de date_emission, emetteur_nom, emetteur_id
+      // Pour les factures d'achat, permettre la modification de type, date_emission, emetteur_nom, emetteur_id
       if (isAchatType(facture.type_facture as string)) {
+        updateData.type_facture = formData.type_facture;
         updateData.date_emission = format(new Date(formData.date_emission), 'yyyy-MM-dd');
         updateData.emetteur_nom = formData.emetteur_nom;
         updateData.emetteur_id = formData.emetteur_id || null;
@@ -436,8 +451,20 @@ export default function EditFactureDialog({
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Type</p>
-                  <p className="font-medium">{facture.type_facture}</p>
+                  <Label>Type de facture d'achat</Label>
+                  <Select
+                    value={formData.type_facture}
+                    onValueChange={handleTypeAchatChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner un type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ACHATS_GENERAUX">Achats généraux</SelectItem>
+                      <SelectItem value="ACHATS_SERVICES">Achats de services</SelectItem>
+                      <SelectItem value="ACHATS_ETAT">Achats État & organismes</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label>Date d'émission</Label>
