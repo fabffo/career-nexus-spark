@@ -209,6 +209,7 @@ export default function EditRapprochementEnCoursDialog({
         .order('nom');
       
       if (error) throw error;
+      console.log('[EditRapprochementEnCoursDialog] Abonnements chargés:', data?.length, data?.map(a => a.nom));
       setAbonnements(data || []);
     } catch (error) {
       console.error('Erreur lors du chargement des abonnements:', error);
