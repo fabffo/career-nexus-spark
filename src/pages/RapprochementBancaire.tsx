@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter, History, Clock, Pencil, Trash2, Settings, Plus, Edit, Trash, Power, PowerOff, Users, CreditCard, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter, History, Clock, Pencil, Trash2, Settings, Plus, Edit, Trash, Power, PowerOff, Users, CreditCard, Search, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeftRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { RapprochementTypeIndicatorCompact } from "@/components/RapprochementTypeIndicator";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import EditRapprochementHistoriqueDialog from "@/components/EditRapprochementHis
 import EditRapprochementEnCoursDialog from "@/components/EditRapprochementEnCoursDialog";
 import AddRegleRapprochementDialog from "@/components/AddRegleRapprochementDialog";
 import EditRegleRapprochementDialog from "@/components/EditRegleRapprochementDialog";
+import RapprochementInverseDialog from "@/components/RapprochementInverseDialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { getFournisseurTypeFromAchatType } from "@/types/partenaire";
@@ -78,6 +79,8 @@ interface Rapprochement {
   total_ht?: number;
   total_tva?: number;
   total_ttc?: number;
+  // Rapprochement inverse
+  ligneInverse?: string; // Numéro de la ligne inverse liée
 }
 
 interface FichierRapprochement {
@@ -155,6 +158,10 @@ export default function RapprochementBancaire() {
   const [typePartenaireFilterHistorique, setTypePartenaireFilterHistorique] = useState<string>("all");
   const [currentPageHistorique, setCurrentPageHistorique] = useState(1);
   const [itemsPerPageHistorique, setItemsPerPageHistorique] = useState(20);
+  
+  // États pour le dialogue de rapprochement inverse
+  const [inverseDialogOpen, setInverseDialogOpen] = useState(false);
+  const [selectedInverseRapprochement, setSelectedInverseRapprochement] = useState<Rapprochement | null>(null);
   
   const { toast } = useToast();
 
@@ -5309,6 +5316,23 @@ export default function RapprochementBancaire() {
                                <LinkIcon className="h-3 w-3" />
                                {rapprochement.isManual ? "Mod." : "Rapp."}
                              </Button>
+                             {/* Bouton Rapprochement Inverse - visible si partenaire détecté et ligne non rapprochée */}
+                             {rapprochement.fournisseur_info && rapprochement.status !== "matched" && (
+                               <Button
+                                 variant="outline"
+                                 size="sm"
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   setSelectedInverseRapprochement(rapprochement);
+                                   setInverseDialogOpen(true);
+                                 }}
+                                 className="gap-1 text-xs h-7 px-2"
+                                 title="Rapprocher avec une ligne inverse"
+                               >
+                                 <ArrowLeftRight className="h-3 w-3" />
+                                 Inv.
+                               </Button>
+                             )}
                               {(rapprochement.facture ||
                                 rapprochement.factureIds ||
                                 rapprochement.abonnement_info ||
@@ -6383,6 +6407,41 @@ export default function RapprochementBancaire() {
               return r;
             }));
           }
+        }}
+      />
+
+      {/* Dialogue de rapprochement inverse */}
+      <RapprochementInverseDialog
+        open={inverseDialogOpen}
+        onOpenChange={setInverseDialogOpen}
+        rapprochement={selectedInverseRapprochement}
+        allRapprochements={rapprochements}
+        onRapprochementInverse={(sourceNumeroLigne, targetNumeroLigne) => {
+          // Marquer les deux lignes comme rapprochées ensemble
+          const getTransactionKey = (t: TransactionBancaire) => 
+            `${t.date}-${t.libelle}-${t.montant}`;
+          
+          setRapprochements(prev => prev.map(r => {
+            const numeroLigne = r.transaction.numero_ligne;
+            
+            if (numeroLigne === sourceNumeroLigne || numeroLigne === targetNumeroLigne) {
+              const linkedLigne = numeroLigne === sourceNumeroLigne ? targetNumeroLigne : sourceNumeroLigne;
+              return {
+                ...r,
+                status: "matched" as const,
+                isManual: true,
+                notes: `Rapprochement inverse avec ligne ${linkedLigne}`,
+                // Stocker la référence à la ligne inverse
+                ligneInverse: linkedLigne,
+              };
+            }
+            return r;
+          }));
+          
+          toast({
+            title: "Rapprochement inverse effectué",
+            description: `Les lignes ${sourceNumeroLigne.slice(-10)} et ${targetNumeroLigne.slice(-10)} ont été rapprochées`,
+          });
         }}
       />
     </div>
