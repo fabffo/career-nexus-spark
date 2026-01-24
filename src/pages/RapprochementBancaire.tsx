@@ -2258,7 +2258,12 @@ export default function RapprochementBancaire() {
         return v.length > 0 ? v : fallback;
       };
 
-      const checkKeywordsMatch = (keywords: string, libelle: string): boolean => {
+      // Vérifie si c'est un fallback sur raison_sociale (pas de mots-clés définis)
+      const isFallbackMatch = (keywords: string | null | undefined) => {
+        return !(keywords ?? "").trim();
+      };
+
+      const checkKeywordsMatch = (keywords: string, libelle: string, strictMode: boolean = false): boolean => {
         const kw = keywords.trim();
         if (kw === "") return false;
 
@@ -2270,7 +2275,19 @@ export default function RapprochementBancaire() {
         return orGroups.some((group) => {
           if (group === "") return false;
           const andTerms = group.split(/\s+/).filter((t) => t !== "");
-          return andTerms.every((term) => libelleNorm.includes(term));
+          
+          if (strictMode) {
+            // Mode strict (fallback sur raison_sociale) : TOUS les mots doivent être présents comme mots complets
+            // Utilise une regex word boundary pour éviter les matchs partiels (ex: "MARSEILLE" ne match pas "C.MARSEILLE")
+            return andTerms.every((term) => {
+              // Créer une regex qui cherche le mot comme entité distincte
+              const regex = new RegExp(`(^|[^A-Z0-9])${term}([^A-Z0-9]|$)`, 'i');
+              return regex.test(libelleNorm);
+            });
+          } else {
+            // Mode normal (mots-clés explicites) : substring matching
+            return andTerms.every((term) => libelleNorm.includes(term));
+          }
         });
       };
 
@@ -2305,9 +2322,10 @@ export default function RapprochementBancaire() {
 
         // 1. Chercher un match dans les fournisseurs généraux
         for (const fournisseur of (fournisseursGeneraux || [])) {
-          if (checkKeywordsMatch(getEffectiveKeywords(fournisseur.mots_cles_rapprochement, fournisseur.raison_sociale), libelle)) {
+          const useStrictMode = isFallbackMatch(fournisseur.mots_cles_rapprochement);
+          if (checkKeywordsMatch(getEffectiveKeywords(fournisseur.mots_cles_rapprochement, fournisseur.raison_sociale), libelle, useStrictMode)) {
             matchFournisseurCount++;
-            console.log(`✅ Match fournisseur général: "${libelle}" -> "${fournisseur.raison_sociale}"`);
+            console.log(`✅ Match fournisseur général: "${libelle}" -> "${fournisseur.raison_sociale}" (strict: ${useStrictMode})`);
             const updatedRapp = {
               ...rapprochement,
               fournisseur_info: { id: fournisseur.id, nom: fournisseur.raison_sociale, type: 'general' as const },
@@ -2318,9 +2336,10 @@ export default function RapprochementBancaire() {
 
         // 2. Chercher un match dans les clients
         for (const client of (clients || [])) {
-          if (checkKeywordsMatch(getEffectiveKeywords(client.mots_cles_rapprochement, client.raison_sociale), libelle)) {
+          const useStrictMode = isFallbackMatch(client.mots_cles_rapprochement);
+          if (checkKeywordsMatch(getEffectiveKeywords(client.mots_cles_rapprochement, client.raison_sociale), libelle, useStrictMode)) {
             matchClientCount++;
-            console.log(`✅ Match client: "${libelle}" -> "${client.raison_sociale}"`);
+            console.log(`✅ Match client: "${libelle}" -> "${client.raison_sociale}" (strict: ${useStrictMode})`);
             const updatedRapp = {
               ...rapprochement,
               fournisseur_info: { id: client.id, nom: client.raison_sociale, type: 'client' as const },
@@ -2331,9 +2350,10 @@ export default function RapprochementBancaire() {
 
         // 3. Chercher un match dans les fournisseurs services
         for (const fournisseur of (fournisseursServices || [])) {
-          if (checkKeywordsMatch(getEffectiveKeywords(fournisseur.mots_cles_rapprochement, fournisseur.raison_sociale), libelle)) {
+          const useStrictMode = isFallbackMatch(fournisseur.mots_cles_rapprochement);
+          if (checkKeywordsMatch(getEffectiveKeywords(fournisseur.mots_cles_rapprochement, fournisseur.raison_sociale), libelle, useStrictMode)) {
             matchFournisseurCount++;
-            console.log(`✅ Match fournisseur services: "${libelle}" -> "${fournisseur.raison_sociale}"`);
+            console.log(`✅ Match fournisseur services: "${libelle}" -> "${fournisseur.raison_sociale}" (strict: ${useStrictMode})`);
             const updatedRapp = {
               ...rapprochement,
               fournisseur_info: { id: fournisseur.id, nom: fournisseur.raison_sociale, type: 'services' as const },
@@ -2344,9 +2364,10 @@ export default function RapprochementBancaire() {
 
         // 4. Chercher un match dans les fournisseurs état/organismes
         for (const fournisseur of (fournisseursEtat || [])) {
-          if (checkKeywordsMatch(getEffectiveKeywords(fournisseur.mots_cles_rapprochement, fournisseur.raison_sociale), libelle)) {
+          const useStrictMode = isFallbackMatch(fournisseur.mots_cles_rapprochement);
+          if (checkKeywordsMatch(getEffectiveKeywords(fournisseur.mots_cles_rapprochement, fournisseur.raison_sociale), libelle, useStrictMode)) {
             matchFournisseurCount++;
-            console.log(`✅ Match fournisseur état: "${libelle}" -> "${fournisseur.raison_sociale}"`);
+            console.log(`✅ Match fournisseur état: "${libelle}" -> "${fournisseur.raison_sociale}" (strict: ${useStrictMode})`);
             const updatedRapp = {
               ...rapprochement,
               fournisseur_info: { id: fournisseur.id, nom: fournisseur.raison_sociale, type: 'etat' as const },
@@ -2357,9 +2378,10 @@ export default function RapprochementBancaire() {
 
         // 5. Chercher un match dans les banques
         for (const banque of (banques || [])) {
-          if (checkKeywordsMatch(getEffectiveKeywords(banque.mots_cles_rapprochement, banque.raison_sociale), libelle)) {
+          const useStrictMode = isFallbackMatch(banque.mots_cles_rapprochement);
+          if (checkKeywordsMatch(getEffectiveKeywords(banque.mots_cles_rapprochement, banque.raison_sociale), libelle, useStrictMode)) {
             matchBanqueCount++;
-            console.log(`✅ Match banque: "${libelle}" -> "${banque.raison_sociale}"`);
+            console.log(`✅ Match banque: "${libelle}" -> "${banque.raison_sociale}" (strict: ${useStrictMode})`);
             const updatedRapp = {
               ...rapprochement,
               fournisseur_info: { id: banque.id, nom: banque.raison_sociale, type: 'banque' as const },
@@ -2370,9 +2392,10 @@ export default function RapprochementBancaire() {
 
         // 6. Chercher un match dans les prestataires
         for (const prestataire of prestataires) {
-          if (checkKeywordsMatch(getEffectiveKeywords(prestataire.mots_cles_rapprochement, `${prestataire.prenom} ${prestataire.nom}`), libelle)) {
+          const useStrictMode = isFallbackMatch(prestataire.mots_cles_rapprochement);
+          if (checkKeywordsMatch(getEffectiveKeywords(prestataire.mots_cles_rapprochement, `${prestataire.prenom} ${prestataire.nom}`), libelle, useStrictMode)) {
             matchPrestataireCount++;
-            console.log(`✅ Match prestataire: "${libelle}" -> "${prestataire.prenom} ${prestataire.nom}"`);
+            console.log(`✅ Match prestataire: "${libelle}" -> "${prestataire.prenom} ${prestataire.nom}" (strict: ${useStrictMode})`);
             const updatedRapp = {
               ...rapprochement,
               fournisseur_info: { id: prestataire.id, nom: `${prestataire.prenom} ${prestataire.nom}`, type: 'prestataire' as const },
@@ -2383,9 +2406,10 @@ export default function RapprochementBancaire() {
 
         // 7. Chercher un match dans les salariés
         for (const salarie of salaries) {
-          if (checkKeywordsMatch(getEffectiveKeywords(salarie.mots_cles_rapprochement, `${salarie.prenom} ${salarie.nom}`), libelle)) {
+          const useStrictMode = isFallbackMatch(salarie.mots_cles_rapprochement);
+          if (checkKeywordsMatch(getEffectiveKeywords(salarie.mots_cles_rapprochement, `${salarie.prenom} ${salarie.nom}`), libelle, useStrictMode)) {
             matchSalarieCount++;
-            console.log(`✅ Match salarié: "${libelle}" -> "${salarie.prenom} ${salarie.nom}"`);
+            console.log(`✅ Match salarié: "${libelle}" -> "${salarie.prenom} ${salarie.nom}" (strict: ${useStrictMode})`);
             const updatedRapp = {
               ...rapprochement,
               fournisseur_info: { id: salarie.id, nom: `${salarie.prenom} ${salarie.nom}`, type: 'salarie' as const },
@@ -3245,7 +3269,12 @@ export default function RapprochementBancaire() {
         return `${declaration.nom} ${declaration.organisme}`;
       };
 
-      const checkKeywordsMatch = (keywords: string, libelle: string): boolean => {
+      // Vérifie si c'est un fallback (pas de mots-clés explicites)
+      const isFallbackMatch = (declaration: typeof declarationsEnrichies[0]) => {
+        return !(declaration.mots_cles_rapprochement ?? "").trim();
+      };
+
+      const checkKeywordsMatch = (keywords: string, libelle: string, strictMode: boolean = false): boolean => {
         const kw = keywords.trim();
         if (kw === "") return false;
 
@@ -3257,7 +3286,16 @@ export default function RapprochementBancaire() {
         return orGroups.some((group) => {
           if (group === "") return false;
           const andTerms = group.split(/\s+/).filter((t) => t !== "");
-          return andTerms.every((term) => libelleNorm.includes(term));
+          
+          if (strictMode) {
+            // Mode strict: TOUS les mots doivent être présents comme mots complets
+            return andTerms.every((term) => {
+              const regex = new RegExp(`(^|[^A-Z0-9])${term}([^A-Z0-9]|$)`, 'i');
+              return regex.test(libelleNorm);
+            });
+          } else {
+            return andTerms.every((term) => libelleNorm.includes(term));
+          }
         });
       };
 
@@ -3291,8 +3329,9 @@ export default function RapprochementBancaire() {
         // Chercher un match dans les déclarations
         for (const declaration of declarationsEnrichies) {
           const effectiveKeywords = getEffectiveKeywords(declaration);
-          const isMatch = checkKeywordsMatch(effectiveKeywords, libelle);
-          console.log(`   - Test "${declaration.nom}" (${declaration.organisme}) avec mots-clés "${effectiveKeywords}" => ${isMatch ? "MATCH" : "non"}`);
+          const useStrictMode = isFallbackMatch(declaration);
+          const isMatch = checkKeywordsMatch(effectiveKeywords, libelle, useStrictMode);
+          console.log(`   - Test "${declaration.nom}" (${declaration.organisme}) avec mots-clés "${effectiveKeywords}" (strict: ${useStrictMode}) => ${isMatch ? "MATCH" : "non"}`);
           if (isMatch) {
             matchDeclarationCount++;
             console.log(`✅ Match déclaration: "${libelle}" -> "${declaration.nom}" (${declaration.organisme}) via: ${effectiveKeywords}`);
@@ -3442,7 +3481,12 @@ export default function RapprochementBancaire() {
         return abonnement.nom;
       };
 
-      const checkKeywordsMatch = (keywords: string, libelle: string): boolean => {
+      // Vérifie si c'est un fallback (pas de mots-clés explicites)
+      const isFallbackMatch = (abonnement: typeof abonnementsEnrichis[0]) => {
+        return !(abonnement.mots_cles_rapprochement ?? "").trim();
+      };
+
+      const checkKeywordsMatch = (keywords: string, libelle: string, strictMode: boolean = false): boolean => {
         const kw = keywords.trim();
         if (kw === "") return false;
 
@@ -3454,7 +3498,16 @@ export default function RapprochementBancaire() {
         return orGroups.some((group) => {
           if (group === "") return false;
           const andTerms = group.split(/\s+/).filter((t) => t !== "");
-          return andTerms.every((term) => libelleNorm.includes(term));
+          
+          if (strictMode) {
+            // Mode strict: TOUS les mots doivent être présents comme mots complets
+            return andTerms.every((term) => {
+              const regex = new RegExp(`(^|[^A-Z0-9])${term}([^A-Z0-9]|$)`, 'i');
+              return regex.test(libelleNorm);
+            });
+          } else {
+            return andTerms.every((term) => libelleNorm.includes(term));
+          }
         });
       };
 
@@ -3509,8 +3562,9 @@ export default function RapprochementBancaire() {
 
           // 2. Sinon, vérifier par mots-clés
           const effectiveKeywords = getEffectiveKeywords(abonnement);
-          const isMatch = checkKeywordsMatch(effectiveKeywords, libelle);
-          console.log(`   - Test "${abonnement.nom}" avec mots-clés "${effectiveKeywords}" => ${isMatch ? "MATCH" : "non"}`);
+          const useStrictMode = isFallbackMatch(abonnement);
+          const isMatch = checkKeywordsMatch(effectiveKeywords, libelle, useStrictMode);
+          console.log(`   - Test "${abonnement.nom}" avec mots-clés "${effectiveKeywords}" (strict: ${useStrictMode}) => ${isMatch ? "MATCH" : "non"}`);
           if (isMatch) {
             matchAbonnementCount++;
             console.log(`✅ Match abonnement par MOTS-CLES: "${libelle}" -> "${abonnement.nom}" (via: ${effectiveKeywords}) - Montant TTC: ${transactionMontant}`);
