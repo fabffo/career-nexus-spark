@@ -3492,8 +3492,8 @@ export default function RapprochementBancaire() {
 
         const libelleNorm = normalizeText(libelle);
 
-        // Séparer par virgule (OU) puis par espace (ET)
-        const orGroups = kw.split(",").map((g) => normalizeText(g));
+        // Séparer par virgule OU point-virgule (opérateur OU) puis par espace (opérateur ET)
+        const orGroups = kw.split(/[,;]/).map((g) => normalizeText(g));
 
         return orGroups.some((group) => {
           if (group === "") return false;
