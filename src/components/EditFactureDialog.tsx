@@ -356,7 +356,8 @@ export default function EditFactureDialog({
       };
 
       // Pour les factures d'achat, permettre la modification de type, date_emission, emetteur_nom, emetteur_id
-      if (isAchatType(facture.type_facture as string)) {
+      // Utilise formData.type_facture pour supporter aussi les changements de type en cours d'édition
+      if (isAchatType(facture.type_facture as string) || isAchatType(formData.type_facture as string)) {
         updateData.type_facture = formData.type_facture;
         updateData.date_emission = format(new Date(formData.date_emission), 'yyyy-MM-dd');
         updateData.emetteur_nom = formData.emetteur_nom;
@@ -375,11 +376,19 @@ export default function EditFactureDialog({
         updateData.destinataire_telephone = formData.destinataire_telephone;
       }
 
+      console.log('📝 Données de mise à jour facture:', updateData);
+      console.log('📅 Date dans formData:', formData.date_emission);
+      console.log('🏷️ Type facture original:', facture.type_facture);
+      console.log('🏷️ isAchatType:', isAchatType(facture.type_facture as string));
+
       // Mettre à jour la facture
-      const { error: factureError } = await supabase
+      const { data: updatedData, error: factureError } = await supabase
         .from('factures')
         .update(updateData)
-        .eq('id', facture.id);
+        .eq('id', facture.id)
+        .select();
+
+      console.log('✅ Réponse Supabase:', updatedData, factureError);
 
       if (factureError) throw factureError;
 
