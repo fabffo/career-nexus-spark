@@ -220,6 +220,46 @@ export default function EditRapprochementHistoriqueDialog({
       
       // Charger les factures, l'abonnement, la déclaration et les consommations associés
       const loadAssociatedData = async () => {
+        const numeroLigne = rapprochement.transaction?.numero_ligne;
+        
+        // ⭐ PRIORITÉ 1: Charger depuis lignes_rapprochement (source de vérité)
+        if (numeroLigne) {
+          const { data: ligneData, error: ligneError } = await supabase
+            .from("lignes_rapprochement")
+            .select("facture_id, factures_ids, abonnement_id, declaration_charge_id")
+            .eq("numero_ligne", numeroLigne)
+            .maybeSingle();
+          
+          if (!ligneError && ligneData) {
+            console.log("[EditHistorique] Données lignes_rapprochement:", ligneData);
+            
+            // Récupérer les IDs de factures
+            const factureIds: string[] = [];
+            if (ligneData.facture_id) {
+              factureIds.push(ligneData.facture_id);
+            }
+            if (ligneData.factures_ids && Array.isArray(ligneData.factures_ids)) {
+              factureIds.push(...ligneData.factures_ids.filter((id: string) => id && !factureIds.includes(id)));
+            }
+            
+            if (factureIds.length > 0) {
+              console.log("[EditHistorique] Factures trouvées dans lignes_rapprochement:", factureIds);
+              setSelectedFactureIds(factureIds);
+            }
+            
+            if (ligneData.abonnement_id) {
+              setSelectedAbonnementId(ligneData.abonnement_id);
+            }
+            
+            if (ligneData.declaration_charge_id) {
+              setSelectedDeclarationId(ligneData.declaration_charge_id);
+            }
+            
+            return; // On a trouvé les données, pas besoin de chercher dans rapprochements_bancaires
+          }
+        }
+        
+        // ⭐ FALLBACK: Charger depuis rapprochements_bancaires (compatibilité)
         if (!rapprochement.manualId) return;
         
         // Extraire l'ID réel en enlevant le préfixe "rb_"
@@ -231,7 +271,8 @@ export default function EditRapprochementHistoriqueDialog({
           .select("facture_id")
           .eq("rapprochement_id", realId);
         
-        if (facturesData) {
+        if (facturesData && facturesData.length > 0) {
+          console.log("[EditHistorique] Factures trouvées dans rapprochements_factures:", facturesData.map(f => f.facture_id));
           setSelectedFactureIds(facturesData.map(f => f.facture_id));
         }
         
