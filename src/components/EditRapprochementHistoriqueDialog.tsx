@@ -927,6 +927,67 @@ export default function EditRapprochementHistoriqueDialog({
             </Select>
           </div>
 
+          {/* ⭐ Factures déjà associées à ce rapprochement */}
+          {selectedFactures.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-primary font-semibold flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  Factures associées à ce rapprochement ({selectedFactures.length})
+                </Label>
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Total: </span>
+                  <span className={`font-semibold ${Math.abs(Math.abs(transaction.montant) - totalFacturesSelectionnees) < 0.01 ? 'text-green-600' : 'text-orange-600'}`}>
+                    {new Intl.NumberFormat("fr-FR", {
+                      style: "currency",
+                      currency: "EUR",
+                    }).format(totalFacturesSelectionnees)}
+                  </span>
+                </div>
+              </div>
+              <div className="border-2 border-primary/30 rounded-lg bg-primary/5">
+                {selectedFactures.map((facture) => (
+                  <div
+                    key={facture.id}
+                    className="flex items-center gap-3 p-3 border-b last:border-b-0 border-primary/10"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={true}
+                      onChange={() => toggleFactureSelection(facture.id)}
+                      className="h-4 w-4"
+                    />
+                    <div className="flex-1 grid grid-cols-4 gap-2 items-center">
+                      <span className="font-medium">{facture.numero_facture}</span>
+                      <span className="text-sm text-muted-foreground truncate">
+                        {facture.partenaire_nom}
+                      </span>
+                      <span className={`font-medium text-right ${facture.type_facture === 'VENTES' ? 'text-green-600' : 'text-orange-600'}`}>
+                        {new Intl.NumberFormat("fr-FR", {
+                          style: "currency",
+                          currency: "EUR",
+                        }).format(facture.total_ttc)}
+                      </span>
+                      <div className="flex items-center justify-end gap-2">
+                        <Badge variant={facture.type_facture === 'VENTES' ? 'default' : 'secondary'} className="text-xs">
+                          {facture.type_facture === 'VENTES' ? 'Vente' : 'Achat'}
+                        </Badge>
+                        <button
+                          type="button"
+                          onClick={() => toggleFactureSelection(facture.id)}
+                          className="text-red-500 hover:text-red-700"
+                          title="Retirer cette facture"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Search */}
           <div className="space-y-2">
             <Label>Rechercher une facture</Label>
