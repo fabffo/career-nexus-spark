@@ -6416,11 +6416,49 @@ export default function RapprochementBancaire() {
         onOpenChange={setInverseDialogOpen}
         rapprochement={selectedInverseRapprochement}
         allRapprochements={rapprochements}
-        onRapprochementInverse={(sourceNumeroLigne, targetNumeroLigne) => {
-          // Marquer les deux lignes comme rapprochées ensemble
-          const getTransactionKey = (t: TransactionBancaire) => 
-            `${t.date}-${t.libelle}-${t.montant}`;
+        onRapprochementInverse={async (sourceNumeroLigne, targetNumeroLigne) => {
+          // Marquer les deux lignes comme rapprochées ensemble ET sauvegarder en base
+          const noteSource = `Rapprochement inverse avec ligne ${targetNumeroLigne}`;
+          const noteTarget = `Rapprochement inverse avec ligne ${sourceNumeroLigne}`;
           
+          // Sauvegarder en base de données
+          if (fichierEnCoursId) {
+            const updates = [
+              supabase
+                .from('lignes_rapprochement')
+                .update({
+                  statut: 'RAPPROCHE',
+                  notes: noteSource,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('numero_ligne', sourceNumeroLigne)
+                .eq('fichier_rapprochement_id', fichierEnCoursId),
+              supabase
+                .from('lignes_rapprochement')
+                .update({
+                  statut: 'RAPPROCHE',
+                  notes: noteTarget,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('numero_ligne', targetNumeroLigne)
+                .eq('fichier_rapprochement_id', fichierEnCoursId)
+            ];
+            
+            const results = await Promise.all(updates);
+            const hasError = results.some(r => r.error);
+            
+            if (hasError) {
+              console.error("Erreur sauvegarde rapprochement inverse:", results);
+              toast({
+                title: "Erreur",
+                description: "Impossible de sauvegarder le rapprochement inverse",
+                variant: "destructive",
+              });
+              return;
+            }
+          }
+          
+          // Mettre à jour l'état local
           setRapprochements(prev => prev.map(r => {
             const numeroLigne = r.transaction.numero_ligne;
             
@@ -6431,7 +6469,6 @@ export default function RapprochementBancaire() {
                 status: "matched" as const,
                 isManual: true,
                 notes: `Rapprochement inverse avec ligne ${linkedLigne}`,
-                // Stocker la référence à la ligne inverse
                 ligneInverse: linkedLigne,
               };
             }
