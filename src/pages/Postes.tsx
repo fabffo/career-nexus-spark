@@ -44,7 +44,7 @@ export default function Postes() {
   const [postes, setPostes] = useState<PosteClient[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [candidats, setCandidats] = useState<Candidat[]>([]);
-  const [typesPrestationList, setTypesPrestationList] = useState<Array<{ code: string; libelle: string }>>([]);
+  const [typesMissionList, setTypesMissionList] = useState<Array<{ code: string; libelle: string }>>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedPoste, setSelectedPoste] = useState<PosteClient | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -78,20 +78,20 @@ export default function Postes() {
     setClients(clientsData);
     setCandidats(candidatsData);
 
-    // Charger les types de prestation depuis la base de données
+    // Charger les types de mission depuis la base de données
     try {
       const { supabase } = await import('@/integrations/supabase/client');
-      const { data: typesPrestation } = await supabase
-        .from('param_type_prestation' as any)
+      const { data: typesMission } = await supabase
+        .from('param_type_mission' as any)
         .select('code, libelle')
         .eq('is_active', true)
         .order('ordre', { ascending: true });
       
-      if (typesPrestation && Array.isArray(typesPrestation)) {
-        setTypesPrestationList(typesPrestation.map((t: any) => ({ code: t.code, libelle: t.libelle })));
+      if (typesMission && Array.isArray(typesMission)) {
+        setTypesMissionList(typesMission.map((t: any) => ({ code: t.code, libelle: t.libelle })));
       }
     } catch (error) {
-      console.error('Erreur lors du chargement des types de prestation:', error);
+      console.error('Erreur lors du chargement des types de mission:', error);
     }
   };
 
@@ -224,8 +224,8 @@ export default function Postes() {
     return clients.find(c => c.id === clientId);
   };
 
-  const getTypePrestationLibelle = (code: string) => {
-    const type = typesPrestationList.find(t => t.code === code);
+  const getTypeMissionLibelle = (code: string) => {
+    const type = typesMissionList.find(t => t.code === code);
     return type?.libelle || code;
   };
 
@@ -257,7 +257,7 @@ export default function Postes() {
         const type = row.getValue('typePrestation') as PosteClient['typePrestation'];
         return (
           <Badge variant="outline">
-            {getTypePrestationLibelle(type)}
+            {getTypeMissionLibelle(type)}
           </Badge>
         );
       },
@@ -450,7 +450,7 @@ export default function Postes() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="typePrestation">Type de prestation</Label>
+                <Label htmlFor="typePrestation">Type de mission</Label>
                 <Select
                   value={formData.typePrestation}
                   onValueChange={(value) => setFormData({ ...formData, typePrestation: value as PosteClient['typePrestation'] })}
@@ -459,7 +459,7 @@ export default function Postes() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {typesPrestationList.map((type) => (
+                    {typesMissionList.map((type) => (
                       <SelectItem key={type.code} value={type.code}>
                         {type.libelle}
                       </SelectItem>
