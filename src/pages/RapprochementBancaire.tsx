@@ -4456,7 +4456,7 @@ export default function RapprochementBancaire() {
       etat: "Fournisseur État & organismes",
       client: "Client",
       banque: "Banque",
-      prestataire: "Prestataire (société)",
+      prestataire: "Fournisseur de services",
       independant: "Indépendant",
       salarie: "Salarié",
       FOURNISSEUR_GENERAL: "Fournisseur général",
