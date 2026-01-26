@@ -119,6 +119,7 @@ export default function FacturesVentes() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [selectedActivite, setSelectedActivite] = useState<string>("all");
   const [typesMission, setTypesMission] = useState<Array<{ code: string; libelle: string }>>([]);
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [stats, setStats] = useState({
     totalFactures: 0,
     totalHT: 0,
@@ -783,11 +784,13 @@ export default function FacturesVentes() {
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
+    autoResetPageIndex: false,
     globalFilterFn: (row, columnId, filterValue) => {
       const search = filterValue.toLowerCase();
       return (
@@ -801,6 +804,7 @@ export default function FacturesVentes() {
       columnFilters,
       columnVisibility,
       globalFilter,
+      pagination,
     },
   });
 
