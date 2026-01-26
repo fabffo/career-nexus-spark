@@ -119,8 +119,14 @@ const FOURNISSEURS_REGLES = {
   BENOME: ["BENOME", "SASU BENOME", "BENOME SASU"],
   RHSOLUTIONS: ["RHSOLUTIONS PORTAGE SALARIAL", "RH SOLUTIONS", "PORTAGE 92"],
 
-  // Uber
-  Uber: ["Uber B.V.", "Uber BV", "Uber France", "UBER EATS"],
+  // Uber - TRÈS IMPORTANT : Le numéro de facture Uber contient toujours des patterns spécifiques
+  Uber: ["Uber B.V.", "Uber BV", "Uber France", "UBER EATS", "UBER", "Uber Netherlands", "UBER B.V", "uber.com"],
+  
+  // Autres VTC et transports
+  Bolt: ["BOLT TECHNOLOGY", "BOLT", "BOLT OÜ"],
+  Kapten: ["KAPTEN", "TAXIFY"],
+  FreeNow: ["FREE NOW", "FREENOW", "MYTAXI"],
+  Heetch: ["HEETCH"],
 
   // Services IT
   OpenAI: ["OpenAI, LLC", "OpenAI Inc", "OPENAI", "OPEN AI", "OpenAI LLC"],
@@ -189,22 +195,33 @@ const DEFAULT_PROMPT = `Extrais ces données de la facture en JSON strict :
 
 ⚠️ RÈGLES CRITIQUES POUR IDENTIFIER LE FOURNISSEUR :
 
-1. Le FOURNISSEUR est celui qui ÉMET la facture (en haut à GAUCHE généralement)
-2. Le CLIENT/DESTINATAIRE est celui qui REÇOIT la facture (en haut à DROITE généralement)
+1. Le FOURNISSEUR est celui qui ÉMET la facture, la société qui fournit le service
+2. Le CLIENT/DESTINATAIRE est celui qui PAYE, généralement un nom de personne ou de société cliente
+
+🚨 RÈGLES SPÉCIALES POUR LES FACTURES DE VTC / TRANSPORT :
+- Si tu vois "Uber", "Uber B.V.", "uber.com", ou un logo Uber → FOURNISSEUR = "Uber"
+- Si tu vois "Bolt", "Bolt Technology" → FOURNISSEUR = "Bolt"
+- Si tu vois "FreeNow", "Mytaxi" → FOURNISSEUR = "FreeNow"
+- Le NOM D'UNE PERSONNE (prénom + nom) est TOUJOURS le CLIENT, jamais le fournisseur
+- Les factures Uber/Bolt ont un format particulier avec le logo en haut
 
 EXEMPLES CONCRETS :
-- ✅ Si tu vois "SASU BENOME" en haut à gauche → FOURNISSEUR = "SASU BENOME"
-- ❌ Si tu vois "WAVY SERVICES" en haut à droite → C'EST LE CLIENT, PAS LE FOURNISSEUR
+- ✅ Si tu vois "Uber B.V." quelque part sur la facture → FOURNISSEUR = "Uber"
+- ✅ Si tu vois "uber.com" dans le pied de page → FOURNISSEUR = "Uber"
+- ❌ Si tu vois "Jean DUPONT" ou "Société X" comme destinataire → C'EST LE CLIENT
+- ❌ Ne JAMAIS mettre un nom de personne comme fournisseur pour une facture de transport
 
-3. Indices que c'est le FOURNISSEUR :
-   - Adresse de l'émetteur en haut à gauche
-   - SIREN, SIRET, TVA intracommunautaire en bas de page
+3. Indices que c'est le FOURNISSEUR (entreprise qui vend/facture) :
+   - Logo de la marque en haut de la facture
+   - SIREN, SIRET, TVA intracommunautaire 
    - IBAN/RIB (coordonnées bancaires pour recevoir le paiement)
    - Mentions "SASU au capital de...", "RCS", "NAF"
+   - URL du site web (uber.com, bolt.eu, etc.)
 
 4. Indices que c'est le CLIENT (NE PAS mettre comme fournisseur) :
-   - Adresse en haut à droite
-   - Précédé de "Destinataire:", "Facturé à:", "Client:"
+   - Un nom de personne physique (prénom + nom)
+   - Précédé de "Destinataire:", "Facturé à:", "Client:", "Passager:"
+   - Adresse personnelle
 
 AUTRES RÈGLES :
 - Si une valeur est absente, mettre null
