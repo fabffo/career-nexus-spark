@@ -250,9 +250,66 @@ export default function DashboardFinancier() {
     setCaMensuel(data);
   };
 
+  // Fonction pour calculer le montant HT à partir du TTC et du taux TVA (pour marge mensuelle)
+  const calculerMontantHTMarge = (montantTTC: number, tvaStr: string | null): number => {
+    if (!tvaStr) return montantTTC;
+    
+    const tvaMapping: Record<string, number> = {
+      'normal': 20, 'normale': 20,
+      'reduit': 5.5, 'réduit': 5.5, 'reduite': 5.5, 'réduite': 5.5,
+      'intermediaire': 10, 'intermédiaire': 10,
+      'super_reduit': 2.1, 'super_réduit': 2.1,
+      'exonere': 0, 'exonéré': 0, 'exoneree': 0, 'exonérée': 0,
+    };
+    
+    const tvaLower = tvaStr.toLowerCase().trim();
+    let tauxTva = 0;
+    
+    if (tvaMapping[tvaLower] !== undefined) {
+      tauxTva = tvaMapping[tvaLower];
+    } else {
+      const tvaMatch = tvaStr.match(/(\d+(?:[.,]\d+)?)/);
+      tauxTva = tvaMatch ? parseFloat(tvaMatch[1].replace(',', '.')) : 0;
+    }
+    
+    return montantTTC / (1 + tauxTva / 100);
+  };
+
+  // Fonction pour calculer la date effective des charges
+  const getDateEffectiveMarge = (datePaiement: string, typeCharge?: string, chargeId?: string, allCharges?: any[]): Date => {
+    const date = new Date(datePaiement);
+    const jour = getDate(date);
+    
+    if (typeCharge === "RETRAITE" && allCharges && chargeId) {
+      const retraitesSameDate = allCharges
+        .filter((c: any) => c.declaration?.type_charge === "RETRAITE" && c.date_paiement === datePaiement)
+        .sort((a: any, b: any) => a.id.localeCompare(b.id));
+      const index = retraitesSameDate.findIndex((c: any) => c.id === chargeId);
+      const rang = index >= 0 ? index + 1 : 1;
+      return subMonths(date, rang);
+    }
+    if (typeCharge === "SALAIRE" && jour >= 1 && jour <= 15) {
+      return subMonths(date, 1);
+    }
+    return date;
+  };
+
   const loadMargeMensuelle = async () => {
     const data = [];
     let margeCumulee = 0;
+
+    // Charger toutes les charges sociales une fois
+    const { data: paiementsCharges } = await supabase
+      .from("paiements_declarations_charges")
+      .select(`id, date_paiement, montant, declaration:declarations_charges_sociales(type_charge)`);
+
+    // Charger tous les abonnements une fois
+    const { data: paiementsAbonnements } = await supabase
+      .from("paiements_abonnements")
+      .select("montant, date_paiement, abonnement:abonnements_partenaires!inner(type, tva)")
+      .eq("abonnement.type", "CHARGE")
+      .gte("date_paiement", `${anneeSelectionnee}-01-01`)
+      .lte("date_paiement", `${anneeSelectionnee}-12-31`);
     
     for (let mois = 0; mois < 12; mois++) {
       const debut = startOfMonth(new Date(anneeSelectionnee, mois, 1));
@@ -266,7 +323,7 @@ export default function DashboardFinancier() {
         .gte("date_emission", format(debut, "yyyy-MM-dd"))
         .lte("date_emission", format(fin, "yyyy-MM-dd"));
 
-      // Achats = ACHATS_SERVICES + ACHATS_GENERAUX
+      // Achats Services
       const { data: achatsServices } = await supabase
         .from("factures")
         .select("total_ht")
@@ -274,6 +331,7 @@ export default function DashboardFinancier() {
         .gte("date_emission", format(debut, "yyyy-MM-dd"))
         .lte("date_emission", format(fin, "yyyy-MM-dd"));
 
+      // Achats Généraux
       const { data: achatsGeneraux } = await supabase
         .from("factures")
         .select("total_ht")
@@ -281,13 +339,37 @@ export default function DashboardFinancier() {
         .gte("date_emission", format(debut, "yyyy-MM-dd"))
         .lte("date_emission", format(fin, "yyyy-MM-dd"));
 
+      // Abonnements du mois
+      const abonnementsMois = paiementsAbonnements?.filter((p: any) => {
+        const datePaiement = new Date(p.date_paiement);
+        return datePaiement >= debut && datePaiement <= fin;
+      }) || [];
+
+      const abonnementsTotal = abonnementsMois.reduce((sum, p: any) => {
+        const montantHT = calculerMontantHTMarge(Number(p.montant || 0), p.abonnement?.tva);
+        return sum + montantHT;
+      }, 0);
+
+      // Charges sociales du mois (par date effective)
+      const chargesFiltered = paiementsCharges?.filter((c: any) => {
+        const dateEff = getDateEffectiveMarge(c.date_paiement, c.declaration?.type_charge, c.id, paiementsCharges);
+        return dateEff >= debut && dateEff <= fin;
+      }) || [];
+
+      const chargesTotal = chargesFiltered.reduce(
+        (sum, c: any) => sum + Math.abs(Number(c.montant || 0)),
+        0
+      );
+
       const ca = facturesVentes?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
       const achatServicesTotal = achatsServices?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
       const achatGenerauxTotal = achatsGeneraux?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
-      const margeMois = ca - achatServicesTotal - achatGenerauxTotal;
       
-      // Marge cumulée
-      margeCumulee += margeMois;
+      // Marge nette du mois = CA - Achats Services - Achats Généraux - Abonnements - Charges Sociales
+      const margeNetteMois = ca - achatServicesTotal - achatGenerauxTotal - abonnementsTotal - chargesTotal;
+      
+      // Marge nette cumulée
+      margeCumulee += margeNetteMois;
 
       data.push({
         mois: format(debut, "MMM", { locale: fr }),
@@ -567,7 +649,7 @@ export default function DashboardFinancier() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Marge Cumulée {anneeSelectionnee}</CardTitle>
+            <CardTitle>Marge Nette Cumulée {anneeSelectionnee}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
