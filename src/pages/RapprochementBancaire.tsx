@@ -72,7 +72,7 @@ interface Rapprochement {
   numero_ligne?: string; // Numéro unique de la ligne de rapprochement (format: RL-YYYYMMDD-XXXXX)
   abonnement_info?: { id: string; nom: string; montant_ttc?: number; tva?: string };
   declaration_info?: { id: string; nom: string; organisme: string };
-  fournisseur_info?: { id: string; nom: string; type: 'general' | 'services' | 'etat' | 'client' | 'banque' | 'prestataire' | 'salarie' };
+  fournisseur_info?: { id: string; nom: string; type: 'general' | 'services' | 'etat' | 'client' | 'banque' | 'prestataire' | 'salarie' | 'independant' };
   factureIds?: string[]; // Pour les rapprochements avec plusieurs factures
   montant_facture?: number; // Montant total des factures rapprochées
   // Champs financiers calculés
@@ -2205,7 +2205,7 @@ export default function RapprochementBancaire() {
       const { data: fournisseursServices, error: e3 } = await supabase.from("fournisseurs_services").select("id, raison_sociale, mots_cles_rapprochement");
       const { data: fournisseursEtat, error: e4 } = await supabase.from("fournisseurs_etat_organismes").select("id, raison_sociale, mots_cles_rapprochement");
       const { data: banques, error: e5 } = await supabase.from("banques").select("id, raison_sociale, mots_cles_rapprochement");
-      const { data: prestatairesData, error: e6 } = await supabase.from("prestataires").select("id, nom, prenom, mots_cles_rapprochement").eq("actif", true);
+      const { data: prestatairesData, error: e6 } = await supabase.from("prestataires").select("id, nom, prenom, mots_cles_rapprochement, type_prestataire").eq("actif", true);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const salariesResult = await (supabase as any)
         .from("salaries")
@@ -2397,15 +2397,17 @@ export default function RapprochementBancaire() {
           }
         }
 
-        // 6. Chercher un match dans les prestataires
+        // 6. Chercher un match dans les prestataires (indépendants uniquement pour le matching partenaires)
         for (const prestataire of prestataires) {
           const useStrictMode = isFallbackMatch(prestataire.mots_cles_rapprochement);
           if (checkKeywordsMatch(getEffectiveKeywords(prestataire.mots_cles_rapprochement, `${prestataire.prenom} ${prestataire.nom}`), libelle, useStrictMode)) {
             matchPrestataireCount++;
-            console.log(`✅ Match prestataire: "${libelle}" -> "${prestataire.prenom} ${prestataire.nom}" (strict: ${useStrictMode})`);
+            // Distinguer entre indépendant et société
+            const prestataireType = (prestataire as any).type_prestataire === 'INDEPENDANT' ? 'independant' as const : 'prestataire' as const;
+            console.log(`✅ Match prestataire (${prestataireType}): "${libelle}" -> "${prestataire.prenom} ${prestataire.nom}" (strict: ${useStrictMode})`);
             const updatedRapp = {
               ...rapprochement,
-              fournisseur_info: { id: prestataire.id, nom: `${prestataire.prenom} ${prestataire.nom}`, type: 'prestataire' as const },
+              fournisseur_info: { id: prestataire.id, nom: `${prestataire.prenom} ${prestataire.nom}`, type: prestataireType },
             };
             return { ...updatedRapp, status: determineStatus(true, updatedRapp) };
           }
@@ -2452,6 +2454,136 @@ export default function RapprochementBancaire() {
       toast({
         title: "Erreur",
         description: "Impossible d'effectuer le matching",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fonction de matching des prestataires indépendants uniquement
+  const handleMatchIndependants = async () => {
+    if (rapprochements.length === 0) {
+      toast({
+        title: "Erreur",
+        description: "Aucune transaction à traiter",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Charger uniquement les prestataires de type INDEPENDANT avec leurs mots-clés
+      const { data: prestatairesData, error: prestatairesError } = await supabase
+        .from("prestataires")
+        .select("id, nom, prenom, mots_cles_rapprochement, type_prestataire")
+        .eq("actif", true)
+        .eq("type_prestataire", "INDEPENDANT");
+
+      if (prestatairesError) throw prestatairesError;
+
+      if (!prestatairesData || prestatairesData.length === 0) {
+        toast({
+          title: "Aucun indépendant",
+          description: "Aucun prestataire indépendant actif trouvé",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      console.log("🔍 Matching indépendants:", prestatairesData.length, "prestataires trouvés");
+
+      // Fonction helper pour normaliser le texte et vérifier le matching
+      const normalizeText = (text: string) =>
+        text
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toUpperCase()
+          .replace(/[^A-Z0-9]+/g, " ")
+          .trim()
+          .replace(/\s+/g, " ");
+
+      const getEffectiveKeywords = (keywords: string | null | undefined, fallback: string) => {
+        const v = (keywords ?? "").trim();
+        return v.length > 0 ? v : fallback;
+      };
+
+      const isFallbackMatch = (keywords: string | null | undefined) => {
+        return !(keywords ?? "").trim();
+      };
+
+      const checkKeywordsMatch = (keywords: string, libelle: string, strictMode: boolean = false): boolean => {
+        const kw = keywords.trim();
+        if (kw === "") return false;
+
+        const libelleNorm = normalizeText(libelle);
+        const orGroups = kw.split(",").map((g) => normalizeText(g));
+
+        return orGroups.some((group) => {
+          if (group === "") return false;
+          const andTerms = group.split(/\s+/).filter((t) => t !== "");
+          
+          if (strictMode) {
+            return andTerms.every((term) => {
+              const regex = new RegExp(`(^|[^A-Z0-9])${term}([^A-Z0-9]|$)`, 'i');
+              return regex.test(libelleNorm);
+            });
+          } else {
+            return andTerms.every((term) => libelleNorm.includes(term));
+          }
+        });
+      };
+
+      let matchCount = 0;
+
+      const determineStatus = (hasPartenaire: boolean, r: Rapprochement): "matched" | "uncertain" | "unmatched" => {
+        const hasFactureInfo = r.facture !== null || (r.factureIds && r.factureIds.length > 0) || r.abonnement_info !== undefined || r.declaration_info !== undefined;
+        if (hasFactureInfo) return "matched";
+        if (hasPartenaire) return "uncertain";
+        return "unmatched";
+      };
+
+      const updatedRapprochements = rapprochements.map(rapprochement => {
+        // Ignorer si déjà associé à un fournisseur
+        if (rapprochement.fournisseur_info) {
+          return rapprochement;
+        }
+
+        const libelle = rapprochement.transaction.libelle;
+
+        for (const prestataire of prestatairesData) {
+          const useStrictMode = isFallbackMatch(prestataire.mots_cles_rapprochement);
+          if (checkKeywordsMatch(getEffectiveKeywords(prestataire.mots_cles_rapprochement, `${prestataire.prenom} ${prestataire.nom}`), libelle, useStrictMode)) {
+            matchCount++;
+            console.log(`✅ Match indépendant: "${libelle}" -> "${prestataire.prenom} ${prestataire.nom}" (strict: ${useStrictMode})`);
+            const updatedRapp = {
+              ...rapprochement,
+              fournisseur_info: { id: prestataire.id, nom: `${prestataire.prenom} ${prestataire.nom}`, type: 'independant' as const },
+            };
+            return { ...updatedRapp, status: determineStatus(true, updatedRapp) };
+          }
+        }
+
+        return rapprochement;
+      });
+
+      setRapprochements(updatedRapprochements);
+
+      toast({
+        title: "Matching indépendants terminé",
+        description:
+          matchCount > 0
+            ? `${matchCount} ligne(s) rapprochée(s) avec des indépendants`
+            : "Aucune correspondance trouvée",
+      });
+    } catch (error) {
+      console.error("Erreur lors du matching indépendants:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'effectuer le matching des indépendants",
         variant: "destructive",
       });
     } finally {
@@ -4324,7 +4456,8 @@ export default function RapprochementBancaire() {
       etat: "Fournisseur État & organismes",
       client: "Client",
       banque: "Banque",
-      prestataire: "Prestataire",
+      prestataire: "Prestataire (société)",
+      independant: "Indépendant",
       salarie: "Salarié",
       FOURNISSEUR_GENERAL: "Fournisseur général",
       FOURNISSEUR_SERVICES: "Fournisseur de services",
@@ -4852,6 +4985,15 @@ export default function RapprochementBancaire() {
                   >
                     <Users className="h-4 w-4 mr-2" />
                     {loading ? "Matching..." : "Clients"}
+                  </Button>
+                  <Button 
+                    onClick={handleMatchIndependants} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={loading}
+                  >
+                    <Users className="h-4 w-4 mr-2" />
+                    {loading ? "Matching..." : "Indépendants"}
                   </Button>
                   <Button 
                     onClick={handleDerapprocheTout}
