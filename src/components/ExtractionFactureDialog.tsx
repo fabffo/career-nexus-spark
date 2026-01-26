@@ -926,10 +926,11 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
     });
   };
 
+  // Stats - Ne compter comme "erreurs" que les factures NON validées (erreurs bloquantes uniquement)
   const stats = {
     total: factures.length,
     valides: factures.filter((f) => f.valide).length,
-    erreurs: factures.filter((f) => f.erreur).length,
+    erreurs: factures.filter((f) => !f.valide).length, // Seulement les erreurs bloquantes (non validées)
     montantTotal: factures.reduce((acc, f) => acc + (f.donnees.montant_ttc || 0), 0),
     coutTotal: factures.reduce((acc, f) => acc + (f.cout_estime || 0), 0),
   };
@@ -1106,16 +1107,14 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
                         <div
                           key={facture.id}
                           className={`grid grid-cols-12 gap-2 p-3 hover:bg-muted/30 transition-colors ${
-                            facture.valide ? "bg-green-50/30" : facture.erreur ? "bg-red-50/30" : "bg-yellow-50/30"
+                            facture.valide ? "bg-green-50/30" : "bg-red-50/30"
                           }`}
                         >
                           <div className="col-span-1 flex items-center justify-center">
                             {facture.valide ? (
                               <CheckCircle className="h-5 w-5 text-green-600" />
-                            ) : facture.erreur ? (
-                              <XCircle className="h-5 w-5 text-red-600" />
                             ) : (
-                              <XCircle className="h-5 w-5 text-yellow-600" />
+                              <XCircle className="h-5 w-5 text-red-600" />
                             )}
                           </div>
 
