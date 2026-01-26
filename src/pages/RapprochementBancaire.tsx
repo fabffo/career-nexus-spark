@@ -3524,10 +3524,10 @@ export default function RapprochementBancaire() {
     setLoading(true);
 
     try {
-      // Charger les abonnements partenaires actifs avec leurs mots-clés, montants et partenaires associés
+      // Charger les abonnements partenaires actifs avec leurs mots-clés, montants, TVA et partenaires associés
       const { data: abonnementsData, error: abonnementsError } = await supabase
         .from("abonnements_partenaires")
-        .select("id, nom, mots_cles_rapprochement, montant_mensuel, partenaire_type, partenaire_id")
+        .select("id, nom, mots_cles_rapprochement, montant_mensuel, partenaire_type, partenaire_id, tva")
         .eq("actif", true);
 
       if (abonnementsError) throw abonnementsError;
@@ -3692,7 +3692,7 @@ export default function RapprochementBancaire() {
               console.log(`✅ Match abonnement par MONTANT: "${libelle}" -> "${abonnement.nom}" (Montant: ${abonnement.montant_mensuel} = ${transactionMontant})`);
               const updatedRapp = {
                 ...rapprochement,
-                abonnement_info: { id: abonnement.id, nom: abonnement.nom, montant_ttc: transactionMontant },
+                abonnement_info: { id: abonnement.id, nom: abonnement.nom, montant_ttc: transactionMontant, tva: abonnement.tva },
                 // Préserver fournisseur_info existant, sinon ne pas modifier
               };
               return { ...updatedRapp, status: determineStatus(updatedRapp, true) };
@@ -3709,7 +3709,7 @@ export default function RapprochementBancaire() {
             console.log(`✅ Match abonnement par MOTS-CLES: "${libelle}" -> "${abonnement.nom}" (via: ${effectiveKeywords}) - Montant TTC: ${transactionMontant}`);
             const updatedRapp = {
               ...rapprochement,
-              abonnement_info: { id: abonnement.id, nom: abonnement.nom, montant_ttc: transactionMontant },
+              abonnement_info: { id: abonnement.id, nom: abonnement.nom, montant_ttc: transactionMontant, tva: abonnement.tva },
               // Préserver fournisseur_info existant, sinon ne pas modifier
             };
             return { ...updatedRapp, status: determineStatus(updatedRapp, true) };
@@ -4118,10 +4118,33 @@ export default function RapprochementBancaire() {
             totalTtc = totalTtc * sign;
           }
         } else if (r.abonnement_info) {
-          // Abonnement: calculer selon le taux TVA
+          // Abonnement: calculer selon le taux TVA configuré
           const sign = (r.transaction.debit || 0) > 0 ? 1 : -1;
-          totalHt = totalTtc * sign;
-          totalTva = 0;
+          
+          // Parser le taux TVA depuis le champ tva de l'abonnement (ex: "TVA normale - 20%", "TVA réduite - 10%", "exonere")
+          let tauxTva = 0;
+          const tvaString = r.abonnement_info.tva || '';
+          if (tvaString && tvaString !== 'exonere') {
+            // Extraire le pourcentage du format "TVA normale - 20%" ou "normal" (défaut 20%)
+            const match = tvaString.match(/(\d+(?:[.,]\d+)?)\s*%?/);
+            if (match) {
+              tauxTva = parseFloat(match[1].replace(',', '.'));
+            } else if (tvaString.toLowerCase().includes('normal')) {
+              tauxTva = 20;
+            } else if (tvaString.toLowerCase().includes('reduit') || tvaString.toLowerCase().includes('réduit')) {
+              tauxTva = 10;
+            }
+          }
+          
+          // Calculer HT et TVA à partir du TTC
+          if (tauxTva > 0) {
+            const htCalcule = totalTtc / (1 + tauxTva / 100);
+            totalHt = htCalcule * sign;
+            totalTva = (totalTtc - htCalcule) * sign;
+          } else {
+            totalHt = totalTtc * sign;
+            totalTva = 0;
+          }
           totalTtc = totalTtc * sign;
         } else if (r.declaration_info) {
           // Charges sociales: pas de TVA
