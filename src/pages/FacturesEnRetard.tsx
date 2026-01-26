@@ -6,11 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable } from "@/components/ui/data-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Label } from "@/components/ui/label";
 import { ColumnDef } from "@tanstack/react-table";
-import { format, differenceInDays, parseISO } from "date-fns";
+import { format, differenceInDays, parseISO, isAfter, isBefore, isEqual } from "date-fns";
 import { fr } from "date-fns/locale";
-import { AlertTriangle, Clock, CalendarX, TrendingDown, RefreshCw, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { AlertTriangle, Clock, CalendarX, TrendingDown, RefreshCw, ArrowUpRight, ArrowDownLeft, CalendarIcon, X, Filter } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
+import { cn } from "@/lib/utils";
 
 // Types
 interface FactureEnRetard {
@@ -97,11 +101,27 @@ const computeStats = (facturesList: FactureEnRetard[]) => {
   return { total, montantTotal, parTranche, parPartenaire };
 };
 
+// Date filter types
+type DateFilterType = "emission" | "echeance" | null;
+
+interface DateFilter {
+  type: DateFilterType;
+  debut: Date | undefined;
+  fin: Date | undefined;
+}
+
 export default function FacturesEnRetard() {
   const [loading, setLoading] = useState(true);
   const [factures, setFactures] = useState<FactureEnRetard[]>([]);
   const [filtrePartenaire, setFiltrePartenaire] = useState<PartenaireFilter>("TOUS");
   const [activeTab, setActiveTab] = useState<"ventes" | "achats">("ventes");
+  
+  // Filtres de période
+  const [dateFilter, setDateFilter] = useState<DateFilter>({
+    type: null,
+    debut: undefined,
+    fin: undefined,
+  });
 
   const loadFactures = async () => {
     setLoading(true);
@@ -170,10 +190,50 @@ export default function FacturesEnRetard() {
   // Filtered data based on active tab
   const facturesActives = activeTab === "ventes" ? facturesVentes : facturesAchats;
 
+  // Apply date filter helper
+  const applyDateFilter = (list: FactureEnRetard[]) => {
+    if (!dateFilter.type || (!dateFilter.debut && !dateFilter.fin)) {
+      return list;
+    }
+
+    return list.filter((f) => {
+      const dateToCheck = dateFilter.type === "emission" 
+        ? parseISO(f.date_emission) 
+        : parseISO(f.date_echeance);
+
+      if (dateFilter.debut && dateFilter.fin) {
+        return (isAfter(dateToCheck, dateFilter.debut) || isEqual(dateToCheck, dateFilter.debut)) &&
+               (isBefore(dateToCheck, dateFilter.fin) || isEqual(dateToCheck, dateFilter.fin));
+      } else if (dateFilter.debut) {
+        return isAfter(dateToCheck, dateFilter.debut) || isEqual(dateToCheck, dateFilter.debut);
+      } else if (dateFilter.fin) {
+        return isBefore(dateToCheck, dateFilter.fin) || isEqual(dateToCheck, dateFilter.fin);
+      }
+      return true;
+    });
+  };
+
   const facturesFiltrees = useMemo(() => {
-    if (filtrePartenaire === "TOUS") return facturesActives;
-    return facturesActives.filter((f) => f.partenaire_type === filtrePartenaire);
-  }, [facturesActives, filtrePartenaire]);
+    let result = facturesActives;
+    
+    // Filtre par partenaire
+    if (filtrePartenaire !== "TOUS") {
+      result = result.filter((f) => f.partenaire_type === filtrePartenaire);
+    }
+    
+    // Filtre par date
+    result = applyDateFilter(result);
+    
+    return result;
+  }, [facturesActives, filtrePartenaire, dateFilter]);
+
+  // Reset date filter
+  const resetDateFilter = () => {
+    setDateFilter({ type: null, debut: undefined, fin: undefined });
+  };
+
+  // Check if date filter is active
+  const isDateFilterActive = dateFilter.type && (dateFilter.debut || dateFilter.fin);
 
   // Statistics
   const stats = useMemo(() => computeStats(facturesFiltrees), [facturesFiltrees]);
@@ -298,6 +358,10 @@ export default function FacturesEnRetard() {
             filtrePartenaire={filtrePartenaire}
             setFiltrePartenaire={setFiltrePartenaire}
             typeLabel="Ventes"
+            dateFilter={dateFilter}
+            setDateFilter={setDateFilter}
+            resetDateFilter={resetDateFilter}
+            isDateFilterActive={!!isDateFilterActive}
           />
         </TabsContent>
 
@@ -311,6 +375,10 @@ export default function FacturesEnRetard() {
             filtrePartenaire={filtrePartenaire}
             setFiltrePartenaire={setFiltrePartenaire}
             typeLabel="Achats"
+            dateFilter={dateFilter}
+            setDateFilter={setDateFilter}
+            resetDateFilter={resetDateFilter}
+            isDateFilterActive={!!isDateFilterActive}
           />
         </TabsContent>
       </Tabs>
@@ -328,6 +396,10 @@ interface FacturesContentProps {
   filtrePartenaire: PartenaireFilter;
   setFiltrePartenaire: (v: PartenaireFilter) => void;
   typeLabel: string;
+  dateFilter: DateFilter;
+  setDateFilter: (v: DateFilter) => void;
+  resetDateFilter: () => void;
+  isDateFilterActive: boolean;
 }
 
 function FacturesContent({
@@ -339,6 +411,10 @@ function FacturesContent({
   filtrePartenaire,
   setFiltrePartenaire,
   typeLabel,
+  dateFilter,
+  setDateFilter,
+  resetDateFilter,
+  isDateFilterActive,
 }: FacturesContentProps) {
   return (
     <>
@@ -508,22 +584,131 @@ function FacturesContent({
       {/* Filter & Data Table */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Liste des Factures en Retard</CardTitle>
-            <Select
-              value={filtrePartenaire}
-              onValueChange={(v) => setFiltrePartenaire(v as PartenaireFilter)}
-            >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filtrer par partenaire" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="TOUS">Tous les partenaires</SelectItem>
-                <SelectItem value="CLIENT">Clients</SelectItem>
-                <SelectItem value="FOURNISSEUR">Fournisseurs</SelectItem>
-                <SelectItem value="PRESTATAIRE">Prestataires</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Liste des Factures en Retard</CardTitle>
+              <Select
+                value={filtrePartenaire}
+                onValueChange={(v) => setFiltrePartenaire(v as PartenaireFilter)}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filtrer par partenaire" />
+                </SelectTrigger>
+                <SelectContent className="bg-background z-50">
+                  <SelectItem value="TOUS">Tous les partenaires</SelectItem>
+                  <SelectItem value="CLIENT">Clients</SelectItem>
+                  <SelectItem value="FOURNISSEUR">Fournisseurs</SelectItem>
+                  <SelectItem value="PRESTATAIRE">Prestataires</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Date Filters */}
+            <div className="flex flex-wrap items-end gap-4 p-4 bg-muted/30 rounded-lg border">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Période :</span>
+              </div>
+
+              {/* Type de date */}
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Type de date</Label>
+                <Select
+                  value={dateFilter.type || ""}
+                  onValueChange={(v) => setDateFilter({ ...dateFilter, type: v as DateFilterType || null })}
+                >
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Sélectionner..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    <SelectItem value="emission">Date d'émission</SelectItem>
+                    <SelectItem value="echeance">Date d'échéance</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Date début */}
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Du</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[150px] justify-start text-left font-normal",
+                        !dateFilter.debut && "text-muted-foreground"
+                      )}
+                      disabled={!dateFilter.type}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateFilter.debut ? format(dateFilter.debut, "dd/MM/yyyy") : "Début"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-background z-50" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateFilter.debut}
+                      onSelect={(date) => setDateFilter({ ...dateFilter, debut: date })}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                      locale={fr}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Date fin */}
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Au</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[150px] justify-start text-left font-normal",
+                        !dateFilter.fin && "text-muted-foreground"
+                      )}
+                      disabled={!dateFilter.type}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateFilter.fin ? format(dateFilter.fin, "dd/MM/yyyy") : "Fin"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-background z-50" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateFilter.fin}
+                      onSelect={(date) => setDateFilter({ ...dateFilter, fin: date })}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                      locale={fr}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Reset button */}
+              {isDateFilterActive && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetDateFilter}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Effacer
+                </Button>
+              )}
+
+              {/* Active filter indicator */}
+              {isDateFilterActive && (
+                <Badge variant="secondary" className="ml-auto">
+                  Filtre actif : {dateFilter.type === "emission" ? "Émission" : "Échéance"}
+                  {dateFilter.debut && ` du ${format(dateFilter.debut, "dd/MM/yyyy")}`}
+                  {dateFilter.fin && ` au ${format(dateFilter.fin, "dd/MM/yyyy")}`}
+                </Badge>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
