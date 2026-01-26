@@ -252,30 +252,46 @@ export default function DashboardFinancier() {
 
   const loadMargeMensuelle = async () => {
     const data = [];
+    let margeCumulee = 0;
+    
     for (let mois = 0; mois < 12; mois++) {
       const debut = startOfMonth(new Date(anneeSelectionnee, mois, 1));
       const fin = endOfMonth(new Date(anneeSelectionnee, mois, 1));
 
-      const { data: factures } = await supabase
+      // CA = Ventes uniquement
+      const { data: facturesVentes } = await supabase
         .from("factures")
         .select("total_ht")
+        .eq("type_facture", "VENTES")
         .gte("date_emission", format(debut, "yyyy-MM-dd"))
         .lte("date_emission", format(fin, "yyyy-MM-dd"));
 
-      const { data: achats } = await supabase
+      // Achats = ACHATS_SERVICES + ACHATS_GENERAUX
+      const { data: achatsServices } = await supabase
         .from("factures")
         .select("total_ht")
-        .eq("type_facture", "ACHATS")
+        .eq("type_facture", "ACHATS_SERVICES")
         .gte("date_emission", format(debut, "yyyy-MM-dd"))
         .lte("date_emission", format(fin, "yyyy-MM-dd"));
 
-      const ca = factures?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
-      const achat = achats?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
-      const marge = ca - achat;
+      const { data: achatsGeneraux } = await supabase
+        .from("factures")
+        .select("total_ht")
+        .eq("type_facture", "ACHATS_GENERAUX")
+        .gte("date_emission", format(debut, "yyyy-MM-dd"))
+        .lte("date_emission", format(fin, "yyyy-MM-dd"));
+
+      const ca = facturesVentes?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
+      const achatServicesTotal = achatsServices?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
+      const achatGenerauxTotal = achatsGeneraux?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
+      const margeMois = ca - achatServicesTotal - achatGenerauxTotal;
+      
+      // Marge cumulée
+      margeCumulee += margeMois;
 
       data.push({
         mois: format(debut, "MMM", { locale: fr }),
-        marge: Math.round(marge),
+        marge: Math.round(margeCumulee),
       });
     }
     setMargeMensuelle(data);
@@ -551,7 +567,7 @@ export default function DashboardFinancier() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Marge Mensuelle {anneeSelectionnee}</CardTitle>
+            <CardTitle>Marge Cumulée {anneeSelectionnee}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
