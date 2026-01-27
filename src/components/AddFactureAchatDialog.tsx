@@ -233,12 +233,21 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
       const montantTVA = parseFloat(formData.montant_tva) || 0;
       const montantTTC = montantHT + montantTVA;
 
+      // Déterminer le type_facture valide pour la base de données
+      let typeFacture = 'ACHATS';
+      if (formData.fournisseur_type === 'FOURNISSEUR_SERVICES') {
+        typeFacture = 'ACHATS_SERVICES';
+      } else if (formData.fournisseur_type === 'FOURNISSEUR_GENERAUX') {
+        typeFacture = 'ACHATS_GENERAUX';
+      }
+      // Pour PRESTATAIRE et SALARIE, on utilise ACHATS générique car la contrainte BDD ne supporte pas ces types
+
       // Créer la facture (sans select car les politiques RLS peuvent bloquer la lecture immédiate)
       const { error: factureError } = await supabase
         .from('factures')
         .insert({
           numero_facture: formData.numero_facture,
-          type_facture: 'ACHATS',
+          type_facture: typeFacture,
           date_emission: format(formData.date_emission, 'yyyy-MM-dd'),
           date_echeance: format(formData.date_emission, 'yyyy-MM-dd'),
           emetteur_type: emetteurType,
