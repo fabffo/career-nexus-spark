@@ -31,6 +31,7 @@ export default function Prestataires() {
   const [recommandationFile, setRecommandationFile] = useState<File | null>(null);
   const [fournisseursServices, setFournisseursServices] = useState<any[]>([]);
   const [salaries, setSalaries] = useState<any[]>([]);
+  const [typesPrestataire, setTypesPrestataire] = useState<{id: string, code: string, libelle: string}[]>([]);
   const { uploadFile, deleteFile, isUploading } = useFileUpload();
 
   const [formData, setFormData] = useState({
@@ -41,7 +42,7 @@ export default function Prestataires() {
     detail_cv: '',
     cv_url: '',
     recommandation_url: '',
-    type_prestataire: 'INDEPENDANT' as 'INDEPENDANT' | 'SOCIETE' | 'SALARIE',
+    type_prestataire: 'INDEPENDANT',
     fournisseur_services_id: '',
     salarie_id: '',
     mots_cles_rapprochement: '',
@@ -53,6 +54,7 @@ export default function Prestataires() {
     loadPrestataires();
     loadFournisseursServices();
     loadSalaries();
+    loadTypesPrestataire();
   }, []);
 
   const loadPrestataires = async () => {
@@ -101,6 +103,28 @@ export default function Prestataires() {
       setSalaries(data || []);
     } catch (error) {
       console.error('Erreur lors du chargement des salariés:', error);
+    }
+  };
+
+  const loadTypesPrestataire = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('param_type_prestataire' as any)
+        .select('id, code, libelle')
+        .eq('is_active', true)
+        .order('ordre', { ascending: true });
+      
+      if (error) throw error;
+      setTypesPrestataire((data as any) || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des types de prestataire:', error);
+      // Fallback avec valeurs par défaut
+      setTypesPrestataire([
+        { id: '1', code: 'INDEPENDANT', libelle: 'Indépendant' },
+        { id: '2', code: 'SALARIE', libelle: 'Salarié' },
+        { id: '3', code: 'SOCIETE', libelle: 'Société' },
+        { id: '4', code: 'APPORTEUR_AFFAIRES', libelle: 'Apporteur d\'affaires' }
+      ]);
     }
   };
 
@@ -318,9 +342,11 @@ export default function Prestataires() {
       header: "Type",
       cell: ({ row }) => {
         const type = row.original.type_prestataire;
+        const typeInfo = typesPrestataire.find(t => t.code === type);
+        const libelle = typeInfo?.libelle || type || 'Non défini';
         return (
           <Badge variant={type === 'SOCIETE' ? 'default' : type === 'SALARIE' ? 'outline' : 'secondary'}>
-            {type === 'SOCIETE' ? 'Société' : type === 'SALARIE' ? 'Salarié' : 'Indépendant'}
+            {libelle}
           </Badge>
         );
       },
@@ -490,7 +516,7 @@ export default function Prestataires() {
                 <Label htmlFor="type_prestataire">Type de prestataire *</Label>
                 <Select
                   value={formData.type_prestataire}
-                  onValueChange={(value: 'INDEPENDANT' | 'SOCIETE' | 'SALARIE') => 
+                  onValueChange={(value: string) => 
                     setFormData({ ...formData, type_prestataire: value, fournisseur_services_id: '', salarie_id: '' })
                   }
                 >
@@ -498,9 +524,11 @@ export default function Prestataires() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="INDEPENDANT">Indépendant</SelectItem>
-                    <SelectItem value="SOCIETE">Société</SelectItem>
-                    <SelectItem value="SALARIE">Salarié</SelectItem>
+                    {typesPrestataire.map((type) => (
+                      <SelectItem key={type.id} value={type.code}>
+                        {type.libelle}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

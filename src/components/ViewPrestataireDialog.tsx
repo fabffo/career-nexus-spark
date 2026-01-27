@@ -1,9 +1,11 @@
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { User, Mail, Phone, Building, FileText, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RapprochementSearchSection } from './RapprochementSearchSection';
 import { MatchingHistorySection } from './MatchingHistorySection';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ViewPrestataireDialogProps {
   prestataire: any;
@@ -12,9 +14,33 @@ interface ViewPrestataireDialogProps {
 }
 
 export function ViewPrestataireDialog({ prestataire, open, onOpenChange }: ViewPrestataireDialogProps) {
+  const [typesPrestataire, setTypesPrestataire] = useState<{code: string, libelle: string}[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      loadTypesPrestataire();
+    }
+  }, [open]);
+
+  const loadTypesPrestataire = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('param_type_prestataire' as any)
+        .select('code, libelle')
+        .eq('is_active', true);
+      
+      if (error) throw error;
+      setTypesPrestataire((data as any) || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des types:', error);
+    }
+  };
+
   if (!prestataire) return null;
 
   const entityName = `${prestataire.prenom} ${prestataire.nom}`;
+  const typeInfo = typesPrestataire.find(t => t.code === prestataire.type_prestataire);
+  const typeLibelle = typeInfo?.libelle || prestataire.type_prestataire || 'Non défini';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -32,7 +58,7 @@ export function ViewPrestataireDialog({ prestataire, open, onOpenChange }: ViewP
             <div className="space-y-2">
               <h3 className="font-semibold text-sm text-muted-foreground">Type</h3>
               <Badge variant={prestataire.type_prestataire === 'SOCIETE' ? 'default' : prestataire.type_prestataire === 'SALARIE' ? 'outline' : 'secondary'}>
-                {prestataire.type_prestataire === 'SOCIETE' ? 'Société' : prestataire.type_prestataire === 'SALARIE' ? 'Salarié' : 'Indépendant'}
+                {typeLibelle}
               </Badge>
             </div>
             {prestataire.fournisseur_services && (
