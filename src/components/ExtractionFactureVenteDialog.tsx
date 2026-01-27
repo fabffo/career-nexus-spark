@@ -316,6 +316,44 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
     }
   };
 
+  // Fonction pour générer un numéro de facture unique
+  const genererNumeroUniqueFacture = async (numeroBase: string, estAvoir: boolean): Promise<string> => {
+    const prefixe = estAvoir ? 'AVO-A-' : 'FAC-V-';
+    
+    // Vérifier si le numéro existe déjà
+    const { data: existant } = await supabase
+      .from('factures')
+      .select('numero_facture')
+      .eq('numero_facture', numeroBase)
+      .maybeSingle();
+    
+    if (!existant) {
+      return numeroBase;
+    }
+    
+    // Trouver le prochain numéro disponible
+    const { data: derniereFacture } = await supabase
+      .from('factures')
+      .select('numero_facture')
+      .like('numero_facture', `${prefixe}%`)
+      .order('numero_facture', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (derniereFacture) {
+      const match = derniereFacture.numero_facture.match(/(\d+)$/);
+      if (match) {
+        const dernierNumero = parseInt(match[1], 10);
+        const nouveauNumero = (dernierNumero + 1).toString().padStart(5, '0');
+        return `${prefixe}${nouveauNumero}`;
+      }
+    }
+    
+    // Fallback: ajouter un timestamp
+    const timestamp = Date.now().toString().slice(-6);
+    return `${prefixe}${timestamp}`;
+  };
+
   const sauvegarderFactures = async () => {
     const facturesValides = factures.filter((f) => f.valide);
 
@@ -331,12 +369,28 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
     setIsSaving(true);
     let successCount = 0;
     let errorCount = 0;
+    let duplicateCount = 0;
 
     // Récupérer la société interne
     const { data: societe } = await supabase.from("societe_interne").select("*").limit(1).single();
 
     for (const facture of facturesValides) {
       try {
+        // Vérifier si une facture avec le même numéro existe déjà
+        const numeroOriginal = facture.donnees.numero_facture;
+        const estAvoir = facture.donnees.est_avoir || false;
+        
+        // Générer un numéro unique si nécessaire
+        const numeroUnique = await genererNumeroUniqueFacture(
+          numeroOriginal || `${estAvoir ? 'AVO-A-' : 'FAC-V-'}${Date.now().toString().slice(-6)}`,
+          estAvoir
+        );
+        
+        if (numeroUnique !== numeroOriginal) {
+          console.log(`📝 Numéro de facture modifié: ${numeroOriginal} -> ${numeroUnique} (doublon détecté)`);
+          duplicateCount++;
+        }
+
         // 1. Upload le fichier PDF dans Supabase Storage
         const timestamp = Date.now();
         const cleanFileName = facture.fichier
@@ -364,7 +418,7 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
 
         // 4. Insérer la facture dans la base de données
         const { error: insertError } = await supabase.from("factures").insert({
-          numero_facture: facture.donnees.numero_facture || undefined,
+          numero_facture: numeroUnique,
           type_facture: "VENTES",
           date_emission: facture.donnees.date_facture || new Date().toISOString().split("T")[0],
           date_echeance: facture.donnees.date_facture || new Date().toISOString().split("T")[0],
@@ -397,9 +451,17 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
     setIsSaving(false);
 
     if (successCount > 0) {
+      let description = `${successCount} facture(s) ajoutée(s) avec succès`;
+      if (duplicateCount > 0) {
+        description += ` (${duplicateCount} numéro(s) renommé(s) car existant)`;
+      }
+      if (errorCount > 0) {
+        description += `, ${errorCount} erreur(s)`;
+      }
+      
       toast({
         title: "Factures sauvegardées",
-        description: `${successCount} facture(s) ajoutée(s) avec succès${errorCount > 0 ? `, ${errorCount} erreur(s)` : ""}`,
+        description,
       });
 
       setFactures([]);
