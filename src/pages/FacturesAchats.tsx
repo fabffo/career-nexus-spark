@@ -133,6 +133,16 @@ export default function FacturesAchats() {
         .from("fournisseurs_etat_organismes")
         .select("raison_sociale");
 
+      // Récupérer les prestataires
+      const { data: prestataires } = await supabase
+        .from("prestataires")
+        .select("nom, prenom");
+
+      // Récupérer les salariés
+      const { data: salaries } = await supabase
+        .from("salaries")
+        .select("nom, prenom");
+
       const fournisseursSet = new Set<string>();
       const typesMap = new Map<string, string>();
       
@@ -157,6 +167,32 @@ export default function FacturesAchats() {
           const key = f.raison_sociale.toLowerCase().trim();
           fournisseursSet.add(key);
           typesMap.set(key, "ETAT_ORGANISMES");
+        }
+      });
+
+      // Ajouter les prestataires (format "Prénom Nom")
+      prestataires?.forEach(p => {
+        if (p.nom) {
+          const fullName = `${p.prenom || ''} ${p.nom}`.toLowerCase().trim();
+          fournisseursSet.add(fullName);
+          typesMap.set(fullName, "PRESTATAIRE");
+          // Ajouter aussi le format "Nom Prénom" au cas où
+          const reverseName = `${p.nom} ${p.prenom || ''}`.toLowerCase().trim();
+          fournisseursSet.add(reverseName);
+          typesMap.set(reverseName, "PRESTATAIRE");
+        }
+      });
+
+      // Ajouter les salariés (format "Prénom Nom")
+      salaries?.forEach(s => {
+        if (s.nom) {
+          const fullName = `${s.prenom || ''} ${s.nom}`.toLowerCase().trim();
+          fournisseursSet.add(fullName);
+          typesMap.set(fullName, "SALARIE");
+          // Ajouter aussi le format "Nom Prénom" au cas où
+          const reverseName = `${s.nom} ${s.prenom || ''}`.toLowerCase().trim();
+          fournisseursSet.add(reverseName);
+          typesMap.set(reverseName, "SALARIE");
         }
       });
 
@@ -560,13 +596,32 @@ export default function FacturesAchats() {
       ),
       cell: ({ row }) => {
         const emetteurNom = row.getValue("emetteur_nom") as string;
-        const type = fournisseurTypesMap.get(emetteurNom?.toLowerCase().trim());
+        const facture = row.original;
+        
+        // D'abord vérifier emetteur_type directement
+        let type = fournisseurTypesMap.get(emetteurNom?.toLowerCase().trim());
+        
+        // Fallback sur emetteur_type de la facture
+        if (!type && facture.emetteur_type) {
+          if (facture.emetteur_type === 'PRESTATAIRE') type = 'PRESTATAIRE';
+          else if (facture.emetteur_type === 'SALARIE') type = 'SALARIE';
+          else if (facture.emetteur_type === 'FOURNISSEUR_SERVICE') type = 'SERVICES';
+          else if (facture.emetteur_type === 'FOURNISSEUR_GENERAL') type = 'GENERAUX';
+          else if (facture.emetteur_type === 'FOURNISSEUR_ETAT') type = 'ETAT_ORGANISMES';
+        }
+        
+        // Fallback sur type_facture
+        if (!type) {
+          if (facture.type_facture === 'ACHATS_SERVICES') type = 'SERVICES';
+          else if (facture.type_facture === 'ACHATS_ETAT') type = 'ETAT_ORGANISMES';
+          else if (facture.type_facture === 'ACHATS_GENERAUX') type = 'GENERAUX';
+        }
         
         if (!type) {
           return <span className="text-muted-foreground text-xs">-</span>;
         }
         
-        const typeConfig = {
+        const typeConfig: Record<string, { label: string; className: string }> = {
           SERVICES: {
             label: "Services",
             className: "bg-blue-100 text-blue-800 border-blue-200"
@@ -578,10 +633,22 @@ export default function FacturesAchats() {
           ETAT_ORGANISMES: {
             label: "État & Organismes",
             className: "bg-green-100 text-green-800 border-green-200"
+          },
+          PRESTATAIRE: {
+            label: "Prestataire",
+            className: "bg-orange-100 text-orange-800 border-orange-200"
+          },
+          SALARIE: {
+            label: "Salarié",
+            className: "bg-teal-100 text-teal-800 border-teal-200"
           }
         };
         
-        const config = typeConfig[type as keyof typeof typeConfig];
+        const config = typeConfig[type];
+        
+        if (!config) {
+          return <span className="text-muted-foreground text-xs">-</span>;
+        }
         
         return (
           <Badge variant="outline" className={config.className}>
