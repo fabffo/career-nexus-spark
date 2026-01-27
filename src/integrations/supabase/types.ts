@@ -1996,6 +1996,36 @@ export type Database = {
         }
         Relationships: []
       }
+      param_type_prestataire: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          libelle: string
+          ordre: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          libelle: string
+          ordre?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          libelle?: string
+          ordre?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       param_type_prestation: {
         Row: {
           code: string

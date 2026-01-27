@@ -54,7 +54,15 @@ interface TypeIntervenant {
   updated_at?: string;
 }
 
-// Interface TypePrestation supprimée - utiliser param_type_mission à la place
+interface TypePrestataire {
+  id: string;
+  code: string;
+  libelle: string;
+  is_active?: boolean;
+  ordre?: number;
+  created_at?: string;
+  updated_at?: string;
+}
 
 interface FactureSequence {
   id: string;
@@ -71,7 +79,7 @@ export default function Parametres() {
   const [tvaList, setTvaList] = useState<Tva[]>([]);
   const [typeMissionList, setTypeMissionList] = useState<TypeMission[]>([]);
   const [typeIntervenantList, setTypeIntervenantList] = useState<TypeIntervenant[]>([]);
-  // typePrestationList supprimé - utiliser typeMissionList à la place
+  const [typePrestataireList, setTypePrestataireList] = useState<TypePrestataire[]>([]);
   const [factureSequences, setFactureSequences] = useState<FactureSequence[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -79,14 +87,14 @@ export default function Parametres() {
   const [tvaDialog, setTvaDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as Tva | null });
   const [typeMissionDialog, setTypeMissionDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as TypeMission | null });
   const [typeIntervenantDialog, setTypeIntervenantDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as TypeIntervenant | null });
-  // typePrestationDialog supprimé
+  const [typePrestataireDialog, setTypePrestataireDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as TypePrestataire | null });
   const [sequenceDialog, setSequenceDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as FactureSequence | null });
 
   // Form states
   const [tvaForm, setTvaForm] = useState({ taux: 20, libelle: '', is_default: false });
   const [typeMissionForm, setTypeMissionForm] = useState({ code: '', libelle: '', is_active: true, ordre: 0 });
   const [typeIntervenantForm, setTypeIntervenantForm] = useState({ code: '', libelle: '', is_active: true, ordre: 0 });
-  // typePrestationForm supprimé
+  const [typePrestataireForm, setTypePrestataireForm] = useState({ code: '', libelle: '', is_active: true, ordre: 0 });
   const [sequenceForm, setSequenceForm] = useState({ type_facture: 'VENTES', prefixe: 'FAC-V', prochain_numero: 1, annee: new Date().getFullYear(), format: '{prefixe}-{annee}-{numero}' });
 
   useEffect(() => {
@@ -131,7 +139,18 @@ export default function Parametres() {
         setTypeIntervenantList((intervenantData as any) || []);
       }
 
-      // param_type_prestation supprimé - utiliser param_type_mission à la place
+      // Load Type Prestataire
+      const { data: prestataireTypeData, error: prestataireTypeError } = await supabase
+        .from('param_type_prestataire' as any)
+        .select('*')
+        .order('ordre', { ascending: true });
+      
+      if (prestataireTypeError) {
+        console.warn('Table param_type_prestataire not found yet:', prestataireTypeError);
+        setTypePrestataireList([]);
+      } else {
+        setTypePrestataireList((prestataireTypeData as any) || []);
+      }
 
       // Load Facture Sequences
       const { data: sequenceData, error: sequenceError } = await supabase
@@ -382,7 +401,80 @@ export default function Parametres() {
     });
   };
 
-  // Fonctions Type Prestation supprimées - utiliser Types de Mission à la place
+  // Type Prestataire Functions
+  const handleTypePrestataireSubmit = async () => {
+    try {
+      if (typePrestataireDialog.mode === 'view') return;
+
+      if (typePrestataireDialog.mode === 'edit' && typePrestataireDialog.item) {
+        const { error } = await supabase
+          .from('param_type_prestataire' as any)
+          .update(typePrestataireForm)
+          .eq('id', typePrestataireDialog.item.id);
+        
+        if (error) throw error;
+        toast({ title: "Type de prestataire modifié avec succès" });
+      } else {
+        const { error } = await supabase
+          .from('param_type_prestataire' as any)
+          .insert([typePrestataireForm]);
+        
+        if (error) throw error;
+        toast({ title: "Type de prestataire créé avec succès" });
+      }
+
+      setTypePrestataireDialog({ open: false, mode: 'create', item: null });
+      setTypePrestataireForm({ code: '', libelle: '', is_active: true, ordre: 0 });
+      loadData();
+    } catch (error) {
+      console.error('Erreur:', error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleTypePrestataireDelete = async (id: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce type de prestataire ?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('param_type_prestataire' as any)
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      toast({ title: "Type de prestataire supprimé avec succès" });
+      loadData();
+    } catch (error) {
+      console.error('Erreur:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer ce type de prestataire",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openTypePrestataireDialog = (mode: 'create' | 'edit' | 'view' | 'copy', item?: TypePrestataire) => {
+    if (item) {
+      setTypePrestataireForm({
+        code: mode === 'copy' ? `${item.code}_COPIE` : item.code,
+        libelle: mode === 'copy' ? `${item.libelle} (copie)` : item.libelle,
+        is_active: item.is_active !== undefined ? item.is_active : true,
+        ordre: item.ordre || 0,
+      });
+    } else {
+      setTypePrestataireForm({ code: '', libelle: '', is_active: true, ordre: 0 });
+    }
+    setTypePrestataireDialog({ 
+      open: true, 
+      mode: mode === 'copy' ? 'create' : mode, 
+      item: mode === 'copy' ? null : item || null 
+    });
+  };
 
   // Facture Sequence handlers
   const handleSequenceSubmit = async () => {
@@ -485,10 +577,11 @@ export default function Parametres() {
       <h1 className="text-3xl font-bold mb-6">Paramètres</h1>
 
         <Tabs defaultValue="tva" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="tva">TVA</TabsTrigger>
             <TabsTrigger value="type-mission">Types de Mission</TabsTrigger>
             <TabsTrigger value="type-intervenant">Types d'Intervenant</TabsTrigger>
+            <TabsTrigger value="type-prestataire">Types de Prestataire</TabsTrigger>
             <TabsTrigger value="facture-sequences">Numérotation Factures</TabsTrigger>
           </TabsList>
 
@@ -707,7 +800,78 @@ export default function Parametres() {
             </Card>
           </TabsContent>
 
-          {/* Type Prestation Tab supprimé - utiliser Types de Mission à la place */}
+          {/* Type Prestataire Tab */}
+          <TabsContent value="type-prestataire">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Gestion des Types de Prestataire</CardTitle>
+                <Button onClick={() => openTypePrestataireDialog('create')}>
+                  <Plus className="mr-2 h-4 w-4" /> Ajouter un type
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Libellé</TableHead>
+                      <TableHead>Ordre</TableHead>
+                      <TableHead>Actif</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {typePrestataireList.map((type) => (
+                      <TableRow key={type.id}>
+                        <TableCell className="font-medium">{type.code}</TableCell>
+                        <TableCell>{type.libelle}</TableCell>
+                        <TableCell>{type.ordre}</TableCell>
+                        <TableCell>
+                          {type.is_active ? (
+                            <span className="text-green-600">✓</span>
+                          ) : (
+                            <span className="text-red-600">✗</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openTypePrestataireDialog('view', type)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openTypePrestataireDialog('edit', type)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openTypePrestataireDialog('copy', type)}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleTypePrestataireDelete(type.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Facture Sequences Tab */}
           <TabsContent value="facture-sequences">
@@ -965,7 +1129,64 @@ export default function Parametres() {
           </DialogContent>
         </Dialog>
 
-        {/* Type Prestation Dialog supprimé - utiliser Types de Mission à la place */}
+        {/* Type Prestataire Dialog */}
+        <Dialog open={typePrestataireDialog.open} onOpenChange={(open) => setTypePrestataireDialog({ ...typePrestataireDialog, open })}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {typePrestataireDialog.mode === 'create' && "Créer un type de prestataire"}
+                {typePrestataireDialog.mode === 'edit' && "Modifier le type de prestataire"}
+                {typePrestataireDialog.mode === 'view' && "Détails du type de prestataire"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="code">Code</Label>
+                <Input
+                  id="code"
+                  value={typePrestataireForm.code}
+                  onChange={(e) => setTypePrestataireForm({ ...typePrestataireForm, code: e.target.value })}
+                  disabled={typePrestataireDialog.mode === 'view'}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="libelle">Libellé</Label>
+                <Input
+                  id="libelle"
+                  value={typePrestataireForm.libelle}
+                  onChange={(e) => setTypePrestataireForm({ ...typePrestataireForm, libelle: e.target.value })}
+                  disabled={typePrestataireDialog.mode === 'view'}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="ordre">Ordre</Label>
+                <Input
+                  id="ordre"
+                  type="number"
+                  value={typePrestataireForm.ordre}
+                  onChange={(e) => setTypePrestataireForm({ ...typePrestataireForm, ordre: parseInt(e.target.value) })}
+                  disabled={typePrestataireDialog.mode === 'view'}
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="is_active"
+                  checked={typePrestataireForm.is_active}
+                  onCheckedChange={(checked) => setTypePrestataireForm({ ...typePrestataireForm, is_active: checked })}
+                  disabled={typePrestataireDialog.mode === 'view'}
+                />
+                <Label htmlFor="is_active">Actif</Label>
+              </div>
+            </div>
+            <DialogFooter>
+              {typePrestataireDialog.mode !== 'view' && (
+                <Button onClick={handleTypePrestataireSubmit}>
+                  {typePrestataireDialog.mode === 'edit' ? 'Modifier' : 'Créer'}
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Facture Sequence Dialog */}
         <Dialog open={sequenceDialog.open} onOpenChange={(open) => setSequenceDialog({ ...sequenceDialog, open })}>

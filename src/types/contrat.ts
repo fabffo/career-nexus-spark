@@ -45,7 +45,7 @@ export interface Prestataire {
   invitation_sent_at?: string;
   fournisseur_services_id?: string;
   salarie_id?: string;
-  type_prestataire?: 'INDEPENDANT' | 'SOCIETE' | 'SALARIE';
+  type_prestataire?: string; // Référence param_type_prestataire: INDEPENDANT, SALARIE, SOCIETE, APPORTEUR_AFFAIRES
   actif?: boolean;
   mots_cles_rapprochement?: string | null;
   created_at?: string;
