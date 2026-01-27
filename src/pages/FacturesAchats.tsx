@@ -41,7 +41,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 export interface Facture {
   id: string;
   numero_facture: string;
-  type_facture: "VENTES" | "ACHATS";
+  type_facture: "VENTES" | "ACHATS" | "ACHATS_GENERAUX" | "ACHATS_SERVICES" | "ACHATS_ETAT";
   date_emission: string;
   date_echeance: string;
   emetteur_type: string;
@@ -306,32 +306,36 @@ export default function FacturesAchats() {
     }
   };
 
+  // Helper pour obtenir le type de fournisseur depuis une facture
+  const getFactureEmetteurType = (facture: Facture): string => {
+    // D'abord vérifier emetteur_type directement stocké
+    if (facture.emetteur_type === 'PRESTATAIRE') return 'PRESTATAIRE';
+    if (facture.emetteur_type === 'SALARIE') return 'SALARIE';
+    if (facture.emetteur_type === 'FOURNISSEUR_SERVICE') return 'SERVICES';
+    if (facture.emetteur_type === 'FOURNISSEUR_GENERAL') return 'GENERAUX';
+    if (facture.emetteur_type === 'FOURNISSEUR_ETAT') return 'ETAT_ORGANISMES';
+    
+    // Fallback: utiliser le type_facture
+    if (facture.type_facture === 'ACHATS_SERVICES') return 'SERVICES';
+    if (facture.type_facture === 'ACHATS_ETAT') return 'ETAT_ORGANISMES';
+    
+    // Dernier recours: chercher dans la map par nom
+    if (facture.emetteur_nom) {
+      const emetteurKey = facture.emetteur_nom.toLowerCase().trim();
+      const type = fournisseurTypesMap.get(emetteurKey);
+      if (type) return type;
+    }
+    
+    return 'GENERAUX';
+  };
+
   // Filtrer les factures par type de fournisseur
   const filteredFactures = useMemo(() => {
     return factures.filter((facture) => {
       if (selectedTypeFournisseur === "all") return true;
       
-      // Pour les Services, on filtre exactement
-      if (selectedTypeFournisseur === "SERVICES") {
-        if (!facture.emetteur_nom) return false;
-        const emetteurKey = facture.emetteur_nom.toLowerCase().trim();
-        const type = fournisseurTypesMap.get(emetteurKey);
-        return type === "SERVICES";
-      }
-      
-      // Pour Généraux : exclure uniquement les Services
-      if (selectedTypeFournisseur === "GENERAUX") {
-        if (!facture.emetteur_nom) return true;
-        const emetteurKey = facture.emetteur_nom.toLowerCase().trim();
-        const type = fournisseurTypesMap.get(emetteurKey);
-        return type !== "SERVICES";
-      }
-      
-      // Pour les autres filtres (ETAT_ORGANISMES)
-      if (!facture.emetteur_nom) return false;
-      const emetteurKey = facture.emetteur_nom.toLowerCase().trim();
-      const type = fournisseurTypesMap.get(emetteurKey);
-      return type === selectedTypeFournisseur;
+      const emetteurType = getFactureEmetteurType(facture);
+      return emetteurType === selectedTypeFournisseur;
     });
   }, [factures, selectedTypeFournisseur, fournisseurTypesMap]);
 
@@ -946,6 +950,8 @@ export default function FacturesAchats() {
               <SelectItem value="SERVICES">Services</SelectItem>
               <SelectItem value="GENERAUX">Généraux</SelectItem>
               <SelectItem value="ETAT_ORGANISMES">État & Organismes</SelectItem>
+              <SelectItem value="PRESTATAIRE">Prestataire</SelectItem>
+              <SelectItem value="SALARIE">Salarié</SelectItem>
             </SelectContent>
           </Select>
 
