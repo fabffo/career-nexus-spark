@@ -26,7 +26,7 @@ interface EditFactureDialogProps {
 
 // Helper pour détecter les types d'achat
 const isAchatType = (type: string) => {
-  return type === 'ACHATS' || type === 'ACHATS_GENERAUX' || type === 'ACHATS_SERVICES' || type === 'ACHATS_ETAT';
+  return type === 'ACHATS' || type === 'ACHATS_GENERAUX' || type === 'ACHATS_SERVICES' || type === 'ACHATS_ETAT' || type === 'ACHATS_PRESTATAIRE' || type === 'ACHATS_SALARIE';
 };
 
 export default function EditFactureDialog({ 
@@ -49,6 +49,8 @@ export default function EditFactureDialog({
   const [fournisseursGeneraux, setFournisseursGeneraux] = useState<any[]>([]);
   const [fournisseursServices, setFournisseursServices] = useState<any[]>([]);
   const [fournisseursEtat, setFournisseursEtat] = useState<any[]>([]);
+  const [prestataires, setPrestataires] = useState<any[]>([]);
+  const [salaries, setSalaries] = useState<any[]>([]);
   const [fournisseurPopoverOpen, setFournisseurPopoverOpen] = useState(false);
 
   useEffect(() => {
@@ -83,15 +85,19 @@ export default function EditFactureDialog({
 
   const fetchFournisseurs = async () => {
     try {
-      const [generaux, services, etat] = await Promise.all([
+      const [generaux, services, etat, prest, sal] = await Promise.all([
         supabase.from('fournisseurs_generaux').select('*').order('raison_sociale'),
         supabase.from('fournisseurs_services').select('*').order('raison_sociale'),
-        supabase.from('fournisseurs_etat_organismes').select('*').order('raison_sociale')
+        supabase.from('fournisseurs_etat_organismes').select('*').order('raison_sociale'),
+        supabase.from('prestataires').select('id, nom, prenom').order('nom'),
+        supabase.from('salaries').select('id, nom, prenom, metier').order('nom')
       ]);
       
       setFournisseursGeneraux(generaux.data || []);
       setFournisseursServices(services.data || []);
       setFournisseursEtat(etat.data || []);
+      setPrestataires(prest.data || []);
+      setSalaries(sal.data || []);
     } catch (error) {
       console.error('Erreur lors du chargement des fournisseurs:', error);
     }
@@ -102,6 +108,8 @@ export default function EditFactureDialog({
     const type = formData.type_facture as string;
     if (type === 'ACHATS_SERVICES') return fournisseursServices;
     if (type === 'ACHATS_ETAT') return fournisseursEtat;
+    if (type === 'ACHATS_PRESTATAIRE') return prestataires;
+    if (type === 'ACHATS_SALARIE') return salaries;
     return fournisseursGeneraux; // ACHATS_GENERAUX, ACHATS ou défaut
   };
 
@@ -110,7 +118,15 @@ export default function EditFactureDialog({
     const type = formData.type_facture as string;
     if (type === 'ACHATS_SERVICES') return 'fournisseur de services';
     if (type === 'ACHATS_ETAT') return 'fournisseur État/organisme';
+    if (type === 'ACHATS_PRESTATAIRE') return 'prestataire';
+    if (type === 'ACHATS_SALARIE') return 'salarié';
     return 'fournisseur général';
+  };
+
+  // Vérifier si le type est prestataire ou salarié (pour adapter l'affichage)
+  const isPersonType = () => {
+    const type = formData.type_facture as string;
+    return type === 'ACHATS_PRESTATAIRE' || type === 'ACHATS_SALARIE';
   };
 
   // Gérer le changement de type d'achat
@@ -146,14 +162,27 @@ export default function EditFactureDialog({
   };
 
   const handleFournisseurSelect = (fournisseur: any) => {
-    setFormData(prev => ({
-      ...prev,
-      emetteur_id: fournisseur.id,
-      emetteur_nom: fournisseur.raison_sociale,
-      emetteur_adresse: fournisseur.adresse || '',
-      emetteur_email: fournisseur.email || '',
-      emetteur_telephone: fournisseur.telephone || '',
-    }));
+    const type = formData.type_facture as string;
+    // Pour les prestataires et salariés, utiliser nom/prenom
+    if (type === 'ACHATS_PRESTATAIRE' || type === 'ACHATS_SALARIE') {
+      setFormData(prev => ({
+        ...prev,
+        emetteur_id: fournisseur.id,
+        emetteur_nom: `${fournisseur.prenom} ${fournisseur.nom}`,
+        emetteur_adresse: '',
+        emetteur_email: fournisseur.email || '',
+        emetteur_telephone: fournisseur.telephone || '',
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        emetteur_id: fournisseur.id,
+        emetteur_nom: fournisseur.raison_sociale,
+        emetteur_adresse: fournisseur.adresse || '',
+        emetteur_email: fournisseur.email || '',
+        emetteur_telephone: fournisseur.telephone || '',
+      }));
+    }
     setFournisseurPopoverOpen(false);
   };
 
@@ -469,9 +498,11 @@ export default function EditFactureDialog({
                       <SelectValue placeholder="Sélectionner un type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ACHATS_GENERAUX">Achats généraux</SelectItem>
-                      <SelectItem value="ACHATS_SERVICES">Achats de services</SelectItem>
-                      <SelectItem value="ACHATS_ETAT">Achats État & organismes</SelectItem>
+                      <SelectItem value="ACHATS_SERVICES">Fournisseur de services</SelectItem>
+                      <SelectItem value="ACHATS_GENERAUX">Fournisseur général</SelectItem>
+                      <SelectItem value="ACHATS_PRESTATAIRE">Prestataire</SelectItem>
+                      <SelectItem value="ACHATS_SALARIE">Salarié</SelectItem>
+                      <SelectItem value="ACHATS_ETAT">État & organismes</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -522,7 +553,12 @@ export default function EditFactureDialog({
                           className="w-full justify-between"
                         >
                           {formData.emetteur_id 
-                            ? getFournisseursList().find(f => f.id === formData.emetteur_id)?.raison_sociale || formData.emetteur_nom
+                            ? (isPersonType() 
+                                ? (() => {
+                                    const p = getFournisseursList().find(f => f.id === formData.emetteur_id);
+                                    return p ? `${p.prenom} ${p.nom}` : formData.emetteur_nom;
+                                  })()
+                                : getFournisseursList().find(f => f.id === formData.emetteur_id)?.raison_sociale || formData.emetteur_nom)
                             : formData.emetteur_nom || `Choisir un ${getFournisseurLabel()}...`}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
@@ -530,24 +566,27 @@ export default function EditFactureDialog({
                       <PopoverContent className="w-[400px] p-0">
                         <Command>
                           <CommandInput placeholder={`Rechercher un ${getFournisseurLabel()}...`} />
-                          <CommandEmpty>Aucun fournisseur trouvé.</CommandEmpty>
+                          <CommandEmpty>Aucun {getFournisseurLabel()} trouvé.</CommandEmpty>
                           <CommandGroup className="max-h-[300px] overflow-y-auto">
-                            {getFournisseursList().map((fournisseur) => (
+                            {getFournisseursList().map((item) => (
                               <CommandItem
-                                key={fournisseur.id}
-                                value={fournisseur.raison_sociale}
-                                onSelect={() => handleFournisseurSelect(fournisseur)}
+                                key={item.id}
+                                value={isPersonType() ? `${item.prenom} ${item.nom}` : item.raison_sociale}
+                                onSelect={() => handleFournisseurSelect(item)}
                               >
                                 <Check
                                   className={cn(
                                     "mr-2 h-4 w-4",
-                                    formData.emetteur_id === fournisseur.id ? "opacity-100" : "opacity-0"
+                                    formData.emetteur_id === item.id ? "opacity-100" : "opacity-0"
                                   )}
                                 />
                                 <div>
-                                  <div>{fournisseur.raison_sociale}</div>
-                                  {fournisseur.secteur_activite && (
-                                    <div className="text-xs text-muted-foreground">{fournisseur.secteur_activite}</div>
+                                  <div>{isPersonType() ? `${item.prenom} ${item.nom}` : item.raison_sociale}</div>
+                                  {!isPersonType() && item.secteur_activite && (
+                                    <div className="text-xs text-muted-foreground">{item.secteur_activite}</div>
+                                  )}
+                                  {isPersonType() && item.metier && (
+                                    <div className="text-xs text-muted-foreground">{item.metier}</div>
                                   )}
                                 </div>
                               </CommandItem>
