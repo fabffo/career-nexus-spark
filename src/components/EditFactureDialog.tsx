@@ -26,7 +26,28 @@ interface EditFactureDialogProps {
 
 // Helper pour détecter les types d'achat
 const isAchatType = (type: string) => {
-  return type === 'ACHATS' || type === 'ACHATS_GENERAUX' || type === 'ACHATS_SERVICES' || type === 'ACHATS_ETAT' || type === 'ACHATS_PRESTATAIRE' || type === 'ACHATS_SALARIE';
+  return type === 'ACHATS' || type === 'ACHATS_GENERAUX' || type === 'ACHATS_SERVICES' || type === 'ACHATS_ETAT';
+};
+
+// Types d'émetteur pour les factures d'achat
+type EmetteurTypeAchat = 'FOURNISSEUR_SERVICES' | 'FOURNISSEUR_GENERAL' | 'PRESTATAIRE' | 'SALARIE' | 'FOURNISSEUR_ETAT';
+
+// Mapper le type de facture + emetteur_type vers le type d'émetteur pour l'UI
+const getEmetteurTypeFromFacture = (typeFacture: string, emetteurType?: string): EmetteurTypeAchat => {
+  if (emetteurType === 'PRESTATAIRE') return 'PRESTATAIRE';
+  if (emetteurType === 'SALARIE') return 'SALARIE';
+  if (typeFacture === 'ACHATS_SERVICES') return 'FOURNISSEUR_SERVICES';
+  if (typeFacture === 'ACHATS_ETAT') return 'FOURNISSEUR_ETAT';
+  return 'FOURNISSEUR_GENERAL';
+};
+
+// Mapper le type d'émetteur UI vers le type_facture pour la base de données
+const getTypeFactureFromEmetteurType = (emetteurType: EmetteurTypeAchat): string => {
+  if (emetteurType === 'FOURNISSEUR_SERVICES') return 'ACHATS_SERVICES';
+  if (emetteurType === 'FOURNISSEUR_ETAT') return 'ACHATS_ETAT';
+  // Pour PRESTATAIRE et SALARIE, on utilise ACHATS comme type générique
+  if (emetteurType === 'PRESTATAIRE' || emetteurType === 'SALARIE') return 'ACHATS';
+  return 'ACHATS_GENERAUX';
 };
 
 export default function EditFactureDialog({ 
@@ -52,10 +73,14 @@ export default function EditFactureDialog({
   const [prestataires, setPrestataires] = useState<any[]>([]);
   const [salaries, setSalaries] = useState<any[]>([]);
   const [fournisseurPopoverOpen, setFournisseurPopoverOpen] = useState(false);
+  // État séparé pour le type d'émetteur (indépendant du type_facture)
+  const [emetteurTypeUI, setEmetteurTypeUI] = useState<EmetteurTypeAchat>('FOURNISSEUR_GENERAL');
 
   useEffect(() => {
     if (open && facture) {
       setFormData(facture);
+      // Initialiser le type d'émetteur UI basé sur la facture
+      setEmetteurTypeUI(getEmetteurTypeFromFacture(facture.type_facture, facture.emetteur_type));
       fetchLignes();
       fetchMissions();
       fetchTypesMission();
@@ -103,43 +128,41 @@ export default function EditFactureDialog({
     }
   };
 
-  // Obtenir la liste de fournisseurs appropriée selon le type de facture (utilise formData pour être dynamique)
+  // Obtenir la liste de fournisseurs appropriée selon le type d'émetteur UI
   const getFournisseursList = () => {
-    const type = formData.type_facture as string;
-    if (type === 'ACHATS_SERVICES') return fournisseursServices;
-    if (type === 'ACHATS_ETAT') return fournisseursEtat;
-    if (type === 'ACHATS_PRESTATAIRE') return prestataires;
-    if (type === 'ACHATS_SALARIE') return salaries;
-    return fournisseursGeneraux; // ACHATS_GENERAUX, ACHATS ou défaut
+    if (emetteurTypeUI === 'FOURNISSEUR_SERVICES') return fournisseursServices;
+    if (emetteurTypeUI === 'FOURNISSEUR_ETAT') return fournisseursEtat;
+    if (emetteurTypeUI === 'PRESTATAIRE') return prestataires;
+    if (emetteurTypeUI === 'SALARIE') return salaries;
+    return fournisseursGeneraux; // FOURNISSEUR_GENERAL ou défaut
   };
 
   // Label pour le type de fournisseur
   const getFournisseurLabel = () => {
-    const type = formData.type_facture as string;
-    if (type === 'ACHATS_SERVICES') return 'fournisseur de services';
-    if (type === 'ACHATS_ETAT') return 'fournisseur État/organisme';
-    if (type === 'ACHATS_PRESTATAIRE') return 'prestataire';
-    if (type === 'ACHATS_SALARIE') return 'salarié';
+    if (emetteurTypeUI === 'FOURNISSEUR_SERVICES') return 'fournisseur de services';
+    if (emetteurTypeUI === 'FOURNISSEUR_ETAT') return 'fournisseur État/organisme';
+    if (emetteurTypeUI === 'PRESTATAIRE') return 'prestataire';
+    if (emetteurTypeUI === 'SALARIE') return 'salarié';
     return 'fournisseur général';
   };
 
   // Vérifier si le type est prestataire ou salarié (pour adapter l'affichage)
   const isPersonType = () => {
-    const type = formData.type_facture as string;
-    return type === 'ACHATS_PRESTATAIRE' || type === 'ACHATS_SALARIE';
+    return emetteurTypeUI === 'PRESTATAIRE' || emetteurTypeUI === 'SALARIE';
   };
 
-  // Gérer le changement de type d'achat
-  const handleTypeAchatChange = (newType: string) => {
+  // Gérer le changement de type d'émetteur
+  const handleEmetteurTypeChange = (newType: EmetteurTypeAchat) => {
+    setEmetteurTypeUI(newType);
+    // Réinitialiser le fournisseur quand on change de type
     setFormData(prev => ({
       ...prev,
-      type_facture: newType as Facture['type_facture'],
-      // Réinitialiser le fournisseur quand on change de type
       emetteur_id: undefined,
       emetteur_nom: '',
       emetteur_adresse: '',
       emetteur_email: '',
       emetteur_telephone: '',
+      emetteur_type: newType,
     }));
   };
 
@@ -162,9 +185,8 @@ export default function EditFactureDialog({
   };
 
   const handleFournisseurSelect = (fournisseur: any) => {
-    const type = formData.type_facture as string;
     // Pour les prestataires et salariés, utiliser nom/prenom
-    if (type === 'ACHATS_PRESTATAIRE' || type === 'ACHATS_SALARIE') {
+    if (isPersonType()) {
       setFormData(prev => ({
         ...prev,
         emetteur_id: fournisseur.id,
@@ -172,6 +194,7 @@ export default function EditFactureDialog({
         emetteur_adresse: '',
         emetteur_email: fournisseur.email || '',
         emetteur_telephone: fournisseur.telephone || '',
+        emetteur_type: emetteurTypeUI,
       }));
     } else {
       setFormData(prev => ({
@@ -181,6 +204,7 @@ export default function EditFactureDialog({
         emetteur_adresse: fournisseur.adresse || '',
         emetteur_email: fournisseur.email || '',
         emetteur_telephone: fournisseur.telephone || '',
+        emetteur_type: emetteurTypeUI,
       }));
     }
     setFournisseurPopoverOpen(false);
@@ -385,15 +409,17 @@ export default function EditFactureDialog({
       };
 
       // Pour les factures d'achat, permettre la modification de type, date_emission, emetteur_nom, emetteur_id
-      // Utilise formData.type_facture pour supporter aussi les changements de type en cours d'édition
+      // Utilise emetteurTypeUI pour déterminer le type_facture correct pour la base de données
       if (isAchatType(facture.type_facture as string) || isAchatType(formData.type_facture as string)) {
-        updateData.type_facture = formData.type_facture;
+        // Convertir le type d'émetteur UI vers le type_facture valide pour la BDD
+        updateData.type_facture = getTypeFactureFromEmetteurType(emetteurTypeUI);
         updateData.date_emission = format(new Date(formData.date_emission), 'yyyy-MM-dd');
         updateData.emetteur_nom = formData.emetteur_nom;
         updateData.emetteur_id = formData.emetteur_id || null;
         updateData.emetteur_adresse = formData.emetteur_adresse || null;
         updateData.emetteur_email = formData.emetteur_email || null;
         updateData.emetteur_telephone = formData.emetteur_telephone || null;
+        updateData.emetteur_type = emetteurTypeUI;
       }
 
       // Pour les factures de vente, permettre la modification du destinataire
@@ -488,21 +514,21 @@ export default function EditFactureDialog({
           {isAchatType(facture.type_facture as string) ? (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
-                <div>
+              <div>
                   <Label>Type de facture d'achat</Label>
                   <Select
-                    value={formData.type_facture}
-                    onValueChange={handleTypeAchatChange}
+                    value={emetteurTypeUI}
+                    onValueChange={(value) => handleEmetteurTypeChange(value as EmetteurTypeAchat)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Sélectionner un type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ACHATS_SERVICES">Fournisseur de services</SelectItem>
-                      <SelectItem value="ACHATS_GENERAUX">Fournisseur général</SelectItem>
-                      <SelectItem value="ACHATS_PRESTATAIRE">Prestataire</SelectItem>
-                      <SelectItem value="ACHATS_SALARIE">Salarié</SelectItem>
-                      <SelectItem value="ACHATS_ETAT">État & organismes</SelectItem>
+                      <SelectItem value="FOURNISSEUR_SERVICES">Fournisseur de services</SelectItem>
+                      <SelectItem value="FOURNISSEUR_GENERAL">Fournisseur général</SelectItem>
+                      <SelectItem value="PRESTATAIRE">Prestataire</SelectItem>
+                      <SelectItem value="SALARIE">Salarié</SelectItem>
+                      <SelectItem value="FOURNISSEUR_ETAT">État & organismes</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
