@@ -24,7 +24,6 @@ interface AddFactureAchatDialogProps {
 interface Fournisseur {
   id: string;
   raison_sociale: string;
-  type: 'GENERAL' | 'SERVICE';
 }
 
 interface Prestataire {
@@ -42,7 +41,8 @@ interface Salarie {
 
 export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }: AddFactureAchatDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
+  const [fournisseursServices, setFournisseursServices] = useState<Fournisseur[]>([]);
+  const [fournisseursGeneraux, setFournisseursGeneraux] = useState<Fournisseur[]>([]);
   const [prestataires, setPrestataires] = useState<Prestataire[]>([]);
   const [salaries, setSalaries] = useState<Salarie[]>([]);
   const [typesMission, setTypesMission] = useState<any[]>([]);
@@ -112,13 +112,8 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
 
       if (typesError) throw typesError;
 
-      // Combiner les fournisseurs
-      const allFournisseurs = [
-        ...(fg || []).map(f => ({ ...f, type: 'GENERAL' as const })),
-        ...(fs || []).map(f => ({ ...f, type: 'SERVICE' as const })),
-      ];
-
-      setFournisseurs(allFournisseurs);
+      setFournisseursGeneraux(fg || []);
+      setFournisseursServices(fs || []);
       setPrestataires(prest || []);
       setSalaries(sal || []);
       setTypesMission(typesData || []);
@@ -193,11 +188,18 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
           emetteurType = 'SALARIE';
           emetteurId = salarie.id;
         }
-      } else {
-        const fournisseur = fournisseurs.find(f => f.id === formData.fournisseur_id);
+      } else if (formData.fournisseur_type === 'FOURNISSEUR_SERVICES') {
+        const fournisseur = fournisseursServices.find(f => f.id === formData.fournisseur_id);
         if (fournisseur) {
           emetteurNom = fournisseur.raison_sociale;
-          emetteurType = fournisseur.type === 'GENERAL' ? 'FOURNISSEUR_GENERAL' : 'FOURNISSEUR_SERVICE';
+          emetteurType = 'FOURNISSEUR_SERVICE';
+          emetteurId = fournisseur.id;
+        }
+      } else if (formData.fournisseur_type === 'FOURNISSEUR_GENERAUX') {
+        const fournisseur = fournisseursGeneraux.find(f => f.id === formData.fournisseur_id);
+        if (fournisseur) {
+          emetteurNom = fournisseur.raison_sociale;
+          emetteurType = 'FOURNISSEUR_GENERAL';
           emetteurId = fournisseur.id;
         }
       }
@@ -359,7 +361,8 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
                 <SelectValue placeholder="Sélectionner un type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="FOURNISSEUR">Fournisseur</SelectItem>
+                <SelectItem value="FOURNISSEUR_SERVICES">Fournisseur de services</SelectItem>
+                <SelectItem value="FOURNISSEUR_GENERAUX">Fournisseur général</SelectItem>
                 <SelectItem value="PRESTATAIRE">Prestataire</SelectItem>
                 <SelectItem value="SALARIE">Salarié</SelectItem>
               </SelectContent>
@@ -376,10 +379,12 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
                       ? 'Prestataire' 
                       : formData.fournisseur_type === 'SALARIE'
                       ? 'Salarié'
-                      : 'Fournisseur'}{' '}
+                      : formData.fournisseur_type === 'FOURNISSEUR_SERVICES'
+                      ? 'Fournisseur de services'
+                      : 'Fournisseur général'}{' '}
                     <span className="text-destructive">*</span>
                   </Label>
-                  {formData.fournisseur_type === 'FOURNISSEUR' && (
+                  {(formData.fournisseur_type === 'FOURNISSEUR_SERVICES' || formData.fournisseur_type === 'FOURNISSEUR_GENERAUX') && (
                     <Button
                       type="button"
                       variant="outline"
@@ -413,7 +418,13 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
                             {s.prenom} {s.nom} {s.metier ? `- ${s.metier}` : ''}
                           </SelectItem>
                         ))
-                      : fournisseurs.map((f) => (
+                      : formData.fournisseur_type === 'FOURNISSEUR_SERVICES'
+                      ? fournisseursServices.map((f) => (
+                          <SelectItem key={f.id} value={f.id}>
+                            {f.raison_sociale}
+                          </SelectItem>
+                        ))
+                      : fournisseursGeneraux.map((f) => (
                           <SelectItem key={f.id} value={f.id}>
                             {f.raison_sociale}
                           </SelectItem>
