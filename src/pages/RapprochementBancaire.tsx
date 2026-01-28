@@ -4195,8 +4195,10 @@ export default function RapprochementBancaire() {
       console.log(`  - Unmatched: ${rapprochements.filter(r => r.status === 'unmatched').length}`);
 
       // ⭐ Créer les paiements UNIQUEMENT pour les abonnements et déclarations matched
+      // IMPORTANT: Une ligne ne peut avoir QU'UN SEUL type de paiement (abonnement OU déclaration, pas les deux)
+      // Si les deux sont définis, priorité à l'abonnement (cas normal = abonnement)
       const rapprochementsAbonnements = rapprochements.filter(r => r.status === 'matched' && r.abonnement_info);
-      const rapprochementsDeclarations = rapprochements.filter(r => r.status === 'matched' && r.declaration_info);
+      const rapprochementsDeclarations = rapprochements.filter(r => r.status === 'matched' && r.declaration_info && !r.abonnement_info);
       
       console.log(`💰 Paiements à créer:`);
       console.log(`  - Abonnements: ${rapprochementsAbonnements.length}`);
@@ -4216,6 +4218,17 @@ export default function RapprochementBancaire() {
             console.error("❌ Rapprochement bancaire introuvable pour", r.numero_ligne);
             continue;
           }
+
+          // ⭐ Purger les anciens paiements liés à ce rapprochement pour éviter les doublons
+          await supabase
+            .from('paiements_abonnements')
+            .delete()
+            .eq('rapprochement_id', rapprochementBancaire.id);
+          
+          await supabase
+            .from('paiements_declarations_charges')
+            .delete()
+            .eq('rapprochement_id', rapprochementBancaire.id);
 
           // Créer le paiement d'abonnement avec le rapprochement_id
           const { error: paiementError } = await supabase
@@ -4251,6 +4264,17 @@ export default function RapprochementBancaire() {
             console.error("❌ Rapprochement bancaire introuvable pour", r.numero_ligne);
             continue;
           }
+
+          // ⭐ Purger les anciens paiements liés à ce rapprochement pour éviter les doublons
+          await supabase
+            .from('paiements_abonnements')
+            .delete()
+            .eq('rapprochement_id', rapprochementBancaire.id);
+          
+          await supabase
+            .from('paiements_declarations_charges')
+            .delete()
+            .eq('rapprochement_id', rapprochementBancaire.id);
 
           // Créer le paiement de déclaration avec le rapprochement_id
           const { error: paiementError } = await supabase

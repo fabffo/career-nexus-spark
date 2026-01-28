@@ -300,7 +300,19 @@ export default function RapprochementManuelDialog({
       }
 
       // Si un abonnement est sélectionné, créer automatiquement un paiement d'abonnement
+      // ⭐ IMPORTANT: Purger d'abord les paiements existants pour éviter les doublons
       if (selectedAbonnementId && selectedAbonnementId !== "none" && rapprochementId) {
+        // Purger tous les anciens paiements liés à ce rapprochement
+        await supabase
+          .from("paiements_abonnements")
+          .delete()
+          .eq("rapprochement_id", rapprochementId);
+        
+        await supabase
+          .from("paiements_declarations_charges")
+          .delete()
+          .eq("rapprochement_id", rapprochementId);
+
         const montant = parseFloat(montantAbonnement) || Math.abs(transaction.montant);
         
         const { error: paiementError } = await supabase
@@ -350,9 +362,20 @@ export default function RapprochementManuelDialog({
           }
         }
       }
+      // Si une déclaration est sélectionnée (et PAS d'abonnement), créer automatiquement un paiement de déclaration
+      // ⭐ EXCLUSIVITÉ: On ne crée un paiement de déclaration QUE si aucun abonnement n'est sélectionné
+      else if (selectedDeclarationId && selectedDeclarationId !== "none" && rapprochementId) {
+        // Purger tous les anciens paiements liés à ce rapprochement
+        await supabase
+          .from("paiements_abonnements")
+          .delete()
+          .eq("rapprochement_id", rapprochementId);
+        
+        await supabase
+          .from("paiements_declarations_charges")
+          .delete()
+          .eq("rapprochement_id", rapprochementId);
 
-      // Si une déclaration est sélectionnée, créer automatiquement un paiement de déclaration
-      if (selectedDeclarationId && selectedDeclarationId !== "none" && rapprochementId) {
         const { error: paiementError } = await supabase
           .from("paiements_declarations_charges")
           .insert({
