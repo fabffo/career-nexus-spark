@@ -16,6 +16,7 @@ export interface Contrat {
   fournisseur_services_id?: string;
   fournisseur_general_id?: string;
   fournisseur_etat_organisme_id?: string;
+  client_lie_id?: string;
   montant?: number;
   description?: string;
   piece_jointe_url?: string;
@@ -28,6 +29,7 @@ export interface Contrat {
   fournisseur_services?: any;
   fournisseur_general?: any;
   fournisseur_etat_organisme?: any;
+  client_lie?: any;
   parent?: Contrat;
 }
 

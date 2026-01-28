@@ -8,11 +8,12 @@ export const contratService = {
       .from('contrats')
       .select(`
         *,
-        client:clients(*),
+        client:client_id(*),
         prestataire:prestataires(*),
         fournisseur_services:fournisseurs_services(*),
         fournisseur_general:fournisseurs_generaux(*),
-        fournisseur_etat_organisme:fournisseurs_etat_organismes(*)
+        fournisseur_etat_organisme:fournisseurs_etat_organismes(*),
+        client_lie:client_lie_id(*)
       `)
       .order('created_at', { ascending: false });
 
@@ -25,11 +26,12 @@ export const contratService = {
       .from('contrats')
       .select(`
         *,
-        client:clients(*),
+        client:client_id(*),
         prestataire:prestataires(*),
         fournisseur_services:fournisseurs_services(*),
         fournisseur_general:fournisseurs_generaux(*),
-        fournisseur_etat_organisme:fournisseurs_etat_organismes(*)
+        fournisseur_etat_organisme:fournisseurs_etat_organismes(*),
+        client_lie:client_lie_id(*)
       `)
       .eq('id', id)
       .single();

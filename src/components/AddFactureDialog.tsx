@@ -328,7 +328,7 @@ export default function AddFactureDialog({
       setFournisseursEtat(fournEtat || []);
 
       // Récupérer les missions en cours avec TVA et informations du contrat
-      const { data: missionsData } = await supabase
+      const { data: missionsData } = await (supabase as any)
         .from('missions')
         .select(`
           *, 
@@ -336,7 +336,7 @@ export default function AddFactureDialog({
           contrat:contrats(
             id,
             type,
-            client:clients(id, raison_sociale)
+            client:client_id(id, raison_sociale)
           )
         `)
         .eq('statut', 'EN_COURS')

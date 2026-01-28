@@ -36,15 +36,16 @@ export default function SignatureContrats() {
   const fetchContratsActifs = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("contrats")
         .select(`
           *,
-          client:clients(raison_sociale),
+          client:client_id(raison_sociale),
           prestataire:prestataires(nom, prenom),
           fournisseur_services:fournisseurs_services(raison_sociale),
           fournisseur_general:fournisseurs_generaux(raison_sociale),
-          fournisseur_etat_organisme:fournisseurs_etat_organismes(raison_sociale)
+          fournisseur_etat_organisme:fournisseurs_etat_organismes(raison_sociale),
+          client_lie:client_lie_id(raison_sociale)
         `)
         .eq("statut", "ACTIF")
         .order("date_debut", { ascending: false });
