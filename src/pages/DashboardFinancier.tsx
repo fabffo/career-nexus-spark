@@ -696,63 +696,25 @@ export default function DashboardFinancier() {
         </Card>
       </div>
 
-      {/* Tableau Marge Nette par Mois */}
+      {/* Graphique Marge Nette par Mois */}
       <Card>
         <CardHeader>
           <CardTitle>Marge Nette par Mois {anneeSelectionnee}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="text-left p-3 font-medium">Mois</th>
-                  <th className="text-right p-3 font-medium">CA</th>
-                  <th className="text-right p-3 font-medium">Achats Services</th>
-                  <th className="text-right p-3 font-medium">Achats Généraux</th>
-                  <th className="text-right p-3 font-medium">Abonnements</th>
-                  <th className="text-right p-3 font-medium">Charges Sociales</th>
-                  <th className="text-right p-3 font-medium">Marge Nette</th>
-                  <th className="text-right p-3 font-medium">Cumulée</th>
-                </tr>
-              </thead>
-              <tbody>
-                {margeDetaillee.map((row, index) => (
-                  <tr key={index} className="border-b hover:bg-muted/50">
-                    <td className="p-3 capitalize font-medium">{row.moisLabel}</td>
-                    <td className="text-right p-3">{row.ca.toLocaleString("fr-FR")} €</td>
-                    <td className="text-right p-3 text-destructive">{row.achatServices.toLocaleString("fr-FR")} €</td>
-                    <td className="text-right p-3 text-destructive">{row.achatGeneraux.toLocaleString("fr-FR")} €</td>
-                    <td className="text-right p-3 text-destructive">{row.abonnements.toLocaleString("fr-FR")} €</td>
-                    <td className="text-right p-3 text-destructive">{row.chargesSociales.toLocaleString("fr-FR")} €</td>
-                    <td className={`text-right p-3 font-semibold ${row.margeNette >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                      {row.margeNette.toLocaleString("fr-FR")} €
-                    </td>
-                    <td className={`text-right p-3 font-bold ${row.margeCumulee >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                      {row.margeCumulee.toLocaleString("fr-FR")} €
-                    </td>
-                  </tr>
-                ))}
-                {/* Ligne de total */}
-                {margeDetaillee.length > 0 && (
-                  <tr className="border-t-2 bg-muted/30 font-bold">
-                    <td className="p-3">TOTAL</td>
-                    <td className="text-right p-3">{margeDetaillee.reduce((sum, r) => sum + r.ca, 0).toLocaleString("fr-FR")} €</td>
-                    <td className="text-right p-3 text-destructive">{margeDetaillee.reduce((sum, r) => sum + r.achatServices, 0).toLocaleString("fr-FR")} €</td>
-                    <td className="text-right p-3 text-destructive">{margeDetaillee.reduce((sum, r) => sum + r.achatGeneraux, 0).toLocaleString("fr-FR")} €</td>
-                    <td className="text-right p-3 text-destructive">{margeDetaillee.reduce((sum, r) => sum + r.abonnements, 0).toLocaleString("fr-FR")} €</td>
-                    <td className="text-right p-3 text-destructive">{margeDetaillee.reduce((sum, r) => sum + r.chargesSociales, 0).toLocaleString("fr-FR")} €</td>
-                    <td className={`text-right p-3 ${margeDetaillee.reduce((sum, r) => sum + r.margeNette, 0) >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                      {margeDetaillee.reduce((sum, r) => sum + r.margeNette, 0).toLocaleString("fr-FR")} €
-                    </td>
-                    <td className={`text-right p-3 ${margeDetaillee[margeDetaillee.length - 1]?.margeCumulee >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                      {margeDetaillee[margeDetaillee.length - 1]?.margeCumulee.toLocaleString("fr-FR")} €
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <ResponsiveContainer width="100%" height={350}>
+            <BarChart data={margeDetaillee}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="moisLabel" />
+              <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
+              <Tooltip 
+                formatter={(value: number) => [`${value.toLocaleString("fr-FR")} €`]}
+                labelFormatter={(label) => label.charAt(0).toUpperCase() + label.slice(1)}
+              />
+              <Legend />
+              <Bar dataKey="margeNette" name="Marge Nette" fill="hsl(var(--primary))" />
+            </BarChart>
+          </ResponsiveContainer>
         </CardContent>
       </Card>
 
