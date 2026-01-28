@@ -281,21 +281,29 @@ export default function RapprochementBancaire() {
   };
 
   // Statut métier:
-  // - matched    = Facture + Montant facturé renseignés (facture/abonnement/déclaration)
+  // - matched    = Facture + Montant facturé renseignés (facture/abonnement/déclaration) OU rapprochement inverse
   // - uncertain  = Partenaire seul (sans facture/abonnement/déclaration)
   // - unmatched  = Rien de renseigné
   const deriveStatus = (r: Rapprochement): Rapprochement["status"] => {
     const hasFactureInfo = r.facture !== null || (r.factureIds && r.factureIds.length > 0) || r.abonnement_info !== undefined || r.declaration_info !== undefined;
     const hasPartenaire = r.fournisseur_info !== undefined;
+    const hasRapprochementInverse = r.ligneInverse !== undefined || (r.notes && r.notes.includes("Rapprochement inverse avec ligne"));
 
-    // Rapprochées = Facture + Montant renseignés
-    if (hasFactureInfo) return "matched";
+    // Rapprochées = Facture + Montant renseignés OU Rapprochement inverse
+    if (hasFactureInfo || hasRapprochementInverse) return "matched";
 
     // Incertaines = Partenaire seul
     if (hasPartenaire) return "uncertain";
 
     // Non rapprochées = Rien
     return "unmatched";
+  };
+  
+  // Extraire le numéro de ligne inverse depuis les notes
+  const extractLigneInverseFromNotes = (notes: string | null | undefined): string | undefined => {
+    if (!notes) return undefined;
+    const match = notes.match(/Rapprochement inverse avec ligne (RL-[\d-]+)/);
+    return match ? match[1] : undefined;
   };
 
   // Charger le fichier EN_COURS au montage du composant
@@ -444,6 +452,7 @@ export default function RapprochementBancaire() {
           // Convertir les lignes en format Rapprochement
           const rapprochementsRestores: Rapprochement[] = lignes.map(ligne => {
             const factureData = ligne.factures as any;
+            const ligneInverse = extractLigneInverseFromNotes(ligne.notes);
             return {
               transaction: {
                 date: ligne.transaction_date,
@@ -469,9 +478,10 @@ export default function RapprochementBancaire() {
               factureIds: ligne.factures_ids || undefined,
               score: ligne.score_detection || 0,
               status: (ligne.statut as "matched" | "unmatched" | "uncertain") || "unmatched",
-              isManual: false,
+              isManual: ligneInverse !== undefined, // Marquer comme manuel si rapprochement inverse
               notes: ligne.notes,
               numero_ligne: ligne.numero_ligne,
+              ligneInverse, // ⭐ Restaurer le lien vers la ligne inverse
               abonnement_info: ligne.abonnements_partenaires ? {
                 id: ligne.abonnements_partenaires.id,
                 nom: ligne.abonnements_partenaires.nom,
@@ -661,6 +671,7 @@ export default function RapprochementBancaire() {
         const rapprochementsFromLignes: Rapprochement[] = (lignes || []).map(ligne => {
           // Récupérer la facture complète si elle existe
           const factureData = ligne.facture_id ? facturesMap[ligne.facture_id] : null;
+          const ligneInverse = extractLigneInverseFromNotes(ligne.notes);
           
           const rapprochement: Rapprochement = {
             transaction: {
@@ -687,9 +698,10 @@ export default function RapprochementBancaire() {
             factureIds: ligne.factures_ids || undefined,
             score: ligne.score_detection || 0,
             status: (ligne.statut as "matched" | "unmatched" | "uncertain") || "unmatched",
-            isManual: ligne.statut === 'matched',
+            isManual: ligne.statut === 'matched' || ligneInverse !== undefined,
             notes: ligne.notes,
             numero_ligne: ligne.numero_ligne,
+            ligneInverse, // ⭐ Restaurer le lien vers la ligne inverse
             abonnement_info: ligne.abonnements_partenaires ? {
               id: ligne.abonnements_partenaires.id,
               nom: ligne.abonnements_partenaires.nom,
