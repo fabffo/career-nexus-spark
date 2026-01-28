@@ -245,7 +245,7 @@ export default function ContratsFournisseurs() {
         montant: formData.montant ? parseFloat(formData.montant) : undefined,
         description: formData.description,
         piece_jointe_url: pieceJointeUrl,
-        prestataire_id: formData.type === 'PRESTATAIRE' ? formData.prestataire_id : undefined,
+        prestataire_id: (formData.type === 'PRESTATAIRE' || formData.type === 'FOURNISSEUR_SERVICES') ? formData.prestataire_id : undefined,
         fournisseur_services_id: formData.type === 'FOURNISSEUR_SERVICES' ? formData.fournisseur_services_id : undefined,
         fournisseur_general_id: formData.type === 'FOURNISSEUR_GENERAL' ? formData.fournisseur_general_id : undefined,
         client_lie_id: formData.client_lie_id,
@@ -333,6 +333,17 @@ export default function ContratsFournisseurs() {
       cell: ({ row }) => (
         <div>{getFournisseurNom(row.original)}</div>
       )
+    },
+    {
+      id: 'prestataire_lie',
+      header: 'Prestataire',
+      cell: ({ row }) => {
+        // Show prestataire for FOURNISSEUR_SERVICES contracts
+        if (row.original.type === 'FOURNISSEUR_SERVICES' && row.original.prestataire) {
+          return <div className="text-sm">{row.original.prestataire.prenom} {row.original.prestataire.nom}</div>;
+        }
+        return <div className="text-muted-foreground">-</div>;
+      }
     },
     {
       id: 'client_lie',
@@ -512,24 +523,63 @@ export default function ContratsFournisseurs() {
             )}
 
             {formData.type === 'FOURNISSEUR_SERVICES' && (
-              <div>
-                <Label>Fournisseur de services *</Label>
-                <Select
-                  value={formData.fournisseur_services_id || ''}
-                  onValueChange={(value) => setFormData({ ...formData, fournisseur_services_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un fournisseur" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {fournisseursServices.map((f) => (
-                      <SelectItem key={f.id} value={f.id}>
-                        {f.raison_sociale}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <>
+                <div>
+                  <Label>Fournisseur de services *</Label>
+                  <Select
+                    value={formData.fournisseur_services_id || ''}
+                    onValueChange={(value) => setFormData({ 
+                      ...formData, 
+                      fournisseur_services_id: value,
+                      prestataire_id: undefined // Reset prestataire when fournisseur changes
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner un fournisseur" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {fournisseursServices.map((f) => (
+                        <SelectItem key={f.id} value={f.id}>
+                          {f.raison_sociale}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Prestataire lié au fournisseur de services */}
+                {formData.fournisseur_services_id && (
+                  <div>
+                    <Label>Prestataire (optionnel)</Label>
+                    <Select
+                      value={formData.prestataire_id || 'none'}
+                      onValueChange={(value) => setFormData({ 
+                        ...formData, 
+                        prestataire_id: value === 'none' ? undefined : value 
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Aucun prestataire" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Aucun prestataire</SelectItem>
+                        {prestataires
+                          .filter((p) => p.fournisseur_services_id === formData.fournisseur_services_id)
+                          .map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.prenom} {p.nom}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    {prestataires.filter((p) => p.fournisseur_services_id === formData.fournisseur_services_id).length === 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Aucun prestataire rattaché à ce fournisseur
+                      </p>
+                    )}
+                  </div>
+                )}
+              </>
             )}
 
             {formData.type === 'FOURNISSEUR_GENERAL' && (
