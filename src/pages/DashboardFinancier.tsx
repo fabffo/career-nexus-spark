@@ -129,11 +129,10 @@ export default function DashboardFinancier() {
       .gte("date_emission", format(debut, "yyyy-MM-dd"))
       .lte("date_emission", format(fin, "yyyy-MM-dd"));
 
-    // Abonnements - uniquement ceux de type CHARGE, calculer HT à partir du TTC
+    // Abonnements - tous les types (CHARGE et AUTRE) sont comptés comme charges
     const { data: paiementsAbonnements } = await supabase
       .from("paiements_abonnements")
       .select("montant, abonnement:abonnements_partenaires!inner(type, tva)")
-      .eq("abonnement.type", "CHARGE")
       .gte("date_paiement", format(debut, "yyyy-MM-dd"))
       .lte("date_paiement", format(fin, "yyyy-MM-dd"));
     
@@ -311,11 +310,10 @@ export default function DashboardFinancier() {
       .from("paiements_declarations_charges")
       .select(`id, date_paiement, montant, declaration:declarations_charges_sociales(type_charge)`);
 
-    // Charger tous les abonnements une fois
+    // Charger tous les abonnements une fois (tous les types)
     const { data: paiementsAbonnements } = await supabase
       .from("paiements_abonnements")
       .select("montant, date_paiement, abonnement:abonnements_partenaires!inner(type, tva)")
-      .eq("abonnement.type", "CHARGE")
       .gte("date_paiement", `${anneeSelectionnee}-01-01`)
       .lte("date_paiement", `${anneeSelectionnee}-12-31`);
     
