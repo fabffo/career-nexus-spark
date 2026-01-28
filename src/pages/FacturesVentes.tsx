@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, FileText, Eye, Pencil, Copy, Trash2, TrendingUp, Download, Sparkles, ArrowUpDown, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Search as SearchIcon, FileX, Link2 } from "lucide-react";
+import { Plus, FileText, Eye, Pencil, Copy, Trash2, TrendingUp, Download, Sparkles, ArrowUpDown, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Search as SearchIcon, FileX, Link2, Link2Off } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -365,6 +365,54 @@ export default function FacturesVentes() {
       toast({
         title: "Erreur",
         description: "Impossible de supprimer la facture",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDerapprochementAvoir = async (facture: Facture) => {
+    if (!facture.numero_ligne_rapprochement) return;
+    
+    if (!confirm(`Êtes-vous sûr de vouloir annuler le rapprochement de la facture ${facture.numero_facture} avec son/ses avoir(s) associé(s) ?`)) return;
+
+    try {
+      const numeroLigne = facture.numero_ligne_rapprochement;
+      
+      // Trouver toutes les factures liées par ce numéro de ligne (facture + avoirs)
+      const { data: facturesLiees, error: fetchError } = await supabase
+        .from('factures')
+        .select('id, numero_facture')
+        .eq('numero_ligne_rapprochement', numeroLigne);
+
+      if (fetchError) throw fetchError;
+
+      if (!facturesLiees || facturesLiees.length === 0) {
+        throw new Error("Aucune facture liée trouvée");
+      }
+
+      // Réinitialiser toutes les factures liées
+      const { error: updateError } = await supabase
+        .from('factures')
+        .update({
+          numero_rapprochement: null,
+          numero_ligne_rapprochement: null,
+          date_rapprochement: null,
+          statut: 'VALIDEE',
+        })
+        .eq('numero_ligne_rapprochement', numeroLigne);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: "Dérapprochement effectué",
+        description: `${facturesLiees.length} document(s) ont été dérapproché(s) avec succès`,
+      });
+
+      fetchFactures();
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'annuler le rapprochement",
         variant: "destructive",
       });
     }
@@ -763,6 +811,18 @@ export default function FacturesVentes() {
               className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
             >
               <Link2 className="h-4 w-4" />
+            </Button>
+          )}
+          {/* Bouton dérapprochement - visible seulement pour les factures rapprochées avec un avoir (AVOIR-INT) */}
+          {row.original.numero_ligne_rapprochement?.startsWith('AVOIR-INT') && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleDerapprochementAvoir(row.original)}
+              title="Annuler le rapprochement avec avoir"
+              className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+            >
+              <Link2Off className="h-4 w-4" />
             </Button>
           )}
           <Button
