@@ -25,11 +25,12 @@ interface TopClient {
   ca: number;
 }
 
-interface TopPrestataire {
+interface TopMargeNetteClient {
   id: string;
-  nom: string;
-  prenom: string;
-  montant: number;
+  raison_sociale: string;
+  ca: number;
+  achatsServices: number;
+  margeNette: number;
 }
 
 // Calculer l'année du dernier mois terminé par défaut
@@ -67,7 +68,7 @@ export default function DashboardFinancier() {
   const [margeDetaillee, setMargeDetaillee] = useState<any[]>([]);
   const [repartitionCA, setRepartitionCA] = useState<any[]>([]);
   const [topClients, setTopClients] = useState<TopClient[]>([]);
-  const [topPrestataires, setTopPrestataires] = useState<TopPrestataire[]>([]);
+  const [topMargeNetteClients, setTopMargeNetteClients] = useState<TopMargeNetteClient[]>([]);
 
   const handleKPIClick = (kpiType: KPIType) => {
     setSelectedKPI(kpiType);
@@ -89,7 +90,7 @@ export default function DashboardFinancier() {
         loadMargeMensuelle(),
         loadRepartitionCA(),
         loadTopClients(),
-        loadTopPrestataires(),
+        loadTopMargeNetteClients(),
       ]);
     } catch (error) {
       console.error("Erreur chargement données:", error);
@@ -472,12 +473,12 @@ export default function DashboardFinancier() {
     const top = Object.entries(caParClient)
       .map(([id, data]) => ({ id, ...data }))
       .sort((a, b) => b.ca - a.ca)
-      .slice(0, 5);
+      .slice(0, 10);
 
     setTopClients(top);
   };
 
-  const loadTopPrestataires = async () => {
+  const loadTopMargeNetteClients = async () => {
     const debutAnnee = moisSelectionne !== null 
       ? startOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
       : startOfYear(new Date(anneeSelectionnee, 0, 1));
@@ -485,39 +486,104 @@ export default function DashboardFinancier() {
       ? endOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
       : endOfYear(new Date(anneeSelectionnee, 11, 31));
 
-    const { data: achats, error } = await supabase
+    // 1. Récupérer les factures de ventes par client
+    const { data: facturesVentes } = await supabase
       .from("factures")
-      .select("emetteur_nom, total_ht")
-      .eq("type_facture", "ACHATS")
+      .select("destinataire_id, destinataire_nom, total_ht")
+      .eq("type_facture", "VENTES")
       .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
       .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
 
-    if (error) {
-      console.error("Erreur loadTopPrestataires:", error);
-    }
+    // 2. Récupérer les factures d'achat de services avec le fournisseur de services
+    const { data: facturesAchatsServices } = await supabase
+      .from("factures")
+      .select("emetteur_id, emetteur_nom, total_ht")
+      .eq("type_facture", "ACHATS_SERVICES")
+      .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
+      .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
 
-    // Grouper par nom du fournisseur
-    const montantParPrestataire: Record<string, { nom: string; prenom: string; montant: number }> = {};
-    achats?.forEach((a: any) => {
-      if (a.emetteur_nom) {
-        const nomNormalise = a.emetteur_nom.trim().toUpperCase();
-        if (!montantParPrestataire[nomNormalise]) {
-          montantParPrestataire[nomNormalise] = {
-            prenom: '',
-            nom: a.emetteur_nom,
-            montant: 0,
-          };
-        }
-        montantParPrestataire[nomNormalise].montant += Number(a.total_ht || 0);
+    // 3. Récupérer les contrats fournisseurs de services avec leurs clients liés
+    const { data: contrats } = await supabase
+      .from("contrats")
+      .select(`
+        fournisseur_services_id,
+        client_lie_id,
+        client_lie:clients!contrats_client_lie_id_fkey(id, raison_sociale)
+      `)
+      .eq("type", "FOURNISSEUR_SERVICES")
+      .not("fournisseur_services_id", "is", null)
+      .not("client_lie_id", "is", null);
+
+    // 4. Récupérer les fournisseurs de services pour faire le lien via le nom
+    const { data: fournisseursServices } = await supabase
+      .from("fournisseurs_services")
+      .select("id, raison_sociale");
+
+    // Créer un mapping fournisseur_services_id -> client_id
+    const fournisseurToClientMap: Record<string, { clientId: string; clientNom: string }> = {};
+    contrats?.forEach((c: any) => {
+      if (c.fournisseur_services_id && c.client_lie_id && c.client_lie) {
+        fournisseurToClientMap[c.fournisseur_services_id] = {
+          clientId: c.client_lie_id,
+          clientNom: c.client_lie.raison_sociale
+        };
       }
     });
 
-    const top = Object.entries(montantParPrestataire)
-      .map(([id, data]) => ({ id, ...data }))
-      .sort((a, b) => b.montant - a.montant)
-      .slice(0, 5);
+    // Créer un mapping nom fournisseur -> fournisseur_id
+    const nomToFournisseurId: Record<string, string> = {};
+    fournisseursServices?.forEach((f: any) => {
+      nomToFournisseurId[f.raison_sociale.trim().toUpperCase()] = f.id;
+    });
 
-    setTopPrestataires(top);
+    // Grouper le CA par client (via destinataire_nom)
+    const caParClient: Record<string, { raison_sociale: string; ca: number; achatsServices: number }> = {};
+    
+    facturesVentes?.forEach((f: any) => {
+      if (f.destinataire_nom) {
+        const nomNormalise = f.destinataire_nom.trim().toUpperCase();
+        if (!caParClient[nomNormalise]) {
+          caParClient[nomNormalise] = { raison_sociale: f.destinataire_nom, ca: 0, achatsServices: 0 };
+        }
+        caParClient[nomNormalise].ca += Number(f.total_ht || 0);
+      }
+    });
+
+    // Grouper les achats de services par client lié
+    facturesAchatsServices?.forEach((f: any) => {
+      // Trouver le fournisseur_services_id à partir du nom ou de l'ID
+      let fournisseurId = f.emetteur_id;
+      
+      if (!fournisseurId && f.emetteur_nom) {
+        const nomNormalise = f.emetteur_nom.trim().toUpperCase();
+        fournisseurId = nomToFournisseurId[nomNormalise];
+      }
+
+      if (fournisseurId && fournisseurToClientMap[fournisseurId]) {
+        const clientInfo = fournisseurToClientMap[fournisseurId];
+        const clientNomNormalise = clientInfo.clientNom.trim().toUpperCase();
+        
+        if (!caParClient[clientNomNormalise]) {
+          caParClient[clientNomNormalise] = { raison_sociale: clientInfo.clientNom, ca: 0, achatsServices: 0 };
+        }
+        caParClient[clientNomNormalise].achatsServices += Number(f.total_ht || 0);
+      }
+    });
+
+    // Calculer la marge nette par client et trier
+    const margesClients = Object.entries(caParClient)
+      .map(([id, data]) => ({
+        id,
+        raison_sociale: data.raison_sociale,
+        ca: data.ca,
+        achatsServices: data.achatsServices,
+        margeNette: data.ca - data.achatsServices
+      }))
+      .filter(c => c.ca > 0 || c.achatsServices > 0)
+      .sort((a, b) => b.margeNette - a.margeNette)
+      .slice(0, 10);
+
+    setTopMargeNetteClients(margesClients);
   };
 
   if (loading) {
@@ -746,16 +812,16 @@ export default function DashboardFinancier() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Top 5 Clients</CardTitle>
+            <CardTitle>Top 10 Clients</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-3 max-h-[400px] overflow-y-auto">
               {topClients.length > 0 ? (
                 topClients.map((client, index) => (
                   <div key={client.id} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-muted-foreground">#{index + 1}</span>
-                      <span className="text-sm">{client.raison_sociale}</span>
+                      <span className="text-sm truncate max-w-[150px]">{client.raison_sociale}</span>
                     </div>
                     <span className="font-bold">{client.ca.toLocaleString("fr-FR")} €</span>
                   </div>
@@ -769,20 +835,25 @@ export default function DashboardFinancier() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Top 5 Prestataires</CardTitle>
+            <CardTitle>Top 10 Marge Nette Client</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {topPrestataires.length > 0 ? (
-                topPrestataires.map((prestataire, index) => (
-                  <div key={prestataire.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+            <div className="space-y-3 max-h-[400px] overflow-y-auto">
+              {topMargeNetteClients.length > 0 ? (
+                topMargeNetteClients.map((client, index) => (
+                  <div key={client.id} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
                       <span className="font-semibold text-muted-foreground">#{index + 1}</span>
-                      <span className="text-sm">
-                        {prestataire.prenom} {prestataire.nom}
+                      <span className="text-sm truncate max-w-[120px]">{client.raison_sociale}</span>
+                    </div>
+                    <div className="flex flex-col items-end text-xs">
+                      <span className={`font-bold ${client.margeNette >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {client.margeNette.toLocaleString("fr-FR")} €
+                      </span>
+                      <span className="text-muted-foreground">
+                        CA: {client.ca.toLocaleString("fr-FR")} € - Achats: {client.achatsServices.toLocaleString("fr-FR")} €
                       </span>
                     </div>
-                    <span className="font-bold">{prestataire.montant.toLocaleString("fr-FR")} €</span>
                   </div>
                 ))
               ) : (
