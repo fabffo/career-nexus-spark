@@ -567,7 +567,7 @@ export default function ContratsFournisseurs() {
                   <SelectItem value="none">Aucun client lié</SelectItem>
                   {clients.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.raison_sociale}
+                      {c.raisonSociale || c.raison_sociale}
                     </SelectItem>
                   ))}
                 </SelectContent>
