@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, TrendingUp, DollarSign, Percent } from "lucide-react";
+import { KPIDetailDialog, KPIType } from "@/components/KPIDetailDialog";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, subMonths, getDate } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -48,6 +49,8 @@ export default function DashboardFinancier() {
   const [loading, setLoading] = useState(true);
   const [anneeSelectionnee, setAnneeSelectionnee] = useState(getDefaultYear());
   const [moisSelectionne, setMoisSelectionne] = useState<number | null>(null);
+  const [selectedKPI, setSelectedKPI] = useState<KPIType | null>(null);
+  const [showKPIDetail, setShowKPIDetail] = useState(false);
   const [kpis, setKpis] = useState<KPI>({
     ca: 0,
     achatServices: 0,
@@ -64,6 +67,11 @@ export default function DashboardFinancier() {
   const [repartitionCA, setRepartitionCA] = useState<any[]>([]);
   const [topClients, setTopClients] = useState<TopClient[]>([]);
   const [topPrestataires, setTopPrestataires] = useState<TopPrestataire[]>([]);
+
+  const handleKPIClick = (kpiType: KPIType) => {
+    setSelectedKPI(kpiType);
+    setShowKPIDetail(true);
+  };
 
   const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--chart-1))', 'hsl(var(--chart-2))'];
 
@@ -550,7 +558,7 @@ export default function DashboardFinancier() {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
+        <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleKPIClick("ca")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">CA</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -560,7 +568,7 @@ export default function DashboardFinancier() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleKPIClick("achatServices")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Achat Services</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -570,7 +578,7 @@ export default function DashboardFinancier() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleKPIClick("margeBrute")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Marge Brute</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -583,7 +591,7 @@ export default function DashboardFinancier() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleKPIClick("achat")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Achat</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -594,7 +602,7 @@ export default function DashboardFinancier() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleKPIClick("abonnements")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Abonnements</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -604,7 +612,7 @@ export default function DashboardFinancier() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleKPIClick("chargesSociales")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Charges Sociales</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -614,7 +622,7 @@ export default function DashboardFinancier() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleKPIClick("margeNette")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Marge Nette</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -628,7 +636,14 @@ export default function DashboardFinancier() {
         </Card>
       </div>
 
-      {/* Graphiques principaux */}
+      {/* Dialog détail KPI */}
+      <KPIDetailDialog
+        open={showKPIDetail}
+        onOpenChange={setShowKPIDetail}
+        kpiType={selectedKPI}
+        annee={anneeSelectionnee}
+        mois={moisSelectionne}
+      />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
