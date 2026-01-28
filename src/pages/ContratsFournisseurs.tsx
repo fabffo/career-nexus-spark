@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Contrat } from '@/types/contrat';
-import { contratService } from '@/services/contratService';
+import { Contrat, ContratStatut } from '@/types/contrat';
+import { contratService, prestataireService, fournisseurServicesService, fournisseurGeneralService } from '@/services/contratService';
 import { clientService } from '@/services';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
@@ -13,47 +13,95 @@ import { fr } from 'date-fns/locale';
 import { toast as sonnerToast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { useNavigate } from 'react-router-dom';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { useFileUpload } from '@/hooks/useFileUpload';
+import { FileUploadField } from '@/components/FileUploadField';
+import { supabase } from '@/integrations/supabase/client';
+
+type ContratType = 'PRESTATAIRE' | 'FOURNISSEUR_SERVICES' | 'FOURNISSEUR_GENERAL';
 
 export default function ContratsFournisseurs() {
   const [contrats, setContrats] = useState<Contrat[]>([]);
   const [clients, setClients] = useState<any[]>([]);
+  const [prestataires, setPrestataires] = useState<any[]>([]);
+  const [fournisseursServices, setFournisseursServices] = useState<any[]>([]);
+  const [fournisseursGeneraux, setFournisseursGeneraux] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedContrat, setSelectedContrat] = useState<Contrat | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isCreateMode, setIsCreateMode] = useState(false);
+  const [pieceJointeFile, setPieceJointeFile] = useState<File | null>(null);
+  const { uploadFile, deleteFile, isUploading } = useFileUpload();
   const { toast } = useToast();
-  const navigate = useNavigate();
+
+  const [formData, setFormData] = useState({
+    numero_contrat: '',
+    type: 'PRESTATAIRE' as ContratType,
+    statut: 'BROUILLON' as ContratStatut,
+    date_debut: '',
+    date_fin: '',
+    version: '1.0',
+    prestataire_id: undefined as string | undefined,
+    fournisseur_services_id: undefined as string | undefined,
+    fournisseur_general_id: undefined as string | undefined,
+    client_lie_id: undefined as string | undefined,
+    montant: '',
+    description: '',
+    piece_jointe_url: ''
+  });
 
   useEffect(() => {
-    loadContrats();
-    loadClients();
+    loadData();
   }, []);
 
-  const loadClients = async () => {
-    try {
-      const data = await clientService.getAll();
-      setClients(data);
-    } catch (error) {
-      console.error('Error loading clients:', error);
-    }
-  };
-
-  const loadContrats = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      const data = await contratService.getAll();
-      // Filtrer les contrats fournisseurs (prestataire, fournisseur services et général)
-      const contratsFournisseurs = data.filter(c => 
+      
+      const [contratsData, clientsData, prestatairesData] = await Promise.all([
+        contratService.getAll(),
+        clientService.getAll(),
+        prestataireService.getAll()
+      ]);
+
+      // Charger les fournisseurs
+      let fournisseursServicesData: any[] = [];
+      let fournisseursGenerauxData: any[] = [];
+      
+      try {
+        const { data: fsData } = await supabase.from('fournisseurs_services').select('*');
+        fournisseursServicesData = fsData || [];
+      } catch (error) {
+        console.log('Erreur chargement fournisseurs_services:', error);
+      }
+      
+      try {
+        const { data: fgData } = await supabase.from('fournisseurs_generaux').select('*');
+        fournisseursGenerauxData = fgData || [];
+      } catch (error) {
+        console.log('Erreur chargement fournisseurs_generaux:', error);
+      }
+
+      // Filtrer les contrats fournisseurs
+      const contratsFournisseurs = contratsData.filter(c => 
         c.type === 'PRESTATAIRE' || 
         c.type === 'FOURNISSEUR_SERVICES' || 
         c.type === 'FOURNISSEUR_GENERAL'
       );
+
       setContrats(contratsFournisseurs);
+      setClients(clientsData);
+      setPrestataires(prestatairesData);
+      setFournisseursServices(fournisseursServicesData);
+      setFournisseursGeneraux(fournisseursGenerauxData);
     } catch (error: any) {
-      console.error('Error loading contrats:', error);
+      console.error('Error loading data:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de charger les contrats fournisseurs",
+        description: "Impossible de charger les données",
         variant: "destructive"
       });
     } finally {
@@ -68,7 +116,7 @@ export default function ContratsFournisseurs() {
     try {
       await contratService.delete(id);
       sonnerToast.success('Contrat supprimé avec succès');
-      loadContrats();
+      loadData();
     } catch (error: any) {
       console.error('Error deleting contrat:', error);
       sonnerToast.error('Erreur lors de la suppression');
@@ -85,7 +133,7 @@ export default function ContratsFournisseurs() {
         parent_id: undefined
       });
       sonnerToast.success('Contrat dupliqué avec succès');
-      loadContrats();
+      loadData();
     } catch (error: any) {
       console.error('Error duplicating contrat:', error);
       sonnerToast.error('Erreur lors de la duplication');
@@ -108,7 +156,7 @@ export default function ContratsFournisseurs() {
           sonnerToast.success('Contrat annulé');
           break;
       }
-      loadContrats();
+      loadData();
     } catch (error: any) {
       console.error(`Error ${action}:`, error);
       sonnerToast.error(`Erreur lors de l'action`);
@@ -121,7 +169,107 @@ export default function ContratsFournisseurs() {
   };
 
   const openEditDialog = (contrat: Contrat) => {
-    navigate(`/contrats?edit=${contrat.id}`);
+    setSelectedContrat(contrat);
+    setFormData({
+      numero_contrat: contrat.numero_contrat,
+      type: contrat.type as ContratType,
+      statut: contrat.statut,
+      date_debut: contrat.date_debut,
+      date_fin: contrat.date_fin || '',
+      version: contrat.version,
+      prestataire_id: contrat.prestataire_id,
+      fournisseur_services_id: contrat.fournisseur_services_id,
+      fournisseur_general_id: contrat.fournisseur_general_id,
+      client_lie_id: contrat.client_lie_id,
+      montant: contrat.montant?.toString() || '',
+      description: contrat.description || '',
+      piece_jointe_url: contrat.piece_jointe_url || ''
+    });
+    setIsCreateMode(false);
+    setIsEditDialogOpen(true);
+  };
+
+  const openCreateDialog = async () => {
+    const numero = await generateNumeroContrat();
+    setFormData({
+      numero_contrat: numero,
+      type: 'PRESTATAIRE',
+      statut: 'BROUILLON',
+      date_debut: '',
+      date_fin: '',
+      version: '1.0',
+      prestataire_id: undefined,
+      fournisseur_services_id: undefined,
+      fournisseur_general_id: undefined,
+      client_lie_id: undefined,
+      montant: '',
+      description: '',
+      piece_jointe_url: ''
+    });
+    setPieceJointeFile(null);
+    setSelectedContrat(null);
+    setIsCreateMode(true);
+    setIsEditDialogOpen(true);
+  };
+
+  const generateNumeroContrat = async () => {
+    try {
+      const year = new Date().getFullYear();
+      const { data, error } = await supabase.rpc('get_next_contract_number', { p_year: year });
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Erreur génération numéro:', error);
+      const year = new Date().getFullYear();
+      const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      return `${year}-${random}`;
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      setLoading(true);
+      let pieceJointeUrl = formData.piece_jointe_url;
+
+      if (pieceJointeFile) {
+        pieceJointeUrl = await uploadFile(pieceJointeFile, 'contrats');
+      }
+
+      const dataToSubmit = {
+        numero_contrat: formData.numero_contrat,
+        type: formData.type,
+        statut: formData.statut,
+        date_debut: formData.date_debut,
+        date_fin: formData.date_fin || undefined,
+        version: formData.version,
+        montant: formData.montant ? parseFloat(formData.montant) : undefined,
+        description: formData.description,
+        piece_jointe_url: pieceJointeUrl,
+        prestataire_id: formData.type === 'PRESTATAIRE' ? formData.prestataire_id : undefined,
+        fournisseur_services_id: formData.type === 'FOURNISSEUR_SERVICES' ? formData.fournisseur_services_id : undefined,
+        fournisseur_general_id: formData.type === 'FOURNISSEUR_GENERAL' ? formData.fournisseur_general_id : undefined,
+        client_lie_id: formData.client_lie_id,
+      };
+
+      if (isCreateMode) {
+        await contratService.create(dataToSubmit);
+        sonnerToast.success('Contrat créé avec succès');
+      } else if (selectedContrat) {
+        if (pieceJointeFile && selectedContrat.piece_jointe_url) {
+          await deleteFile(selectedContrat.piece_jointe_url, 'contrats');
+        }
+        await contratService.update(selectedContrat.id, dataToSubmit);
+        sonnerToast.success('Contrat modifié avec succès');
+      }
+
+      setIsEditDialogOpen(false);
+      loadData();
+    } catch (error) {
+      console.error('Erreur sauvegarde:', error);
+      sonnerToast.error('Erreur lors de la sauvegarde');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatutBadgeVariant = (statut: string) => {
@@ -296,7 +444,7 @@ export default function ContratsFournisseurs() {
           <h1 className="text-3xl font-bold">Contrats Fournisseurs</h1>
           <p className="text-muted-foreground">Gérez vos contrats avec les prestataires et fournisseurs</p>
         </div>
-        <Button onClick={() => navigate('/contrats?new=true')}>
+        <Button onClick={openCreateDialog}>
           <Plus className="mr-2 h-4 w-4" />
           Nouveau contrat
         </Button>
@@ -307,6 +455,191 @@ export default function ContratsFournisseurs() {
         data={contrats}
         searchPlaceholder="Rechercher un contrat fournisseur..."
       />
+
+      {/* Dialog de création/édition */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {isCreateMode ? 'Nouveau contrat fournisseur' : 'Modifier le contrat'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>N° Contrat</Label>
+                <Input value={formData.numero_contrat} disabled className="bg-muted" />
+              </div>
+              <div>
+                <Label>Type *</Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value) => setFormData({ ...formData, type: value as ContratType })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PRESTATAIRE">Prestataire</SelectItem>
+                    <SelectItem value="FOURNISSEUR_SERVICES">Fournisseur Services</SelectItem>
+                    <SelectItem value="FOURNISSEUR_GENERAL">Fournisseur Général</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Sélection du fournisseur selon le type */}
+            {formData.type === 'PRESTATAIRE' && (
+              <div>
+                <Label>Prestataire *</Label>
+                <Select
+                  value={formData.prestataire_id || ''}
+                  onValueChange={(value) => setFormData({ ...formData, prestataire_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un prestataire" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {prestataires.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.prenom} {p.nom}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {formData.type === 'FOURNISSEUR_SERVICES' && (
+              <div>
+                <Label>Fournisseur de services *</Label>
+                <Select
+                  value={formData.fournisseur_services_id || ''}
+                  onValueChange={(value) => setFormData({ ...formData, fournisseur_services_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un fournisseur" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {fournisseursServices.map((f) => (
+                      <SelectItem key={f.id} value={f.id}>
+                        {f.raison_sociale}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {formData.type === 'FOURNISSEUR_GENERAL' && (
+              <div>
+                <Label>Fournisseur général *</Label>
+                <Select
+                  value={formData.fournisseur_general_id || ''}
+                  onValueChange={(value) => setFormData({ ...formData, fournisseur_general_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un fournisseur" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {fournisseursGeneraux.map((f) => (
+                      <SelectItem key={f.id} value={f.id}>
+                        {f.raison_sociale}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Client lié */}
+            <div>
+              <Label>Client lié (optionnel)</Label>
+              <Select
+                value={formData.client_lie_id || 'none'}
+                onValueChange={(value) => setFormData({ ...formData, client_lie_id: value === 'none' ? undefined : value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Aucun client lié" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucun client lié</SelectItem>
+                  {clients.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.raison_sociale}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Date début *</Label>
+                <Input
+                  type="date"
+                  value={formData.date_debut}
+                  onChange={(e) => setFormData({ ...formData, date_debut: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Date fin</Label>
+                <Input
+                  type="date"
+                  value={formData.date_fin}
+                  onChange={(e) => setFormData({ ...formData, date_fin: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Montant (€)</Label>
+                <Input
+                  type="number"
+                  value={formData.montant}
+                  onChange={(e) => setFormData({ ...formData, montant: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <Label>Version</Label>
+                <Input value={formData.version} disabled className="bg-muted" />
+              </div>
+            </div>
+
+            <div>
+              <Label>Description</Label>
+              <Textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={3}
+              />
+            </div>
+
+            <FileUploadField
+              label="Pièce jointe"
+              accept=".pdf,.doc,.docx"
+              currentFileUrl={formData.piece_jointe_url}
+              onFileSelect={(file) => setPieceJointeFile(file)}
+              onFileRemove={() => {
+                setPieceJointeFile(null);
+                setFormData({ ...formData, piece_jointe_url: '' });
+              }}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleSubmit} disabled={loading || isUploading}>
+              {isCreateMode ? 'Créer' : 'Enregistrer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog de visualisation */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
