@@ -160,10 +160,10 @@ export function KPIDetailDialog({ open, onOpenChange, kpiType, annee, mois }: KP
   };
 
   const loadAbonnementsDetails = async (debut: Date, fin: Date) => {
+    // Charger tous les abonnements (types CHARGE et AUTRE sont tous comptés comme charges)
     const { data: paiements } = await supabase
       .from("paiements_abonnements")
       .select("id, date_paiement, montant, abonnement:abonnements_partenaires!inner(nom, type, tva)")
-      .eq("abonnement.type", "CHARGE")
       .gte("date_paiement", format(debut, "yyyy-MM-dd"))
       .lte("date_paiement", format(fin, "yyyy-MM-dd"))
       .order("date_paiement", { ascending: false });
@@ -253,7 +253,6 @@ export function KPIDetailDialog({ open, onOpenChange, kpiType, annee, mois }: KP
         .lte("date_emission", format(fin, "yyyy-MM-dd")),
       supabase.from("paiements_abonnements")
         .select("id, date_paiement, montant, abonnement:abonnements_partenaires!inner(nom, type, tva)")
-        .eq("abonnement.type", "CHARGE")
         .gte("date_paiement", format(debut, "yyyy-MM-dd"))
         .lte("date_paiement", format(fin, "yyyy-MM-dd")),
       supabase.from("paiements_declarations_charges")
