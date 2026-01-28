@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Contrat } from '@/types/contrat';
 import { contratService } from '@/services/contratService';
+import { clientService } from '@/services';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2, Eye, Copy, FileCheck, XCircle, Archive, FileText } from 'lucide-react';
@@ -16,6 +17,7 @@ import { useNavigate } from 'react-router-dom';
 
 export default function ContratsFournisseurs() {
   const [contrats, setContrats] = useState<Contrat[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedContrat, setSelectedContrat] = useState<Contrat | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -24,7 +26,17 @@ export default function ContratsFournisseurs() {
 
   useEffect(() => {
     loadContrats();
+    loadClients();
   }, []);
+
+  const loadClients = async () => {
+    try {
+      const data = await clientService.getAll();
+      setClients(data);
+    } catch (error) {
+      console.error('Error loading clients:', error);
+    }
+  };
 
   const loadContrats = async () => {
     try {
@@ -145,6 +157,13 @@ export default function ContratsFournisseurs() {
     return '-';
   };
 
+  const getClientLieNom = (contrat: any) => {
+    if (contrat.client_lie?.raison_sociale) {
+      return contrat.client_lie.raison_sociale;
+    }
+    return '-';
+  };
+
   const columns: ColumnDef<Contrat>[] = [
     {
       accessorKey: 'numero_contrat',
@@ -165,6 +184,13 @@ export default function ContratsFournisseurs() {
       header: 'Fournisseur',
       cell: ({ row }) => (
         <div>{getFournisseurNom(row.original)}</div>
+      )
+    },
+    {
+      id: 'client_lie',
+      header: 'Client lié',
+      cell: ({ row }) => (
+        <div>{getClientLieNom(row.original)}</div>
       )
     },
     {
@@ -302,9 +328,15 @@ export default function ContratsFournisseurs() {
                 </div>
               </div>
 
-              <div>
-                <Label className="text-muted-foreground">Fournisseur</Label>
-                <p className="font-medium">{getFournisseurNom(selectedContrat)}</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Fournisseur</Label>
+                  <p className="font-medium">{getFournisseurNom(selectedContrat)}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Client lié</Label>
+                  <p className="font-medium">{getClientLieNom(selectedContrat)}</p>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

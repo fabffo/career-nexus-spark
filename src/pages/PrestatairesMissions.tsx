@@ -112,7 +112,7 @@ export default function PrestatairesMissions() {
       const finMois = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(dernierJour).padStart(2, '0')}`;
 
       // Charger les missions actives durant le mois sélectionné
-      const { data: missionsData, error: missionError } = await supabase
+      const { data: missionsData, error: missionError } = await (supabase as any)
         .from('missions')
         .select(`
           id,
@@ -125,7 +125,7 @@ export default function PrestatairesMissions() {
           prestataire_id,
           salarie_id,
           contrat:contrats(
-            client:clients(
+            client:client_id(
               id,
               raison_sociale
             )

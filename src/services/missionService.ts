@@ -3,17 +3,18 @@ import { Mission, Tva } from '@/types/mission';
 
 class MissionService {
   async getAll(): Promise<Mission[]> {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('missions')
       .select(`
         *,
         poste:postes(*),
         contrat:contrats(
           *, 
-          client:clients(*),
+          client:client_id(*),
           prestataire:prestataires(*),
           fournisseur_services:fournisseurs_services(*),
-          fournisseur_general:fournisseurs_generaux(*)
+          fournisseur_general:fournisseurs_generaux(*),
+          client_lie:client_lie_id(*)
         ),
         prestataire:prestataires(*),
         salarie:salaries(*),
@@ -30,17 +31,18 @@ class MissionService {
   }
 
   async getById(id: string): Promise<Mission> {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('missions')
       .select(`
         *,
         poste:postes(*),
         contrat:contrats(
           *, 
-          client:clients(*),
+          client:client_id(*),
           prestataire:prestataires(*),
           fournisseur_services:fournisseurs_services(*),
-          fournisseur_general:fournisseurs_generaux(*)
+          fournisseur_general:fournisseurs_generaux(*),
+          client_lie:client_lie_id(*)
         ),
         prestataire:prestataires(*),
         salarie:salaries(*),
@@ -64,7 +66,7 @@ class MissionService {
   async create(mission: Omit<Mission, 'id' | 'created_at' | 'updated_at' | 'created_by'>): Promise<Mission> {
     const { data: { user } } = await supabase.auth.getUser();
     
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('missions')
       .insert({
         ...mission,
@@ -75,10 +77,11 @@ class MissionService {
         poste:postes(*),
         contrat:contrats(
           *, 
-          client:clients(*),
+          client:client_id(*),
           prestataire:prestataires(*),
           fournisseur_services:fournisseurs_services(*),
-          fournisseur_general:fournisseurs_generaux(*)
+          fournisseur_general:fournisseurs_generaux(*),
+          client_lie:client_lie_id(*)
         ),
         prestataire:prestataires(*),
         salarie:salaries(*),
@@ -95,7 +98,7 @@ class MissionService {
   }
 
   async update(id: string, mission: Partial<Mission>): Promise<Mission> {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('missions')
       .update(mission)
       .eq('id', id)
@@ -104,10 +107,11 @@ class MissionService {
         poste:postes(*),
         contrat:contrats(
           *, 
-          client:clients(*),
+          client:client_id(*),
           prestataire:prestataires(*),
           fournisseur_services:fournisseurs_services(*),
-          fournisseur_general:fournisseurs_generaux(*)
+          fournisseur_general:fournisseurs_generaux(*),
+          client_lie:client_lie_id(*)
         ),
         prestataire:prestataires(*),
         salarie:salaries(*),

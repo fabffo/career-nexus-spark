@@ -123,12 +123,12 @@ export default function CRAGestion() {
 
       if (isSalarie) {
         // C'est un salarié prestataire, chercher par salarie_id
-        const { data: salarieMissions, error: salarieError } = await supabase
+        const { data: salarieMissions, error: salarieError } = await (supabase as any)
           .from('missions')
           .select(`
             *,
             contrat:contrats(
-              client:clients(raison_sociale)
+              client:client_id(raison_sociale)
             )
           `)
           .eq('salarie_id', selectedPrestataire)
@@ -139,12 +139,12 @@ export default function CRAGestion() {
         allMissions = salarieMissions || [];
       } else {
         // C'est un prestataire de la table prestataires
-        const { data: directMissions, error: directError } = await supabase
+        const { data: directMissions, error: directError } = await (supabase as any)
           .from('missions')
           .select(`
             *,
             contrat:contrats(
-              client:clients(raison_sociale)
+              client:client_id(raison_sociale)
             )
           `)
           .eq('prestataire_id', selectedPrestataire)
@@ -163,12 +163,12 @@ export default function CRAGestion() {
 
         // Si le prestataire a un salarie_id, chercher aussi par salarie_id
         if (prestataireData?.salarie_id) {
-          const { data: salarieMissions, error: salarieError } = await supabase
+          const { data: salarieMissions, error: salarieError } = await (supabase as any)
             .from('missions')
             .select(`
               *,
               contrat:contrats(
-                client:clients(raison_sociale)
+                client:client_id(raison_sociale)
               )
             `)
             .eq('salarie_id', prestataireData.salarie_id)

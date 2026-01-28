@@ -616,6 +616,7 @@ export type Database = {
       contrats: {
         Row: {
           client_id: string | null
+          client_lie_id: string | null
           created_at: string | null
           created_by: string | null
           date_debut: string
@@ -637,6 +638,7 @@ export type Database = {
         }
         Insert: {
           client_id?: string | null
+          client_lie_id?: string | null
           created_at?: string | null
           created_by?: string | null
           date_debut: string
@@ -658,6 +660,7 @@ export type Database = {
         }
         Update: {
           client_id?: string | null
+          client_lie_id?: string | null
           created_at?: string | null
           created_by?: string | null
           date_debut?: string
@@ -681,6 +684,13 @@ export type Database = {
           {
             foreignKeyName: "contrats_client_id_fkey"
             columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrats_client_lie_id_fkey"
+            columns: ["client_lie_id"]
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]

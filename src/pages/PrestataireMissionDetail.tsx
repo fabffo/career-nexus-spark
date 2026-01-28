@@ -48,13 +48,13 @@ export default function PrestataireMissionDetail() {
       setPrestataire(prestataireData);
 
       // Charger la mission spécifique par son ID
-      const { data: missionData, error: missionError } = await supabase
+      const { data: missionData, error: missionError } = await (supabase as any)
         .from('missions')
         .select(`
           *,
           contrat:contrats(
             *,
-            client:clients(*)
+            client:client_id(*)
           ),
           prestataire:prestataires(*),
           salarie:salaries(*)

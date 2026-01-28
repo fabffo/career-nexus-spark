@@ -233,7 +233,7 @@ export default function EditFactureDialog({
 
   const fetchMissions = async () => {
     try {
-      const { data: missionsData } = await supabase
+      const { data: missionsData } = await (supabase as any)
         .from('missions')
         .select(`
           *, 
@@ -241,7 +241,7 @@ export default function EditFactureDialog({
           contrat:contrats(
             id,
             type,
-            client:clients(id, raison_sociale)
+            client:client_id(id, raison_sociale)
           )
         `)
         .eq('statut', 'EN_COURS')

@@ -54,6 +54,7 @@ export default function Contrats() {
     prestataire_id: undefined as string | undefined,
     fournisseur_services_id: undefined as string | undefined,
     fournisseur_general_id: undefined as string | undefined,
+    client_lie_id: undefined as string | undefined,
     montant: '',
     description: '',
     piece_jointe_url: ''
@@ -153,6 +154,12 @@ export default function Contrats() {
           const fournisseur_general = fournisseursGenerauxData.find(f => f.id === contrat.fournisseur_general_id);
           relationData = { ...relationData, fournisseur_general };
         }
+
+        // Client lié pour les contrats fournisseurs
+        if (contrat.client_lie_id) {
+          const client_lie = clientsData.find(c => c.id === contrat.client_lie_id);
+          relationData = { ...relationData, client_lie };
+        }
         
         return { ...contrat, ...relationData };
       }));
@@ -243,6 +250,8 @@ export default function Contrats() {
         prestataire_id: formData.type === 'PRESTATAIRE' ? formData.prestataire_id : undefined,
         fournisseur_services_id: formData.type === 'FOURNISSEUR_SERVICES' ? formData.fournisseur_services_id : undefined,
         fournisseur_general_id: formData.type === 'FOURNISSEUR_GENERAL' ? formData.fournisseur_general_id : undefined,
+        // Client lié pour les contrats fournisseurs
+        client_lie_id: formData.type !== 'CLIENT' ? formData.client_lie_id : undefined,
       };
 
       if (isAvenant && selectedContrat) {
@@ -358,6 +367,7 @@ export default function Contrats() {
       prestataire_id: undefined,
       fournisseur_services_id: undefined,
       fournisseur_general_id: undefined,
+      client_lie_id: undefined,
       montant: '',
       description: '',
       piece_jointe_url: ''
@@ -382,6 +392,7 @@ export default function Contrats() {
       prestataire_id: contrat.prestataire_id,
       fournisseur_services_id: contrat.fournisseur_services_id,
       fournisseur_general_id: contrat.fournisseur_general_id,
+      client_lie_id: contrat.client_lie_id,
       montant: contrat.montant?.toString() || '',
       description: contrat.description || '',
       piece_jointe_url: contrat.piece_jointe_url || ''
@@ -403,6 +414,7 @@ export default function Contrats() {
       prestataire_id: contrat.prestataire_id,
       fournisseur_services_id: contrat.fournisseur_services_id,
       fournisseur_general_id: contrat.fournisseur_general_id,
+      client_lie_id: contrat.client_lie_id,
       description: `Avenant au contrat ${contrat.numero_contrat}`,
     });
     setIsEditMode(false);
@@ -814,6 +826,29 @@ export default function Contrats() {
               </div>
             )}
 
+            {/* Sélection du client lié pour les contrats fournisseurs */}
+            {(formData.type === 'PRESTATAIRE' || formData.type === 'FOURNISSEUR_SERVICES' || formData.type === 'FOURNISSEUR_GENERAL') && (
+              <div>
+                <Label>Client lié (optionnel)</Label>
+                <Select 
+                  value={formData.client_lie_id || 'none'}
+                  onValueChange={(value) => setFormData({ ...formData, client_lie_id: value === 'none' ? undefined : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Aucun client lié" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Aucun client lié</SelectItem>
+                    {clients.map(client => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.raisonSociale || client.raison_sociale}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="date_debut">Date début *</Label>
@@ -925,7 +960,9 @@ export default function Contrats() {
               </div>
 
               <div>
-                <Label className="text-muted-foreground">Client</Label>
+                <Label className="text-muted-foreground">
+                  {selectedContrat.type === 'CLIENT' ? 'Client' : 'Fournisseur'}
+                </Label>
                 <p className="font-medium">
                   {selectedContrat.type === 'CLIENT' && selectedContrat.client
                     ? selectedContrat.client.raisonSociale || selectedContrat.client.raison_sociale
@@ -938,6 +975,16 @@ export default function Contrats() {
                     : 'Non renseigné'}
                 </p>
               </div>
+
+              {/* Client lié - affiché uniquement pour les contrats fournisseurs */}
+              {selectedContrat.type !== 'CLIENT' && (
+                <div>
+                  <Label className="text-muted-foreground">Client lié</Label>
+                  <p className="font-medium">
+                    {selectedContrat.client_lie?.raison_sociale || selectedContrat.client_lie?.raisonSociale || 'Aucun'}
+                  </p>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

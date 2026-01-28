@@ -4,7 +4,7 @@ import { CRA, CRAJour, JourFerie, HistoriqueTJM } from "@/types/cra";
 class CRAService {
   // Récupérer tous les CRA avec relations
   async getAll(): Promise<CRA[]> {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('cra')
       .select(`
         *,
@@ -16,7 +16,7 @@ class CRAService {
           date_fin,
           statut,
           contrat:contrats(
-            client:clients(raison_sociale)
+            client:client_id(raison_sociale)
           )
         ),
         prestataire:prestataires(id, nom, prenom, email),
@@ -32,7 +32,7 @@ class CRAService {
 
   // Récupérer un CRA par ID
   async getById(id: string): Promise<CRA> {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('cra')
       .select(`
         *,
@@ -44,7 +44,7 @@ class CRAService {
           date_fin,
           statut,
           contrat:contrats(
-            client:clients(raison_sociale)
+            client:client_id(raison_sociale)
           )
         ),
         prestataire:prestataires(id, nom, prenom, email),
@@ -60,7 +60,7 @@ class CRAService {
 
   // Récupérer un CRA par mission, année et mois
   async getByMissionPeriod(missionId: string, annee: number, mois: number): Promise<CRA | null> {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('cra')
       .select(`
         *,
@@ -72,7 +72,7 @@ class CRAService {
           date_fin,
           statut,
           contrat:contrats(
-            client:clients(raison_sociale)
+            client:client_id(raison_sociale)
           )
         ),
         prestataire:prestataires(id, nom, prenom, email),
@@ -226,14 +226,14 @@ class CRAService {
   // Stats globales
   async getStatsGlobales(annee: number, mois?: number) {
     // Récupérer les missions actives
-    const { data: missions } = await supabase
+    const { data: missions } = await (supabase as any)
       .from('missions')
       .select(`
         *,
         prestataire:prestataires(id, nom, prenom),
         salarie:salaries(id, nom, prenom),
         contrat:contrats(
-          client:clients(raison_sociale)
+          client:client_id(raison_sociale)
         )
       `)
       .eq('statut', 'EN_COURS');
