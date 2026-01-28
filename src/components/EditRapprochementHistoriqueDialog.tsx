@@ -640,44 +640,33 @@ export default function EditRapprochementHistoriqueDialog({
       }
 
       // 2. Créer le paiement d'abonnement si nécessaire
+      // ⭐ IMPORTANT: Purger d'abord TOUS les paiements liés à ce rapprochement pour éviter les doublons
       if (selectedAbonnementId && selectedAbonnementId !== "none" && rapprochementId) {
-        // Vérifier si un paiement existe déjà pour ce rapprochement
-        const { data: existingPaiement } = await supabase
+        // Purger tous les anciens paiements liés à ce rapprochement
+        await supabase
           .from("paiements_abonnements")
-          .select("id")
-          .eq("rapprochement_id", rapprochementId)
-          .maybeSingle();
+          .delete()
+          .eq("rapprochement_id", rapprochementId);
+        
+        await supabase
+          .from("paiements_declarations_charges")
+          .delete()
+          .eq("rapprochement_id", rapprochementId);
 
-        if (!existingPaiement) {
-          const { error: paiementError } = await supabase
-            .from("paiements_abonnements")
-            .insert({
-              abonnement_id: selectedAbonnementId,
-              rapprochement_id: rapprochementId,
-              date_paiement: transaction.date,
-              montant: Math.abs(transaction.montant),
-              notes: `Créé depuis l'édition du rapprochement historique`,
-              created_by: authData.user?.id,
-            });
+        // Créer le paiement d'abonnement
+        const { error: paiementError } = await supabase
+          .from("paiements_abonnements")
+          .insert({
+            abonnement_id: selectedAbonnementId,
+            rapprochement_id: rapprochementId,
+            date_paiement: transaction.date,
+            montant: Math.abs(transaction.montant),
+            notes: `Créé depuis l'édition du rapprochement historique`,
+            created_by: authData.user?.id,
+          });
 
-          if (paiementError) {
-            console.error("Erreur lors de la création du paiement:", paiementError);
-          }
-        } else {
-          // Mettre à jour le paiement existant
-          const { error: updateError } = await supabase
-            .from("paiements_abonnements")
-            .update({
-              abonnement_id: selectedAbonnementId,
-              date_paiement: transaction.date,
-              montant: Math.abs(transaction.montant),
-              notes: notes || null,
-            })
-            .eq("id", existingPaiement.id);
-
-          if (updateError) {
-            console.error("Erreur lors de la mise à jour du paiement:", updateError);
-          }
+        if (paiementError) {
+          console.error("Erreur lors de la création du paiement:", paiementError);
         }
 
         // Gérer les consommations
@@ -708,45 +697,51 @@ export default function EditRapprochementHistoriqueDialog({
           }
         }
       }
-
-      // Créer le paiement de déclaration si nécessaire
-      if (selectedDeclarationId && selectedDeclarationId !== "none" && rapprochementId) {
-        const { data: existingPaiement } = await supabase
+      // ⭐ EXCLUSIVITÉ: Créer le paiement de déclaration UNIQUEMENT si aucun abonnement n'est sélectionné
+      else if (selectedDeclarationId && selectedDeclarationId !== "none" && rapprochementId) {
+        // Purger tous les anciens paiements liés à ce rapprochement
+        await supabase
+          .from("paiements_abonnements")
+          .delete()
+          .eq("rapprochement_id", rapprochementId);
+        
+        await supabase
           .from("paiements_declarations_charges")
-          .select("id")
-          .eq("rapprochement_id", rapprochementId)
-          .maybeSingle();
+          .delete()
+          .eq("rapprochement_id", rapprochementId);
 
-        if (!existingPaiement) {
-          const { error: paiementError } = await supabase
-            .from("paiements_declarations_charges")
-            .insert({
-              declaration_charge_id: selectedDeclarationId,
-              rapprochement_id: rapprochementId,
-              date_paiement: transaction.date,
-              montant: Math.abs(transaction.montant),
-              notes: `Créé depuis l'édition du rapprochement historique`,
-              created_by: authData.user?.id,
-            });
+        // Créer le paiement de déclaration
+        const { error: paiementError } = await supabase
+          .from("paiements_declarations_charges")
+          .insert({
+            declaration_charge_id: selectedDeclarationId,
+            rapprochement_id: rapprochementId,
+            date_paiement: transaction.date,
+            montant: Math.abs(transaction.montant),
+            notes: `Créé depuis l'édition du rapprochement historique`,
+            created_by: authData.user?.id,
+          });
 
-          if (paiementError) {
-            console.error("Erreur lors de la création du paiement:", paiementError);
-          }
-        } else {
-          const { error: updateError } = await supabase
-            .from("paiements_declarations_charges")
-            .update({
-              declaration_charge_id: selectedDeclarationId,
-              date_paiement: transaction.date,
-              montant: Math.abs(transaction.montant),
-              notes: notes || null,
-            })
-            .eq("id", existingPaiement.id);
-
-          if (updateError) {
-            console.error("Erreur lors de la mise à jour du paiement:", updateError);
-          }
+        if (paiementError) {
+          console.error("Erreur lors de la création du paiement:", paiementError);
         }
+      }
+      // ⭐ Si ni abonnement ni déclaration: purger les paiements existants
+      else if (rapprochementId) {
+        await supabase
+          .from("paiements_abonnements")
+          .delete()
+          .eq("rapprochement_id", rapprochementId);
+        
+        await supabase
+          .from("paiements_declarations_charges")
+          .delete()
+          .eq("rapprochement_id", rapprochementId);
+        
+        await supabase
+          .from("abonnements_consommations")
+          .delete()
+          .eq("rapprochement_id", rapprochementId);
       }
 
       // ⭐ 3. Mettre à jour la ligne dans lignes_rapprochement avec factures et montants
