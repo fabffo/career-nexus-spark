@@ -415,27 +415,27 @@ export default function Prestataires() {
       id: "actions",
       header: "Actions",
       cell: ({ row }) => (
-        <div className="flex justify-end gap-1">
-          <Button size="sm" variant="ghost" onClick={() => openViewDialog(row.original)}>
+        <div className="flex justify-end gap-1 flex-nowrap">
+          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openViewDialog(row.original); }}>
             <Eye className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => openEditDialog(row.original)}>
+          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEditDialog(row.original); }}>
             <Edit className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => handleDuplicate(row.original)}>
+          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); handleDuplicate(row.original); }}>
             <Copy className="h-4 w-4" />
           </Button>
           {!row.original.user_id && row.original.email && (
-            <Button size="sm" variant="ghost" onClick={() => handleSendInvitation(row.original)}>
+            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); handleSendInvitation(row.original); }}>
               <Send className="h-4 w-4" />
             </Button>
           )}
-          <Button size="sm" variant="ghost" onClick={() => handleDelete(row.original.id)}>
+          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); handleDelete(row.original.id); }}>
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       ),
-      meta: { className: "text-right" },
+      meta: { className: "text-right !overflow-visible min-w-[180px]" },
     },
   ];
 
