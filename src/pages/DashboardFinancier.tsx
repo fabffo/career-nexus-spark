@@ -33,6 +33,13 @@ interface TopMargeNetteClient {
   margeNette: number;
 }
 
+interface RepartitionActivite {
+  activite: string;
+  margeEuros: number;
+  nombreFactures: number;
+  nombreContrats: number;
+}
+
 // Calculer l'année du dernier mois terminé par défaut
 const getDefaultYear = (): number => {
   const now = new Date();
@@ -69,6 +76,7 @@ export default function DashboardFinancier() {
   const [repartitionCA, setRepartitionCA] = useState<any[]>([]);
   const [topClients, setTopClients] = useState<TopClient[]>([]);
   const [topMargeNetteClients, setTopMargeNetteClients] = useState<TopMargeNetteClient[]>([]);
+  const [repartitionActivites, setRepartitionActivites] = useState<RepartitionActivite[]>([]);
 
   const handleKPIClick = (kpiType: KPIType) => {
     setSelectedKPI(kpiType);
@@ -91,6 +99,7 @@ export default function DashboardFinancier() {
         loadRepartitionCA(),
         loadTopClients(),
         loadTopMargeNetteClients(),
+        loadRepartitionActivites(),
       ]);
     } catch (error) {
       console.error("Erreur chargement données:", error);
@@ -655,6 +664,93 @@ export default function DashboardFinancier() {
     setTopMargeNetteClients(margesClients);
   };
 
+  const loadRepartitionActivites = async () => {
+    const debutAnnee = moisSelectionne !== null 
+      ? startOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
+      : startOfYear(new Date(anneeSelectionnee, 0, 1));
+    const finAnnee = moisSelectionne !== null
+      ? endOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
+      : endOfYear(new Date(anneeSelectionnee, 11, 31));
+
+    // 1. Récupérer les factures de ventes avec activité
+    const { data: facturesVentes } = await supabase
+      .from("factures")
+      .select("id, total_ht, activite")
+      .eq("type_facture", "VENTES")
+      .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
+      .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
+
+    // 2. Récupérer les factures d'achat de services avec activité
+    const { data: facturesAchats } = await supabase
+      .from("factures")
+      .select("id, total_ht, activite")
+      .eq("type_facture", "ACHATS_SERVICES")
+      .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
+      .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
+
+    // 3. Récupérer les contrats fournisseurs pour Prestation
+    const { data: contratsFournisseurs } = await supabase
+      .from("contrats")
+      .select("id")
+      .eq("type", "FOURNISSEUR_SERVICES")
+      .eq("statut", "ACTIF")
+      .gte("date_debut", format(debutAnnee, "yyyy-MM-dd"))
+      .lte("date_debut", format(finAnnee, "yyyy-MM-dd"));
+
+    // Calculer par activité
+    const activites: Record<string, { ca: number; achats: number; nbFacturesVentes: number; nbContrats: number }> = {
+      'Prestation': { ca: 0, achats: 0, nbFacturesVentes: 0, nbContrats: contratsFournisseurs?.length || 0 },
+      'Formation': { ca: 0, achats: 0, nbFacturesVentes: 0, nbContrats: 0 },
+      'Recrutement': { ca: 0, achats: 0, nbFacturesVentes: 0, nbContrats: 0 },
+    };
+
+    // Agréger les ventes par activité
+    facturesVentes?.forEach((f: any) => {
+      const activite = f.activite || 'Prestation';
+      const activiteNorm = activite.charAt(0).toUpperCase() + activite.slice(1).toLowerCase();
+      
+      if (activites[activiteNorm]) {
+        activites[activiteNorm].ca += Number(f.total_ht || 0);
+        activites[activiteNorm].nbFacturesVentes += 1;
+      } else if (activiteNorm.includes('Formation')) {
+        activites['Formation'].ca += Number(f.total_ht || 0);
+        activites['Formation'].nbFacturesVentes += 1;
+      } else if (activiteNorm.includes('Recrutement')) {
+        activites['Recrutement'].ca += Number(f.total_ht || 0);
+        activites['Recrutement'].nbFacturesVentes += 1;
+      } else {
+        activites['Prestation'].ca += Number(f.total_ht || 0);
+        activites['Prestation'].nbFacturesVentes += 1;
+      }
+    });
+
+    // Agréger les achats par activité
+    facturesAchats?.forEach((f: any) => {
+      const activite = f.activite || 'Prestation';
+      const activiteNorm = activite.charAt(0).toUpperCase() + activite.slice(1).toLowerCase();
+      
+      if (activites[activiteNorm]) {
+        activites[activiteNorm].achats += Number(f.total_ht || 0);
+      } else if (activiteNorm.includes('Formation')) {
+        activites['Formation'].achats += Number(f.total_ht || 0);
+      } else if (activiteNorm.includes('Recrutement')) {
+        activites['Recrutement'].achats += Number(f.total_ht || 0);
+      } else {
+        activites['Prestation'].achats += Number(f.total_ht || 0);
+      }
+    });
+
+    // Construire le résultat
+    const result: RepartitionActivite[] = Object.entries(activites).map(([activite, data]) => ({
+      activite,
+      margeEuros: Math.round(data.ca - data.achats),
+      nombreFactures: data.nbFacturesVentes,
+      nombreContrats: data.nbContrats,
+    }));
+
+    setRepartitionActivites(result);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -706,6 +802,34 @@ export default function DashboardFinancier() {
           </select>
         </div>
       </div>
+
+      {/* Répartition par Activité */}
+      <Card className="bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg font-semibold">Répartition de la Marge par Activité</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {repartitionActivites.map((item) => (
+              <div 
+                key={item.activite} 
+                className="bg-card rounded-lg p-4 border shadow-sm hover:shadow-md transition-shadow"
+              >
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">{item.activite}</h3>
+                <p className="text-xl font-bold text-primary">
+                  {item.margeEuros.toLocaleString("fr-FR")} €
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {item.activite === 'Prestation' 
+                    ? `${item.nombreContrats} contrat${item.nombreContrats > 1 ? 's' : ''} fournisseur${item.nombreContrats > 1 ? 's' : ''}`
+                    : `${item.nombreFactures} facture${item.nombreFactures > 1 ? 's' : ''}`
+                  }
+                </p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
