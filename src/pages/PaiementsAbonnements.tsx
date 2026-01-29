@@ -27,7 +27,24 @@ type Paiement = {
   montant: number;
   notes: string;
   abonnement?: { id: string; nom: string; nature: string; type: string; tva: string | null };
-  rapprochement?: { id: string; transaction_libelle: string };
+  rapprochement?: { id: string; transaction_libelle: string; transaction_credit: number | null; transaction_debit: number | null };
+};
+
+// Détermine si c'est un remboursement (crédit)
+const isRefund = (paiement: Paiement): boolean => {
+  // Si on a les données du rapprochement, on vérifie le crédit
+  if (paiement.rapprochement) {
+    const credit = Number(paiement.rapprochement.transaction_credit) || 0;
+    return credit > 0;
+  }
+  // Sinon on considère les montants négatifs comme des remboursements
+  return Number(paiement.montant) < 0;
+};
+
+// Retourne le montant affiché (négatif pour les remboursements)
+const getDisplayAmount = (paiement: Paiement): number => {
+  const montant = Math.abs(Number(paiement.montant));
+  return isRefund(paiement) ? -montant : montant;
 };
 
 export default function PaiementsAbonnements() {
@@ -49,7 +66,7 @@ export default function PaiementsAbonnements() {
         .select(`
           *,
           abonnement:abonnements_partenaires(id, nom, nature, type, tva),
-          rapprochement:rapprochements_bancaires(id, transaction_libelle)
+          rapprochement:rapprochements_bancaires(id, transaction_libelle, transaction_credit, transaction_debit)
         `)
         .gte("date_paiement", format(debut, "yyyy-MM-dd"))
         .lte("date_paiement", format(fin, "yyyy-MM-dd"))
@@ -60,13 +77,17 @@ export default function PaiementsAbonnements() {
     },
   });
 
-  // Calculs des statistiques
+  // Calculs des statistiques - tenir compte des remboursements
   const stats = {
-    total: paiements.reduce((sum, p) => sum + Number(p.montant), 0),
+    total: paiements.reduce((sum, p) => sum + getDisplayAmount(p), 0),
+    totalDebits: paiements.filter(p => !isRefund(p)).reduce((sum, p) => sum + Math.abs(Number(p.montant)), 0),
+    totalCredits: paiements.filter(p => isRefund(p)).reduce((sum, p) => sum + Math.abs(Number(p.montant)), 0),
     count: paiements.length,
+    countDebits: paiements.filter(p => !isRefund(p)).length,
+    countCredits: paiements.filter(p => isRefund(p)).length,
     parNature: paiements.reduce((acc, p) => {
       const nature = p.abonnement?.nature || "AUTRE";
-      acc[nature] = (acc[nature] || 0) + Number(p.montant);
+      acc[nature] = (acc[nature] || 0) + getDisplayAmount(p);
       return acc;
     }, {} as Record<string, number>),
   };
@@ -110,9 +131,17 @@ export default function PaiementsAbonnements() {
       header: "Montant HT",
       cell: ({ row }) => {
         const tvaStr = row.original.abonnement?.tva;
-        const montantTTC = Number(row.original.montant);
+        const displayAmount = getDisplayAmount(row.original);
+        const montantTTC = Math.abs(displayAmount);
+        const refund = isRefund(row.original);
         
-        if (!tvaStr) return <span className="text-muted-foreground">{montantTTC.toFixed(2)} €</span>;
+        if (!tvaStr) {
+          return (
+            <span className={refund ? "text-green-600 font-medium" : "text-muted-foreground"}>
+              {refund ? "+" : ""}{displayAmount.toFixed(2)} €
+            </span>
+          );
+        }
         
         const tvaMapping: Record<string, number> = {
           'normal': 20, 'normale': 20,
@@ -132,21 +161,34 @@ export default function PaiementsAbonnements() {
         }
         
         const montantHT = montantTTC / (1 + tauxTva / 100);
-        return <span>{montantHT.toFixed(2)} €</span>;
+        const displayHT = refund ? montantHT : -montantHT;
+        
+        return (
+          <span className={refund ? "text-green-600 font-medium" : ""}>
+            {refund ? "+" : ""}{(refund ? montantHT : montantHT).toFixed(2)} €
+          </span>
+        );
       },
     },
     {
       accessorKey: "montant",
       header: "Montant TTC",
-      cell: ({ row }) => (
-        <span className="font-semibold">{Number(row.original.montant).toFixed(2)} €</span>
-      ),
+      cell: ({ row }) => {
+        const displayAmount = getDisplayAmount(row.original);
+        const refund = isRefund(row.original);
+        return (
+          <span className={`font-semibold ${refund ? "text-green-600" : ""}`}>
+            {refund ? "+" : ""}{displayAmount.toFixed(2)} €
+          </span>
+        );
+      },
     },
     {
       id: "tva",
       header: "TVA",
       cell: ({ row }) => {
         const tvaStr = row.original.abonnement?.tva;
+        const refund = isRefund(row.original);
         if (!tvaStr) return <span className="text-muted-foreground">-</span>;
         
         // Mapper les valeurs textuelles aux taux de TVA
@@ -181,13 +223,25 @@ export default function PaiementsAbonnements() {
         
         if (tauxTva === 0) return <span className="text-muted-foreground">0,00 €</span>;
         
-        const montantTTC = Number(row.original.montant);
+        const montantTTC = Math.abs(Number(row.original.montant));
         const montantTVA = montantTTC - (montantTTC / (1 + tauxTva / 100));
         
         return (
-          <span className="text-sm">
-            {montantTVA.toFixed(2)} € <span className="text-muted-foreground">({tauxTva}%)</span>
+          <span className={`text-sm ${refund ? "text-green-600" : ""}`}>
+            {refund ? "+" : ""}{(refund ? montantTVA : montantTVA).toFixed(2)} € <span className="text-muted-foreground">({tauxTva}%)</span>
           </span>
+        );
+      },
+    },
+    {
+      id: "type_operation",
+      header: "Type",
+      cell: ({ row }) => {
+        const refund = isRefund(row.original);
+        return (
+          <Badge variant={refund ? "default" : "secondary"} className={refund ? "bg-green-100 text-green-800 hover:bg-green-100" : ""}>
+            {refund ? "Remboursement" : "Paiement"}
+          </Badge>
         );
       },
     },
@@ -261,19 +315,27 @@ export default function PaiementsAbonnements() {
       </div>
 
       {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Total paiements</div>
-          <div className="text-2xl font-bold">{stats.count}</div>
+          <div className="text-2xl font-bold">{stats.countDebits}</div>
         </Card>
         <Card className="p-4">
-          <div className="text-sm text-muted-foreground">Montant total</div>
-          <div className="text-2xl font-bold">{stats.total.toFixed(2)} €</div>
+          <div className="text-sm text-muted-foreground">Total remboursements</div>
+          <div className="text-2xl font-bold text-green-600">{stats.countCredits}</div>
         </Card>
         <Card className="p-4">
-          <div className="text-sm text-muted-foreground">Moyenne / paiement</div>
-          <div className="text-2xl font-bold">
-            {stats.count > 0 ? (stats.total / stats.count).toFixed(2) : "0.00"} €
+          <div className="text-sm text-muted-foreground">Montant débité</div>
+          <div className="text-2xl font-bold">{stats.totalDebits.toFixed(2)} €</div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground">Montant remboursé</div>
+          <div className="text-2xl font-bold text-green-600">+{stats.totalCredits.toFixed(2)} €</div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground">Solde net</div>
+          <div className={`text-2xl font-bold ${stats.total < 0 ? "" : "text-green-600"}`}>
+            {stats.total.toFixed(2)} €
           </div>
         </Card>
       </div>
