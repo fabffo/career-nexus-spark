@@ -6,6 +6,8 @@ import { KPIDetailDialog, KPIType } from "@/components/KPIDetailDialog";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, subMonths, getDate } from "date-fns";
 import { fr } from "date-fns/locale";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface KPI {
   ca: number;
@@ -39,6 +41,7 @@ interface RepartitionActivite {
   nombreFactures: number;
   nombreContrats: number;
   nombreClients: number;
+  clientsNames: string[];
 }
 
 // Calculer l'année du dernier mois terminé par défaut
@@ -704,35 +707,36 @@ export default function DashboardFinancier() {
       .from("clients")
       .select("*", { count: 'exact', head: true });
 
-    // Calculer par activité avec clients uniques
-    const activites: Record<string, { ca: number; achats: number; nbFacturesVentes: number; nbContrats: number; clientsSet: Set<string> }> = {
-      'Prestation': { ca: 0, achats: 0, nbFacturesVentes: 0, nbContrats: contratsFournisseurs?.length || 0, clientsSet: new Set() },
-      'Formation': { ca: 0, achats: 0, nbFacturesVentes: 0, nbContrats: 0, clientsSet: new Set() },
-      'Recrutement': { ca: 0, achats: 0, nbFacturesVentes: 0, nbContrats: 0, clientsSet: new Set() },
+    // Calculer par activité avec clients uniques (on stocke les noms pour l'affichage)
+    const activites: Record<string, { ca: number; achats: number; nbFacturesVentes: number; nbContrats: number; clientsMap: Map<string, string> }> = {
+      'Prestation': { ca: 0, achats: 0, nbFacturesVentes: 0, nbContrats: contratsFournisseurs?.length || 0, clientsMap: new Map() },
+      'Formation': { ca: 0, achats: 0, nbFacturesVentes: 0, nbContrats: 0, clientsMap: new Map() },
+      'Recrutement': { ca: 0, achats: 0, nbFacturesVentes: 0, nbContrats: 0, clientsMap: new Map() },
     };
 
-    // Agréger les ventes par activité et collecter les clients uniques
+    // Agréger les ventes par activité et collecter les clients uniques avec leurs noms
     facturesVentes?.forEach((f: any) => {
       const activite = f.activite || 'Prestation';
       const activiteNorm = activite.charAt(0).toUpperCase() + activite.slice(1).toLowerCase();
       const clientId = f.destinataire_id || f.destinataire_nom || 'unknown';
+      const clientName = f.destinataire_nom || 'Client inconnu';
       
       if (activites[activiteNorm]) {
         activites[activiteNorm].ca += Number(f.total_ht || 0);
         activites[activiteNorm].nbFacturesVentes += 1;
-        if (clientId) activites[activiteNorm].clientsSet.add(clientId);
+        if (clientId && clientId !== 'unknown') activites[activiteNorm].clientsMap.set(clientId, clientName);
       } else if (activiteNorm.includes('Formation')) {
         activites['Formation'].ca += Number(f.total_ht || 0);
         activites['Formation'].nbFacturesVentes += 1;
-        if (clientId) activites['Formation'].clientsSet.add(clientId);
+        if (clientId && clientId !== 'unknown') activites['Formation'].clientsMap.set(clientId, clientName);
       } else if (activiteNorm.includes('Recrutement')) {
         activites['Recrutement'].ca += Number(f.total_ht || 0);
         activites['Recrutement'].nbFacturesVentes += 1;
-        if (clientId) activites['Recrutement'].clientsSet.add(clientId);
+        if (clientId && clientId !== 'unknown') activites['Recrutement'].clientsMap.set(clientId, clientName);
       } else {
         activites['Prestation'].ca += Number(f.total_ht || 0);
         activites['Prestation'].nbFacturesVentes += 1;
-        if (clientId) activites['Prestation'].clientsSet.add(clientId);
+        if (clientId && clientId !== 'unknown') activites['Prestation'].clientsMap.set(clientId, clientName);
       }
     });
 
@@ -752,13 +756,14 @@ export default function DashboardFinancier() {
       }
     });
 
-    // Construire le résultat
+    // Construire le résultat avec la liste des noms de clients
     const result: RepartitionActivite[] = Object.entries(activites).map(([activite, data]) => ({
       activite,
       margeEuros: Math.round(data.ca - data.achats),
       nombreFactures: data.nbFacturesVentes,
       nombreContrats: data.nbContrats,
-      nombreClients: data.clientsSet.size,
+      nombreClients: data.clientsMap.size,
+      clientsNames: Array.from(data.clientsMap.values()).sort((a, b) => a.localeCompare(b, 'fr')),
     }));
 
     setRepartitionActivites(result);
@@ -844,9 +849,31 @@ export default function DashboardFinancier() {
                     : `${item.nombreFactures} facture${item.nombreFactures > 1 ? 's' : ''}`
                   }
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {item.nombreClients} client{item.nombreClients > 1 ? 's' : ''}
-                </p>
+                <HoverCard>
+                  <HoverCardTrigger asChild>
+                    <p className="text-xs text-muted-foreground mt-1 cursor-pointer hover:text-primary transition-colors underline decoration-dotted">
+                      {item.nombreClients} client{item.nombreClients > 1 ? 's' : ''}
+                    </p>
+                  </HoverCardTrigger>
+                  <HoverCardContent className="w-64 p-0" align="start">
+                    <div className="p-3 border-b bg-muted/50">
+                      <p className="text-sm font-medium">Clients - {item.activite}</p>
+                    </div>
+                    {item.clientsNames.length > 0 ? (
+                      <ScrollArea className="max-h-48">
+                        <ul className="p-2 space-y-1">
+                          {item.clientsNames.map((name, idx) => (
+                            <li key={idx} className="text-sm px-2 py-1 rounded hover:bg-muted/50">
+                              {name}
+                            </li>
+                          ))}
+                        </ul>
+                      </ScrollArea>
+                    ) : (
+                      <p className="p-3 text-sm text-muted-foreground">Aucun client</p>
+                    )}
+                  </HoverCardContent>
+                </HoverCard>
               </div>
             ))}
           </div>
