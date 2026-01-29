@@ -592,6 +592,96 @@ export type Database = {
         }
         Relationships: []
       }
+      company_type_tax_cards: {
+        Row: {
+          company_type_id: string
+          created_at: string | null
+          display_order: number | null
+          id: string
+          is_active: boolean | null
+          tax_card_id: string
+        }
+        Insert: {
+          company_type_id: string
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          tax_card_id: string
+        }
+        Update: {
+          company_type_id?: string
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          tax_card_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_type_tax_cards_company_type_id_fkey"
+            columns: ["company_type_id"]
+            isOneToOne: false
+            referencedRelation: "company_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_type_tax_cards_tax_card_id_fkey"
+            columns: ["tax_card_id"]
+            isOneToOne: false
+            referencedRelation: "tax_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_types: {
+        Row: {
+          code: string
+          cons: string[] | null
+          created_at: string | null
+          description: string | null
+          display_order: number | null
+          id: string
+          ir_possible: boolean | null
+          is_active: boolean | null
+          is_possible: boolean | null
+          label: string
+          pros: string[] | null
+          tva_option: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          cons?: string[] | null
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          ir_possible?: boolean | null
+          is_active?: boolean | null
+          is_possible?: boolean | null
+          label: string
+          pros?: string[] | null
+          tva_option?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          cons?: string[] | null
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          ir_possible?: boolean | null
+          is_active?: boolean | null
+          is_possible?: boolean | null
+          label?: string
+          pros?: string[] | null
+          tva_option?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       contrat_sequences: {
         Row: {
           created_at: string | null
@@ -2784,6 +2874,86 @@ export type Database = {
           siren?: string | null
           telephone?: string | null
           tva?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      tax_card_fields: {
+        Row: {
+          created_at: string | null
+          display_order: number | null
+          id: string
+          label: string
+          tax_card_id: string
+          value: string
+        }
+        Insert: {
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          label: string
+          tax_card_id: string
+          value: string
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          label?: string
+          tax_card_id?: string
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_card_fields_tax_card_id_fkey"
+            columns: ["tax_card_id"]
+            isOneToOne: false
+            referencedRelation: "tax_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_cards: {
+        Row: {
+          code: string
+          color: string | null
+          created_at: string | null
+          display_order: number | null
+          frequency: string
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          organism: string | null
+          subtitle: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          color?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          frequency: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          organism?: string | null
+          subtitle?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          color?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          frequency?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          organism?: string | null
+          subtitle?: string | null
+          title?: string
           updated_at?: string | null
         }
         Relationships: []
