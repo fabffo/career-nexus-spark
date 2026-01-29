@@ -71,6 +71,19 @@ export default function AddFactureDialog({
 
   useEffect(() => {
     if (open) {
+      // Si on a des données initiales avec des lignes (copie), les pré-charger AVANT fetchData
+      if (initialData?.lignes && initialData.lignes.length > 0) {
+        setLignes(initialData.lignes.map((ligne, index) => ({
+          ordre: index + 1,
+          description: ligne.description || '',
+          quantite: ligne.quantite || 1,
+          prix_unitaire_ht: ligne.prix_unitaire_ht || 0,
+          prix_ht: ligne.prix_ht || 0,
+          taux_tva: ligne.taux_tva || 20,
+          montant_tva: ligne.montant_tva || 0,
+          prix_ttc: ligne.prix_ttc || 0,
+        })));
+      }
       fetchData();
     } else {
       // Reset form when dialog closes
@@ -98,7 +111,7 @@ export default function AddFactureDialog({
       });
       setLignes([{ ordre: 1, description: '', quantite: 1, prix_unitaire_ht: 0, prix_ht: 0, taux_tva: 20, montant_tva: 0, prix_ttc: 0 }]);
     }
-  }, [open]);
+  }, [open, initialData]);
 
   const resetForm = () => {
     const newFormData: any = {
