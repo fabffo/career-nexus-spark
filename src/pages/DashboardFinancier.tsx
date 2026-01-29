@@ -94,6 +94,26 @@ export default function DashboardFinancier() {
     loadData();
   }, [anneeSelectionnee, moisSelectionne]);
 
+  // Rafraîchit automatiquement les données quand l'utilisateur revient sur l'onglet
+  // (évite l'impression de données "en cache" après un rattachement réalisé ailleurs).
+  useEffect(() => {
+    const onFocus = () => {
+      loadData();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        loadData();
+      }
+    };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [anneeSelectionnee, moisSelectionne]);
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -472,16 +492,38 @@ export default function DashboardFinancier() {
       console.error("Erreur loadTopClients:", error);
     }
 
-    // Grouper par nom du client (pas par ID car certaines factures n'ont pas de destinataire_id)
+    // Préférer l'ID rattaché pour regrouper + afficher le nom officiel du client
+    // (sinon fallback sur destinataire_nom).
+    const destinataireIds = Array.from(
+      new Set((factures || []).map((f: any) => f.destinataire_id).filter(Boolean))
+    ) as string[];
+
+    const clientNameById = new Map<string, string>();
+    if (destinataireIds.length > 0) {
+      const { data: clientsData } = await supabase
+        .from("clients")
+        .select("id, raison_sociale")
+        .in("id", destinataireIds);
+      clientsData?.forEach((c: any) => clientNameById.set(c.id, c.raison_sociale));
+    }
+
     const caParClient: Record<string, { raison_sociale: string; ca: number }> = {};
     factures?.forEach((f: any) => {
-      if (f.destinataire_nom) {
-        const nomNormalise = f.destinataire_nom.trim().toUpperCase();
-        if (!caParClient[nomNormalise]) {
-          caParClient[nomNormalise] = { raison_sociale: f.destinataire_nom, ca: 0 };
-        }
-        caParClient[nomNormalise].ca += Number(f.total_ht || 0);
+      const hasId = !!f.destinataire_id;
+      const key = hasId
+        ? String(f.destinataire_id)
+        : (f.destinataire_nom ? f.destinataire_nom.trim().toUpperCase() : null);
+
+      if (!key) return;
+
+      const displayName = hasId
+        ? (clientNameById.get(String(f.destinataire_id)) || f.destinataire_nom || "Client inconnu")
+        : (f.destinataire_nom || "Client inconnu");
+
+      if (!caParClient[key]) {
+        caParClient[key] = { raison_sociale: displayName, ca: 0 };
       }
+      caParClient[key].ca += Number(f.total_ht || 0);
     });
 
     const top = Object.entries(caParClient)
@@ -685,6 +727,20 @@ export default function DashboardFinancier() {
       .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
       .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
 
+    // Récupérer les noms officiels des clients quand un destinataire_id est présent
+    const destinataireIds = Array.from(
+      new Set((facturesVentes || []).map((f: any) => f.destinataire_id).filter(Boolean))
+    ) as string[];
+
+    const clientNameById = new Map<string, string>();
+    if (destinataireIds.length > 0) {
+      const { data: clientsData } = await supabase
+        .from("clients")
+        .select("id, raison_sociale")
+        .in("id", destinataireIds);
+      clientsData?.forEach((c: any) => clientNameById.set(c.id, c.raison_sociale));
+    }
+
     // 2. Récupérer les factures d'achat de services avec activité
     const { data: facturesAchats } = await supabase
       .from("factures")
@@ -718,8 +774,13 @@ export default function DashboardFinancier() {
     facturesVentes?.forEach((f: any) => {
       const activite = f.activite || 'Prestation';
       const activiteNorm = activite.charAt(0).toUpperCase() + activite.slice(1).toLowerCase();
-      const clientId = f.destinataire_id || f.destinataire_nom || 'unknown';
-      const clientName = f.destinataire_nom || 'Client inconnu';
+      const hasId = !!f.destinataire_id;
+      const clientId = hasId
+        ? String(f.destinataire_id)
+        : (f.destinataire_nom ? f.destinataire_nom.trim().toUpperCase() : 'unknown');
+      const clientName = hasId
+        ? (clientNameById.get(String(f.destinataire_id)) || f.destinataire_nom || 'Client inconnu')
+        : (f.destinataire_nom || 'Client inconnu');
       
       if (activites[activiteNorm]) {
         activites[activiteNorm].ca += Number(f.total_ht || 0);
