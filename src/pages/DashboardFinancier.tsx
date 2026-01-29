@@ -503,7 +503,7 @@ export default function DashboardFinancier() {
       .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
 
     // 3. Récupérer les contrats fournisseurs de services avec leurs clients liés
-    const { data: contrats } = await supabase
+    const { data: contratsFournisseurs } = await supabase
       .from("contrats")
       .select(`
         fournisseur_services_id,
@@ -514,20 +514,65 @@ export default function DashboardFinancier() {
       .not("fournisseur_services_id", "is", null)
       .not("client_lie_id", "is", null);
 
-    // 4. Récupérer les fournisseurs de services pour faire le lien via le nom
+    // 4. Récupérer les contrats salariés avec leurs clients liés et charges sociales associées
+    const { data: contratsSalaries } = await (supabase as any)
+      .from("contrats")
+      .select(`
+        id,
+        salarie_id,
+        client_lie_id,
+        client_lie:clients!contrats_client_lie_id_fkey(id, raison_sociale)
+      `)
+      .eq("type", "SALARIE")
+      .not("salarie_id", "is", null)
+      .not("client_lie_id", "is", null);
+
+    // 5. Récupérer les associations contrats-charges sociales
+    const { data: contratsCharges } = await (supabase as any)
+      .from("contrats_charges_sociales")
+      .select("contrat_id, declaration_charge_id");
+
+    // 6. Récupérer les paiements de charges sociales
+    const { data: paiementsCharges } = await supabase
+      .from("paiements_declarations_charges")
+      .select(`id, date_paiement, montant, declaration_charge_id, declaration:declarations_charges_sociales(type_charge)`)
+      .gte("date_paiement", format(debutAnnee, "yyyy-MM-dd"))
+      .lte("date_paiement", format(finAnnee, "yyyy-MM-dd"));
+
+    // 7. Récupérer les fournisseurs de services pour faire le lien via le nom
     const { data: fournisseursServices } = await supabase
       .from("fournisseurs_services")
       .select("id, raison_sociale");
 
     // Créer un mapping fournisseur_services_id -> client_id
     const fournisseurToClientMap: Record<string, { clientId: string; clientNom: string }> = {};
-    contrats?.forEach((c: any) => {
+    contratsFournisseurs?.forEach((c: any) => {
       if (c.fournisseur_services_id && c.client_lie_id && c.client_lie) {
         fournisseurToClientMap[c.fournisseur_services_id] = {
           clientId: c.client_lie_id,
           clientNom: c.client_lie.raison_sociale
         };
       }
+    });
+
+    // Créer un mapping contrat_id -> client info pour les contrats salariés
+    const contratSalarieToClientMap: Record<string, { clientId: string; clientNom: string }> = {};
+    contratsSalaries?.forEach((c: any) => {
+      if (c.id && c.client_lie_id && c.client_lie) {
+        contratSalarieToClientMap[c.id] = {
+          clientId: c.client_lie_id,
+          clientNom: c.client_lie.raison_sociale
+        };
+      }
+    });
+
+    // Créer un mapping declaration_charge_id -> contrat_id (pour lier les charges aux contrats salariés)
+    const chargeToContratMap: Record<string, string[]> = {};
+    contratsCharges?.forEach((cc: any) => {
+      if (!chargeToContratMap[cc.declaration_charge_id]) {
+        chargeToContratMap[cc.declaration_charge_id] = [];
+      }
+      chargeToContratMap[cc.declaration_charge_id].push(cc.contrat_id);
     });
 
     // Créer un mapping nom fournisseur -> fournisseur_id
@@ -537,13 +582,13 @@ export default function DashboardFinancier() {
     });
 
     // Grouper le CA par client (via destinataire_nom)
-    const caParClient: Record<string, { raison_sociale: string; ca: number; achatsServices: number }> = {};
+    const caParClient: Record<string, { raison_sociale: string; ca: number; achatsServices: number; chargesSociales: number }> = {};
     
     facturesVentes?.forEach((f: any) => {
       if (f.destinataire_nom) {
         const nomNormalise = f.destinataire_nom.trim().toUpperCase();
         if (!caParClient[nomNormalise]) {
-          caParClient[nomNormalise] = { raison_sociale: f.destinataire_nom, ca: 0, achatsServices: 0 };
+          caParClient[nomNormalise] = { raison_sociale: f.destinataire_nom, ca: 0, achatsServices: 0, chargesSociales: 0 };
         }
         caParClient[nomNormalise].ca += Number(f.total_ht || 0);
       }
@@ -564,20 +609,44 @@ export default function DashboardFinancier() {
         const clientNomNormalise = clientInfo.clientNom.trim().toUpperCase();
         
         if (!caParClient[clientNomNormalise]) {
-          caParClient[clientNomNormalise] = { raison_sociale: clientInfo.clientNom, ca: 0, achatsServices: 0 };
+          caParClient[clientNomNormalise] = { raison_sociale: clientInfo.clientNom, ca: 0, achatsServices: 0, chargesSociales: 0 };
         }
         caParClient[clientNomNormalise].achatsServices += Number(f.total_ht || 0);
       }
     });
 
+    // Grouper les charges sociales par client lié via contrats salariés
+    paiementsCharges?.forEach((p: any) => {
+      const declarationId = p.declaration_charge_id;
+      if (!declarationId) return;
+
+      // Trouver les contrats salariés liés à cette charge
+      const contratIds = chargeToContratMap[declarationId] || [];
+      
+      contratIds.forEach(contratId => {
+        const clientInfo = contratSalarieToClientMap[contratId];
+        if (clientInfo) {
+          const clientNomNormalise = clientInfo.clientNom.trim().toUpperCase();
+          
+          if (!caParClient[clientNomNormalise]) {
+            caParClient[clientNomNormalise] = { raison_sociale: clientInfo.clientNom, ca: 0, achatsServices: 0, chargesSociales: 0 };
+          }
+          // Répartir la charge entre tous les contrats liés à cette déclaration
+          const montantParContrat = Math.abs(Number(p.montant || 0)) / contratIds.length;
+          caParClient[clientNomNormalise].chargesSociales += montantParContrat;
+        }
+      });
+    });
+
     // Calculer la marge nette par client et trier
+    // Marge nette client = CA - Achats Services - Charges Sociales liées
     const margesClients = Object.entries(caParClient)
       .map(([id, data]) => ({
         id,
         raison_sociale: data.raison_sociale,
         ca: data.ca,
-        achatsServices: data.achatsServices,
-        margeNette: data.ca - data.achatsServices
+        achatsServices: data.achatsServices + data.chargesSociales, // On combine dans achatsServices pour l'affichage
+        margeNette: data.ca - data.achatsServices - data.chargesSociales
       }))
       .filter(c => c.ca > 0 || c.achatsServices > 0)
       .sort((a, b) => b.margeNette - a.margeNette)
