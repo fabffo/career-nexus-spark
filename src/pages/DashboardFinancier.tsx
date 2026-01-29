@@ -82,6 +82,7 @@ export default function DashboardFinancier() {
   const [topMargeNetteClients, setTopMargeNetteClients] = useState<TopMargeNetteClient[]>([]);
   const [repartitionActivites, setRepartitionActivites] = useState<RepartitionActivite[]>([]);
   const [nombreClientsTotal, setNombreClientsTotal] = useState<number>(0);
+  const [clientsTotalNames, setClientsTotalNames] = useState<string[]>([]);
 
   const handleKPIClick = (kpiType: KPIType) => {
     setSelectedKPI(kpiType);
@@ -818,10 +819,8 @@ export default function DashboardFinancier() {
       .gte("date_debut", format(debutAnnee, "yyyy-MM-dd"))
       .lte("date_debut", format(finAnnee, "yyyy-MM-dd"));
 
-    // 4. Récupérer le nombre de clients
-    const { count: nombreClients } = await supabase
-      .from("clients")
-      .select("*", { count: 'exact', head: true });
+    // Map global pour collecter tous les clients uniques (toutes activités confondues)
+    const allClientsMap = new Map<string, string>(); // clientId -> clientName
 
     // Calculer par activité avec clients uniques (on stocke les noms pour l'affichage)
     const activites: Record<string, { ca: number; achats: number; nbFacturesVentes: number; nbContrats: number; clientsMap: Map<string, string> }> = {
@@ -841,6 +840,11 @@ export default function DashboardFinancier() {
       const clientName = hasId
         ? (clientNameById.get(String(f.destinataire_id)) || f.destinataire_nom || 'Client inconnu')
         : (f.destinataire_nom || 'Client inconnu');
+      
+      // Ajouter au map global pour le total
+      if (clientId && clientId !== 'unknown') {
+        allClientsMap.set(clientId, clientName);
+      }
       
       if (activites[activiteNorm]) {
         activites[activiteNorm].ca += Number(f.total_ht || 0);
@@ -894,7 +898,12 @@ export default function DashboardFinancier() {
     });
 
     setRepartitionActivites(result);
-    setNombreClientsTotal(nombreClients || 0);
+    
+    // Calculer le total des clients uniques (union de toutes les activités)
+    const allUniqueNames = [...new Set(Array.from(allClientsMap.values()).filter(name => name && name.trim()))];
+    const sortedAllNames = allUniqueNames.sort((a, b) => a.localeCompare(b, 'fr'));
+    setNombreClientsTotal(sortedAllNames.length);
+    setClientsTotalNames(sortedAllNames);
   };
 
   if (loading) {
@@ -954,9 +963,31 @@ export default function DashboardFinancier() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold">Répartition de la Marge par Activité</CardTitle>
-            <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
-              {nombreClientsTotal} client{nombreClientsTotal > 1 ? 's' : ''} au total
-            </div>
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium cursor-pointer hover:bg-primary/20 transition-colors">
+                  {nombreClientsTotal} client{nombreClientsTotal > 1 ? 's' : ''} au total
+                </div>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-64 p-0" align="end">
+                <div className="p-3 border-b bg-muted/50">
+                  <p className="text-sm font-medium">Tous les clients ({nombreClientsTotal})</p>
+                </div>
+                {clientsTotalNames.length > 0 ? (
+                  <div className="max-h-60 overflow-y-auto">
+                    <ul className="p-2 space-y-1">
+                      {clientsTotalNames.map((name, idx) => (
+                        <li key={idx} className="text-sm px-2 py-1 rounded hover:bg-muted/50">
+                          {name}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="p-3 text-sm text-muted-foreground">Aucun client</p>
+                )}
+              </HoverCardContent>
+            </HoverCard>
           </div>
         </CardHeader>
         <CardContent>
