@@ -30,12 +30,21 @@ interface Echeance {
   type_impot: TypeImpot;
 }
 
-export default function CalendrierFiscal() {
-  const [date, setDate] = useState<Date | undefined>(new Date());
+interface Props {
+  selectedYear: number;
+}
+
+export default function CalendrierFiscal({ selectedYear }: Props) {
+  const [date, setDate] = useState<Date | undefined>(new Date(selectedYear, new Date().getMonth(), 1));
   const [echeances, setEcheances] = useState<Echeance[]>([]);
   const [selectedEcheances, setSelectedEcheances] = useState<Echeance[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedEcheance, setSelectedEcheance] = useState<Echeance | null>(null);
+
+  useEffect(() => {
+    // Mettre à jour la date quand l'année change
+    setDate(new Date(selectedYear, date?.getMonth() ?? 0, 1));
+  }, [selectedYear]);
 
   useEffect(() => {
     if (date) {

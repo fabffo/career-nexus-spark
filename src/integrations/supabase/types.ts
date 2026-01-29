@@ -2878,6 +2878,45 @@ export type Database = {
         }
         Relationships: []
       }
+      tax_card_abonnements: {
+        Row: {
+          abonnement_id: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          tax_card_id: string
+        }
+        Insert: {
+          abonnement_id: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          tax_card_id: string
+        }
+        Update: {
+          abonnement_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          tax_card_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_card_abonnements_abonnement_id_fkey"
+            columns: ["abonnement_id"]
+            isOneToOne: false
+            referencedRelation: "abonnements_partenaires"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_card_abonnements_tax_card_id_fkey"
+            columns: ["tax_card_id"]
+            isOneToOne: false
+            referencedRelation: "tax_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_card_fields: {
         Row: {
           created_at: string | null

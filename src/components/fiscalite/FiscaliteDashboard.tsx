@@ -43,7 +43,11 @@ interface Stats {
   prochaines_echeances: number;
 }
 
-export default function FiscaliteDashboard() {
+interface Props {
+  selectedYear: number;
+}
+
+export default function FiscaliteDashboard({ selectedYear }: Props) {
   const [echeances, setEcheances] = useState<Echeance[]>([]);
   const [stats, setStats] = useState<Stats>({
     total_a_payer: 0,
@@ -56,13 +60,12 @@ export default function FiscaliteDashboard() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [selectedYear]);
 
   const loadData = async () => {
     try {
-      const currentYear = new Date().getFullYear();
-      const startDate = startOfYear(new Date(currentYear, 0, 1));
-      const endDate = endOfYear(new Date(currentYear, 11, 31));
+      const startDate = new Date(selectedYear, 0, 1);
+      const endDate = new Date(selectedYear, 11, 31, 23, 59, 59);
 
       const { data, error } = await supabase
         .from("echeances_fiscales")

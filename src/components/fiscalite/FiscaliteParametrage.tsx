@@ -10,7 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Check, X, RotateCcw, Save, Building2, FileText, Link2 } from "lucide-react";
+import { Check, X, RotateCcw, Save, Building2, FileText, Link2, CreditCard } from "lucide-react";
+import FiscaliteAbonnementsTab from "./FiscaliteAbonnementsTab";
 
 interface CompanyType {
   id: string;
@@ -47,7 +48,11 @@ interface CompanyTypeTaxCard {
   display_order: number;
 }
 
-export default function FiscaliteParametrage() {
+interface Props {
+  selectedYear: number;
+}
+
+export default function FiscaliteParametrage({ selectedYear }: Props) {
   const [companyTypes, setCompanyTypes] = useState<CompanyType[]>([]);
   const [taxCards, setTaxCards] = useState<TaxCard[]>([]);
   const [mappings, setMappings] = useState<CompanyTypeTaxCard[]>([]);
@@ -181,6 +186,10 @@ export default function FiscaliteParametrage() {
             <Link2 className="h-4 w-4" />
             Association
           </TabsTrigger>
+          <TabsTrigger value="abonnements" className="gap-2">
+            <CreditCard className="h-4 w-4" />
+            Abonnements
+          </TabsTrigger>
           <TabsTrigger value="cards" className="gap-2">
             <FileText className="h-4 w-4" />
             Cartes fiscales
@@ -300,6 +309,10 @@ export default function FiscaliteParametrage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="abonnements" className="space-y-4">
+          <FiscaliteAbonnementsTab selectedYear={selectedYear} />
         </TabsContent>
 
         <TabsContent value="cards" className="space-y-4">
