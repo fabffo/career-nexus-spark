@@ -546,14 +546,14 @@ export default function ContratsSalaries() {
               <div>
                 <Label>Client lié</Label>
                 <Select
-                  value={formData.client_id || ''}
-                  onValueChange={(value) => setFormData({ ...formData, client_id: value || undefined })}
+                  value={formData.client_id || 'none'}
+                  onValueChange={(value) => setFormData({ ...formData, client_id: value === 'none' ? undefined : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner un client" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Aucun</SelectItem>
+                    <SelectItem value="none">Aucun</SelectItem>
                     {clients.map((client) => (
                       <SelectItem key={client.id} value={client.id}>
                         {client.raison_sociale || client.raisonSociale}
