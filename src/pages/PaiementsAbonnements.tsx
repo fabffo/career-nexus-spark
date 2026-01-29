@@ -21,13 +21,44 @@ const TYPE_LABELS: Record<string, string> = {
   AUTRE: "Autre",
 };
 
+// Fonction utilitaire pour extraire le taux de TVA d'une chaîne
+const getTauxTva = (tvaStr: string): number => {
+  const tvaLower = tvaStr.toLowerCase().trim();
+  
+  if (tvaLower.includes('exon')) {
+    return 0;
+  }
+  
+  const tvaMatch = tvaStr.match(/(\d+(?:[.,]\d+)?)\s*%?/);
+  if (tvaMatch) {
+    return parseFloat(tvaMatch[1].replace(',', '.'));
+  }
+  
+  if (tvaLower.includes('normal')) return 20;
+  if (tvaLower.includes('reduit') || tvaLower.includes('réduit')) return 5.5;
+  if (tvaLower.includes('interm')) return 10;
+  if (tvaLower.includes('super')) return 2.1;
+  
+  return 0;
+};
+
 type Paiement = {
   id: string;
   date_paiement: string;
   montant: number;
   notes: string;
   abonnement?: { id: string; nom: string; nature: string; type: string; tva: string | null };
-  rapprochement?: { id: string; transaction_libelle: string; transaction_credit: number | null; transaction_debit: number | null };
+  rapprochement?: { 
+    id: string; 
+    transaction_libelle: string; 
+    transaction_credit: number | null; 
+    transaction_debit: number | null;
+    numero_ligne?: string | null;
+  };
+  // Valeurs TVA stockées depuis lignes_rapprochement
+  stored_total_ht?: number | null;
+  stored_total_tva?: number | null;
+  stored_total_ttc?: number | null;
 };
 
 // Détermine si c'est un remboursement (crédit)
@@ -40,7 +71,6 @@ const isRefund = (paiement: Paiement): boolean => {
   // Sinon on considère les montants négatifs comme des remboursements
   return Number(paiement.montant) < 0;
 };
-
 // Retourne le montant affiché (négatif pour les remboursements)
 const getDisplayAmount = (paiement: Paiement): number => {
   const montant = Math.abs(Number(paiement.montant));
@@ -66,14 +96,43 @@ export default function PaiementsAbonnements() {
         .select(`
           *,
           abonnement:abonnements_partenaires(id, nom, nature, type, tva),
-          rapprochement:rapprochements_bancaires(id, transaction_libelle, transaction_credit, transaction_debit)
+          rapprochement:rapprochements_bancaires(id, transaction_libelle, transaction_credit, transaction_debit, numero_ligne)
         `)
         .gte("date_paiement", format(debut, "yyyy-MM-dd"))
         .lte("date_paiement", format(fin, "yyyy-MM-dd"))
         .order("date_paiement", { ascending: false });
 
       if (error) throw error;
-      return data;
+      
+      // Enrichir avec les données TVA de lignes_rapprochement
+      const numerosLignes = data
+        .filter(p => p.rapprochement?.numero_ligne)
+        .map(p => p.rapprochement!.numero_ligne);
+      
+      if (numerosLignes.length > 0) {
+        const { data: lignesData } = await supabase
+          .from("lignes_rapprochement")
+          .select("numero_ligne, total_ht, total_tva, total_ttc")
+          .in("numero_ligne", numerosLignes);
+        
+        const lignesMap = new Map(
+          (lignesData || []).map(l => [l.numero_ligne, l])
+        );
+        
+        return data.map(p => {
+          const ligneInfo = p.rapprochement?.numero_ligne 
+            ? lignesMap.get(p.rapprochement.numero_ligne)
+            : null;
+          return {
+            ...p,
+            stored_total_ht: ligneInfo?.total_ht ?? null,
+            stored_total_tva: ligneInfo?.total_tva ?? null,
+            stored_total_ttc: ligneInfo?.total_ttc ?? null,
+          } as Paiement;
+        });
+      }
+      
+      return data as Paiement[];
     },
   });
 
@@ -130,44 +189,36 @@ export default function PaiementsAbonnements() {
       id: "montant_ht",
       header: "Montant HT",
       cell: ({ row }) => {
-        const tvaStr = row.original.abonnement?.tva;
-        const displayAmount = getDisplayAmount(row.original);
-        const montantTTC = Math.abs(displayAmount);
         const refund = isRefund(row.original);
         
-        if (!tvaStr) {
+        // Priorité aux valeurs stockées de lignes_rapprochement
+        if (row.original.stored_total_ht !== null && row.original.stored_total_ht !== undefined) {
+          const montantHT = Math.abs(Number(row.original.stored_total_ht));
           return (
-            <span className={refund ? "text-green-600 font-medium" : "text-muted-foreground"}>
-              {refund ? "+" : ""}{displayAmount.toFixed(2)} €
+            <span className={refund ? "text-green-600 font-medium" : ""}>
+              {refund ? "+" : ""}{montantHT.toFixed(2)} €
             </span>
           );
         }
         
-        const tvaLower = tvaStr.toLowerCase().trim();
-        let tauxTva = 0;
+        // Fallback: calcul dynamique
+        const tvaStr = row.original.abonnement?.tva;
+        const montantTTC = Math.abs(Number(row.original.montant));
         
-        if (tvaLower.includes('exon')) {
-          tauxTva = 0;
-        } else {
-          const tvaMatch = tvaStr.match(/(\d+(?:[.,]\d+)?)\s*%?/);
-          if (tvaMatch) {
-            tauxTva = parseFloat(tvaMatch[1].replace(',', '.'));
-          } else if (tvaLower.includes('normal')) {
-            tauxTva = 20;
-          } else if (tvaLower.includes('reduit') || tvaLower.includes('réduit')) {
-            tauxTva = 5.5;
-          } else if (tvaLower.includes('interm')) {
-            tauxTva = 10;
-          } else if (tvaLower.includes('super')) {
-            tauxTva = 2.1;
-          }
+        if (!tvaStr) {
+          return (
+            <span className={refund ? "text-green-600 font-medium" : "text-muted-foreground"}>
+              {refund ? "+" : ""}{montantTTC.toFixed(2)} €
+            </span>
+          );
         }
         
+        const tauxTva = getTauxTva(tvaStr);
         const montantHT = montantTTC / (1 + tauxTva / 100);
         
         return (
           <span className={refund ? "text-green-600 font-medium" : ""}>
-            {refund ? "+" : ""}{(refund ? montantHT : montantHT).toFixed(2)} €
+            {refund ? "+" : ""}{montantHT.toFixed(2)} €
           </span>
         );
       },
@@ -189,34 +240,28 @@ export default function PaiementsAbonnements() {
       id: "tva",
       header: "TVA",
       cell: ({ row }) => {
-        const tvaStr = row.original.abonnement?.tva;
         const refund = isRefund(row.original);
-        if (!tvaStr) return <span className="text-muted-foreground">-</span>;
         
-        // Déterminer le taux de TVA depuis la chaîne
-        const tvaLower = tvaStr.toLowerCase().trim();
-        let tauxTva = 0;
-        
-        // Vérifier si exonéré
-        if (tvaLower.includes('exon')) {
-          tauxTva = 0;
-        } 
-        // Essayer d'extraire un pourcentage (ex: "TVA normale - 20%", "20%", "20")
-        else {
-          const tvaMatch = tvaStr.match(/(\d+(?:[.,]\d+)?)\s*%?/);
-          if (tvaMatch) {
-            tauxTva = parseFloat(tvaMatch[1].replace(',', '.'));
-          } else if (tvaLower.includes('normal')) {
-            tauxTva = 20;
-          } else if (tvaLower.includes('reduit') || tvaLower.includes('réduit')) {
-            tauxTva = 5.5;
-          } else if (tvaLower.includes('interm')) {
-            tauxTva = 10;
-          } else if (tvaLower.includes('super')) {
-            tauxTva = 2.1;
-          }
+        // Priorité aux valeurs stockées de lignes_rapprochement
+        if (row.original.stored_total_tva !== null && row.original.stored_total_tva !== undefined) {
+          const montantTVA = Math.abs(Number(row.original.stored_total_tva));
+          if (montantTVA === 0) return <span className="text-muted-foreground">0,00 €</span>;
+          
+          const tvaStr = row.original.abonnement?.tva;
+          const tauxTva = tvaStr ? getTauxTva(tvaStr) : 20;
+          
+          return (
+            <span className={`text-sm ${refund ? "text-green-600" : ""}`}>
+              {refund ? "+" : ""}{montantTVA.toFixed(2)} € <span className="text-muted-foreground">({tauxTva}%)</span>
+            </span>
+          );
         }
         
+        // Fallback: calcul dynamique
+        const tvaStr = row.original.abonnement?.tva;
+        if (!tvaStr) return <span className="text-muted-foreground">-</span>;
+        
+        const tauxTva = getTauxTva(tvaStr);
         if (tauxTva === 0) return <span className="text-muted-foreground">0,00 €</span>;
         
         const montantTTC = Math.abs(Number(row.original.montant));
@@ -224,7 +269,7 @@ export default function PaiementsAbonnements() {
         
         return (
           <span className={`text-sm ${refund ? "text-green-600" : ""}`}>
-            {refund ? "+" : ""}{(refund ? montantTVA : montantTVA).toFixed(2)} € <span className="text-muted-foreground">({tauxTva}%)</span>
+            {refund ? "+" : ""}{montantTVA.toFixed(2)} € <span className="text-muted-foreground">({tauxTva}%)</span>
           </span>
         );
       },
