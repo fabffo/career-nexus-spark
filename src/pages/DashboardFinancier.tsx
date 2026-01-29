@@ -760,11 +760,6 @@ export default function DashboardFinancier() {
       nombreClients: data.clientsSet.size,
     }));
 
-    // Ajouter le nombre total de clients au premier élément pour affichage global
-    if (result.length > 0) {
-      result[0].nombreClients = nombreClients || 0;
-    }
-
     setRepartitionActivites(result);
   };
 
@@ -823,12 +818,7 @@ export default function DashboardFinancier() {
       {/* Répartition par Activité */}
       <Card className="bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-semibold">Répartition de la Marge par Activité</CardTitle>
-            <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
-              {repartitionActivites[0]?.nombreClients || 0} client{(repartitionActivites[0]?.nombreClients || 0) > 1 ? 's' : ''}
-            </div>
-          </div>
+          <CardTitle className="text-lg font-semibold">Répartition de la Marge par Activité</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -846,6 +836,9 @@ export default function DashboardFinancier() {
                     ? `${item.nombreContrats} contrat${item.nombreContrats > 1 ? 's' : ''} fournisseur${item.nombreContrats > 1 ? 's' : ''}`
                     : `${item.nombreFactures} facture${item.nombreFactures > 1 ? 's' : ''}`
                   }
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {item.nombreClients} client{item.nombreClients > 1 ? 's' : ''}
                 </p>
               </div>
             ))}
