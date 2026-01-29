@@ -217,6 +217,25 @@ export default function FacturesVentes() {
 
       if (lignesError) throw lignesError;
 
+      // Certaines factures (ex: import PDF) peuvent ne pas avoir de lignes enregistrées.
+      // Dans ce cas, on crée une ligne à partir des totaux pour que la copie soit exploitable.
+      const hasLignes = Array.isArray(lignes) && lignes.length > 0;
+      const fallbackTauxTva = facture.total_ht && facture.total_ht !== 0
+        ? Math.round(((facture.total_tva || 0) / facture.total_ht) * 100)
+        : 20;
+      const lignesToCopy = hasLignes
+        ? lignes
+        : [{
+            ordre: 1,
+            description: `Copie de ${facture.numero_facture}`,
+            quantite: 1,
+            prix_unitaire_ht: Number(facture.total_ht || 0),
+            prix_ht: Number(facture.total_ht || 0),
+            taux_tva: fallbackTauxTva,
+            montant_tva: Number(facture.total_tva || 0),
+            prix_ttc: Number(facture.total_ttc || 0),
+          }];
+
       const newFacture = {
         ...facture,
         id: undefined,
@@ -225,7 +244,7 @@ export default function FacturesVentes() {
         date_emission: new Date().toISOString().split('T')[0],
         created_at: undefined,
         updated_at: undefined,
-        lignes: lignes?.map(l => ({
+        lignes: lignesToCopy.map((l: any) => ({
           ...l,
           id: undefined,
           facture_id: undefined,
