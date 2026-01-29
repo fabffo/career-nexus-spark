@@ -551,12 +551,20 @@ export default function DashboardFinancier() {
       .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
       .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
 
-    // 2. Récupérer les factures d'achat de services et prestataires
+    // 2. Récupérer TOUTES les factures d'achat de services (pour les lier aux clients)
     const { data: facturesAchatsServices } = await supabase
       .from("factures")
       .select("emetteur_id, emetteur_nom, emetteur_type, total_ht, type_facture")
-      .in("type_facture", ["ACHATS_SERVICES", "ACHATS"])
-      .in("emetteur_type", ["FOURNISSEUR_SERVICES", "PRESTATAIRE"])
+      .eq("type_facture", "ACHATS_SERVICES")
+      .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
+      .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
+
+    // 2b. Récupérer les factures ACHATS émises par des prestataires
+    const { data: facturesAchatsPrestataires } = await supabase
+      .from("factures")
+      .select("emetteur_id, emetteur_nom, emetteur_type, total_ht, type_facture")
+      .eq("type_facture", "ACHATS")
+      .eq("emetteur_type", "PRESTATAIRE")
       .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
       .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
 
@@ -690,11 +698,9 @@ export default function DashboardFinancier() {
       }
     });
 
-    // Grouper les achats de services/prestataires par client lié
-    facturesAchatsServices?.forEach((f: any) => {
-      let clientInfo: { clientId: string; clientNom: string } | undefined;
-      
-      // Cas 1: Facture prestataire
+    // Fonction pour trouver le client lié à une facture d'achat
+    const findClientForInvoice = (f: any): { clientId: string; clientNom: string } | undefined => {
+      // Cas 1: Facture prestataire (emetteur_type === "PRESTATAIRE")
       if (f.emetteur_type === "PRESTATAIRE") {
         let prestataireId = f.emetteur_id;
         
@@ -704,25 +710,51 @@ export default function DashboardFinancier() {
         }
         
         if (prestataireId && prestataireToClientMap[prestataireId]) {
-          clientInfo = prestataireToClientMap[prestataireId];
-        }
-      }
-      // Cas 2: Facture fournisseur de services
-      else if (f.emetteur_type === "FOURNISSEUR_SERVICES") {
-        let fournisseurId = f.emetteur_id;
-        
-        if (!fournisseurId && f.emetteur_nom) {
-          const nomNormalise = f.emetteur_nom.trim().toUpperCase();
-          fournisseurId = nomToFournisseurId[nomNormalise];
-        }
-        
-        if (fournisseurId && fournisseurToClientMap[fournisseurId]) {
-          clientInfo = fournisseurToClientMap[fournisseurId];
+          return prestataireToClientMap[prestataireId];
         }
       }
       
-      // Ajouter au client lié si trouvé
+      // Cas 2: Facture de type ACHATS_SERVICES - Chercher le fournisseur de services
+      // Essayer d'abord par emetteur_id, sinon par nom
+      let fournisseurId = f.emetteur_id;
+      
+      if (!fournisseurId && f.emetteur_nom) {
+        const nomNormalise = f.emetteur_nom.trim().toUpperCase();
+        fournisseurId = nomToFournisseurId[nomNormalise];
+      }
+      
+      if (fournisseurId && fournisseurToClientMap[fournisseurId]) {
+        return fournisseurToClientMap[fournisseurId];
+      }
+      
+      return undefined;
+    };
+
+    // Grouper les achats de services par client lié
+    facturesAchatsServices?.forEach((f: any) => {
+      const clientInfo = findClientForInvoice(f);
+      
       if (clientInfo) {
+        const clientNomNormalise = clientInfo.clientNom.trim().toUpperCase();
+        
+        if (!caParClient[clientNomNormalise]) {
+          caParClient[clientNomNormalise] = { raison_sociale: clientInfo.clientNom, ca: 0, achatsServices: 0, chargesSociales: 0 };
+        }
+        caParClient[clientNomNormalise].achatsServices += Number(f.total_ht || 0);
+      }
+    });
+
+    // Grouper les achats des prestataires par client lié
+    facturesAchatsPrestataires?.forEach((f: any) => {
+      let prestataireId = f.emetteur_id;
+      
+      if (!prestataireId && f.emetteur_nom) {
+        const nomNormalise = f.emetteur_nom.trim().toUpperCase();
+        prestataireId = nomToPrestataireId[nomNormalise];
+      }
+      
+      if (prestataireId && prestataireToClientMap[prestataireId]) {
+        const clientInfo = prestataireToClientMap[prestataireId];
         const clientNomNormalise = clientInfo.clientNom.trim().toUpperCase();
         
         if (!caParClient[clientNomNormalise]) {
