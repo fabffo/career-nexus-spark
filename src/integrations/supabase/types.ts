@@ -721,6 +721,7 @@ export type Database = {
           parent_id: string | null
           piece_jointe_url: string | null
           prestataire_id: string | null
+          salarie_id: string | null
           statut: Database["public"]["Enums"]["contrat_statut"]
           type: Database["public"]["Enums"]["contrat_type"]
           updated_at: string | null
@@ -743,6 +744,7 @@ export type Database = {
           parent_id?: string | null
           piece_jointe_url?: string | null
           prestataire_id?: string | null
+          salarie_id?: string | null
           statut?: Database["public"]["Enums"]["contrat_statut"]
           type: Database["public"]["Enums"]["contrat_type"]
           updated_at?: string | null
@@ -765,6 +767,7 @@ export type Database = {
           parent_id?: string | null
           piece_jointe_url?: string | null
           prestataire_id?: string | null
+          salarie_id?: string | null
           statut?: Database["public"]["Enums"]["contrat_statut"]
           type?: Database["public"]["Enums"]["contrat_type"]
           updated_at?: string | null
@@ -818,6 +821,52 @@ export type Database = {
             columns: ["prestataire_id"]
             isOneToOne: false
             referencedRelation: "prestataires"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrats_salarie_id_fkey"
+            columns: ["salarie_id"]
+            isOneToOne: false
+            referencedRelation: "salaries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contrats_charges_sociales: {
+        Row: {
+          contrat_id: string
+          created_at: string
+          created_by: string | null
+          declaration_charge_id: string
+          id: string
+        }
+        Insert: {
+          contrat_id: string
+          created_at?: string
+          created_by?: string | null
+          declaration_charge_id: string
+          id?: string
+        }
+        Update: {
+          contrat_id?: string
+          created_at?: string
+          created_by?: string | null
+          declaration_charge_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrats_charges_sociales_contrat_id_fkey"
+            columns: ["contrat_id"]
+            isOneToOne: false
+            referencedRelation: "contrats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrats_charges_sociales_declaration_charge_id_fkey"
+            columns: ["declaration_charge_id"]
+            isOneToOne: false
+            referencedRelation: "declarations_charges_sociales"
             referencedColumns: ["id"]
           },
         ]
@@ -3328,6 +3377,7 @@ export type Database = {
         | "PRESTATAIRE"
         | "FOURNISSEUR_SERVICES"
         | "FOURNISSEUR_GENERAL"
+        | "SALARIE"
       rdv_statut: "ENCOURS" | "REALISE" | "TERMINE" | "ANNULE"
       rdv_type: "RECRUTEUR" | "CLIENT"
       salarie_role: "RECRUTEUR" | "PRESTATAIRE"
@@ -3466,6 +3516,7 @@ export const Constants = {
         "PRESTATAIRE",
         "FOURNISSEUR_SERVICES",
         "FOURNISSEUR_GENERAL",
+        "SALARIE",
       ],
       rdv_statut: ["ENCOURS", "REALISE", "TERMINE", "ANNULE"],
       rdv_type: ["RECRUTEUR", "CLIENT"],

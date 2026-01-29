@@ -35,6 +35,7 @@ import Prestataires from "./pages/Prestataires";
 import Contrats from "./pages/Contrats";
 import ContratsClients from "./pages/ContratsClients";
 import ContratsFournisseurs from "./pages/ContratsFournisseurs";
+import ContratsSalaries from "./pages/ContratsSalaries";
 import Salaries from "./pages/Salaries";
 import { Missions } from "./pages/Missions";
 import MissionsClients from "./pages/MissionsClients";
@@ -126,6 +127,7 @@ const App = () => (
               <Route path="contrats" element={<Contrats />} />
               <Route path="contrats-clients" element={<ContratsClients />} />
               <Route path="contrats-fournisseurs" element={<ContratsFournisseurs />} />
+              <Route path="contrats-salaries" element={<ContratsSalaries />} />
               <Route path="salaries" element={<Salaries />} />
               <Route path="postes" element={<Postes />} />
               <Route path="missions" element={<Missions />} />
