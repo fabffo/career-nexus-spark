@@ -78,6 +78,7 @@ export default function DashboardFinancier() {
   const [topClients, setTopClients] = useState<TopClient[]>([]);
   const [topMargeNetteClients, setTopMargeNetteClients] = useState<TopMargeNetteClient[]>([]);
   const [repartitionActivites, setRepartitionActivites] = useState<RepartitionActivite[]>([]);
+  const [nombreClientsTotal, setNombreClientsTotal] = useState<number>(0);
 
   const handleKPIClick = (kpiType: KPIType) => {
     setSelectedKPI(kpiType);
@@ -673,10 +674,10 @@ export default function DashboardFinancier() {
       ? endOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
       : endOfYear(new Date(anneeSelectionnee, 11, 31));
 
-    // 1. Récupérer les factures de ventes avec activité
+    // 1. Récupérer les factures de ventes avec activité et client
     const { data: facturesVentes } = await supabase
       .from("factures")
-      .select("id, total_ht, activite")
+      .select("id, total_ht, activite, destinataire_id, destinataire_nom")
       .eq("type_facture", "VENTES")
       .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
       .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
@@ -761,6 +762,7 @@ export default function DashboardFinancier() {
     }));
 
     setRepartitionActivites(result);
+    setNombreClientsTotal(nombreClients || 0);
   };
 
   if (loading) {
@@ -818,7 +820,12 @@ export default function DashboardFinancier() {
       {/* Répartition par Activité */}
       <Card className="bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-semibold">Répartition de la Marge par Activité</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-semibold">Répartition de la Marge par Activité</CardTitle>
+            <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
+              {nombreClientsTotal} client{nombreClientsTotal > 1 ? 's' : ''} au total
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
