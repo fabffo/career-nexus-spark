@@ -1,5 +1,5 @@
 // Types pour la gestion des contrats
-export type ContratType = 'CLIENT' | 'PRESTATAIRE' | 'FOURNISSEUR_SERVICES' | 'FOURNISSEUR_GENERAL' | 'FOURNISSEUR_ETAT_ORGANISME';
+export type ContratType = 'CLIENT' | 'PRESTATAIRE' | 'FOURNISSEUR_SERVICES' | 'FOURNISSEUR_GENERAL' | 'FOURNISSEUR_ETAT_ORGANISME' | 'SALARIE';
 export type ContratStatut = 'BROUILLON' | 'ACTIF' | 'TERMINE' | 'ANNULE' | 'ARCHIVE';
 
 export interface Contrat {

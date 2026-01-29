@@ -13,7 +13,8 @@ export const contratService = {
         fournisseur_services:fournisseurs_services(*),
         fournisseur_general:fournisseurs_generaux(*),
         fournisseur_etat_organisme:fournisseurs_etat_organismes(*),
-        client_lie:client_lie_id(*)
+        client_lie:client_lie_id(*),
+        salarie:salaries(*)
       `)
       .order('created_at', { ascending: false });
 
@@ -31,7 +32,8 @@ export const contratService = {
         fournisseur_services:fournisseurs_services(*),
         fournisseur_general:fournisseurs_generaux(*),
         fournisseur_etat_organisme:fournisseurs_etat_organismes(*),
-        client_lie:client_lie_id(*)
+        client_lie:client_lie_id(*),
+        salarie:salaries(*)
       `)
       .eq('id', id)
       .single();
