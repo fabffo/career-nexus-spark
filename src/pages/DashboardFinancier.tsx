@@ -550,11 +550,12 @@ export default function DashboardFinancier() {
       .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
       .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
 
-    // 2. Récupérer les factures d'achat de services avec le fournisseur de services
+    // 2. Récupérer les factures d'achat de services et prestataires
     const { data: facturesAchatsServices } = await supabase
       .from("factures")
-      .select("emetteur_id, emetteur_nom, total_ht")
-      .eq("type_facture", "ACHATS_SERVICES")
+      .select("emetteur_id, emetteur_nom, emetteur_type, total_ht, type_facture")
+      .in("type_facture", ["ACHATS_SERVICES", "ACHATS"])
+      .in("emetteur_type", ["FOURNISSEUR_SERVICES", "PRESTATAIRE"])
       .gte("date_emission", format(debutAnnee, "yyyy-MM-dd"))
       .lte("date_emission", format(finAnnee, "yyyy-MM-dd"));
 
@@ -568,6 +569,18 @@ export default function DashboardFinancier() {
       `)
       .eq("type", "FOURNISSEUR_SERVICES")
       .not("fournisseur_services_id", "is", null)
+      .not("client_lie_id", "is", null);
+    
+    // 3b. Récupérer les contrats prestataires avec leurs clients liés
+    const { data: contratsPrestataires } = await supabase
+      .from("contrats")
+      .select(`
+        prestataire_id,
+        client_lie_id,
+        client_lie:clients!contrats_client_lie_id_fkey(id, raison_sociale)
+      `)
+      .eq("type", "PRESTATAIRE")
+      .not("prestataire_id", "is", null)
       .not("client_lie_id", "is", null);
 
     // 4. Récupérer les contrats salariés avec leurs clients liés et charges sociales associées
@@ -599,12 +612,28 @@ export default function DashboardFinancier() {
     const { data: fournisseursServices } = await supabase
       .from("fournisseurs_services")
       .select("id, raison_sociale");
+      
+    // 7b. Récupérer les prestataires pour faire le lien via le nom
+    const { data: prestatairesData } = await supabase
+      .from("prestataires")
+      .select("id, nom, prenom");
 
     // Créer un mapping fournisseur_services_id -> client_id
     const fournisseurToClientMap: Record<string, { clientId: string; clientNom: string }> = {};
     contratsFournisseurs?.forEach((c: any) => {
       if (c.fournisseur_services_id && c.client_lie_id && c.client_lie) {
         fournisseurToClientMap[c.fournisseur_services_id] = {
+          clientId: c.client_lie_id,
+          clientNom: c.client_lie.raison_sociale
+        };
+      }
+    });
+    
+    // Créer un mapping prestataire_id -> client_id
+    const prestataireToClientMap: Record<string, { clientId: string; clientNom: string }> = {};
+    contratsPrestataires?.forEach((c: any) => {
+      if (c.prestataire_id && c.client_lie_id && c.client_lie) {
+        prestataireToClientMap[c.prestataire_id] = {
           clientId: c.client_lie_id,
           clientNom: c.client_lie.raison_sociale
         };
@@ -636,6 +665,16 @@ export default function DashboardFinancier() {
     fournisseursServices?.forEach((f: any) => {
       nomToFournisseurId[f.raison_sociale.trim().toUpperCase()] = f.id;
     });
+    
+    // Créer un mapping nom prestataire -> prestataire_id
+    const nomToPrestataireId: Record<string, string> = {};
+    prestatairesData?.forEach((p: any) => {
+      const fullName = `${p.prenom || ''} ${p.nom || ''}`.trim().toUpperCase();
+      const reverseName = `${p.nom || ''} ${p.prenom || ''}`.trim().toUpperCase();
+      nomToPrestataireId[fullName] = p.id;
+      nomToPrestataireId[reverseName] = p.id;
+      nomToPrestataireId[p.nom?.trim().toUpperCase() || ''] = p.id;
+    });
 
     // Grouper le CA par client (via destinataire_nom)
     const caParClient: Record<string, { raison_sociale: string; ca: number; achatsServices: number; chargesSociales: number }> = {};
@@ -650,18 +689,39 @@ export default function DashboardFinancier() {
       }
     });
 
-    // Grouper les achats de services par client lié
+    // Grouper les achats de services/prestataires par client lié
     facturesAchatsServices?.forEach((f: any) => {
-      // Trouver le fournisseur_services_id à partir du nom ou de l'ID
-      let fournisseurId = f.emetteur_id;
+      let clientInfo: { clientId: string; clientNom: string } | undefined;
       
-      if (!fournisseurId && f.emetteur_nom) {
-        const nomNormalise = f.emetteur_nom.trim().toUpperCase();
-        fournisseurId = nomToFournisseurId[nomNormalise];
+      // Cas 1: Facture prestataire
+      if (f.emetteur_type === "PRESTATAIRE") {
+        let prestataireId = f.emetteur_id;
+        
+        if (!prestataireId && f.emetteur_nom) {
+          const nomNormalise = f.emetteur_nom.trim().toUpperCase();
+          prestataireId = nomToPrestataireId[nomNormalise];
+        }
+        
+        if (prestataireId && prestataireToClientMap[prestataireId]) {
+          clientInfo = prestataireToClientMap[prestataireId];
+        }
       }
-
-      if (fournisseurId && fournisseurToClientMap[fournisseurId]) {
-        const clientInfo = fournisseurToClientMap[fournisseurId];
+      // Cas 2: Facture fournisseur de services
+      else if (f.emetteur_type === "FOURNISSEUR_SERVICES") {
+        let fournisseurId = f.emetteur_id;
+        
+        if (!fournisseurId && f.emetteur_nom) {
+          const nomNormalise = f.emetteur_nom.trim().toUpperCase();
+          fournisseurId = nomToFournisseurId[nomNormalise];
+        }
+        
+        if (fournisseurId && fournisseurToClientMap[fournisseurId]) {
+          clientInfo = fournisseurToClientMap[fournisseurId];
+        }
+      }
+      
+      // Ajouter au client lié si trouvé
+      if (clientInfo) {
         const clientNomNormalise = clientInfo.clientNom.trim().toUpperCase();
         
         if (!caParClient[clientNomNormalise]) {
