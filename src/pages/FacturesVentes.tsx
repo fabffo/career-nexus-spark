@@ -370,6 +370,90 @@ export default function FacturesVentes() {
     }
   };
 
+  const handleAutoLinkClients = async () => {
+    try {
+      // 1. Récupérer tous les clients
+      const { data: clients, error: clientsError } = await supabase
+        .from('clients')
+        .select('id, raison_sociale');
+      
+      if (clientsError) throw clientsError;
+      if (!clients || clients.length === 0) {
+        toast({
+          title: "Aucun client",
+          description: "Aucun client trouvé dans la base de données",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // 2. Récupérer les factures de vente sans destinataire_id
+      const { data: orphanFactures, error: facturesError } = await supabase
+        .from('factures')
+        .select('id, destinataire_nom')
+        .eq('type_facture', 'VENTES')
+        .is('destinataire_id', null);
+      
+      if (facturesError) throw facturesError;
+      if (!orphanFactures || orphanFactures.length === 0) {
+        toast({
+          title: "Aucune facture orpheline",
+          description: "Toutes les factures sont déjà rattachées à un client",
+        });
+        return;
+      }
+
+      // 3. Créer un map client par nom (case insensitive, trim)
+      const clientMap = new Map<string, string>();
+      clients.forEach(c => {
+        clientMap.set(c.raison_sociale.toLowerCase().trim(), c.id);
+      });
+
+      // 4. Matcher et mettre à jour
+      let linkedCount = 0;
+      let notFoundNames: string[] = [];
+
+      for (const facture of orphanFactures) {
+        const normalizedName = facture.destinataire_nom?.toLowerCase().trim();
+        const clientId = normalizedName ? clientMap.get(normalizedName) : null;
+        
+        if (clientId) {
+          const { error: updateError } = await supabase
+            .from('factures')
+            .update({ destinataire_id: clientId })
+            .eq('id', facture.id);
+          
+          if (!updateError) {
+            linkedCount++;
+          }
+        } else if (facture.destinataire_nom && !notFoundNames.includes(facture.destinataire_nom)) {
+          notFoundNames.push(facture.destinataire_nom);
+        }
+      }
+
+      // 5. Afficher le résultat
+      if (linkedCount > 0) {
+        toast({
+          title: "Rattachement effectué",
+          description: `${linkedCount} facture(s) rattachée(s) à leur client.${notFoundNames.length > 0 ? ` ${notFoundNames.length} nom(s) non trouvé(s): ${notFoundNames.slice(0, 3).join(', ')}${notFoundNames.length > 3 ? '...' : ''}` : ''}`,
+        });
+        fetchFactures();
+      } else {
+        toast({
+          title: "Aucune correspondance",
+          description: `Aucun client correspondant trouvé. Noms non trouvés: ${notFoundNames.slice(0, 5).join(', ')}`,
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de rattacher les clients: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDerapprochementAvoir = async (facture: Facture) => {
     if (!facture.numero_ligne_rapprochement) return;
     
@@ -910,6 +994,15 @@ export default function FacturesVentes() {
               {isDownloading ? 'Téléchargement...' : `Télécharger (${selectedFactureIds.size})`}
             </Button>
           )}
+          <Button 
+            onClick={handleAutoLinkClients}
+            variant="outline"
+            className="border-blue-600 text-blue-600 hover:bg-blue-50"
+            title="Rattacher automatiquement les factures orphelines aux clients existants (match exact sur le nom)"
+          >
+            <Link2 className="mr-2 h-4 w-4" />
+            Rattacher clients
+          </Button>
           <Button 
             onClick={() => {
               console.log("🔵 Clic sur Extraire par IA - openExtractionDialog:", openExtractionDialog);
