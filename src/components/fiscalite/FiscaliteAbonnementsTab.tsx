@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Plus, Trash2, Link2 } from "lucide-react";
 import { format } from "date-fns";
@@ -79,17 +78,49 @@ export default function FiscaliteAbonnementsTab({ selectedYear }: Props) {
       if (abonnementIds.length > 0) {
         const startDate = `${selectedYear}-01-01`;
         const endDate = `${selectedYear}-12-31`;
-        
-        const { data: paiementsData, error: paiementsError } = await supabase
-          .from("paiements_abonnements")
-          .select("*, abonnement:abonnements_partenaires(*)")
-          .in("abonnement_id", abonnementIds)
-          .gte("date_paiement", startDate)
-          .lte("date_paiement", endDate)
-          .order("date_paiement", { ascending: false });
 
-        if (paiementsError) throw paiementsError;
-        setPaiements(paiementsData || []);
+        // IMPORTANT:
+        // Les lignes "TVA" issues du paramétrage abonnement sont stockées comme lignes de rapprochement
+        // (lignes_rapprochement). La table paiements_abonnements n'est pas exhaustive.
+        const { data: lignesData, error: lignesError } = await supabase
+          .from("lignes_rapprochement")
+          .select(
+            `
+            id,
+            transaction_date,
+            transaction_credit,
+            transaction_debit,
+            transaction_montant,
+            total_ht,
+            total_tva,
+            total_ttc,
+            abonnement:abonnements_partenaires(id, nom, nature, montant_mensuel, actif)
+          `,
+          )
+          .in("abonnement_id", abonnementIds)
+          .gte("transaction_date", startDate)
+          .lte("transaction_date", endDate)
+          .order("transaction_date", { ascending: false });
+
+        if (lignesError) throw lignesError;
+
+        const mapped = (lignesData || [])
+          .filter((lr: any) => lr.abonnement)
+          .map((lr: any) => {
+            const montantRaw =
+              lr.total_ttc ??
+              (Number(lr.transaction_credit) > 0 ? lr.transaction_credit : lr.transaction_debit) ??
+              Math.abs(Number(lr.transaction_montant) || 0);
+
+            return {
+              id: lr.id,
+              date_paiement: lr.transaction_date,
+              montant: Number(montantRaw) || 0,
+              abonnement: lr.abonnement,
+            } satisfies PaiementAbonnement;
+          });
+
+        setPaiements(mapped);
       } else {
         setPaiements([]);
       }
