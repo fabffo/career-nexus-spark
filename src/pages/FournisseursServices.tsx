@@ -111,8 +111,14 @@ export default function FournisseursServices() {
         toast.success('Fournisseur de services supprimé avec succès');
         setIsDeleteOpen(false);
         loadFournisseurs();
-      } catch (error) {
-        toast.error('Une erreur est survenue');
+      } catch (error: any) {
+        console.error('Erreur suppression fournisseur:', error);
+        if (error?.message?.includes('violates foreign key constraint') || 
+            error?.code === '23503') {
+          toast.error('Impossible de supprimer ce fournisseur : il est lié à des contrats, prestataires ou factures. Supprimez d\'abord ces éléments liés.');
+        } else {
+          toast.error('Une erreur est survenue lors de la suppression');
+        }
       }
     }
   };
