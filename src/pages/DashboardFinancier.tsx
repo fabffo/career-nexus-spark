@@ -38,6 +38,7 @@ interface RepartitionActivite {
   margeEuros: number;
   nombreFactures: number;
   nombreContrats: number;
+  nombreClients: number;
 }
 
 // Calculer l'année du dernier mois terminé par défaut
@@ -697,30 +698,40 @@ export default function DashboardFinancier() {
       .gte("date_debut", format(debutAnnee, "yyyy-MM-dd"))
       .lte("date_debut", format(finAnnee, "yyyy-MM-dd"));
 
-    // Calculer par activité
-    const activites: Record<string, { ca: number; achats: number; nbFacturesVentes: number; nbContrats: number }> = {
-      'Prestation': { ca: 0, achats: 0, nbFacturesVentes: 0, nbContrats: contratsFournisseurs?.length || 0 },
-      'Formation': { ca: 0, achats: 0, nbFacturesVentes: 0, nbContrats: 0 },
-      'Recrutement': { ca: 0, achats: 0, nbFacturesVentes: 0, nbContrats: 0 },
+    // 4. Récupérer le nombre de clients
+    const { count: nombreClients } = await supabase
+      .from("clients")
+      .select("*", { count: 'exact', head: true });
+
+    // Calculer par activité avec clients uniques
+    const activites: Record<string, { ca: number; achats: number; nbFacturesVentes: number; nbContrats: number; clientsSet: Set<string> }> = {
+      'Prestation': { ca: 0, achats: 0, nbFacturesVentes: 0, nbContrats: contratsFournisseurs?.length || 0, clientsSet: new Set() },
+      'Formation': { ca: 0, achats: 0, nbFacturesVentes: 0, nbContrats: 0, clientsSet: new Set() },
+      'Recrutement': { ca: 0, achats: 0, nbFacturesVentes: 0, nbContrats: 0, clientsSet: new Set() },
     };
 
-    // Agréger les ventes par activité
+    // Agréger les ventes par activité et collecter les clients uniques
     facturesVentes?.forEach((f: any) => {
       const activite = f.activite || 'Prestation';
       const activiteNorm = activite.charAt(0).toUpperCase() + activite.slice(1).toLowerCase();
+      const clientId = f.destinataire_id || f.destinataire_nom || 'unknown';
       
       if (activites[activiteNorm]) {
         activites[activiteNorm].ca += Number(f.total_ht || 0);
         activites[activiteNorm].nbFacturesVentes += 1;
+        if (clientId) activites[activiteNorm].clientsSet.add(clientId);
       } else if (activiteNorm.includes('Formation')) {
         activites['Formation'].ca += Number(f.total_ht || 0);
         activites['Formation'].nbFacturesVentes += 1;
+        if (clientId) activites['Formation'].clientsSet.add(clientId);
       } else if (activiteNorm.includes('Recrutement')) {
         activites['Recrutement'].ca += Number(f.total_ht || 0);
         activites['Recrutement'].nbFacturesVentes += 1;
+        if (clientId) activites['Recrutement'].clientsSet.add(clientId);
       } else {
         activites['Prestation'].ca += Number(f.total_ht || 0);
         activites['Prestation'].nbFacturesVentes += 1;
+        if (clientId) activites['Prestation'].clientsSet.add(clientId);
       }
     });
 
@@ -746,7 +757,13 @@ export default function DashboardFinancier() {
       margeEuros: Math.round(data.ca - data.achats),
       nombreFactures: data.nbFacturesVentes,
       nombreContrats: data.nbContrats,
+      nombreClients: data.clientsSet.size,
     }));
+
+    // Ajouter le nombre total de clients au premier élément pour affichage global
+    if (result.length > 0) {
+      result[0].nombreClients = nombreClients || 0;
+    }
 
     setRepartitionActivites(result);
   };
@@ -806,7 +823,12 @@ export default function DashboardFinancier() {
       {/* Répartition par Activité */}
       <Card className="bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-semibold">Répartition de la Marge par Activité</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-semibold">Répartition de la Marge par Activité</CardTitle>
+            <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
+              {repartitionActivites[0]?.nombreClients || 0} client{(repartitionActivites[0]?.nombreClients || 0) > 1 ? 's' : ''}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
