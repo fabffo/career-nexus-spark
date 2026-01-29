@@ -927,7 +927,7 @@ export default function DashboardFinancier() {
                       <p className="text-sm font-medium">Clients - {item.activite}</p>
                     </div>
                     {item.clientsNames.length > 0 ? (
-                      <ScrollArea className="max-h-48">
+                      <div className="max-h-60 overflow-y-auto">
                         <ul className="p-2 space-y-1">
                           {item.clientsNames.map((name, idx) => (
                             <li key={idx} className="text-sm px-2 py-1 rounded hover:bg-muted/50">
@@ -935,7 +935,7 @@ export default function DashboardFinancier() {
                             </li>
                           ))}
                         </ul>
-                      </ScrollArea>
+                      </div>
                     ) : (
                       <p className="p-3 text-sm text-muted-foreground">Aucun client</p>
                     )}
