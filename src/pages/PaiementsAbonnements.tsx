@@ -143,25 +143,27 @@ export default function PaiementsAbonnements() {
           );
         }
         
-        const tvaMapping: Record<string, number> = {
-          'normal': 20, 'normale': 20,
-          'reduit': 5.5, 'réduit': 5.5, 'reduite': 5.5, 'réduite': 5.5,
-          'intermediaire': 10, 'intermédiaire': 10,
-          'super_reduit': 2.1, 'super_réduit': 2.1,
-          'exonere': 0, 'exonéré': 0, 'exoneree': 0, 'exonérée': 0,
-        };
-        
-        let tauxTva = 0;
         const tvaLower = tvaStr.toLowerCase().trim();
-        if (tvaMapping[tvaLower] !== undefined) {
-          tauxTva = tvaMapping[tvaLower];
+        let tauxTva = 0;
+        
+        if (tvaLower.includes('exon')) {
+          tauxTva = 0;
         } else {
-          const tvaMatch = tvaStr.match(/(\d+(?:[.,]\d+)?)/);
-          tauxTva = tvaMatch ? parseFloat(tvaMatch[1].replace(',', '.')) : 0;
+          const tvaMatch = tvaStr.match(/(\d+(?:[.,]\d+)?)\s*%?/);
+          if (tvaMatch) {
+            tauxTva = parseFloat(tvaMatch[1].replace(',', '.'));
+          } else if (tvaLower.includes('normal')) {
+            tauxTva = 20;
+          } else if (tvaLower.includes('reduit') || tvaLower.includes('réduit')) {
+            tauxTva = 5.5;
+          } else if (tvaLower.includes('interm')) {
+            tauxTva = 10;
+          } else if (tvaLower.includes('super')) {
+            tauxTva = 2.1;
+          }
         }
         
         const montantHT = montantTTC / (1 + tauxTva / 100);
-        const displayHT = refund ? montantHT : -montantHT;
         
         return (
           <span className={refund ? "text-green-600 font-medium" : ""}>
@@ -191,34 +193,28 @@ export default function PaiementsAbonnements() {
         const refund = isRefund(row.original);
         if (!tvaStr) return <span className="text-muted-foreground">-</span>;
         
-        // Mapper les valeurs textuelles aux taux de TVA
-        const tvaMapping: Record<string, number> = {
-          'normal': 20,
-          'normale': 20,
-          'reduit': 5.5,
-          'réduit': 5.5,
-          'reduite': 5.5,
-          'réduite': 5.5,
-          'intermediaire': 10,
-          'intermédiaire': 10,
-          'super_reduit': 2.1,
-          'super_réduit': 2.1,
-          'exonere': 0,
-          'exonéré': 0,
-          'exoneree': 0,
-          'exonérée': 0,
-        };
-        
-        let tauxTva = 0;
+        // Déterminer le taux de TVA depuis la chaîne
         const tvaLower = tvaStr.toLowerCase().trim();
+        let tauxTva = 0;
         
-        // D'abord vérifier si c'est une valeur mappée
-        if (tvaMapping[tvaLower] !== undefined) {
-          tauxTva = tvaMapping[tvaLower];
-        } else {
-          // Sinon essayer d'extraire un nombre
-          const tvaMatch = tvaStr.match(/(\d+(?:[.,]\d+)?)/);
-          tauxTva = tvaMatch ? parseFloat(tvaMatch[1].replace(',', '.')) : 0;
+        // Vérifier si exonéré
+        if (tvaLower.includes('exon')) {
+          tauxTva = 0;
+        } 
+        // Essayer d'extraire un pourcentage (ex: "TVA normale - 20%", "20%", "20")
+        else {
+          const tvaMatch = tvaStr.match(/(\d+(?:[.,]\d+)?)\s*%?/);
+          if (tvaMatch) {
+            tauxTva = parseFloat(tvaMatch[1].replace(',', '.'));
+          } else if (tvaLower.includes('normal')) {
+            tauxTva = 20;
+          } else if (tvaLower.includes('reduit') || tvaLower.includes('réduit')) {
+            tauxTva = 5.5;
+          } else if (tvaLower.includes('interm')) {
+            tauxTva = 10;
+          } else if (tvaLower.includes('super')) {
+            tauxTva = 2.1;
+          }
         }
         
         if (tauxTva === 0) return <span className="text-muted-foreground">0,00 €</span>;
