@@ -756,15 +756,21 @@ export default function DashboardFinancier() {
       }
     });
 
-    // Construire le résultat avec la liste des noms de clients
-    const result: RepartitionActivite[] = Object.entries(activites).map(([activite, data]) => ({
-      activite,
-      margeEuros: Math.round(data.ca - data.achats),
-      nombreFactures: data.nbFacturesVentes,
-      nombreContrats: data.nbContrats,
-      nombreClients: data.clientsMap.size,
-      clientsNames: Array.from(data.clientsMap.values()).sort((a, b) => a.localeCompare(b, 'fr')),
-    }));
+    // Construire le résultat avec la liste des noms de clients (dédupliqués par nom)
+    const result: RepartitionActivite[] = Object.entries(activites).map(([activite, data]) => {
+      // Utiliser un Set des noms pour éviter les doublons de noms (même client avec IDs différents)
+      const uniqueNames = [...new Set(Array.from(data.clientsMap.values()).filter(name => name && name.trim()))];
+      const sortedNames = uniqueNames.sort((a, b) => a.localeCompare(b, 'fr'));
+      
+      return {
+        activite,
+        margeEuros: Math.round(data.ca - data.achats),
+        nombreFactures: data.nbFacturesVentes,
+        nombreContrats: data.nbContrats,
+        nombreClients: sortedNames.length, // Utiliser la longueur des noms uniques
+        clientsNames: sortedNames,
+      };
+    });
 
     setRepartitionActivites(result);
     setNombreClientsTotal(nombreClients || 0);
