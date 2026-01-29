@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
+import { usePaiementsAbonnements } from "@/features/paiementsAbonnements/usePaiementsAbonnements";
+import type { PaiementAbonnementRow as Paiement } from "@/features/paiementsAbonnements/types";
+import { getDisplayAmount, getTauxTva, isRefund } from "@/features/paiementsAbonnements/utils";
 
 const NATURE_LABELS: Record<string, string> = {
   RELEVE_BANQUE: "Relevé Banque",
@@ -21,61 +22,7 @@ const TYPE_LABELS: Record<string, string> = {
   AUTRE: "Autre",
 };
 
-// Fonction utilitaire pour extraire le taux de TVA d'une chaîne
-const getTauxTva = (tvaStr: string): number => {
-  const tvaLower = tvaStr.toLowerCase().trim();
-  
-  if (tvaLower.includes('exon')) {
-    return 0;
-  }
-  
-  const tvaMatch = tvaStr.match(/(\d+(?:[.,]\d+)?)\s*%?/);
-  if (tvaMatch) {
-    return parseFloat(tvaMatch[1].replace(',', '.'));
-  }
-  
-  if (tvaLower.includes('normal')) return 20;
-  if (tvaLower.includes('reduit') || tvaLower.includes('réduit')) return 5.5;
-  if (tvaLower.includes('interm')) return 10;
-  if (tvaLower.includes('super')) return 2.1;
-  
-  return 0;
-};
-
-type Paiement = {
-  id: string;
-  date_paiement: string;
-  montant: number;
-  notes: string;
-  abonnement?: { id: string; nom: string; nature: string; type: string; tva: string | null };
-  rapprochement?: { 
-    id: string; 
-    transaction_libelle: string; 
-    transaction_credit: number | null; 
-    transaction_debit: number | null;
-    numero_ligne?: string | null;
-  };
-  // Valeurs TVA stockées depuis lignes_rapprochement
-  stored_total_ht?: number | null;
-  stored_total_tva?: number | null;
-  stored_total_ttc?: number | null;
-};
-
-// Détermine si c'est un remboursement (crédit)
-const isRefund = (paiement: Paiement): boolean => {
-  // Si on a les données du rapprochement, on vérifie le crédit
-  if (paiement.rapprochement) {
-    const credit = Number(paiement.rapprochement.transaction_credit) || 0;
-    return credit > 0;
-  }
-  // Sinon on considère les montants négatifs comme des remboursements
-  return Number(paiement.montant) < 0;
-};
-// Retourne le montant affiché (négatif pour les remboursements)
-const getDisplayAmount = (paiement: Paiement): number => {
-  const montant = Math.abs(Number(paiement.montant));
-  return isRefund(paiement) ? -montant : montant;
-};
+// (Types + helpers déplacés dans src/features/paiementsAbonnements/*)
 
 export default function PaiementsAbonnements() {
   const [anneeSelectionnee, setAnneeSelectionnee] = useState(new Date().getFullYear());
@@ -88,52 +35,11 @@ export default function PaiementsAbonnements() {
     ? endOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
     : endOfYear(new Date(anneeSelectionnee, 11, 31));
 
-  const { data: paiements = [], isLoading } = useQuery({
-    queryKey: ["paiements-abonnements", anneeSelectionnee, moisSelectionne],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("paiements_abonnements")
-        .select(`
-          *,
-          abonnement:abonnements_partenaires(id, nom, nature, type, tva),
-          rapprochement:rapprochements_bancaires(id, transaction_libelle, transaction_credit, transaction_debit, numero_ligne)
-        `)
-        .gte("date_paiement", format(debut, "yyyy-MM-dd"))
-        .lte("date_paiement", format(fin, "yyyy-MM-dd"))
-        .order("date_paiement", { ascending: false });
-
-      if (error) throw error;
-      
-      // Enrichir avec les données TVA de lignes_rapprochement
-      const numerosLignes = data
-        .filter(p => p.rapprochement?.numero_ligne)
-        .map(p => p.rapprochement!.numero_ligne);
-      
-      if (numerosLignes.length > 0) {
-        const { data: lignesData } = await supabase
-          .from("lignes_rapprochement")
-          .select("numero_ligne, total_ht, total_tva, total_ttc")
-          .in("numero_ligne", numerosLignes);
-        
-        const lignesMap = new Map(
-          (lignesData || []).map(l => [l.numero_ligne, l])
-        );
-        
-        return data.map(p => {
-          const ligneInfo = p.rapprochement?.numero_ligne 
-            ? lignesMap.get(p.rapprochement.numero_ligne)
-            : null;
-          return {
-            ...p,
-            stored_total_ht: ligneInfo?.total_ht ?? null,
-            stored_total_tva: ligneInfo?.total_tva ?? null,
-            stored_total_ttc: ligneInfo?.total_ttc ?? null,
-          } as Paiement;
-        });
-      }
-      
-      return data as Paiement[];
-    },
+  const { data: paiements = [], isLoading } = usePaiementsAbonnements({
+    debut,
+    fin,
+    anneeSelectionnee,
+    moisSelectionne,
   });
 
   // Calculs des statistiques - tenir compte des remboursements
