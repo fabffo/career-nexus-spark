@@ -166,13 +166,25 @@ export default function DashboardFinancier() {
       .gte("date_emission", format(debut, "yyyy-MM-dd"))
       .lte("date_emission", format(fin, "yyyy-MM-dd"));
 
-    // Abonnements - uniquement ceux de type CHARGE, calculer HT à partir du TTC
-    const { data: paiementsAbonnements } = await supabase
-      .from("paiements_abonnements")
-      .select("montant, abonnement:abonnements_partenaires!inner(type, tva)")
+    // Abonnements - depuis lignes_rapprochement (même source que Paiements Abonnements)
+    // Uniquement ceux de type CHARGE, calculer HT à partir du TTC
+    const { data: lignesAbonnements } = await supabase
+      .from("lignes_rapprochement")
+      .select(`
+        id,
+        transaction_date,
+        transaction_credit,
+        transaction_debit,
+        transaction_montant,
+        total_ht,
+        total_tva,
+        total_ttc,
+        abonnement:abonnements_partenaires!inner(id, type, tva)
+      `)
       .eq("abonnement.type", "CHARGE")
-      .gte("date_paiement", format(debut, "yyyy-MM-dd"))
-      .lte("date_paiement", format(fin, "yyyy-MM-dd"));
+      .not("abonnement_id", "is", null)
+      .gte("transaction_date", format(debut, "yyyy-MM-dd"))
+      .lte("transaction_date", format(fin, "yyyy-MM-dd"));
     
     // Fonction pour calculer le montant HT à partir du TTC et du taux TVA
     const calculerMontantHT = (montantTTC: number, tvaStr: string | null): number => {
@@ -242,8 +254,16 @@ export default function DashboardFinancier() {
     const achatServices = facturesAchatsServices?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
     const achat = facturesAchatsGeneraux?.reduce((sum, f) => sum + Number(f.total_ht || 0), 0) || 0;
     
-    const abonnementsTotal = paiementsAbonnements?.reduce((sum, p: any) => {
-      const montantHT = calculerMontantHT(Number(p.montant || 0), p.abonnement?.tva);
+    const abonnementsTotal = lignesAbonnements?.reduce((sum, lr: any) => {
+      // Priorité aux valeurs stockées HT, sinon calcul dynamique
+      if (lr.total_ht !== null && lr.total_ht !== undefined) {
+        return sum + Math.abs(Number(lr.total_ht));
+      }
+      // Fallback: calcul depuis le montant TTC
+      const montantTTC = lr.total_ttc ?? 
+        (Number(lr.transaction_credit) > 0 ? lr.transaction_credit : lr.transaction_debit) ??
+        Math.abs(Number(lr.transaction_montant) || 0);
+      const montantHT = calculerMontantHT(Number(montantTTC || 0), lr.abonnement?.tva);
       return sum + montantHT;
     }, 0) || 0;
     
@@ -349,13 +369,24 @@ export default function DashboardFinancier() {
       .from("paiements_declarations_charges")
       .select(`id, date_paiement, montant, declaration:declarations_charges_sociales(type_charge)`);
 
-    // Charger tous les abonnements une fois
-    const { data: paiementsAbonnements } = await supabase
-      .from("paiements_abonnements")
-      .select("montant, date_paiement, abonnement:abonnements_partenaires!inner(type, tva)")
+    // Charger tous les abonnements une fois depuis lignes_rapprochement (même source que Paiements Abonnements)
+    const { data: lignesAbonnements } = await supabase
+      .from("lignes_rapprochement")
+      .select(`
+        id,
+        transaction_date,
+        transaction_credit,
+        transaction_debit,
+        transaction_montant,
+        total_ht,
+        total_tva,
+        total_ttc,
+        abonnement:abonnements_partenaires!inner(id, type, tva)
+      `)
       .eq("abonnement.type", "CHARGE")
-      .gte("date_paiement", `${anneeSelectionnee}-01-01`)
-      .lte("date_paiement", `${anneeSelectionnee}-12-31`);
+      .not("abonnement_id", "is", null)
+      .gte("transaction_date", `${anneeSelectionnee}-01-01`)
+      .lte("transaction_date", `${anneeSelectionnee}-12-31`);
     
     for (let mois = 0; mois < 12; mois++) {
       const debut = startOfMonth(new Date(anneeSelectionnee, mois, 1));
@@ -385,14 +416,22 @@ export default function DashboardFinancier() {
         .gte("date_emission", format(debut, "yyyy-MM-dd"))
         .lte("date_emission", format(fin, "yyyy-MM-dd"));
 
-      // Abonnements du mois
-      const abonnementsMois = paiementsAbonnements?.filter((p: any) => {
-        const datePaiement = new Date(p.date_paiement);
-        return datePaiement >= debut && datePaiement <= fin;
+      // Abonnements du mois depuis lignes_rapprochement
+      const abonnementsMois = lignesAbonnements?.filter((lr: any) => {
+        const dateTransaction = new Date(lr.transaction_date);
+        return dateTransaction >= debut && dateTransaction <= fin;
       }) || [];
 
-      const abonnementsTotal = abonnementsMois.reduce((sum, p: any) => {
-        const montantHT = calculerMontantHTMarge(Number(p.montant || 0), p.abonnement?.tva);
+      const abonnementsTotal = abonnementsMois.reduce((sum, lr: any) => {
+        // Priorité aux valeurs stockées HT, sinon calcul dynamique
+        if (lr.total_ht !== null && lr.total_ht !== undefined) {
+          return sum + Math.abs(Number(lr.total_ht));
+        }
+        // Fallback: calcul depuis le montant TTC
+        const montantTTC = lr.total_ttc ?? 
+          (Number(lr.transaction_credit) > 0 ? lr.transaction_credit : lr.transaction_debit) ??
+          Math.abs(Number(lr.transaction_montant) || 0);
+        const montantHT = calculerMontantHTMarge(Number(montantTTC || 0), lr.abonnement?.tva);
         return sum + montantHT;
       }, 0);
 
