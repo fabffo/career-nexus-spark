@@ -27,6 +27,8 @@ const TYPE_LABELS: Record<string, string> = {
 export default function PaiementsAbonnements() {
   const [anneeSelectionnee, setAnneeSelectionnee] = useState(new Date().getFullYear());
   const [moisSelectionne, setMoisSelectionne] = useState<number | null>(null);
+  const [natureFilter, setNatureFilter] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
 
   const debut = moisSelectionne !== null
     ? startOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
@@ -35,11 +37,18 @@ export default function PaiementsAbonnements() {
     ? endOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
     : endOfYear(new Date(anneeSelectionnee, 11, 31));
 
-  const { data: paiements = [], isLoading } = usePaiementsAbonnements({
+  const { data: paiementsRaw = [], isLoading } = usePaiementsAbonnements({
     debut,
     fin,
     anneeSelectionnee,
     moisSelectionne,
+  });
+
+  // Appliquer les filtres Nature et Type
+  const paiements = paiementsRaw.filter((p) => {
+    if (natureFilter && p.abonnement?.nature !== natureFilter) return false;
+    if (typeFilter && p.abonnement?.type !== typeFilter) return false;
+    return true;
   });
 
   // Calculs des statistiques - tenir compte des remboursements
@@ -221,7 +230,7 @@ export default function PaiementsAbonnements() {
             Historique des paiements d'abonnements issus des rapprochements bancaires
           </p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-4 flex-wrap">
           <select
             value={anneeSelectionnee}
             onChange={(e) => setAnneeSelectionnee(Number(e.target.value))}
@@ -255,6 +264,30 @@ export default function PaiementsAbonnements() {
             ].map((mois) => (
               <option key={mois.value} value={mois.value}>
                 {mois.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={natureFilter ?? ""}
+            onChange={(e) => setNatureFilter(e.target.value || null)}
+            className="border rounded-md px-4 py-2 bg-background"
+          >
+            <option value="">Toutes natures</option>
+            {Object.entries(NATURE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={typeFilter ?? ""}
+            onChange={(e) => setTypeFilter(e.target.value || null)}
+            className="border rounded-md px-4 py-2 bg-background"
+          >
+            <option value="">Tous types</option>
+            {Object.entries(TYPE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
               </option>
             ))}
           </select>
