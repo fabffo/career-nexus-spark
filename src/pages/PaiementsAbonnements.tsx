@@ -51,20 +51,46 @@ export default function PaiementsAbonnements() {
     return true;
   });
 
+  // Fonction pour calculer le montant HT d'un paiement
+  const getMontantHT = (p: Paiement): number => {
+    // Priorité aux valeurs stockées
+    if (p.stored_total_ht !== null && p.stored_total_ht !== undefined) {
+      return Math.abs(Number(p.stored_total_ht));
+    }
+    // Fallback: calcul dynamique
+    const montantTTC = Math.abs(Number(p.montant));
+    const tvaStr = p.abonnement?.tva;
+    if (!tvaStr) return montantTTC;
+    const tauxTva = getTauxTva(tvaStr);
+    return montantTTC / (1 + tauxTva / 100);
+  };
+
   // Calculs des statistiques - tenir compte des remboursements
+  const debits = paiements.filter(p => !isRefund(p));
+  const credits = paiements.filter(p => isRefund(p));
+
   const stats = {
-    total: paiements.reduce((sum, p) => sum + getDisplayAmount(p), 0),
-    totalDebits: paiements.filter(p => !isRefund(p)).reduce((sum, p) => sum + Math.abs(Number(p.montant)), 0),
-    totalCredits: paiements.filter(p => isRefund(p)).reduce((sum, p) => sum + Math.abs(Number(p.montant)), 0),
+    // Compteurs
     count: paiements.length,
-    countDebits: paiements.filter(p => !isRefund(p)).length,
-    countCredits: paiements.filter(p => isRefund(p)).length,
+    countDebits: debits.length,
+    countCredits: credits.length,
+    // Montants TTC
+    totalDebitsTTC: debits.reduce((sum, p) => sum + Math.abs(Number(p.montant)), 0),
+    totalCreditsTTC: credits.reduce((sum, p) => sum + Math.abs(Number(p.montant)), 0),
+    // Montants HT
+    totalDebitsHT: debits.reduce((sum, p) => sum + getMontantHT(p), 0),
+    totalCreditsHT: credits.reduce((sum, p) => sum + getMontantHT(p), 0),
+    // Par nature
     parNature: paiements.reduce((acc, p) => {
       const nature = p.abonnement?.nature || "AUTRE";
       acc[nature] = (acc[nature] || 0) + getDisplayAmount(p);
       return acc;
     }, {} as Record<string, number>),
   };
+
+  // Soldes nets
+  const soldeNetTTC = stats.totalDebitsTTC - stats.totalCreditsTTC;
+  const soldeNetHT = stats.totalDebitsHT - stats.totalCreditsHT;
 
   const columns: ColumnDef<Paiement>[] = [
     {
@@ -295,7 +321,7 @@ export default function PaiementsAbonnements() {
       </div>
 
       {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Total paiements</div>
           <div className="text-2xl font-bold">{stats.countDebits}</div>
@@ -306,16 +332,21 @@ export default function PaiementsAbonnements() {
         </Card>
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Montant débité</div>
-          <div className="text-2xl font-bold">{stats.totalDebits.toFixed(2)} €</div>
+          <div className="text-lg font-bold">{stats.totalDebitsHT.toFixed(2)} € <span className="text-xs text-muted-foreground">HT</span></div>
+          <div className="text-sm text-muted-foreground">{stats.totalDebitsTTC.toFixed(2)} € TTC</div>
         </Card>
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Montant remboursé</div>
-          <div className="text-2xl font-bold text-green-600">+{stats.totalCredits.toFixed(2)} €</div>
+          <div className="text-lg font-bold text-green-600">+{stats.totalCreditsHT.toFixed(2)} € <span className="text-xs text-muted-foreground">HT</span></div>
+          <div className="text-sm text-green-600">+{stats.totalCreditsTTC.toFixed(2)} € TTC</div>
         </Card>
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Solde net</div>
-          <div className={`text-2xl font-bold ${stats.total < 0 ? "" : "text-green-600"}`}>
-            {stats.total.toFixed(2)} €
+          <div className={`text-lg font-bold ${soldeNetHT > 0 ? "text-red-600" : soldeNetHT < 0 ? "text-green-600" : ""}`}>
+            {soldeNetHT.toFixed(2)} € <span className="text-xs text-muted-foreground">HT</span>
+          </div>
+          <div className={`text-sm ${soldeNetTTC > 0 ? "text-red-600" : soldeNetTTC < 0 ? "text-green-600" : "text-muted-foreground"}`}>
+            {soldeNetTTC.toFixed(2)} € TTC
           </div>
         </Card>
       </div>
