@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Download, Edit, Trash2, Eye, Upload, FileSpreadsheet } from 'lucide-react';
+import { Download, Edit, Trash2, Eye, Upload, FileSpreadsheet, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import { BulletinUploadZone } from '@/components/BulletinUploadZone';
 import { DataTable } from '@/components/ui/data-table';
 import { ColumnDef } from '@tanstack/react-table';
 import { BulletinSalaire } from '@/types/bulletinSalaire';
+import { BulletinDetailDialog } from '@/components/BulletinDetailDialog';
 import * as XLSX from 'xlsx';
 
 const MOIS_LABELS = [
@@ -44,6 +45,8 @@ export default function BulletinsSalaire() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [filterSalarie, setFilterSalarie] = useState<string>('all');
   const [filterPeriode, setFilterPeriode] = useState<string>('');
+  const [selectedBulletin, setSelectedBulletin] = useState<BulletinSalaire | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
 
   const { data: bulletins = [], isLoading } = useQuery({
     queryKey: ['bulletins-salaire'],
@@ -122,7 +125,7 @@ export default function BulletinsSalaire() {
                   salarieId = salarie?.id;
                 }
                 
-                // 5. Créer l'enregistrement
+                // 5. Créer l'enregistrement avec les nouvelles données détaillées
                 await bulletinSalaireService.create({
                   salarie_id: salarieId,
                   fichier_url: fileUrl,
@@ -130,10 +133,16 @@ export default function BulletinsSalaire() {
                   periode_mois: data.periode_mois,
                   periode_annee: data.periode_annee,
                   salaire_brut: data.salaire_brut,
-                  charges_sociales_salariales: data.charges_sociales_salariales,
-                  charges_sociales_patronales: data.charges_sociales_patronales,
-                  impot_source: data.impot_source,
-                  net_a_payer: data.net_a_payer,
+                  charges_sociales_salariales: data.total_cotisations_salariales,
+                  charges_sociales_patronales: data.total_charges_patronales,
+                  impot_source: data.pas,
+                  net_a_payer: data.net_paye,
+                  net_avant_impot: data.net_avant_impot,
+                  total_urssaf: data.total_urssaf,
+                  total_impots: data.total_impots,
+                  total_autres: data.total_autres,
+                  cout_employeur: data.cout_employeur,
+                  confidence: data.confidence,
                   statut: 'VALIDE',
                   donnees_brutes: data
                 });
@@ -215,8 +224,18 @@ export default function BulletinsSalaire() {
       accessorKey: 'net_a_payer',
       header: 'Net à Payer',
       cell: ({ row }) => row.original.net_a_payer
-        ? `${row.original.net_a_payer.toFixed(2)} €`
+        ? <span className="text-green-600 font-medium">{row.original.net_a_payer.toFixed(2)} €</span>
         : '-'
+    },
+    {
+      accessorKey: 'cout_employeur',
+      header: 'Coût Employeur',
+      cell: ({ row }) => {
+        const data = row.original.donnees_brutes as any;
+        return data?.cout_employeur
+          ? <span className="text-orange-600 font-medium">{data.cout_employeur.toFixed(2)} €</span>
+          : '-';
+      }
     },
     {
       accessorKey: 'statut',
@@ -232,6 +251,17 @@ export default function BulletinsSalaire() {
       header: 'Actions',
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              setSelectedBulletin(row.original);
+              setShowDetail(true);
+            }}
+            title="Voir les détails"
+          >
+            <BarChart3 className="w-4 h-4" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -327,6 +357,12 @@ export default function BulletinsSalaire() {
           searchPlaceholder="Rechercher un bulletin..."
         />
       </Card>
+
+      <BulletinDetailDialog
+        bulletin={selectedBulletin}
+        open={showDetail}
+        onOpenChange={setShowDetail}
+      />
     </div>
   );
 }
