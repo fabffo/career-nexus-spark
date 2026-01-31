@@ -248,6 +248,8 @@ export type Database = {
         Row: {
           charges_sociales_patronales: number | null
           charges_sociales_salariales: number | null
+          confidence: number | null
+          cout_employeur: number | null
           created_at: string | null
           created_by: string | null
           donnees_brutes: Json | null
@@ -256,17 +258,23 @@ export type Database = {
           id: string
           impot_source: number | null
           net_a_payer: number | null
+          net_avant_impot: number | null
           nom_fichier: string
           periode_annee: number
           periode_mois: number
           salaire_brut: number | null
           salarie_id: string | null
           statut: string | null
+          total_autres: number | null
+          total_impots: number | null
+          total_urssaf: number | null
           updated_at: string | null
         }
         Insert: {
           charges_sociales_patronales?: number | null
           charges_sociales_salariales?: number | null
+          confidence?: number | null
+          cout_employeur?: number | null
           created_at?: string | null
           created_by?: string | null
           donnees_brutes?: Json | null
@@ -275,17 +283,23 @@ export type Database = {
           id?: string
           impot_source?: number | null
           net_a_payer?: number | null
+          net_avant_impot?: number | null
           nom_fichier: string
           periode_annee: number
           periode_mois: number
           salaire_brut?: number | null
           salarie_id?: string | null
           statut?: string | null
+          total_autres?: number | null
+          total_impots?: number | null
+          total_urssaf?: number | null
           updated_at?: string | null
         }
         Update: {
           charges_sociales_patronales?: number | null
           charges_sociales_salariales?: number | null
+          confidence?: number | null
+          cout_employeur?: number | null
           created_at?: string | null
           created_by?: string | null
           donnees_brutes?: Json | null
@@ -294,12 +308,16 @@ export type Database = {
           id?: string
           impot_source?: number | null
           net_a_payer?: number | null
+          net_avant_impot?: number | null
           nom_fichier?: string
           periode_annee?: number
           periode_mois?: number
           salaire_brut?: number | null
           salarie_id?: string | null
           statut?: string | null
+          total_autres?: number | null
+          total_impots?: number | null
+          total_urssaf?: number | null
           updated_at?: string | null
         }
         Relationships: [
