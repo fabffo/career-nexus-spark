@@ -61,9 +61,10 @@ Extraire toutes les lignes de paie, les classifier par flux financier, recalcule
 - Sécurité sociale, chômage, APEC, famille, maladie, allocations familiales → organisme_type="urssaf"
 - RETRAITE (toutes lignes retraite : Sécurité Sociale plafonnée/déplafonnée, retraite complémentaire, AGIRC-ARRCO, CEG, CET) → organisme_type="retraite", organisme_nom="Retraite"
 - ADESATT → organisme_type="autre", organisme_nom="ADESATT"
-- Mutuelle, prévoyance → organisme_type="autre", organisme_nom=libellé exact
+- MUTUELLE / Complémentaire santé / Prévoyance / Frais de santé → organisme_type="mutuelle", organisme_nom=libellé exact (ex: "Mutuelle", "Frais de santé", "Prévoyance")
 - Charges patronales URSSAF → organisme_type="urssaf", nature="patronale", sens="ajout"
 - Charges patronales Retraite → organisme_type="retraite", nature="patronale", sens="ajout"
+- Charges patronales Mutuelle → organisme_type="mutuelle", nature="patronale", sens="ajout"
 
 📊 TOTAUX À EXTRAIRE EXPLICITEMENT DU DOCUMENT
 - salaire_brut
@@ -77,6 +78,7 @@ Extraire toutes les lignes de paie, les classifier par flux financier, recalcule
 - total_urssaf = somme(montants où organisme_type = "urssaf")
 - total_retraite = somme(montants où organisme_type = "retraite")
 - total_impots = somme(montants où organisme_type = "impots")
+- total_mutuelle = somme(montants où organisme_type = "mutuelle")
 - total_autres = somme(montants où organisme_type = "autre")
 - total_salarie = net_paye
 - cout_employeur = salaire_brut + total_charges_patronales
@@ -98,6 +100,7 @@ Si écart > 1€ entre totaux recalculés et affichés → confidence < 0.8
   "total_urssaf": 3500.00,
   "total_retraite": 1863.52,
   "total_impots": 1286.55,
+  "total_mutuelle": 85.00,
   "total_autres": 1.70,
   "cout_employeur": 12124.81,
   "confidence": 0.95,

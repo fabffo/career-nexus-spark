@@ -267,6 +267,7 @@ export type Database = {
           statut: string | null
           total_autres: number | null
           total_impots: number | null
+          total_mutuelle: number | null
           total_retraite: number | null
           total_urssaf: number | null
           updated_at: string | null
@@ -293,6 +294,7 @@ export type Database = {
           statut?: string | null
           total_autres?: number | null
           total_impots?: number | null
+          total_mutuelle?: number | null
           total_retraite?: number | null
           total_urssaf?: number | null
           updated_at?: string | null
@@ -319,6 +321,7 @@ export type Database = {
           statut?: string | null
           total_autres?: number | null
           total_impots?: number | null
+          total_mutuelle?: number | null
           total_retraite?: number | null
           total_urssaf?: number | null
           updated_at?: string | null
