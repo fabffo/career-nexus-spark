@@ -18,6 +18,7 @@ export interface BulletinSalaire {
   // Nouveaux champs détaillés
   net_avant_impot?: number;
   total_urssaf?: number;
+  total_retraite?: number;
   total_impots?: number;
   total_autres?: number;
   cout_employeur?: number;
@@ -67,7 +68,7 @@ export interface BulletinSalaireCreate {
 }
 
 // Types pour les lignes détaillées
-export type OrganismeType = 'urssaf' | 'impots' | 'salarie' | 'autre';
+export type OrganismeType = 'urssaf' | 'retraite' | 'impots' | 'salarie' | 'autre';
 export type NatureLigne = 'salariale' | 'patronale' | 'impot';
 export type SensLigne = 'deduction' | 'ajout';
 
@@ -104,6 +105,7 @@ export interface BulletinAnalyseResult {
   
   // Totaux recalculés par organisme
   total_urssaf?: number;
+  total_retraite?: number;
   total_impots?: number;
   total_autres?: number;
   total_salarie?: number;
