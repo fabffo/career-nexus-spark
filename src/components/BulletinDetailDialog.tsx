@@ -24,6 +24,7 @@ export function BulletinDetailDialog({ bulletin, open, onOpenChange }: BulletinD
 
   // Grouper les lignes par organisme_type
   const lignesUrssaf = lignes.filter(l => l.organisme_type === 'urssaf');
+  const lignesRetraite = lignes.filter(l => l.organisme_type === 'retraite');
   const lignesImpots = lignes.filter(l => l.organisme_type === 'impots');
   const lignesAutres = lignes.filter(l => l.organisme_type === 'autre');
   const lignesSalarie = lignes.filter(l => l.organisme_type === 'salarie');
@@ -73,17 +74,21 @@ export function BulletinDetailDialog({ bulletin, open, onOpenChange }: BulletinD
             {/* Répartition par destinataire */}
             <Card className="p-4">
               <h3 className="font-semibold mb-4">Répartition des flux financiers</h3>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                   <div className="text-xs text-muted-foreground">URSSAF</div>
                   <div className="text-lg font-bold text-blue-600">{formatMontant(data?.total_urssaf)}</div>
+                </div>
+                <div className="text-center p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                  <div className="text-xs text-muted-foreground">Retraite</div>
+                  <div className="text-lg font-bold text-amber-600">{formatMontant(data?.total_retraite)}</div>
                 </div>
                 <div className="text-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
                   <div className="text-xs text-muted-foreground">Impôts (DGFiP)</div>
                   <div className="text-lg font-bold text-red-600">{formatMontant(data?.total_impots)}</div>
                 </div>
                 <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                  <div className="text-xs text-muted-foreground">Autres (Mutuelle...)</div>
+                  <div className="text-xs text-muted-foreground">Autres (ADESATT...)</div>
                   <div className="text-lg font-bold text-purple-600">{formatMontant(data?.total_autres)}</div>
                 </div>
                 <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
@@ -128,6 +133,46 @@ export function BulletinDetailDialog({ bulletin, open, onOpenChange }: BulletinD
                           <td className="py-2 text-right font-medium">{l.montant.toFixed(2)} €</td>
                           <td className="py-2">
                             <Badge variant="outline" className={l.nature === 'patronale' ? 'border-orange-500' : 'border-blue-500'}>
+                              {l.nature}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
+
+            {/* Lignes détaillées Retraite */}
+            {lignesRetraite.length > 0 && (
+              <Card className="p-4">
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <span className="w-3 h-3 bg-amber-500 rounded-full"></span>
+                  Cotisations Retraite ({lignesRetraite.length} lignes)
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left">
+                        <th className="py-2 font-medium">Section</th>
+                        <th className="py-2 font-medium">Libellé</th>
+                        <th className="py-2 font-medium text-right">Base</th>
+                        <th className="py-2 font-medium text-right">Taux</th>
+                        <th className="py-2 font-medium text-right">Montant</th>
+                        <th className="py-2 font-medium">Nature</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lignesRetraite.map((l, i) => (
+                        <tr key={i} className="border-b last:border-0">
+                          <td className="py-2 text-muted-foreground">{l.section}</td>
+                          <td className="py-2">{l.libelle}</td>
+                          <td className="py-2 text-right">{l.base ? `${l.base.toFixed(2)} €` : '-'}</td>
+                          <td className="py-2 text-right">{l.taux ? `${l.taux}%` : '-'}</td>
+                          <td className="py-2 text-right font-medium">{l.montant.toFixed(2)} €</td>
+                          <td className="py-2">
+                            <Badge variant="outline" className={l.nature === 'patronale' ? 'border-orange-500' : 'border-amber-500'}>
                               {l.nature}
                             </Badge>
                           </td>
