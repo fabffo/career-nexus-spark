@@ -68,7 +68,7 @@ export interface BulletinSalaireCreate {
 }
 
 // Types pour les lignes détaillées
-export type OrganismeType = 'urssaf' | 'retraite' | 'impots' | 'salarie' | 'autre';
+export type OrganismeType = 'urssaf' | 'retraite' | 'impots' | 'salarie' | 'mutuelle' | 'autre';
 export type NatureLigne = 'salariale' | 'patronale' | 'impot';
 export type SensLigne = 'deduction' | 'ajout';
 
