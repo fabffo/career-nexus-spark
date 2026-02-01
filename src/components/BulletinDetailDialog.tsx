@@ -30,6 +30,13 @@ export function BulletinDetailDialog({ bulletin, open, onOpenChange }: BulletinD
   const lignesAutres = lignes.filter(l => l.organisme_type === 'autre');
   const lignesSalarie = lignes.filter(l => l.organisme_type === 'salarie');
 
+  // Recalculer les totaux à partir des lignes classifiées (plus fiable que les valeurs pré-calculées)
+  const calculatedTotalUrssaf = lignesUrssaf.reduce((sum, l) => sum + Math.abs(l.montant || 0), 0);
+  const calculatedTotalRetraite = lignesRetraite.reduce((sum, l) => sum + Math.abs(l.montant || 0), 0);
+  const calculatedTotalImpots = lignesImpots.reduce((sum, l) => sum + Math.abs(l.montant || 0), 0);
+  const calculatedTotalMutuelle = lignesMutuelle.reduce((sum, l) => sum + Math.abs(l.montant || 0), 0);
+  const calculatedTotalAutres = lignesAutres.reduce((sum, l) => sum + Math.abs(l.montant || 0), 0);
+
   const formatMontant = (val: number | null | undefined) => 
     val != null ? `${val.toFixed(2)} €` : '-';
 
@@ -78,23 +85,23 @@ export function BulletinDetailDialog({ bulletin, open, onOpenChange }: BulletinD
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
                 <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                   <div className="text-xs text-muted-foreground">URSSAF</div>
-                  <div className="text-lg font-bold text-blue-600">{formatMontant(data?.total_urssaf)}</div>
+                  <div className="text-lg font-bold text-blue-600">{formatMontant(calculatedTotalUrssaf)}</div>
                 </div>
                 <div className="text-center p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
                   <div className="text-xs text-muted-foreground">Retraite (Humanis)</div>
-                  <div className="text-lg font-bold text-amber-600">{formatMontant(data?.total_retraite)}</div>
+                  <div className="text-lg font-bold text-amber-600">{formatMontant(calculatedTotalRetraite)}</div>
                 </div>
                 <div className="text-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
                   <div className="text-xs text-muted-foreground">Impôts (DGFiP)</div>
-                  <div className="text-lg font-bold text-red-600">{formatMontant(data?.total_impots)}</div>
+                  <div className="text-lg font-bold text-red-600">{formatMontant(calculatedTotalImpots)}</div>
                 </div>
                 <div className="text-center p-3 bg-pink-50 dark:bg-pink-900/20 rounded-lg">
                   <div className="text-xs text-muted-foreground">Mutuelle</div>
-                  <div className="text-lg font-bold text-pink-600">{formatMontant(data?.total_mutuelle)}</div>
+                  <div className="text-lg font-bold text-pink-600">{formatMontant(calculatedTotalMutuelle)}</div>
                 </div>
                 <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                   <div className="text-xs text-muted-foreground">Autres (ADESATT...)</div>
-                  <div className="text-lg font-bold text-purple-600">{formatMontant(data?.total_autres)}</div>
+                  <div className="text-lg font-bold text-purple-600">{formatMontant(calculatedTotalAutres)}</div>
                 </div>
                 <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                   <div className="text-xs text-muted-foreground">Salarié</div>
