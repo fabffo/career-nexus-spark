@@ -58,9 +58,12 @@ Extraire toutes les lignes de paie, les classifier par flux financier, recalcule
 - Net payé → organisme_type="salarie", nature="salariale", sens="ajout"
 - Impôt sur le revenu (PAS) → organisme_type="impots", organisme_nom="DGFiP", nature="impot", sens="deduction"
 - CSG/CRDS → organisme_type="urssaf", nature="salariale", sens="deduction"
-- Sécurité sociale, retraite, chômage, APEC → organisme_type="urssaf"
-- Charges patronales → organisme_type="urssaf", nature="patronale", sens="ajout"
-- ADESATT, mutuelle, prévoyance → organisme_type="autre", organisme_nom=libellé exact
+- Sécurité sociale, chômage, APEC, famille, maladie, allocations familiales → organisme_type="urssaf"
+- RETRAITE (toutes lignes retraite : Sécurité Sociale plafonnée/déplafonnée, retraite complémentaire, AGIRC-ARRCO, CEG, CET) → organisme_type="retraite", organisme_nom="Retraite"
+- ADESATT → organisme_type="autre", organisme_nom="ADESATT"
+- Mutuelle, prévoyance → organisme_type="autre", organisme_nom=libellé exact
+- Charges patronales URSSAF → organisme_type="urssaf", nature="patronale", sens="ajout"
+- Charges patronales Retraite → organisme_type="retraite", nature="patronale", sens="ajout"
 
 📊 TOTAUX À EXTRAIRE EXPLICITEMENT DU DOCUMENT
 - salaire_brut
@@ -72,6 +75,7 @@ Extraire toutes les lignes de paie, les classifier par flux financier, recalcule
 
 📈 CALCULS À EFFECTUER
 - total_urssaf = somme(montants où organisme_type = "urssaf")
+- total_retraite = somme(montants où organisme_type = "retraite")
 - total_impots = somme(montants où organisme_type = "impots")
 - total_autres = somme(montants où organisme_type = "autre")
 - total_salarie = net_paye
@@ -91,7 +95,8 @@ Si écart > 1€ entre totaux recalculés et affichés → confidence < 0.8
   "net_avant_impot": 6827.89,
   "pas": 1286.55,
   "net_paye": 5541.34,
-  "total_urssaf": 5363.52,
+  "total_urssaf": 3500.00,
+  "total_retraite": 1863.52,
   "total_impots": 1286.55,
   "total_autres": 1.70,
   "cout_employeur": 12124.81,
@@ -105,8 +110,8 @@ Si écart > 1€ entre totaux recalculés et affichés → confidence < 0.8
       "montant": 270.83,
       "sens": "deduction",
       "nature": "salariale",
-      "organisme_type": "urssaf",
-      "organisme_nom": "URSSAF",
+      "organisme_type": "retraite",
+      "organisme_nom": "Retraite",
       "raw_text": "Sécurité Sociale plafonnée 3 925.00 6.9000 270.83",
       "confidence": 0.97
     }
