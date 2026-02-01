@@ -30,12 +30,13 @@ export function BulletinDetailDialog({ bulletin, open, onOpenChange }: BulletinD
   const lignesAutres = lignes.filter(l => l.organisme_type === 'autre');
   const lignesSalarie = lignes.filter(l => l.organisme_type === 'salarie');
 
-  // Recalculer les totaux à partir des lignes classifiées (plus fiable que les valeurs pré-calculées)
-  const calculatedTotalUrssaf = lignesUrssaf.reduce((sum, l) => sum + Math.abs(l.montant || 0), 0);
-  const calculatedTotalRetraite = lignesRetraite.reduce((sum, l) => sum + Math.abs(l.montant || 0), 0);
+  // Recalculer les totaux à partir des lignes classifiées (en respectant les signes)
+  // Les exonérations ont des montants négatifs et doivent être soustraites
+  const calculatedTotalUrssaf = lignesUrssaf.reduce((sum, l) => sum + (l.montant || 0), 0);
+  const calculatedTotalRetraite = lignesRetraite.reduce((sum, l) => sum + (l.montant || 0), 0);
   const calculatedTotalImpots = lignesImpots.reduce((sum, l) => sum + Math.abs(l.montant || 0), 0);
-  const calculatedTotalMutuelle = lignesMutuelle.reduce((sum, l) => sum + Math.abs(l.montant || 0), 0);
-  const calculatedTotalAutres = lignesAutres.reduce((sum, l) => sum + Math.abs(l.montant || 0), 0);
+  const calculatedTotalMutuelle = lignesMutuelle.reduce((sum, l) => sum + (l.montant || 0), 0);
+  const calculatedTotalAutres = lignesAutres.reduce((sum, l) => sum + (l.montant || 0), 0);
 
   const formatMontant = (val: number | null | undefined) => 
     val != null ? `${val.toFixed(2)} €` : '-';
