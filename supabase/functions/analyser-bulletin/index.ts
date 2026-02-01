@@ -58,12 +58,13 @@ Extraire toutes les lignes de paie, les classifier par flux financier, recalcule
 - Net payé → organisme_type="salarie", nature="salariale", sens="ajout"
 - Impôt sur le revenu (PAS) → organisme_type="impots", organisme_nom="DGFiP", nature="impot", sens="deduction"
 - CSG/CRDS → organisme_type="urssaf", nature="salariale", sens="deduction"
-- Sécurité sociale, chômage, APEC, famille, maladie, allocations familiales → organisme_type="urssaf"
-- RETRAITE (toutes lignes retraite : Sécurité Sociale plafonnée/déplafonnée, retraite complémentaire, AGIRC-ARRCO, CEG, CET) → organisme_type="retraite", organisme_nom="Retraite"
+- Sécurité sociale (maladie, famille, chômage, APEC, allocations familiales, vieillesse, Sécurité Sociale plafonnée, Sécurité Sociale déplafonnée) → organisme_type="urssaf"
+- RETRAITE COMPLÉMENTAIRE UNIQUEMENT (AGIRC-ARRCO, CEG, CET, retraite complémentaire) → organisme_type="retraite", organisme_nom="Humanis Retraite"
+- ATTENTION: "Sécurité Sociale plafonnée" et "Sécurité Sociale déplafonnée" même dans la section Retraite → organisme_type="urssaf" (ce sont des cotisations vieillesse URSSAF)
 - ADESATT → organisme_type="autre", organisme_nom="ADESATT"
 - MUTUELLE / Complémentaire santé / Prévoyance / Frais de santé → organisme_type="mutuelle", organisme_nom=libellé exact (ex: "Mutuelle", "Frais de santé", "Prévoyance")
 - Charges patronales URSSAF → organisme_type="urssaf", nature="patronale", sens="ajout"
-- Charges patronales Retraite → organisme_type="retraite", nature="patronale", sens="ajout"
+- Charges patronales Retraite complémentaire → organisme_type="retraite", nature="patronale", sens="ajout"
 - Charges patronales Mutuelle → organisme_type="mutuelle", nature="patronale", sens="ajout"
 
 📊 TOTAUX À EXTRAIRE EXPLICITEMENT DU DOCUMENT

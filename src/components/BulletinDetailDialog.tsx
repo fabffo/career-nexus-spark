@@ -81,7 +81,7 @@ export function BulletinDetailDialog({ bulletin, open, onOpenChange }: BulletinD
                   <div className="text-lg font-bold text-blue-600">{formatMontant(data?.total_urssaf)}</div>
                 </div>
                 <div className="text-center p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-                  <div className="text-xs text-muted-foreground">Retraite</div>
+                  <div className="text-xs text-muted-foreground">Retraite (Humanis)</div>
                   <div className="text-lg font-bold text-amber-600">{formatMontant(data?.total_retraite)}</div>
                 </div>
                 <div className="text-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
@@ -154,7 +154,7 @@ export function BulletinDetailDialog({ bulletin, open, onOpenChange }: BulletinD
               <Card className="p-4">
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
                   <span className="w-3 h-3 bg-amber-500 rounded-full"></span>
-                  Cotisations Retraite ({lignesRetraite.length} lignes)
+                  Retraite Complémentaire - Humanis ({lignesRetraite.length} lignes)
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
