@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Download, Edit, Trash2, Eye, Upload, FileSpreadsheet, BarChart3 } from 'lucide-react';
+import { Download, Edit, Trash2, Eye, Upload, FileSpreadsheet, BarChart3, List, PieChart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { bulletinSalaireService } from '@/services/bulletinSalaireService';
 import { salarieService } from '@/services/salarieService';
@@ -16,6 +17,7 @@ import { DataTable } from '@/components/ui/data-table';
 import { ColumnDef } from '@tanstack/react-table';
 import { BulletinSalaire } from '@/types/bulletinSalaire';
 import { BulletinDetailDialog } from '@/components/BulletinDetailDialog';
+import { ChargesGlobalesMensuellesView } from '@/components/bulletins/ChargesGlobalesMensuellesView';
 import * as XLSX from 'xlsx';
 
 const MOIS_LABELS = [
@@ -326,37 +328,56 @@ export default function BulletinsSalaire() {
         </Card>
       )}
 
-      <Card className="p-6">
-        <div className="flex gap-4 mb-6">
-          <Select value={filterSalarie} onValueChange={setFilterSalarie}>
-            <SelectTrigger className="w-[250px]">
-              <SelectValue placeholder="Filtrer par salarié" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les salariés</SelectItem>
-              {salaries.map(s => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.prenom} {s.nom}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <Tabs defaultValue="liste" className="w-full">
+        <TabsList>
+          <TabsTrigger value="liste" className="flex items-center gap-2">
+            <List className="w-4 h-4" />
+            Liste des bulletins
+          </TabsTrigger>
+          <TabsTrigger value="charges" className="flex items-center gap-2">
+            <PieChart className="w-4 h-4" />
+            Charges globales
+          </TabsTrigger>
+        </TabsList>
 
-          <Input
-            type="month"
-            value={filterPeriode}
-            onChange={(e) => setFilterPeriode(e.target.value)}
-            className="w-[200px]"
-            placeholder="Filtrer par période"
-          />
-        </div>
+        <TabsContent value="liste" className="mt-4">
+          <Card className="p-6">
+            <div className="flex gap-4 mb-6">
+              <Select value={filterSalarie} onValueChange={setFilterSalarie}>
+                <SelectTrigger className="w-[250px]">
+                  <SelectValue placeholder="Filtrer par salarié" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les salariés</SelectItem>
+                  {salaries.map(s => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.prenom} {s.nom}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-        <DataTable
-          columns={columns}
-          data={filteredBulletins}
-          searchPlaceholder="Rechercher un bulletin..."
-        />
-      </Card>
+              <Input
+                type="month"
+                value={filterPeriode}
+                onChange={(e) => setFilterPeriode(e.target.value)}
+                className="w-[200px]"
+                placeholder="Filtrer par période"
+              />
+            </div>
+
+            <DataTable
+              columns={columns}
+              data={filteredBulletins}
+              searchPlaceholder="Rechercher un bulletin..."
+            />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="charges" className="mt-4">
+          <ChargesGlobalesMensuellesView bulletins={bulletins} />
+        </TabsContent>
+      </Tabs>
 
       <BulletinDetailDialog
         bulletin={selectedBulletin}
