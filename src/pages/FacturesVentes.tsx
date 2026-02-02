@@ -6,6 +6,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { cleanFilenameSegment, getReferenceClientForInvoice } from "@/lib/factures/invoiceDownloadUtils";
 import AddFactureDialog from "@/components/AddFactureDialog";
 import EditFactureDialog from "@/components/EditFactureDialog";
 import ViewFactureDialog from "@/components/ViewFactureDialog";
@@ -553,55 +554,7 @@ export default function FacturesVentes() {
     let successCount = 0;
     let errorCount = 0;
 
-    const cleanString = (str: string) =>
-      str
-        .replace(/[/\\?%*:|"<>]/g, "-")
-        .replace(/\s+/g, "_")
-        .trim();
-
-    const getClientIdForFacture = async (facture: Facture): Promise<string | null> => {
-      if (facture.destinataire_id) return facture.destinataire_id;
-      if (!facture.destinataire_nom) return null;
-
-      try {
-        const { data, error } = await supabase
-          .from("clients")
-          .select("id")
-          .eq("raison_sociale", facture.destinataire_nom)
-          .limit(1)
-          .maybeSingle();
-
-        if (error) throw error;
-        return data?.id ?? null;
-      } catch {
-        return null;
-      }
-    };
-
-    const getReferenceClient = async (facture: Facture): Promise<string | null> => {
-      try {
-        const clientId = await getClientIdForFacture(facture);
-        if (!clientId) return null;
-
-        const { data, error } = await supabase
-          .from("contrats")
-          .select("reference_client, created_at")
-          .eq("type", "CLIENT")
-          .or(`client_id.eq.${clientId},client_lie_id.eq.${clientId}`)
-          .order("created_at", { ascending: false })
-          .limit(5);
-
-        if (error) throw error;
-
-        const ref = (data || [])
-          .map((row) => row.reference_client)
-          .find((v) => typeof v === "string" && v.trim().length > 0);
-
-        return ref ?? null;
-      } catch {
-        return null;
-      }
-    };
+    const cleanString = cleanFilenameSegment;
 
     for (const factureId of Array.from(selectedFactureIds)) {
       try {
@@ -630,7 +583,10 @@ export default function FacturesVentes() {
           ? `${dateEmission.getFullYear()}${String(dateEmission.getMonth() + 1).padStart(2, "0")}`
           : "";
 
-        const refClient = await getReferenceClient(facture);
+        const refClient = await getReferenceClientForInvoice({
+          destinataire_id: facture.destinataire_id,
+          destinataire_nom: facture.destinataire_nom,
+        });
         const refPart = refClient ? `_${cleanString(refClient)}` : "";
 
         const societeNom = cleanString(facture.emetteur_nom || "Societe");

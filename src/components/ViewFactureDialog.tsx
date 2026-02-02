@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Download, Printer } from "lucide-react";
 import type { Facture, FactureLigne } from "@/pages/Factures";
+import { cleanFilenameSegment, getReferenceClientForInvoice } from "@/lib/factures/invoiceDownloadUtils";
 
 interface ViewFactureDialogProps {
   open: boolean;
@@ -27,29 +28,19 @@ export default function ViewFactureDialog({
     if (open && facture) {
       fetchLignes();
       fetchSocieteInterne();
-      if (facture.type_facture === 'VENTES' && facture.destinataire_id) {
-        fetchReferenceClient(facture.destinataire_id);
+      if (facture.type_facture === 'VENTES') {
+        fetchReferenceClient(facture.destinataire_id, facture.destinataire_nom);
       }
     }
   }, [open, facture]);
 
-  const fetchReferenceClient = async (clientId: string) => {
+  const fetchReferenceClient = async (clientId?: string | null, clientName?: string | null) => {
     setIsLoadingRef(true);
     try {
-      const { data, error } = await supabase
-        .from('contrats')
-        .select('reference_client, created_at')
-        .eq('type', 'CLIENT')
-        .or(`client_id.eq.${clientId},client_lie_id.eq.${clientId}`)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      if (error) throw error;
-
-      const ref = (data || [])
-        .map((row: any) => row.reference_client)
-        .find((v: any) => typeof v === 'string' && v.trim().length > 0);
-
+      const ref = await getReferenceClientForInvoice({
+        destinataire_id: clientId,
+        destinataire_nom: clientName,
+      });
       setReferenceClient(ref || null);
     } catch (error) {
       console.error('Erreur lors du chargement de la référence client:', error);
@@ -158,27 +149,13 @@ export default function ViewFactureDialog({
       // Pour les factures de vente, générer le PDF via la function
       console.log("Génération PDF pour facture vente ID:", facture.id);
 
-      // Récupérer la référence client directement au moment du téléchargement
+      // Récupérer la référence client au moment du téléchargement (fallback si destinataire_id est vide)
       let refClientValue: string | null = referenceClient;
-      if (facture.type_facture === 'VENTES' && facture.destinataire_id && !refClientValue) {
-        try {
-          const { data: contratsData, error: contratsError } = await supabase
-            .from('contrats')
-            .select('reference_client, created_at')
-            .eq('type', 'CLIENT')
-            .or(`client_id.eq.${facture.destinataire_id},client_lie_id.eq.${facture.destinataire_id}`)
-            .order('created_at', { ascending: false })
-            .limit(5);
-
-          if (contratsError) throw contratsError;
-
-          refClientValue = (contratsData || [])
-            .map((row: any) => row.reference_client)
-            .find((v: any) => typeof v === 'string' && v.trim().length > 0) || null;
-          console.log("Référence client récupérée:", refClientValue);
-        } catch (err) {
-          console.log("Pas de référence client trouvée");
-        }
+      if (facture.type_facture === 'VENTES' && !refClientValue) {
+        refClientValue = await getReferenceClientForInvoice({
+          destinataire_id: facture.destinataire_id,
+          destinataire_nom: facture.destinataire_nom,
+        });
       }
 
       const {
@@ -210,10 +187,7 @@ export default function ViewFactureDialog({
       const dateEmission = new Date(facture.date_emission);
       const anneeMois = `${dateEmission.getFullYear()}${String(dateEmission.getMonth() + 1).padStart(2, '0')}`;
       
-      const cleanString = (str: string | null | undefined) => {
-        if (!str) return '';
-        return str.replace(/[/\\?%*:|"<>]/g, '-').trim();
-      };
+      const cleanString = (str: string | null | undefined) => cleanFilenameSegment(str);
       
       const societeNom = cleanString(societeInterne?.raison_sociale || facture.emetteur_nom);
       const clientNom = cleanString(facture.destinataire_nom);
