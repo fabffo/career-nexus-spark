@@ -135,6 +135,13 @@ export default function ContratsClients() {
       )
     },
     {
+      accessorKey: 'reference_client',
+      header: 'Réf. Client',
+      cell: ({ row }) => (
+        <div>{(row.original as any).reference_client || '-'}</div>
+      )
+    },
+    {
       accessorKey: 'date_debut',
       header: 'Date début',
       cell: ({ row }) => format(new Date(row.original.date_debut), 'dd/MM/yyyy', { locale: fr })
@@ -275,6 +282,13 @@ export default function ContratsClients() {
                   {selectedContrat.client?.raison_sociale || 'Non renseigné'}
                 </p>
               </div>
+
+              {(selectedContrat as any).reference_client && (
+                <div>
+                  <Label className="text-muted-foreground">Référence Client</Label>
+                  <p className="font-medium">{(selectedContrat as any).reference_client}</p>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

@@ -745,6 +745,7 @@ export type Database = {
           parent_id: string | null
           piece_jointe_url: string | null
           prestataire_id: string | null
+          reference_client: string | null
           salarie_id: string | null
           statut: Database["public"]["Enums"]["contrat_statut"]
           type: Database["public"]["Enums"]["contrat_type"]
@@ -768,6 +769,7 @@ export type Database = {
           parent_id?: string | null
           piece_jointe_url?: string | null
           prestataire_id?: string | null
+          reference_client?: string | null
           salarie_id?: string | null
           statut?: Database["public"]["Enums"]["contrat_statut"]
           type: Database["public"]["Enums"]["contrat_type"]
@@ -791,6 +793,7 @@ export type Database = {
           parent_id?: string | null
           piece_jointe_url?: string | null
           prestataire_id?: string | null
+          reference_client?: string | null
           salarie_id?: string | null
           statut?: Database["public"]["Enums"]["contrat_statut"]
           type?: Database["public"]["Enums"]["contrat_type"]
