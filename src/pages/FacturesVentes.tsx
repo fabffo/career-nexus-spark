@@ -553,6 +553,56 @@ export default function FacturesVentes() {
     let successCount = 0;
     let errorCount = 0;
 
+    const cleanString = (str: string) =>
+      str
+        .replace(/[/\\?%*:|"<>]/g, "-")
+        .replace(/\s+/g, "_")
+        .trim();
+
+    const getClientIdForFacture = async (facture: Facture): Promise<string | null> => {
+      if (facture.destinataire_id) return facture.destinataire_id;
+      if (!facture.destinataire_nom) return null;
+
+      try {
+        const { data, error } = await supabase
+          .from("clients")
+          .select("id")
+          .eq("raison_sociale", facture.destinataire_nom)
+          .limit(1)
+          .maybeSingle();
+
+        if (error) throw error;
+        return data?.id ?? null;
+      } catch {
+        return null;
+      }
+    };
+
+    const getReferenceClient = async (facture: Facture): Promise<string | null> => {
+      try {
+        const clientId = await getClientIdForFacture(facture);
+        if (!clientId) return null;
+
+        const { data, error } = await supabase
+          .from("contrats")
+          .select("reference_client, created_at")
+          .eq("type", "CLIENT")
+          .or(`client_id.eq.${clientId},client_lie_id.eq.${clientId}`)
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+        if (error) throw error;
+
+        const ref = (data || [])
+          .map((row) => row.reference_client)
+          .find((v) => typeof v === "string" && v.trim().length > 0);
+
+        return ref ?? null;
+      } catch {
+        return null;
+      }
+    };
+
     for (const factureId of Array.from(selectedFactureIds)) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -572,12 +622,21 @@ export default function FacturesVentes() {
 
         const blob = await response.blob();
         const facture = factures.find(f => f.id === factureId);
-        
-        // Nettoyer les noms pour le fichier
-        const cleanName = (name: string) => name.replace(/[^a-zA-Z0-9-_]/g, '_');
-        const emetteur = cleanName(facture?.emetteur_nom || 'Emetteur');
-        const destinataire = cleanName(facture?.destinataire_nom || 'Destinataire');
-        const filename = `${facture?.numero_facture || factureId}_${emetteur}_${destinataire}.pdf`;
+
+        if (!facture) throw new Error("Facture introuvable dans la liste");
+
+        const dateEmission = facture.date_emission ? new Date(facture.date_emission) : null;
+        const anneeMois = dateEmission
+          ? `${dateEmission.getFullYear()}${String(dateEmission.getMonth() + 1).padStart(2, "0")}`
+          : "";
+
+        const refClient = await getReferenceClient(facture);
+        const refPart = refClient ? `_${cleanString(refClient)}` : "";
+
+        const societeNom = cleanString(facture.emetteur_nom || "Societe");
+        const clientNom = cleanString(facture.destinataire_nom || "Client");
+        const datePart = anneeMois ? `_${anneeMois}` : "";
+        const filename = `${facture.numero_facture || factureId}_${societeNom}_${clientNom}${refPart}${datePart}.pdf`;
         
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');

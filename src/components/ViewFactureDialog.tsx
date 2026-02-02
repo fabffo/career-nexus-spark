@@ -36,16 +36,21 @@ export default function ViewFactureDialog({
   const fetchReferenceClient = async (clientId: string) => {
     setIsLoadingRef(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('contrats')
-        .select('reference_client')
-        .eq('client_id', clientId)
+        .select('reference_client, created_at')
         .eq('type', 'CLIENT')
+        .or(`client_id.eq.${clientId},client_lie_id.eq.${clientId}`)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      
-      setReferenceClient(data?.reference_client || null);
+        .limit(5);
+
+      if (error) throw error;
+
+      const ref = (data || [])
+        .map((row: any) => row.reference_client)
+        .find((v: any) => typeof v === 'string' && v.trim().length > 0);
+
+      setReferenceClient(ref || null);
     } catch (error) {
       console.error('Erreur lors du chargement de la référence client:', error);
       setReferenceClient(null);
@@ -157,16 +162,19 @@ export default function ViewFactureDialog({
       let refClientValue: string | null = referenceClient;
       if (facture.type_facture === 'VENTES' && facture.destinataire_id && !refClientValue) {
         try {
-          const { data: contratData } = await supabase
+          const { data: contratsData, error: contratsError } = await supabase
             .from('contrats')
-            .select('reference_client')
-            .eq('client_id', facture.destinataire_id)
+            .select('reference_client, created_at')
             .eq('type', 'CLIENT')
+            .or(`client_id.eq.${facture.destinataire_id},client_lie_id.eq.${facture.destinataire_id}`)
             .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-          
-          refClientValue = contratData?.reference_client || null;
+            .limit(5);
+
+          if (contratsError) throw contratsError;
+
+          refClientValue = (contratsData || [])
+            .map((row: any) => row.reference_client)
+            .find((v: any) => typeof v === 'string' && v.trim().length > 0) || null;
           console.log("Référence client récupérée:", refClientValue);
         } catch (err) {
           console.log("Pas de référence client trouvée");
