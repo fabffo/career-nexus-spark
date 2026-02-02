@@ -57,7 +57,8 @@ export default function Contrats() {
     client_lie_id: undefined as string | undefined,
     montant: '',
     description: '',
-    piece_jointe_url: ''
+    piece_jointe_url: '',
+    reference_client: ''
   });
 
   useEffect(() => {
@@ -252,6 +253,8 @@ export default function Contrats() {
         fournisseur_general_id: formData.type === 'FOURNISSEUR_GENERAL' ? formData.fournisseur_general_id : undefined,
         // Client lié pour les contrats fournisseurs
         client_lie_id: formData.type !== 'CLIENT' ? formData.client_lie_id : undefined,
+        // Référence client uniquement pour les contrats clients
+        reference_client: formData.type === 'CLIENT' ? (formData.reference_client || undefined) : undefined,
       };
 
       if (isAvenant && selectedContrat) {
@@ -370,7 +373,8 @@ export default function Contrats() {
       client_lie_id: undefined,
       montant: '',
       description: '',
-      piece_jointe_url: ''
+      piece_jointe_url: '',
+      reference_client: ''
     });
     setPieceJointeFile(null);
     setSelectedContrat(null);
@@ -395,7 +399,8 @@ export default function Contrats() {
       client_lie_id: contrat.client_lie_id,
       montant: contrat.montant?.toString() || '',
       description: contrat.description || '',
-      piece_jointe_url: contrat.piece_jointe_url || ''
+      piece_jointe_url: contrat.piece_jointe_url || '',
+      reference_client: contrat.reference_client || ''
     });
     setIsEditMode(true);
     setIsAvenant(false);
@@ -733,34 +738,45 @@ export default function Contrats() {
 
             {/* Sélection de la partie selon le type */}
             {formData.type === 'CLIENT' && (
-              <div>
-                <Label>Client *</Label>
-                <Select 
-                  value={formData.client_id || ''}
-                  onValueChange={(value) => {
-                    console.log('Client sélectionné:', value);
-                    console.log('Clients disponibles:', clients);
-                    setFormData({ ...formData, client_id: value });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un client" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients.length === 0 ? (
-                      <SelectItem value="no-clients" disabled>
-                        Aucun client disponible
-                      </SelectItem>
-                    ) : (
-                      clients.map(client => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.raisonSociale || client.raison_sociale}
+              <>
+                <div>
+                  <Label>Client *</Label>
+                  <Select 
+                    value={formData.client_id || ''}
+                    onValueChange={(value) => {
+                      console.log('Client sélectionné:', value);
+                      console.log('Clients disponibles:', clients);
+                      setFormData({ ...formData, client_id: value });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner un client" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients.length === 0 ? (
+                        <SelectItem value="no-clients" disabled>
+                          Aucun client disponible
                         </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
+                      ) : (
+                        clients.map(client => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.raisonSociale || client.raison_sociale}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="reference_client">Référence Client</Label>
+                  <Input
+                    id="reference_client"
+                    value={formData.reference_client}
+                    onChange={(e) => setFormData({ ...formData, reference_client: e.target.value })}
+                    placeholder="Ex: REF-2025-001"
+                  />
+                </div>
+              </>
             )}
 
             {formData.type === 'PRESTATAIRE' && (
@@ -975,6 +991,14 @@ export default function Contrats() {
                     : 'Non renseigné'}
                 </p>
               </div>
+
+              {/* Référence client - uniquement pour les contrats clients */}
+              {selectedContrat.type === 'CLIENT' && selectedContrat.reference_client && (
+                <div>
+                  <Label className="text-muted-foreground">Référence Client</Label>
+                  <p className="font-medium">{selectedContrat.reference_client}</p>
+                </div>
+              )}
 
               {/* Client lié - affiché uniquement pour les contrats fournisseurs */}
               {selectedContrat.type !== 'CLIENT' && (
