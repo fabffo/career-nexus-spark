@@ -21,6 +21,7 @@ export default function ViewFactureDialog({
   const [lignes, setLignes] = useState<FactureLigne[]>([]);
   const [societeInterne, setSocieteInterne] = useState<any>(null);
   const [referenceClient, setReferenceClient] = useState<string | null>(null);
+  const [isLoadingRef, setIsLoadingRef] = useState(false);
 
   useEffect(() => {
     if (open && facture) {
@@ -33,6 +34,7 @@ export default function ViewFactureDialog({
   }, [open, facture]);
 
   const fetchReferenceClient = async (clientId: string) => {
+    setIsLoadingRef(true);
     try {
       const { data } = await supabase
         .from('contrats')
@@ -47,6 +49,8 @@ export default function ViewFactureDialog({
     } catch (error) {
       console.error('Erreur lors du chargement de la référence client:', error);
       setReferenceClient(null);
+    } finally {
+      setIsLoadingRef(false);
     }
   };
 
@@ -149,6 +153,26 @@ export default function ViewFactureDialog({
       // Pour les factures de vente, générer le PDF via la function
       console.log("Génération PDF pour facture vente ID:", facture.id);
 
+      // Récupérer la référence client directement au moment du téléchargement
+      let refClientValue: string | null = referenceClient;
+      if (facture.type_facture === 'VENTES' && facture.destinataire_id && !refClientValue) {
+        try {
+          const { data: contratData } = await supabase
+            .from('contrats')
+            .select('reference_client')
+            .eq('client_id', facture.destinataire_id)
+            .eq('type', 'CLIENT')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+          
+          refClientValue = contratData?.reference_client || null;
+          console.log("Référence client récupérée:", refClientValue);
+        } catch (err) {
+          console.log("Pas de référence client trouvée");
+        }
+      }
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -185,7 +209,7 @@ export default function ViewFactureDialog({
       
       const societeNom = cleanString(societeInterne?.raison_sociale || facture.emetteur_nom);
       const clientNom = cleanString(facture.destinataire_nom);
-      const refClient = referenceClient ? `_${cleanString(referenceClient)}` : '';
+      const refClient = refClientValue ? `_${cleanString(refClientValue)}` : '';
       
       link.download = `${facture.numero_facture}_${societeNom}_${clientNom}${refClient}_${anneeMois}.pdf`;
       
