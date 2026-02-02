@@ -20,13 +20,35 @@ export default function ViewFactureDialog({
 }: ViewFactureDialogProps) {
   const [lignes, setLignes] = useState<FactureLigne[]>([]);
   const [societeInterne, setSocieteInterne] = useState<any>(null);
+  const [referenceClient, setReferenceClient] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && facture) {
       fetchLignes();
       fetchSocieteInterne();
+      if (facture.type_facture === 'VENTES' && facture.destinataire_id) {
+        fetchReferenceClient(facture.destinataire_id);
+      }
     }
   }, [open, facture]);
+
+  const fetchReferenceClient = async (clientId: string) => {
+    try {
+      const { data } = await supabase
+        .from('contrats')
+        .select('reference_client')
+        .eq('client_id', clientId)
+        .eq('type', 'CLIENT')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      setReferenceClient(data?.reference_client || null);
+    } catch (error) {
+      console.error('Erreur lors du chargement de la référence client:', error);
+      setReferenceClient(null);
+    }
+  };
 
   const fetchLignes = async () => {
     try {
@@ -151,7 +173,22 @@ export default function ViewFactureDialog({
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `facture_${facture.numero_facture}.pdf`;
+      
+      // Construire le nom de fichier: n°facture_NomSociété_NomClient_RefClient_AnnéeMois
+      const dateEmission = new Date(facture.date_emission);
+      const anneeMois = `${dateEmission.getFullYear()}${String(dateEmission.getMonth() + 1).padStart(2, '0')}`;
+      
+      const cleanString = (str: string | null | undefined) => {
+        if (!str) return '';
+        return str.replace(/[/\\?%*:|"<>]/g, '-').trim();
+      };
+      
+      const societeNom = cleanString(societeInterne?.raison_sociale || facture.emetteur_nom);
+      const clientNom = cleanString(facture.destinataire_nom);
+      const refClient = referenceClient ? `_${cleanString(referenceClient)}` : '';
+      
+      link.download = `${facture.numero_facture}_${societeNom}_${clientNom}${refClient}_${anneeMois}.pdf`;
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
