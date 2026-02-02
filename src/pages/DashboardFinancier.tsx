@@ -983,7 +983,7 @@ export default function DashboardFinancier() {
             onChange={(e) => setAnneeSelectionnee(Number(e.target.value))}
             className="border rounded-md px-4 py-2 bg-background"
           >
-            {[2023, 2024, 2025].map((year) => (
+            {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 3 + i).map((year) => (
               <option key={year} value={year}>
                 {year}
               </option>
