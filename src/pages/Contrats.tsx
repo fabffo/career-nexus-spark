@@ -533,30 +533,29 @@ export default function Contrats() {
     {
       id: "actions",
       header: "Actions",
+      meta: { className: "min-w-[220px]" },
       cell: ({ row }) => {
         const contrat = row.original;
         return (
           <TooltipProvider>
-            <div className="flex justify-end gap-1">
+            <div className="flex justify-end gap-1 flex-nowrap !overflow-visible">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button size="sm" variant="ghost" onClick={() => openViewDialog(contrat)}>
+                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openViewDialog(contrat); }}>
                     <Eye className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent><p>Voir les détails</p></TooltipContent>
               </Tooltip>
               
-              {contrat.statut !== 'ARCHIVE' && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button size="sm" variant="ghost" onClick={() => openEditDialog(contrat)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent><p>Modifier le contrat</p></TooltipContent>
-                </Tooltip>
-              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEditDialog(contrat); }}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent><p>Modifier le contrat</p></TooltipContent>
+              </Tooltip>
               
               {contrat.statut === 'BROUILLON' && (
                 <Tooltip>
@@ -634,7 +633,6 @@ export default function Contrats() {
           </TooltipProvider>
         );
       },
-      meta: { className: "text-right" },
     },
   ];
 
