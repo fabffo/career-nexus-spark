@@ -31,7 +31,7 @@ interface FactureEnRetard {
   tranche_retard: string;
 }
 
-type PartenaireFilter = "TOUS" | "CLIENT" | "FOURNISSEUR" | "PRESTATAIRE";
+type PartenaireFilter = "TOUS" | "CLIENT" | "FOURNISSEUR_SERVICES" | "FOURNISSEUR_GENERAL" | "PRESTATAIRE" | "SALARIE";
 
 const TRANCHES = ["0 mois (1-30j)", "1 mois (31-60j)", "2 mois (61-90j)", "2+ mois (>90j)"];
 
@@ -68,7 +68,10 @@ const normalizePartenaireType = (type: string): string => {
   const t = type?.toUpperCase() || "";
   if (t.includes("CLIENT")) return "CLIENT";
   if (t.includes("PRESTATAIRE")) return "PRESTATAIRE";
-  if (t.includes("FOURNISSEUR") || t.includes("SALARIE")) return "FOURNISSEUR";
+  if (t.includes("SALARIE")) return "SALARIE";
+  if (t.includes("FOURNISSEUR_SERVICES") || t === "FOURNISSEUR DE SERVICES") return "FOURNISSEUR_SERVICES";
+  if (t.includes("FOURNISSEUR_GENERAL") || t === "FOURNISSEUR GÉNÉRAL" || t === "FOURNISSEUR GENERAUX") return "FOURNISSEUR_GENERAL";
+  if (t.includes("FOURNISSEUR")) return "FOURNISSEUR_GENERAL"; // Fallback
   return "AUTRE";
 };
 
@@ -88,8 +91,10 @@ const computeStats = (facturesList: FactureEnRetard[]) => {
 
   const parPartenaire: Record<string, { count: number; montant: number }> = {
     CLIENT: { count: 0, montant: 0 },
-    FOURNISSEUR: { count: 0, montant: 0 },
+    FOURNISSEUR_SERVICES: { count: 0, montant: 0 },
+    FOURNISSEUR_GENERAL: { count: 0, montant: 0 },
     PRESTATAIRE: { count: 0, montant: 0 },
+    SALARIE: { count: 0, montant: 0 },
   };
   facturesList.forEach((f) => {
     if (parPartenaire[f.partenaire_type]) {
@@ -271,7 +276,17 @@ export default function FacturesEnRetard() {
     {
       accessorKey: "partenaire_type",
       header: "Type Partenaire",
-      cell: ({ row }) => <Badge variant="outline">{row.original.partenaire_type}</Badge>,
+      cell: ({ row }) => {
+        const type = row.original.partenaire_type;
+        const labels: Record<string, string> = {
+          CLIENT: "Client",
+          FOURNISSEUR_SERVICES: "Fournisseur services",
+          FOURNISSEUR_GENERAL: "Fournisseur général",
+          PRESTATAIRE: "Prestataire",
+          SALARIE: "Salarié",
+        };
+        return <Badge variant="outline">{labels[type] || type}</Badge>;
+      },
     },
     {
       accessorKey: "date_emission",
@@ -597,8 +612,10 @@ function FacturesContent({
                 <SelectContent className="bg-background z-50">
                   <SelectItem value="TOUS">Tous les partenaires</SelectItem>
                   <SelectItem value="CLIENT">Clients</SelectItem>
-                  <SelectItem value="FOURNISSEUR">Fournisseurs</SelectItem>
+                  <SelectItem value="FOURNISSEUR_SERVICES">Fournisseurs de services</SelectItem>
+                  <SelectItem value="FOURNISSEUR_GENERAL">Fournisseurs généraux</SelectItem>
                   <SelectItem value="PRESTATAIRE">Prestataires</SelectItem>
+                  <SelectItem value="SALARIE">Salariés</SelectItem>
                 </SelectContent>
               </Select>
             </div>
