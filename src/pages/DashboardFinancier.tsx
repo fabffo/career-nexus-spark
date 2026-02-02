@@ -44,7 +44,7 @@ interface RepartitionActivite {
   clientsNames: string[];
 }
 
-// Calculer l'année du dernier mois terminé par défaut
+// Calculer l'année et le mois du dernier mois terminé par défaut
 const getDefaultYear = (): number => {
   const now = new Date();
   const currentMonth = now.getMonth(); // 0-11
@@ -57,10 +57,22 @@ const getDefaultYear = (): number => {
   return currentYear;
 };
 
+const getDefaultMonth = (): number => {
+  const now = new Date();
+  const currentMonth = now.getMonth(); // 0-11
+  
+  // Si on est en janvier, le dernier mois terminé est décembre (11)
+  if (currentMonth === 0) {
+    return 11; // Décembre
+  }
+  // Sinon, mois précédent
+  return currentMonth - 1;
+};
+
 export default function DashboardFinancier() {
   const [loading, setLoading] = useState(true);
   const [anneeSelectionnee, setAnneeSelectionnee] = useState(getDefaultYear());
-  const [moisSelectionne, setMoisSelectionne] = useState<number | null>(null);
+  const [moisSelectionne, setMoisSelectionne] = useState<number | null>(getDefaultMonth());
   const [selectedKPI, setSelectedKPI] = useState<KPIType | null>(null);
   const [showKPIDetail, setShowKPIDetail] = useState(false);
   const [kpis, setKpis] = useState<KPI>({
