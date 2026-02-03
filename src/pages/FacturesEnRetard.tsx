@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable } from "@/components/ui/data-table";
@@ -13,7 +12,6 @@ import { ColumnDef } from "@tanstack/react-table";
 import { format, differenceInDays, parseISO, isAfter, isBefore, isEqual } from "date-fns";
 import { fr } from "date-fns/locale";
 import { AlertTriangle, Clock, CalendarX, TrendingDown, RefreshCw, ArrowUpRight, ArrowDownLeft, CalendarIcon, X, Filter } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import { cn } from "@/lib/utils";
 
 // Types
@@ -35,33 +33,11 @@ type PartenaireFilter = "TOUS" | "CLIENT" | "FOURNISSEUR_SERVICES" | "FOURNISSEU
 
 const TRANCHES = ["0 mois (1-30j)", "1 mois (31-60j)", "2 mois (61-90j)", "2+ mois (>90j)"];
 
-const TRANCHE_COLORS: Record<string, string> = {
-  "0 mois (1-30j)": "hsl(var(--chart-1))",
-  "1 mois (31-60j)": "hsl(var(--chart-2))",
-  "2 mois (61-90j)": "hsl(var(--chart-3))",
-  "2+ mois (>90j)": "hsl(var(--chart-4))",
-};
-
 const getTrancheRetard = (joursRetard: number): string => {
   if (joursRetard <= 30) return "0 mois (1-30j)";
   if (joursRetard <= 60) return "1 mois (31-60j)";
   if (joursRetard <= 90) return "2 mois (61-90j)";
   return "2+ mois (>90j)";
-};
-
-const getTrancheColor = (tranche: string): string => {
-  switch (tranche) {
-    case "0 mois (1-30j)":
-      return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300";
-    case "1 mois (31-60j)":
-      return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300";
-    case "2 mois (61-90j)":
-      return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
-    case "2+ mois (>90j)":
-      return "bg-red-200 text-red-900 dark:bg-red-800 dark:text-red-100";
-    default:
-      return "bg-muted text-muted-foreground";
-  }
 };
 
 const normalizePartenaireType = (type: string): string => {
@@ -245,22 +221,6 @@ export default function FacturesEnRetard() {
   const statsVentes = useMemo(() => computeStats(facturesVentes), [facturesVentes]);
   const statsAchats = useMemo(() => computeStats(facturesAchats), [facturesAchats]);
 
-  // Chart data
-  const pieData = useMemo(() => {
-    return TRANCHES.map((t) => ({
-      name: t,
-      value: stats.parTranche[t].montant,
-      count: stats.parTranche[t].count,
-    })).filter((d) => d.value > 0);
-  }, [stats]);
-
-  const barData = useMemo(() => {
-    return Object.entries(stats.parPartenaire).map(([type, data]) => ({
-      name: type,
-      Montant: data.montant,
-      Factures: data.count,
-    }));
-  }, [stats]);
 
   // Table columns
   const columns: ColumnDef<FactureEnRetard>[] = [
@@ -362,8 +322,6 @@ export default function FacturesEnRetard() {
         <TabsContent value="ventes" className="space-y-6 mt-6">
           <FacturesContent
             stats={stats}
-            pieData={pieData}
-            barData={barData}
             facturesFiltrees={facturesFiltrees}
             columns={columns}
             filtrePartenaire={filtrePartenaire}
@@ -379,8 +337,6 @@ export default function FacturesEnRetard() {
         <TabsContent value="achats" className="space-y-6 mt-6">
           <FacturesContent
             stats={stats}
-            pieData={pieData}
-            barData={barData}
             facturesFiltrees={facturesFiltrees}
             columns={columns}
             filtrePartenaire={filtrePartenaire}
@@ -400,8 +356,6 @@ export default function FacturesEnRetard() {
 // Extracted content component
 interface FacturesContentProps {
   stats: ReturnType<typeof computeStats>;
-  pieData: { name: string; value: number; count: number }[];
-  barData: { name: string; Montant: number; Factures: number }[];
   facturesFiltrees: FactureEnRetard[];
   columns: ColumnDef<FactureEnRetard>[];
   filtrePartenaire: PartenaireFilter;
@@ -415,8 +369,6 @@ interface FacturesContentProps {
 
 function FacturesContent({
   stats,
-  pieData,
-  barData,
   facturesFiltrees,
   columns,
   filtrePartenaire,
@@ -484,70 +436,6 @@ function FacturesContent({
         </Card>
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pie Chart - By Delay Range */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Répartition par Tranche de Retard</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {pieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name.split(" ")[0]} (${(percent * 100).toFixed(0)}%)`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={TRANCHE_COLORS[entry.name] || "#ccc"} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number) =>
-                      value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })
-                    }
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                Aucune facture en retard
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Bar Chart - By Partner Type */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Répartition par Type de Partenaire</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={barData}>
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip
-                  formatter={(value: number, name: string) =>
-                    name === "Montant"
-                      ? value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })
-                      : value
-                  }
-                />
-                <Legend />
-                <Bar dataKey="Montant" fill="hsl(var(--primary))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Summary Table by Tranche */}
       <Card>
