@@ -8,10 +8,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { ColumnDef } from "@tanstack/react-table";
 import { format, differenceInDays, parseISO, isAfter, isBefore, isEqual } from "date-fns";
 import { fr } from "date-fns/locale";
-import { AlertTriangle, Clock, CalendarX, TrendingDown, RefreshCw, ArrowUpRight, ArrowDownLeft, CalendarIcon, X, Filter } from "lucide-react";
+import { AlertTriangle, Clock, CalendarX, TrendingDown, RefreshCw, ArrowUpRight, ArrowDownLeft, CalendarIcon, X, Filter, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Types
@@ -102,7 +104,7 @@ export default function FacturesEnRetard() {
   const [factures, setFactures] = useState<FactureEnRetard[]>([]);
   const [filtrePartenaire, setFiltrePartenaire] = useState<PartenaireFilter>("TOUS");
   const [activeTab, setActiveTab] = useState<"ventes" | "achats">("ventes");
-  const [selectedClientId, setSelectedClientId] = useState<string>("all");
+  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   
   // Filtres de période
@@ -224,15 +226,15 @@ export default function FacturesEnRetard() {
     }
 
     // Filtre par client (uniquement pour ventes)
-    if (activeTab === "ventes" && selectedClientId !== "all") {
-      result = result.filter((f) => f.partenaire_id === selectedClientId);
+    if (activeTab === "ventes" && selectedClientIds.length > 0) {
+      result = result.filter((f) => f.partenaire_id && selectedClientIds.includes(f.partenaire_id));
     }
     
     // Filtre par date
     result = applyDateFilter(result);
     
     return result;
-  }, [facturesActives, filtrePartenaire, dateFilter, activeTab, selectedClientId]);
+  }, [facturesActives, filtrePartenaire, dateFilter, activeTab, selectedClientIds]);
 
   // Reset date filter
   const resetDateFilter = () => {
@@ -360,8 +362,8 @@ export default function FacturesEnRetard() {
             showClientFilter={true}
             showPartenaireFilter={false}
             clients={clients}
-            selectedClientId={selectedClientId}
-            setSelectedClientId={setSelectedClientId}
+            selectedClientIds={selectedClientIds}
+            setSelectedClientIds={setSelectedClientIds}
           />
         </TabsContent>
 
@@ -401,8 +403,8 @@ interface FacturesContentProps {
   showClientFilter?: boolean;
   showPartenaireFilter?: boolean;
   clients?: Client[];
-  selectedClientId?: string;
-  setSelectedClientId?: (v: string) => void;
+  selectedClientIds?: string[];
+  setSelectedClientIds?: (v: string[]) => void;
 }
 
 function FacturesContent({
@@ -419,9 +421,28 @@ function FacturesContent({
   showClientFilter = false,
   showPartenaireFilter = true,
   clients = [],
-  selectedClientId = "all",
-  setSelectedClientId,
+  selectedClientIds = [],
+  setSelectedClientIds,
 }: FacturesContentProps) {
+
+  const toggleClient = (clientId: string) => {
+    if (!setSelectedClientIds) return;
+    if (selectedClientIds.includes(clientId)) {
+      setSelectedClientIds(selectedClientIds.filter(id => id !== clientId));
+    } else {
+      setSelectedClientIds([...selectedClientIds, clientId]);
+    }
+  };
+
+  const selectAllClients = () => {
+    if (!setSelectedClientIds) return;
+    setSelectedClientIds(clients.map(c => c.id));
+  };
+
+  const clearAllClients = () => {
+    if (!setSelectedClientIds) return;
+    setSelectedClientIds([]);
+  };
   return (
     <>
       {/* KPI Cards */}
@@ -528,21 +549,47 @@ function FacturesContent({
             <div className="flex items-center justify-between flex-wrap gap-2">
               <CardTitle className="text-lg">Liste des Factures en Retard</CardTitle>
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Client filter - only for Ventes */}
-                {showClientFilter && setSelectedClientId && (
-                  <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-                    <SelectTrigger className="w-[200px]">
-                      <SelectValue placeholder="Tous les clients" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background z-50 max-h-[300px]">
-                      <SelectItem value="all">Tous les clients</SelectItem>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.raison_sociale}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                {/* Client multi-select filter - only for Ventes */}
+                {showClientFilter && setSelectedClientIds && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-[220px] justify-start">
+                        <Users className="mr-2 h-4 w-4" />
+                        {selectedClientIds.length === 0 
+                          ? "Tous les clients" 
+                          : selectedClientIds.length === 1 
+                            ? clients.find(c => c.id === selectedClientIds[0])?.raison_sociale || "1 client"
+                            : `${selectedClientIds.length} clients`}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[280px] p-0 bg-background z-50" align="start">
+                      <div className="p-2 border-b flex gap-2">
+                        <Button variant="outline" size="sm" onClick={selectAllClients} className="flex-1">
+                          Tout sélectionner
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={clearAllClients} className="flex-1">
+                          Effacer
+                        </Button>
+                      </div>
+                      <ScrollArea className="h-[250px]">
+                        <div className="p-2 space-y-1">
+                          {clients.map((client) => (
+                            <div
+                              key={client.id}
+                              className="flex items-center space-x-2 p-2 hover:bg-muted rounded-md cursor-pointer"
+                              onClick={() => toggleClient(client.id)}
+                            >
+                              <Checkbox
+                                checked={selectedClientIds.includes(client.id)}
+                                onCheckedChange={() => toggleClient(client.id)}
+                              />
+                              <span className="text-sm truncate">{client.raison_sociale}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
                 )}
                 
                 {/* Partenaire filter - only for Achats */}
