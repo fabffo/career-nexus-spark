@@ -285,7 +285,7 @@ export default function FacturesEnRetard() {
           PRESTATAIRE: "Prestataire",
           SALARIE: "Salarié",
         };
-        return <Badge variant="outline">{labels[type] || type}</Badge>;
+        return <span>{labels[type] || type}</span>;
       },
     },
     {
@@ -713,11 +713,11 @@ function FacturesContent({
 
               {/* Active filter indicator */}
               {isDateFilterActive && (
-                <Badge variant="secondary" className="ml-auto">
+                <span className="ml-auto text-sm text-muted-foreground">
                   Filtre actif : {dateFilter.type === "emission" ? "Émission" : "Échéance"}
                   {dateFilter.debut && ` du ${format(dateFilter.debut, "dd/MM/yyyy")}`}
                   {dateFilter.fin && ` au ${format(dateFilter.fin, "dd/MM/yyyy")}`}
-                </Badge>
+                </span>
               )}
             </div>
           </div>
