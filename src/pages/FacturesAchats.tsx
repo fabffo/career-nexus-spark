@@ -12,6 +12,7 @@ import EditFactureDialog from "@/components/EditFactureDialog";
 import ViewFactureDialog from "@/components/ViewFactureDialog";
 import CreateFournisseurQuickDialog from "@/components/CreateFournisseurQuickDialog";
 import FactureRapprochementDialog from "@/components/FactureRapprochementDialog";
+import ExportFacturesAchatsDialog from "@/components/ExportFacturesAchatsDialog";
 import RapprochementDetailDialog from "@/components/RapprochementDetailDialog";
 import {
   ColumnDef,
@@ -883,6 +884,8 @@ export default function FacturesAchats() {
               {isDownloading ? "Téléchargement..." : `Télécharger (${selectedFactureIds.size})`}
             </Button>
           )}
+
+          <ExportFacturesAchatsDialog />
 
           <Button
             onClick={() => setOpenExtractionDialog(true)}
