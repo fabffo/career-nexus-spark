@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Download, CalendarIcon } from "lucide-react";
@@ -18,9 +18,21 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+interface Client {
+  id: string;
+  raison_sociale: string;
+}
 
 interface ExportFacturesVentesDialogProps {
   trigger?: React.ReactNode;
@@ -30,7 +42,20 @@ export default function ExportFacturesVentesDialog({ trigger }: ExportFacturesVe
   const [open, setOpen] = useState(false);
   const [dateDebut, setDateDebut] = useState<Date | undefined>(undefined);
   const [dateFin, setDateFin] = useState<Date | undefined>(undefined);
+  const [selectedClientId, setSelectedClientId] = useState<string>("all");
+  const [clients, setClients] = useState<Client[]>([]);
   const [isExporting, setIsExporting] = useState(false);
+
+  useEffect(() => {
+    const loadClients = async () => {
+      const { data } = await supabase
+        .from("clients")
+        .select("id, raison_sociale")
+        .order("raison_sociale");
+      if (data) setClients(data);
+    };
+    if (open) loadClients();
+  }, [open]);
 
   const handleExport = async () => {
     if (!dateDebut || !dateFin) {
@@ -48,13 +73,19 @@ export default function ExportFacturesVentesDialog({ trigger }: ExportFacturesVe
       const startDate = format(dateDebut, "yyyy-MM-dd");
       const endDate = format(dateFin, "yyyy-MM-dd");
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("factures")
-        .select("numero_facture, date_emission, destinataire_nom, activite, total_ht, total_ttc")
+        .select("numero_facture, date_emission, destinataire_nom, destinataire_id, activite, total_ht, total_ttc")
         .eq("type_facture", "VENTES")
         .gte("date_emission", startDate)
         .lte("date_emission", endDate)
         .order("date_emission", { ascending: true });
+
+      if (selectedClientId !== "all") {
+        query = query.eq("destinataire_id", selectedClientId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -83,7 +114,12 @@ export default function ExportFacturesVentesDialog({ trigger }: ExportFacturesVe
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `factures_ventes_${format(dateDebut, "yyyyMMdd")}_${format(dateFin, "yyyyMMdd")}.csv`;
+
+      const clientSuffix = selectedClientId !== "all" 
+        ? `_${clients.find(c => c.id === selectedClientId)?.raison_sociale?.replace(/\s+/g, "_") || "client"}`
+        : "";
+      link.download = `factures_ventes_${format(dateDebut, "yyyyMMdd")}_${format(dateFin, "yyyyMMdd")}${clientSuffix}.csv`;
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -113,7 +149,7 @@ export default function ExportFacturesVentesDialog({ trigger }: ExportFacturesVe
         <DialogHeader>
           <DialogTitle>Exporter les factures de vente</DialogTitle>
           <DialogDescription>
-            Sélectionnez une plage de dates pour exporter les factures au format CSV.
+            Sélectionnez une plage de dates et optionnellement un client pour exporter les factures au format CSV.
           </DialogDescription>
         </DialogHeader>
 
@@ -174,6 +210,23 @@ export default function ExportFacturesVentesDialog({ trigger }: ExportFacturesVe
                 </PopoverContent>
               </Popover>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Client (optionnel)</label>
+            <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Tous les clients" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                <SelectItem value="all">Tous les clients</SelectItem>
+                {clients.map((client) => (
+                  <SelectItem key={client.id} value={client.id}>
+                    {client.raison_sociale}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
