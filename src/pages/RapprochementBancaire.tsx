@@ -6483,8 +6483,23 @@ export default function RapprochementBancaire() {
         factures={factures}
         fichierId={selectedHistoriqueFichierId}
         onSuccess={async () => {
+          // Sauvegarder l'ID du fichier actuellement sélectionné
+          const currentFichierId = selectedFichier?.id;
+          
           await loadFactures();
           await loadFichiersRapprochement();
+          
+          // Restaurer le fichier sélectionné après le rechargement
+          if (currentFichierId) {
+            setFichiersRapprochement(prev => {
+              const fichierToRestore = prev.find(f => f.id === currentFichierId);
+              if (fichierToRestore) {
+                setSelectedFichier(fichierToRestore);
+              }
+              return prev;
+            });
+          }
+          
           setEditHistoriqueDialogOpen(false);
         }}
       />
