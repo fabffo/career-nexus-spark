@@ -443,9 +443,65 @@ function FacturesContent({
     if (!setSelectedClientIds) return;
     setSelectedClientIds([]);
   };
+
+  // Calculer les stats par client pour l'onglet Ventes
+  const statsParClient = useMemo(() => {
+    if (!showClientFilter) return [];
+    
+    const clientStats: Record<string, { nom: string; count: number; montant: number }> = {};
+    
+    facturesFiltrees.forEach((f) => {
+      if (f.partenaire_id) {
+        if (!clientStats[f.partenaire_id]) {
+          clientStats[f.partenaire_id] = {
+            nom: f.partenaire_nom,
+            count: 0,
+            montant: 0,
+          };
+        }
+        clientStats[f.partenaire_id].count++;
+        clientStats[f.partenaire_id].montant += f.total_ttc;
+      }
+    });
+
+    return Object.entries(clientStats)
+      .map(([id, data]) => ({ id, ...data }))
+      .sort((a, b) => b.montant - a.montant);
+  }, [facturesFiltrees, showClientFilter]);
+
   return (
     <>
-      {/* Summary Table by Tranche */}
+      {/* KPI par Client - uniquement pour Ventes */}
+      {showClientFilter && statsParClient.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Retard par Client</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {statsParClient.map((client) => (
+                <div
+                  key={client.id}
+                  className="flex flex-col p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                >
+                  <span className="font-medium text-sm truncate" title={client.nom}>
+                    {client.nom}
+                  </span>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-xs text-muted-foreground">
+                      {client.count} facture{client.count > 1 ? "s" : ""}
+                    </span>
+                    <span className="text-sm font-semibold text-destructive">
+                      {client.montant.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Synthèse par Tranche de Retard</CardTitle>
