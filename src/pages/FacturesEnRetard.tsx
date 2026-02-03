@@ -25,8 +25,14 @@ interface FactureEnRetard {
   type_facture: string;
   partenaire_nom: string;
   partenaire_type: string;
+  partenaire_id: string | null;
   jours_retard: number;
   tranche_retard: string;
+}
+
+interface Client {
+  id: string;
+  raison_sociale: string;
 }
 
 type PartenaireFilter = "TOUS" | "CLIENT" | "FOURNISSEUR_SERVICES" | "FOURNISSEUR_GENERAL" | "PRESTATAIRE" | "SALARIE";
@@ -96,6 +102,8 @@ export default function FacturesEnRetard() {
   const [factures, setFactures] = useState<FactureEnRetard[]>([]);
   const [filtrePartenaire, setFiltrePartenaire] = useState<PartenaireFilter>("TOUS");
   const [activeTab, setActiveTab] = useState<"ventes" | "achats">("ventes");
+  const [selectedClientId, setSelectedClientId] = useState<string>("all");
+  const [clients, setClients] = useState<Client[]>([]);
   
   // Filtres de période
   const [dateFilter, setDateFilter] = useState<DateFilter>({
@@ -103,6 +111,18 @@ export default function FacturesEnRetard() {
     debut: undefined,
     fin: undefined,
   });
+
+  // Load clients for filter
+  useEffect(() => {
+    const loadClients = async () => {
+      const { data } = await supabase
+        .from("clients")
+        .select("id, raison_sociale")
+        .order("raison_sociale");
+      if (data) setClients(data);
+    };
+    loadClients();
+  }, []);
 
   const loadFactures = async () => {
     setLoading(true);
@@ -147,6 +167,7 @@ export default function FacturesEnRetard() {
           type_facture: f.type_facture,
           partenaire_nom: partenaireNom,
           partenaire_type: partenaireType,
+          partenaire_id: f.type_facture === "VENTES" ? f.destinataire_id : f.emetteur_id,
           jours_retard: joursRetard,
           tranche_retard: getTrancheRetard(joursRetard),
         };
@@ -201,12 +222,17 @@ export default function FacturesEnRetard() {
     if (filtrePartenaire !== "TOUS") {
       result = result.filter((f) => f.partenaire_type === filtrePartenaire);
     }
+
+    // Filtre par client (uniquement pour ventes)
+    if (activeTab === "ventes" && selectedClientId !== "all") {
+      result = result.filter((f) => f.partenaire_id === selectedClientId);
+    }
     
     // Filtre par date
     result = applyDateFilter(result);
     
     return result;
-  }, [facturesActives, filtrePartenaire, dateFilter]);
+  }, [facturesActives, filtrePartenaire, dateFilter, activeTab, selectedClientId]);
 
   // Reset date filter
   const resetDateFilter = () => {
@@ -331,6 +357,10 @@ export default function FacturesEnRetard() {
             setDateFilter={setDateFilter}
             resetDateFilter={resetDateFilter}
             isDateFilterActive={!!isDateFilterActive}
+            showClientFilter={true}
+            clients={clients}
+            selectedClientId={selectedClientId}
+            setSelectedClientId={setSelectedClientId}
           />
         </TabsContent>
 
@@ -346,6 +376,7 @@ export default function FacturesEnRetard() {
             setDateFilter={setDateFilter}
             resetDateFilter={resetDateFilter}
             isDateFilterActive={!!isDateFilterActive}
+            showClientFilter={false}
           />
         </TabsContent>
       </Tabs>
@@ -365,6 +396,10 @@ interface FacturesContentProps {
   setDateFilter: (v: DateFilter) => void;
   resetDateFilter: () => void;
   isDateFilterActive: boolean;
+  showClientFilter?: boolean;
+  clients?: Client[];
+  selectedClientId?: string;
+  setSelectedClientId?: (v: string) => void;
 }
 
 function FacturesContent({
@@ -378,6 +413,10 @@ function FacturesContent({
   setDateFilter,
   resetDateFilter,
   isDateFilterActive,
+  showClientFilter = false,
+  clients = [],
+  selectedClientId = "all",
+  setSelectedClientId,
 }: FacturesContentProps) {
   return (
     <>
@@ -482,24 +521,43 @@ function FacturesContent({
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <CardTitle className="text-lg">Liste des Factures en Retard</CardTitle>
-              <Select
-                value={filtrePartenaire}
-                onValueChange={(v) => setFiltrePartenaire(v as PartenaireFilter)}
-              >
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Filtrer par partenaire" />
-                </SelectTrigger>
-                <SelectContent className="bg-background z-50">
-                  <SelectItem value="TOUS">Tous les partenaires</SelectItem>
-                  <SelectItem value="CLIENT">Clients</SelectItem>
-                  <SelectItem value="FOURNISSEUR_SERVICES">Fournisseurs de services</SelectItem>
-                  <SelectItem value="FOURNISSEUR_GENERAL">Fournisseurs généraux</SelectItem>
-                  <SelectItem value="PRESTATAIRE">Prestataires</SelectItem>
-                  <SelectItem value="SALARIE">Salariés</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Client filter - only for Ventes */}
+                {showClientFilter && setSelectedClientId && (
+                  <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Tous les clients" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background z-50 max-h-[300px]">
+                      <SelectItem value="all">Tous les clients</SelectItem>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.raison_sociale}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                
+                <Select
+                  value={filtrePartenaire}
+                  onValueChange={(v) => setFiltrePartenaire(v as PartenaireFilter)}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Filtrer par partenaire" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    <SelectItem value="TOUS">Tous les partenaires</SelectItem>
+                    <SelectItem value="CLIENT">Clients</SelectItem>
+                    <SelectItem value="FOURNISSEUR_SERVICES">Fournisseurs de services</SelectItem>
+                    <SelectItem value="FOURNISSEUR_GENERAL">Fournisseurs généraux</SelectItem>
+                    <SelectItem value="PRESTATAIRE">Prestataires</SelectItem>
+                    <SelectItem value="SALARIE">Salariés</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Date Filters */}
