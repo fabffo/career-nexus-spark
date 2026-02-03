@@ -317,11 +317,7 @@ export default function FacturesEnRetard() {
     {
       accessorKey: "tranche_retard",
       header: "Tranche",
-      cell: ({ row }) => (
-        <Badge className={getTrancheColor(row.original.tranche_retard)}>
-          {row.original.tranche_retard}
-        </Badge>
-      ),
+      cell: ({ row }) => <span>{row.original.tranche_retard}</span>,
     },
   ];
 
@@ -571,9 +567,7 @@ function FacturesContent({
               <tbody>
                 {TRANCHES.map((tranche) => (
                   <tr key={tranche} className="border-b">
-                    <td className="py-2 px-4">
-                      <Badge className={getTrancheColor(tranche)}>{tranche}</Badge>
-                    </td>
+                    <td className="py-2 px-4">{tranche}</td>
                     <td className="text-right py-2 px-4">{stats.parTranche[tranche].count}</td>
                     <td className="text-right py-2 px-4 font-semibold">
                       {stats.parTranche[tranche].montant.toLocaleString("fr-FR", {
