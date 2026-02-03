@@ -358,6 +358,7 @@ export default function FacturesEnRetard() {
             resetDateFilter={resetDateFilter}
             isDateFilterActive={!!isDateFilterActive}
             showClientFilter={true}
+            showPartenaireFilter={false}
             clients={clients}
             selectedClientId={selectedClientId}
             setSelectedClientId={setSelectedClientId}
@@ -377,6 +378,7 @@ export default function FacturesEnRetard() {
             resetDateFilter={resetDateFilter}
             isDateFilterActive={!!isDateFilterActive}
             showClientFilter={false}
+            showPartenaireFilter={true}
           />
         </TabsContent>
       </Tabs>
@@ -397,6 +399,7 @@ interface FacturesContentProps {
   resetDateFilter: () => void;
   isDateFilterActive: boolean;
   showClientFilter?: boolean;
+  showPartenaireFilter?: boolean;
   clients?: Client[];
   selectedClientId?: string;
   setSelectedClientId?: (v: string) => void;
@@ -414,6 +417,7 @@ function FacturesContent({
   resetDateFilter,
   isDateFilterActive,
   showClientFilter = false,
+  showPartenaireFilter = true,
   clients = [],
   selectedClientId = "all",
   setSelectedClientId,
@@ -541,22 +545,24 @@ function FacturesContent({
                   </Select>
                 )}
                 
-                <Select
-                  value={filtrePartenaire}
-                  onValueChange={(v) => setFiltrePartenaire(v as PartenaireFilter)}
-                >
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Filtrer par partenaire" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background z-50">
-                    <SelectItem value="TOUS">Tous les partenaires</SelectItem>
-                    <SelectItem value="CLIENT">Clients</SelectItem>
-                    <SelectItem value="FOURNISSEUR_SERVICES">Fournisseurs de services</SelectItem>
-                    <SelectItem value="FOURNISSEUR_GENERAL">Fournisseurs généraux</SelectItem>
-                    <SelectItem value="PRESTATAIRE">Prestataires</SelectItem>
-                    <SelectItem value="SALARIE">Salariés</SelectItem>
-                  </SelectContent>
-                </Select>
+                {/* Partenaire filter - only for Achats */}
+                {showPartenaireFilter && (
+                  <Select
+                    value={filtrePartenaire}
+                    onValueChange={(v) => setFiltrePartenaire(v as PartenaireFilter)}
+                  >
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Filtrer par partenaire" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background z-50">
+                      <SelectItem value="TOUS">Tous les partenaires</SelectItem>
+                      <SelectItem value="FOURNISSEUR_SERVICES">Fournisseurs de services</SelectItem>
+                      <SelectItem value="FOURNISSEUR_GENERAL">Fournisseurs généraux</SelectItem>
+                      <SelectItem value="PRESTATAIRE">Prestataires</SelectItem>
+                      <SelectItem value="SALARIE">Salariés</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </div>
 
