@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Download, CalendarIcon } from "lucide-react";
+import { Download, CalendarIcon, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,13 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -34,7 +28,6 @@ interface ExportFacturesAchatsDialogProps {
 }
 
 const TYPE_FOURNISSEUR_OPTIONS = [
-  { value: "all", label: "Tous les types" },
   { value: "SERVICES", label: "Fournisseurs Services" },
   { value: "GENERAUX", label: "Fournisseurs Généraux" },
   { value: "ETAT_ORGANISMES", label: "État & Organismes" },
@@ -54,8 +47,26 @@ export default function ExportFacturesAchatsDialog({ trigger }: ExportFacturesAc
   const [open, setOpen] = useState(false);
   const [dateDebut, setDateDebut] = useState<Date | undefined>(undefined);
   const [dateFin, setDateFin] = useState<Date | undefined>(undefined);
-  const [typeFournisseur, setTypeFournisseur] = useState<string>("all");
+  const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set(TYPE_FOURNISSEUR_OPTIONS.map(o => o.value)));
   const [isExporting, setIsExporting] = useState(false);
+
+  const toggleType = (value: string) => {
+    const newSet = new Set(selectedTypes);
+    if (newSet.has(value)) {
+      newSet.delete(value);
+    } else {
+      newSet.add(value);
+    }
+    setSelectedTypes(newSet);
+  };
+
+  const toggleAll = () => {
+    if (selectedTypes.size === TYPE_FOURNISSEUR_OPTIONS.length) {
+      setSelectedTypes(new Set());
+    } else {
+      setSelectedTypes(new Set(TYPE_FOURNISSEUR_OPTIONS.map(o => o.value)));
+    }
+  };
 
   // Helper pour obtenir le type de fournisseur depuis une facture
   const getFactureEmetteurType = (facture: any, fournisseurTypesMap: Map<string, string>): string => {
@@ -177,12 +188,12 @@ export default function ExportFacturesAchatsDialog({ trigger }: ExportFacturesAc
         return;
       }
 
-      // Filtrer par type de fournisseur si nécessaire
+      // Filtrer par types de fournisseur sélectionnés
       let filteredData = data;
-      if (typeFournisseur !== "all") {
+      if (selectedTypes.size < TYPE_FOURNISSEUR_OPTIONS.length) {
         filteredData = data.filter(f => {
           const type = getFactureEmetteurType(f, fournisseurTypesMap);
-          return type === typeFournisseur;
+          return selectedTypes.has(type);
         });
       }
 
@@ -217,7 +228,7 @@ export default function ExportFacturesAchatsDialog({ trigger }: ExportFacturesAc
       const link = document.createElement("a");
       link.href = url;
       
-      const typeLabel = typeFournisseur === "all" ? "tous" : typeFournisseur.toLowerCase();
+      const typeLabel = selectedTypes.size === TYPE_FOURNISSEUR_OPTIONS.length ? "tous" : Array.from(selectedTypes).join("-").toLowerCase();
       link.download = `factures_achats_${typeLabel}_${format(dateDebut, "yyyyMMdd")}_${format(dateFin, "yyyyMMdd")}.csv`;
       
       document.body.appendChild(link);
@@ -312,20 +323,30 @@ export default function ExportFacturesAchatsDialog({ trigger }: ExportFacturesAc
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Type de fournisseur</label>
-            <Select value={typeFournisseur} onValueChange={setTypeFournisseur}>
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un type" />
-              </SelectTrigger>
-              <SelectContent>
-                {TYPE_FOURNISSEUR_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">Types de fournisseur</label>
+              <Button variant="ghost" size="sm" onClick={toggleAll} className="h-7 text-xs">
+                {selectedTypes.size === TYPE_FOURNISSEUR_OPTIONS.length ? "Désélectionner tout" : "Tout sélectionner"}
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {TYPE_FOURNISSEUR_OPTIONS.map((option) => (
+                <div key={option.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={option.value}
+                    checked={selectedTypes.has(option.value)}
+                    onCheckedChange={() => toggleType(option.value)}
+                  />
+                  <label
+                    htmlFor={option.value}
+                    className="text-sm cursor-pointer"
+                  >
                     {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -333,7 +354,7 @@ export default function ExportFacturesAchatsDialog({ trigger }: ExportFacturesAc
           <Button variant="outline" onClick={() => setOpen(false)}>
             Annuler
           </Button>
-          <Button onClick={handleExport} disabled={isExporting || !dateDebut || !dateFin}>
+          <Button onClick={handleExport} disabled={isExporting || !dateDebut || !dateFin || selectedTypes.size === 0}>
             {isExporting ? "Export en cours..." : "Exporter"}
           </Button>
         </DialogFooter>
