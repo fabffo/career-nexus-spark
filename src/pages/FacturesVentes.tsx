@@ -13,6 +13,7 @@ import ViewFactureDialog from "@/components/ViewFactureDialog";
 import ExtractionFactureVenteDialog from "@/components/ExtractionFactureVenteDialog";
 import RapprochementDetailDialog from "@/components/RapprochementDetailDialog";
 import RapprochementAvoirDialog from "@/components/RapprochementAvoirDialog";
+import ExportFacturesVentesDialog from "@/components/ExportFacturesVentesDialog";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -1028,6 +1029,7 @@ export default function FacturesVentes() {
               {isDownloading ? 'Téléchargement...' : `Télécharger (${selectedFactureIds.size})`}
             </Button>
           )}
+          <ExportFacturesVentesDialog />
           <Button 
             onClick={handleAutoLinkClients}
             variant="outline"
