@@ -64,6 +64,7 @@ import AnalyseFinanciere from "./pages/AnalyseFinanciere";
 import ChargesMensuelles from "./pages/ChargesMensuelles";
 import Banques from "./pages/Banques";
 import FacturesEnRetard from "./pages/FacturesEnRetard";
+import PrevisionTresorerie from "./pages/PrevisionTresorerie";
 
 const queryClient = new QueryClient();
 
@@ -158,6 +159,7 @@ const App = () => (
               <Route path="charges-mensuelles" element={<ChargesMensuelles />} />
               <Route path="banques" element={<Banques />} />
               <Route path="factures-en-retard" element={<FacturesEnRetard />} />
+              <Route path="prevision-tresorerie" element={<PrevisionTresorerie />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />

@@ -23,6 +23,7 @@ import {
   Sparkles,
   Landmark,
   AlertTriangle,
+  Wallet,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -99,6 +100,7 @@ export function Sidebar() {
       items: [
         { path: '/dashboard-financier', label: 'Dashboard Financier', icon: Activity },
         { path: '/analyse-financiere', label: 'Analyse Financière', icon: FileText },
+        { path: '/prevision-tresorerie', label: 'Prévision Trésorerie', icon: Wallet },
         { path: '/factures', label: 'Toutes les factures', icon: FileText },
         { path: '/factures-ventes', label: 'Factures de vente', icon: FileText },
         { path: '/factures-achats', label: 'Factures d\'achat', icon: FileText },
