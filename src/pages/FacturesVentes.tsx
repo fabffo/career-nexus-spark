@@ -117,6 +117,10 @@ export default function FacturesVentes() {
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
   const [availableYears, setAvailableYears] = useState<string[]>([]);
+  // Filtres par date d'échéance
+  const [selectedEcheanceYear, setSelectedEcheanceYear] = useState<string>("all");
+  const [selectedEcheanceMonths, setSelectedEcheanceMonths] = useState<string[]>([]);
+  const [availableEcheanceYears, setAvailableEcheanceYears] = useState<string[]>([]);
   const [selectedFactureIds, setSelectedFactureIds] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
   const [selectedActivite, setSelectedActivite] = useState<string>("all");
@@ -133,7 +137,7 @@ export default function FacturesVentes() {
 
   useEffect(() => {
     fetchFactures();
-  }, [selectedYear, selectedMonths, selectedActivite]);
+  }, [selectedYear, selectedMonths, selectedActivite, selectedEcheanceYear, selectedEcheanceMonths]);
 
   const fetchFactures = async () => {
     setLoading(true);
@@ -178,7 +182,7 @@ export default function FacturesVentes() {
         statut: f.statut as 'BROUILLON' | 'VALIDEE' | 'PAYEE' | 'ANNULEE',
       }));
       
-      // Filtrer côté client par mois sélectionnés si nécessaire
+      // Filtrer côté client par mois sélectionnés (date émission) si nécessaire
       if (selectedYear !== "all" && selectedMonths.length > 0) {
         facturesData = facturesData.filter(f => {
           if (!f.date_emission) return false;
@@ -187,7 +191,26 @@ export default function FacturesVentes() {
         });
       }
       
-      // Extraire les années disponibles
+      // Filtrer par année échéance si sélectionné
+      if (selectedEcheanceYear !== "all") {
+        const yearNum = parseInt(selectedEcheanceYear);
+        facturesData = facturesData.filter(f => {
+          if (!f.date_echeance) return false;
+          const echeanceYear = new Date(f.date_echeance).getFullYear();
+          return echeanceYear === yearNum;
+        });
+      }
+      
+      // Filtrer par mois échéance si sélectionné
+      if (selectedEcheanceYear !== "all" && selectedEcheanceMonths.length > 0) {
+        facturesData = facturesData.filter(f => {
+          if (!f.date_echeance) return false;
+          const month = (new Date(f.date_echeance).getMonth() + 1).toString();
+          return selectedEcheanceMonths.includes(month);
+        });
+      }
+      
+      // Extraire les années disponibles pour date émission
       const years = new Set<string>();
       facturesData.forEach(f => {
         if (f.date_emission) {
@@ -196,6 +219,16 @@ export default function FacturesVentes() {
         }
       });
       setAvailableYears(Array.from(years).sort((a, b) => parseInt(b) - parseInt(a)));
+      
+      // Extraire les années disponibles pour date échéance (à partir des données brutes)
+      const echeanceYears = new Set<string>();
+      (data || []).forEach(f => {
+        if (f.date_echeance) {
+          const year = new Date(f.date_echeance).getFullYear().toString();
+          echeanceYears.add(year);
+        }
+      });
+      setAvailableEcheanceYears(Array.from(echeanceYears).sort((a, b) => parseInt(b) - parseInt(a)));
       
       setFactures(facturesData);
     } catch (error: any) {
@@ -1237,6 +1270,87 @@ export default function FacturesVentes() {
             ))}
           </SelectContent>
         </Select>
+
+        {/* Séparateur visuel */}
+        <div className="h-8 w-px bg-border mx-1" />
+        
+        {/* Filtres par date d'échéance */}
+        <span className="text-xs text-muted-foreground whitespace-nowrap">Échéance:</span>
+        <Select 
+          value={selectedEcheanceYear} 
+          onValueChange={(value) => {
+            setSelectedEcheanceYear(value);
+            setSelectedEcheanceMonths([]);
+          }}
+        >
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Année éch." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toutes</SelectItem>
+            {availableEcheanceYears.map(year => (
+              <SelectItem key={year} value={year}>{year}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {selectedEcheanceYear !== "all" && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-[180px] justify-between">
+                {selectedEcheanceMonths.length === 0 
+                  ? "Tous les mois" 
+                  : selectedEcheanceMonths.length === 12
+                  ? "Tous les mois"
+                  : `${selectedEcheanceMonths.length} mois`
+                }
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-[200px]" align="start">
+              <div className="p-2 border-b">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    const allMonths = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+                    setSelectedEcheanceMonths(selectedEcheanceMonths.length === 12 ? [] : allMonths);
+                  }}
+                >
+                  {selectedEcheanceMonths.length === 12 ? 'Désélectionner tous' : 'Sélectionner tous'}
+                </Button>
+              </div>
+              {[
+                { value: '1', label: 'Janvier' },
+                { value: '2', label: 'Février' },
+                { value: '3', label: 'Mars' },
+                { value: '4', label: 'Avril' },
+                { value: '5', label: 'Mai' },
+                { value: '6', label: 'Juin' },
+                { value: '7', label: 'Juillet' },
+                { value: '8', label: 'Août' },
+                { value: '9', label: 'Septembre' },
+                { value: '10', label: 'Octobre' },
+                { value: '11', label: 'Novembre' },
+                { value: '12', label: 'Décembre' },
+              ].map((month) => (
+                <DropdownMenuCheckboxItem
+                  key={month.value}
+                  checked={selectedEcheanceMonths.includes(month.value)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedEcheanceMonths([...selectedEcheanceMonths, month.value].sort((a, b) => parseInt(a) - parseInt(b)));
+                    } else {
+                      setSelectedEcheanceMonths(selectedEcheanceMonths.filter(m => m !== month.value));
+                    }
+                  }}
+                >
+                  {month.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
