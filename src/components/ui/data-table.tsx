@@ -40,6 +40,7 @@ export function DataTable<TData, TValue>({
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
+    autoResetPageIndex: false,
     globalFilterFn: (row, columnId, filterValue) => {
       const search = String(filterValue).toLowerCase();
 
