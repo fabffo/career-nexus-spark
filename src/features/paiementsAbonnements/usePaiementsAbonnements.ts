@@ -34,7 +34,7 @@ export function usePaiementsAbonnements({
           total_ht,
           total_tva,
           total_ttc,
-          abonnement:abonnements_partenaires(id, nom, nature, type, tva)
+          abonnement:abonnements_partenaires(id, nom, activite, type, tva)
         `,
         )
         // uniquement les lignes liées à un abonnement (inclut les lignes de TVA paramétrées comme abonnement)

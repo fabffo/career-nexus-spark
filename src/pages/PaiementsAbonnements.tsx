@@ -8,14 +8,8 @@ import { ColumnDef } from "@tanstack/react-table";
 import { usePaiementsAbonnements } from "@/features/paiementsAbonnements/usePaiementsAbonnements";
 import type { PaiementAbonnementRow as Paiement } from "@/features/paiementsAbonnements/types";
 import { getDisplayAmount, getTauxTva, isRefund } from "@/features/paiementsAbonnements/utils";
-
-const NATURE_LABELS: Record<string, string> = {
-  RELEVE_BANQUE: "Relevé Banque",
-  ASSURANCE: "Assurance",
-  LOA_VOITURE: "LOA Voiture",
-  LOYER: "Loyer",
-  AUTRE: "Autre",
-};
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const TYPE_LABELS: Record<string, string> = {
   CHARGE: "Charge",
@@ -27,8 +21,27 @@ const TYPE_LABELS: Record<string, string> = {
 export default function PaiementsAbonnements() {
   const [anneeSelectionnee, setAnneeSelectionnee] = useState(new Date().getFullYear());
   const [moisSelectionne, setMoisSelectionne] = useState<number | null>(null);
-  const [natureFilter, setNatureFilter] = useState<string | null>(null);
+  const [activiteFilter, setActiviteFilter] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+
+  // Charger les activités pour le mapping
+  const { data: activitesOptions = [] } = useQuery({
+    queryKey: ["activites-options"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("param_activite")
+        .select("code, libelle")
+        .eq("is_active", true)
+        .order("libelle");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const activitesMap = activitesOptions.reduce((acc, a) => {
+    acc[a.code] = a.libelle;
+    return acc;
+  }, {} as Record<string, string>);
 
   const debut = moisSelectionne !== null
     ? startOfMonth(new Date(anneeSelectionnee, moisSelectionne, 1))
@@ -44,9 +57,9 @@ export default function PaiementsAbonnements() {
     moisSelectionne,
   });
 
-  // Appliquer les filtres Nature et Type
+  // Appliquer les filtres Activité et Type
   const paiements = paiementsRaw.filter((p) => {
-    if (natureFilter && p.abonnement?.nature !== natureFilter) return false;
+    if (activiteFilter && p.abonnement?.activite !== activiteFilter) return false;
     if (typeFilter && p.abonnement?.type !== typeFilter) return false;
     return true;
   });
@@ -107,13 +120,14 @@ export default function PaiementsAbonnements() {
       ),
     },
     {
-      id: "nature",
-      header: "Nature",
+      id: "activite",
+      header: "Activité",
       cell: ({ row }) => {
-        const nature = row.original.abonnement?.nature;
-        return nature ? (
-          <Badge variant="outline">{NATURE_LABELS[nature]}</Badge>
-        ) : null;
+        const activite = row.original.abonnement?.activite;
+        if (!activite) return <span className="text-muted-foreground">-</span>;
+        return (
+          <Badge variant="outline">{activitesMap[activite] || activite}</Badge>
+        );
       },
     },
     {
@@ -294,14 +308,14 @@ export default function PaiementsAbonnements() {
             ))}
           </select>
           <select
-            value={natureFilter ?? ""}
-            onChange={(e) => setNatureFilter(e.target.value || null)}
+            value={activiteFilter ?? ""}
+            onChange={(e) => setActiviteFilter(e.target.value || null)}
             className="border rounded-md px-4 py-2 bg-background"
           >
-            <option value="">Toutes natures</option>
-            {Object.entries(NATURE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
+            <option value="">Toutes activités</option>
+            {activitesOptions.map((a) => (
+              <option key={a.code} value={a.code}>
+                {a.libelle}
               </option>
             ))}
           </select>

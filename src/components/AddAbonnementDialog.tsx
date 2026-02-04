@@ -31,14 +31,6 @@ interface AddAbonnementDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const NATURES = [
-  { value: "RELEVE_BANQUE", label: "Relevé Banque" },
-  { value: "ASSURANCE", label: "Assurance" },
-  { value: "LOA_VOITURE", label: "LOA Voiture" },
-  { value: "LOYER", label: "Loyer" },
-  { value: "AUTRE", label: "Autre" },
-];
-
 const TYPES = [
   { value: "CHARGE", label: "Charge" },
   { value: "AUTRE", label: "Autre" },
@@ -64,10 +56,24 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
     },
   });
 
+  // Charger les activités
+  const { data: activiteOptions = [] } = useQuery({
+    queryKey: ["activite-options"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("param_activite")
+        .select("code, libelle")
+        .eq("is_active", true)
+        .order("libelle");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { register, handleSubmit, reset, setValue, watch } = useForm({
     defaultValues: {
       nom: "",
-      nature: "RELEVE_BANQUE",
+      activite: "",
       type: "CHARGE",
       tva: "",
       montant_mensuel: "",
@@ -77,7 +83,7 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
     },
   });
 
-  const nature = watch("nature");
+  const activite = watch("activite");
   const type = watch("type");
   const tva = watch("tva");
   const actif = watch("actif");
@@ -112,7 +118,8 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
         .from("abonnements_partenaires")
         .insert({
           nom: data.nom,
-          nature: data.nature,
+          nature: "AUTRE", // Valeur par défaut, remplacée par activite
+          activite: data.activite || null,
           type: data.type,
           tva: data.tva,
           montant_mensuel: data.montant_mensuel ? parseFloat(data.montant_mensuel) : null,
@@ -183,15 +190,15 @@ export function AddAbonnementDialog({ open, onOpenChange }: AddAbonnementDialogP
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="nature">Nature *</Label>
-              <Select value={nature} onValueChange={(value) => setValue("nature", value)}>
+              <Label htmlFor="activite">Activité</Label>
+              <Select value={activite} onValueChange={(value) => setValue("activite", value)}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Sélectionner une activité" />
                 </SelectTrigger>
                 <SelectContent>
-                  {NATURES.map((n) => (
-                    <SelectItem key={n.value} value={n.value}>
-                      {n.label}
+                  {activiteOptions.map((a) => (
+                    <SelectItem key={a.code} value={a.code}>
+                      {a.libelle}
                     </SelectItem>
                   ))}
                 </SelectContent>

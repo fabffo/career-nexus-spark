@@ -106,6 +106,7 @@ export type Database = {
       abonnements_partenaires: {
         Row: {
           actif: boolean | null
+          activite: string | null
           created_at: string | null
           created_by: string | null
           document_url: string | null
@@ -124,6 +125,7 @@ export type Database = {
         }
         Insert: {
           actif?: boolean | null
+          activite?: string | null
           created_at?: string | null
           created_by?: string | null
           document_url?: string | null
@@ -142,6 +144,7 @@ export type Database = {
         }
         Update: {
           actif?: boolean | null
+          activite?: string | null
           created_at?: string | null
           created_by?: string | null
           document_url?: string | null
@@ -158,7 +161,15 @@ export type Database = {
           type?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "abonnements_partenaires_activite_fkey"
+            columns: ["activite"]
+            isOneToOne: false
+            referencedRelation: "param_activite"
+            referencedColumns: ["code"]
+          },
+        ]
       }
       analyse_poste_candidat: {
         Row: {
