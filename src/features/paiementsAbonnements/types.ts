@@ -3,7 +3,7 @@ export type PaiementAbonnementRow = {
   date_paiement: string;
   montant: number;
   notes: string;
-  abonnement?: { id: string; nom: string; nature: string; type: string; tva: string | null };
+  abonnement?: { id: string; nom: string; activite: string | null; type: string; tva: string | null };
   rapprochement?: {
     id: string;
     transaction_libelle: string;

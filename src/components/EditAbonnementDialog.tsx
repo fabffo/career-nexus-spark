@@ -34,14 +34,6 @@ interface EditAbonnementDialogProps {
   abonnement: any;
 }
 
-const NATURES = [
-  { value: "RELEVE_BANQUE", label: "Relevé Banque" },
-  { value: "ASSURANCE", label: "Assurance" },
-  { value: "LOA_VOITURE", label: "LOA Voiture" },
-  { value: "LOYER", label: "Loyer" },
-  { value: "AUTRE", label: "Autre" },
-];
-
 const TYPES = [
   { value: "CHARGE", label: "Charge" },
   { value: "AUTRE", label: "Autre" },
@@ -71,10 +63,24 @@ export function EditAbonnementDialog({
     },
   });
 
+  // Charger les activités
+  const { data: activiteOptions = [] } = useQuery({
+    queryKey: ["activite-options"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("param_activite")
+        .select("code, libelle")
+        .eq("is_active", true)
+        .order("libelle");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { register, handleSubmit, reset, setValue, watch } = useForm({
     defaultValues: {
       nom: "",
-      nature: "",
+      activite: "",
       type: "CHARGE",
       tva: "normal",
       montant_mensuel: "",
@@ -87,7 +93,7 @@ export function EditAbonnementDialog({
     }
   });
 
-  const nature = watch("nature");
+  const activite = watch("activite");
   const type = watch("type");
   const tva = watch("tva");
   const actif = watch("actif");
@@ -107,7 +113,7 @@ export function EditAbonnementDialog({
     if (abonnement && abonnement.id !== initializedAbonnementId) {
       reset({
         nom: abonnement.nom,
-        nature: abonnement.nature,
+        activite: abonnement.activite || "",
         type: abonnement.type || "CHARGE",
         tva: abonnement.tva || "normal",
         montant_mensuel: abonnement.montant_mensuel || "",
@@ -150,7 +156,7 @@ export function EditAbonnementDialog({
         .from("abonnements_partenaires")
         .update({
           nom: data.nom,
-          nature: data.nature,
+          activite: data.activite || null,
           type: data.type,
           tva: data.tva,
           montant_mensuel: data.montant_mensuel ? parseFloat(data.montant_mensuel) : null,
@@ -218,15 +224,15 @@ export function EditAbonnementDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="nature">Nature *</Label>
-              <Select value={nature} onValueChange={(value) => setValue("nature", value)}>
+              <Label htmlFor="activite">Activité</Label>
+              <Select value={activite} onValueChange={(value) => setValue("activite", value)}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Sélectionner une activité" />
                 </SelectTrigger>
                 <SelectContent>
-                  {NATURES.map((n) => (
-                    <SelectItem key={n.value} value={n.value}>
-                      {n.label}
+                  {activiteOptions.map((a) => (
+                    <SelectItem key={a.code} value={a.code}>
+                      {a.libelle}
                     </SelectItem>
                   ))}
                 </SelectContent>

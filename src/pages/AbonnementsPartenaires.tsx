@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, FileText, Eye, Building2, User, Briefcase, Landmark, Package, Settings, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
@@ -23,22 +23,6 @@ import { ViewAbonnementDialog } from "@/components/ViewAbonnementDialog";
 import { getPartenaireTypeLabel, PARTENAIRE_TYPES } from "@/components/PartenaireSelect";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const NATURE_LABELS: Record<string, string> = {
-  RELEVE_BANQUE: "Relevé Banque",
-  ASSURANCE: "Assurance",
-  LOA_VOITURE: "LOA Voiture",
-  LOYER: "Loyer",
-  AUTRE: "Autre",
-};
-
-const NATURE_COLORS: Record<string, string> = {
-  RELEVE_BANQUE: "bg-blue-500",
-  ASSURANCE: "bg-green-500",
-  LOA_VOITURE: "bg-purple-500",
-  LOYER: "bg-orange-500",
-  AUTRE: "bg-gray-500",
-};
-
 const TYPE_LABELS: Record<string, string> = {
   CHARGE: "Charge",
   AUTRE: "Autre",
@@ -52,7 +36,7 @@ const TVA_LABELS: Record<string, string> = {
 type Abonnement = {
   id: string;
   nom: string;
-  nature: string;
+  activite: string | null;
   type: string;
   tva: string;
   montant_mensuel: number;
@@ -62,6 +46,7 @@ type Abonnement = {
   partenaire_type: string | null;
   partenaire_id: string | null;
   partenaire_label?: string;
+  activite_libelle?: string;
   documents?: Array<{ id: string; document_url: string; nom_fichier: string; created_at: string }>;
 };
 
@@ -72,8 +57,24 @@ export default function AbonnementsPartenaires() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
+  // Charger les activités pour le mapping
+  const { data: activitesMap = {} } = useQuery({
+    queryKey: ["activites-map"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("param_activite")
+        .select("code, libelle")
+        .eq("is_active", true);
+      if (error) throw error;
+      return (data || []).reduce((acc, a) => {
+        acc[a.code] = a.libelle;
+        return acc;
+      }, {} as Record<string, string>);
+    },
+  });
+
   const { data: abonnements = [], isLoading } = useQuery({
-    queryKey: ["abonnements-partenaires"],
+    queryKey: ["abonnements-partenaires", activitesMap],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("abonnements_partenaires")
@@ -235,13 +236,17 @@ export default function AbonnementsPartenaires() {
       },
     },
     {
-      accessorKey: "nature",
-      header: "Nature",
-      cell: ({ row }) => (
-        <Badge className={NATURE_COLORS[row.original.nature]}>
-          {NATURE_LABELS[row.original.nature]}
-        </Badge>
-      ),
+      accessorKey: "activite",
+      header: "Activité",
+      cell: ({ row }) => {
+        const activite = row.original.activite;
+        if (!activite) return <span className="text-muted-foreground">-</span>;
+        return (
+          <Badge variant="outline">
+            {activitesMap[activite] || activite}
+          </Badge>
+        );
+      },
     },
     {
       accessorKey: "type",
