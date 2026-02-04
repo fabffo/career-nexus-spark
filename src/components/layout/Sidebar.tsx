@@ -100,6 +100,7 @@ export function Sidebar() {
       items: [
         { path: '/dashboard-financier', label: 'Dashboard Financier', icon: Activity },
         { path: '/analyse-financiere', label: 'Analyse Financière', icon: FileText },
+        { path: '/analyse-tresorerie', label: 'Analyse Trésorerie', icon: FileText },
         { path: '/prevision-tresorerie', label: 'Prévision Trésorerie', icon: Wallet },
         { path: '/factures', label: 'Toutes les factures', icon: FileText },
         { path: '/factures-ventes', label: 'Factures de vente', icon: FileText },
