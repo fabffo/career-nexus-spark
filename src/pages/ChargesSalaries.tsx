@@ -21,7 +21,22 @@ type Charge = {
   montant: number;
   notes: string;
   declaration?: { id: string; nom: string; organisme: string; type_charge: string };
-  rapprochement?: { id: string; transaction_libelle: string };
+  rapprochement?: { id: string; transaction_libelle: string; transaction_credit: number; transaction_debit: number };
+};
+
+// Détermine si c'est un remboursement (crédit)
+const isCredit = (charge: Charge): boolean => {
+  if (charge.rapprochement) {
+    const credit = Number(charge.rapprochement.transaction_credit) || 0;
+    return credit > 0;
+  }
+  return Number(charge.montant) < 0;
+};
+
+// Retourne le montant affiché (négatif pour les crédits)
+const getDisplayAmount = (charge: Charge): number => {
+  const montant = Math.abs(Number(charge.montant));
+  return isCredit(charge) ? -montant : montant;
 };
 
 export default function ChargesSalaries() {
@@ -70,7 +85,7 @@ export default function ChargesSalaries() {
         .select(`
           *,
           declaration:declarations_charges_sociales(id, nom, organisme, type_charge),
-          rapprochement:rapprochements_bancaires(id, transaction_libelle)
+          rapprochement:rapprochements_bancaires(id, transaction_libelle, transaction_credit, transaction_debit)
         `)
         .order("date_paiement", { ascending: false });
 
@@ -107,13 +122,13 @@ export default function ChargesSalaries() {
       })
     : allCharges;
 
-  // Calculs des statistiques
+  // Calculs des statistiques (utilise getDisplayAmount pour tenir compte des crédits)
   const stats = {
-    total: charges.reduce((sum, c) => sum + Number(c.montant), 0),
+    total: charges.reduce((sum, c) => sum + getDisplayAmount(c), 0),
     count: charges.length,
     parType: charges.reduce((acc, c) => {
       const type = c.declaration?.type_charge || "AUTRES";
-      acc[type] = (acc[type] || 0) + Number(c.montant);
+      acc[type] = (acc[type] || 0) + getDisplayAmount(c);
       return acc;
     }, {} as Record<string, number>),
   };
@@ -163,9 +178,15 @@ export default function ChargesSalaries() {
     {
       accessorKey: "montant",
       header: "Montant",
-      cell: ({ row }) => (
-        <span className="font-semibold">{Number(row.original.montant).toFixed(2)} €</span>
-      ),
+      cell: ({ row }) => {
+        const displayAmount = getDisplayAmount(row.original);
+        const isNegative = displayAmount < 0;
+        return (
+          <span className={`font-semibold ${isNegative ? 'text-green-600' : ''}`}>
+            {displayAmount.toFixed(2)} €
+          </span>
+        );
+      },
     },
     {
       id: "rapprochement",
