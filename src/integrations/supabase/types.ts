@@ -1480,6 +1480,7 @@ export type Database = {
       }
       fournisseurs_generaux: {
         Row: {
+          activite: string | null
           adresse: string | null
           created_at: string | null
           delai_paiement_jours: number | null
@@ -1494,6 +1495,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          activite?: string | null
           adresse?: string | null
           created_at?: string | null
           delai_paiement_jours?: number | null
@@ -1508,6 +1510,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          activite?: string | null
           adresse?: string | null
           created_at?: string | null
           delai_paiement_jours?: number | null
@@ -1521,7 +1524,15 @@ export type Database = {
           telephone?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fournisseurs_generaux_activite_fkey"
+            columns: ["activite"]
+            isOneToOne: false
+            referencedRelation: "param_activite"
+            referencedColumns: ["code"]
+          },
+        ]
       }
       fournisseurs_services: {
         Row: {

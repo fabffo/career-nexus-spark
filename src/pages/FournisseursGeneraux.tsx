@@ -3,10 +3,18 @@ import { fournisseurGeneralService } from '@/services/contratService';
 import { FournisseurGeneral } from '@/types/contrat';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Globe, Mail, Phone, Building, Eye, Copy } from 'lucide-react';
+import { Plus, Edit, Trash2, Globe, Mail, Phone, Building, Eye, Copy, Tag } from 'lucide-react';
 import { ColumnDef } from '@tanstack/react-table';
 import { RapprochementSearchSection } from '@/components/RapprochementSearchSection';
 import { MatchingHistorySection } from '@/components/MatchingHistorySection';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -29,8 +37,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import { ViewFournisseurGeneralDialog } from '@/components/ViewFournisseurGeneralDialog';
 
+interface Activite {
+  code: string;
+  libelle: string;
+}
+
 export default function FournisseursGeneraux() {
   const [fournisseurs, setFournisseurs] = useState<FournisseurGeneral[]>([]);
+  const [activites, setActivites] = useState<Activite[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [viewingFournisseur, setViewingFournisseur] = useState<FournisseurGeneral | null>(null);
@@ -45,11 +59,22 @@ export default function FournisseursGeneraux() {
     mots_cles_rapprochement: '',
     delai_paiement_jours: 30,
     ecart_paiement_jours: 5,
+    activite: '',
   });
 
   useEffect(() => {
     loadFournisseurs();
+    loadActivites();
   }, []);
+
+  const loadActivites = async () => {
+    const { data } = await supabase
+      .from('param_activite')
+      .select('code, libelle')
+      .eq('is_active', true)
+      .order('ordre');
+    if (data) setActivites(data);
+  };
 
   const loadFournisseurs = async () => {
     const data = await fournisseurGeneralService.getAll();
@@ -70,6 +95,7 @@ export default function FournisseursGeneraux() {
         mots_cles_rapprochement: fournisseur.mots_cles_rapprochement || defaultKeywords,
         delai_paiement_jours: (fournisseur as any).delai_paiement_jours ?? 30,
         ecart_paiement_jours: (fournisseur as any).ecart_paiement_jours ?? 5,
+        activite: (fournisseur as any).activite || '',
       });
     } else {
       setSelectedFournisseur(null);
@@ -83,6 +109,7 @@ export default function FournisseursGeneraux() {
         mots_cles_rapprochement: '',
         delai_paiement_jours: 30,
         ecart_paiement_jours: 5,
+        activite: '',
       });
     }
     setIsFormOpen(true);
@@ -135,6 +162,12 @@ export default function FournisseursGeneraux() {
     }
   };
 
+  const getActiviteLibelle = (code: string | null | undefined) => {
+    if (!code) return null;
+    const activite = activites.find(a => a.code === code);
+    return activite?.libelle || code;
+  };
+
   const columns: ColumnDef<FournisseurGeneral>[] = [
     {
       accessorKey: 'raison_sociale',
@@ -145,6 +178,20 @@ export default function FournisseursGeneraux() {
           <span className="font-medium">{row.original.raison_sociale}</span>
         </div>
       ),
+    },
+    {
+      accessorKey: 'activite',
+      header: 'Activité',
+      cell: ({ row }) => {
+        const activiteCode = (row.original as any).activite;
+        const libelle = getActiviteLibelle(activiteCode);
+        return libelle ? (
+          <div className="flex items-center gap-2">
+            <Tag className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm">{libelle}</span>
+          </div>
+        ) : null;
+      },
     },
     {
       accessorKey: 'secteur_activite',
@@ -308,15 +355,35 @@ export default function FournisseursGeneraux() {
                 />
               </div>
             </div>
-            <div>
-              <Label htmlFor="site_web">Site Web</Label>
-              <Input
-                id="site_web"
-                type="url"
-                value={formData.site_web}
-                onChange={(e) => setFormData({ ...formData, site_web: e.target.value })}
-                placeholder="https://..."
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="site_web">Site Web</Label>
+                <Input
+                  id="site_web"
+                  type="url"
+                  value={formData.site_web}
+                  onChange={(e) => setFormData({ ...formData, site_web: e.target.value })}
+                  placeholder="https://..."
+                />
+              </div>
+              <div>
+                <Label htmlFor="activite">Activité</Label>
+                <Select
+                  value={formData.activite}
+                  onValueChange={(value) => setFormData({ ...formData, activite: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner une activité" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activites.map((activite) => (
+                      <SelectItem key={activite.code} value={activite.code}>
+                        {activite.libelle}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
