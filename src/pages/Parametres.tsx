@@ -64,6 +64,16 @@ interface TypePrestataire {
   updated_at?: string;
 }
 
+interface Activite {
+  id: string;
+  code: string;
+  libelle: string;
+  is_active?: boolean;
+  ordre?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 interface FactureSequence {
   id: string;
   type_facture: 'VENTES' | 'ACHATS';
@@ -80,6 +90,7 @@ export default function Parametres() {
   const [typeMissionList, setTypeMissionList] = useState<TypeMission[]>([]);
   const [typeIntervenantList, setTypeIntervenantList] = useState<TypeIntervenant[]>([]);
   const [typePrestataireList, setTypePrestataireList] = useState<TypePrestataire[]>([]);
+  const [activiteList, setActiviteList] = useState<Activite[]>([]);
   const [factureSequences, setFactureSequences] = useState<FactureSequence[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -88,6 +99,7 @@ export default function Parametres() {
   const [typeMissionDialog, setTypeMissionDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as TypeMission | null });
   const [typeIntervenantDialog, setTypeIntervenantDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as TypeIntervenant | null });
   const [typePrestataireDialog, setTypePrestataireDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as TypePrestataire | null });
+  const [activiteDialog, setActiviteDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as Activite | null });
   const [sequenceDialog, setSequenceDialog] = useState({ open: false, mode: 'create' as 'create' | 'edit' | 'view', item: null as FactureSequence | null });
 
   // Form states
@@ -95,6 +107,7 @@ export default function Parametres() {
   const [typeMissionForm, setTypeMissionForm] = useState({ code: '', libelle: '', is_active: true, ordre: 0 });
   const [typeIntervenantForm, setTypeIntervenantForm] = useState({ code: '', libelle: '', is_active: true, ordre: 0 });
   const [typePrestataireForm, setTypePrestataireForm] = useState({ code: '', libelle: '', is_active: true, ordre: 0 });
+  const [activiteForm, setActiviteForm] = useState({ code: '', libelle: '', is_active: true, ordre: 0 });
   const [sequenceForm, setSequenceForm] = useState({ type_facture: 'VENTES', prefixe: 'FAC-V', prochain_numero: 1, annee: new Date().getFullYear(), format: '{prefixe}-{annee}-{numero}' });
 
   useEffect(() => {
@@ -150,6 +163,19 @@ export default function Parametres() {
         setTypePrestataireList([]);
       } else {
         setTypePrestataireList((prestataireTypeData as any) || []);
+      }
+
+      // Load Activité
+      const { data: activiteData, error: activiteError } = await supabase
+        .from('param_activite' as any)
+        .select('*')
+        .order('ordre', { ascending: true });
+      
+      if (activiteError) {
+        console.warn('Table param_activite not found yet:', activiteError);
+        setActiviteList([]);
+      } else {
+        setActiviteList((activiteData as any) || []);
       }
 
       // Load Facture Sequences
@@ -476,6 +502,81 @@ export default function Parametres() {
     });
   };
 
+  // Activité Functions
+  const handleActiviteSubmit = async () => {
+    try {
+      if (activiteDialog.mode === 'view') return;
+
+      if (activiteDialog.mode === 'edit' && activiteDialog.item) {
+        const { error } = await supabase
+          .from('param_activite' as any)
+          .update(activiteForm)
+          .eq('id', activiteDialog.item.id);
+        
+        if (error) throw error;
+        toast({ title: "Activité modifiée avec succès" });
+      } else {
+        const { error } = await supabase
+          .from('param_activite' as any)
+          .insert([activiteForm]);
+        
+        if (error) throw error;
+        toast({ title: "Activité créée avec succès" });
+      }
+
+      setActiviteDialog({ open: false, mode: 'create', item: null });
+      setActiviteForm({ code: '', libelle: '', is_active: true, ordre: 0 });
+      loadData();
+    } catch (error) {
+      console.error('Erreur:', error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleActiviteDelete = async (id: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette activité ?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('param_activite' as any)
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      toast({ title: "Activité supprimée avec succès" });
+      loadData();
+    } catch (error) {
+      console.error('Erreur:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer cette activité",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openActiviteDialog = (mode: 'create' | 'edit' | 'view' | 'copy', item?: Activite) => {
+    if (item) {
+      setActiviteForm({
+        code: mode === 'copy' ? `${item.code}_COPIE` : item.code,
+        libelle: mode === 'copy' ? `${item.libelle} (copie)` : item.libelle,
+        is_active: item.is_active !== undefined ? item.is_active : true,
+        ordre: item.ordre || 0,
+      });
+    } else {
+      setActiviteForm({ code: '', libelle: '', is_active: true, ordre: 0 });
+    }
+    setActiviteDialog({ 
+      open: true, 
+      mode: mode === 'copy' ? 'create' : mode, 
+      item: mode === 'copy' ? null : item || null 
+    });
+  };
+
   // Facture Sequence handlers
   const handleSequenceSubmit = async () => {
     try {
@@ -577,12 +678,13 @@ export default function Parametres() {
       <h1 className="text-3xl font-bold mb-6">Paramètres</h1>
 
         <Tabs defaultValue="tva" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="tva">TVA</TabsTrigger>
             <TabsTrigger value="type-mission">Types de Mission</TabsTrigger>
             <TabsTrigger value="type-intervenant">Types d'Intervenant</TabsTrigger>
             <TabsTrigger value="type-prestataire">Types de Prestataire</TabsTrigger>
-            <TabsTrigger value="facture-sequences">Numérotation Factures</TabsTrigger>
+            <TabsTrigger value="activite">Activités</TabsTrigger>
+            <TabsTrigger value="facture-sequences">Numérotation</TabsTrigger>
           </TabsList>
 
           {/* TVA Tab */}
@@ -860,6 +962,79 @@ export default function Parametres() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleTypePrestataireDelete(type.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Activité Tab */}
+          <TabsContent value="activite">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Gestion des Activités</CardTitle>
+                <Button onClick={() => openActiviteDialog('create')}>
+                  <Plus className="mr-2 h-4 w-4" /> Ajouter une activité
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Libellé</TableHead>
+                      <TableHead>Ordre</TableHead>
+                      <TableHead>Actif</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {activiteList.map((act) => (
+                      <TableRow key={act.id}>
+                        <TableCell className="font-medium">{act.code}</TableCell>
+                        <TableCell>{act.libelle}</TableCell>
+                        <TableCell>{act.ordre}</TableCell>
+                        <TableCell>
+                          {act.is_active ? (
+                            <span className="text-green-600">✓</span>
+                          ) : (
+                            <span className="text-red-600">✗</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openActiviteDialog('view', act)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openActiviteDialog('edit', act)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openActiviteDialog('copy', act)}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleActiviteDelete(act.id)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -1182,6 +1357,65 @@ export default function Parametres() {
               {typePrestataireDialog.mode !== 'view' && (
                 <Button onClick={handleTypePrestataireSubmit}>
                   {typePrestataireDialog.mode === 'edit' ? 'Modifier' : 'Créer'}
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Activité Dialog */}
+        <Dialog open={activiteDialog.open} onOpenChange={(open) => setActiviteDialog({ ...activiteDialog, open })}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {activiteDialog.mode === 'create' && 'Créer une activité'}
+                {activiteDialog.mode === 'edit' && "Modifier l'activité"}
+                {activiteDialog.mode === 'view' && "Détails de l'activité"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="code">Code</Label>
+                <Input
+                  id="code"
+                  value={activiteForm.code}
+                  onChange={(e) => setActiviteForm({ ...activiteForm, code: e.target.value })}
+                  disabled={activiteDialog.mode === 'view'}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="libelle">Libellé</Label>
+                <Input
+                  id="libelle"
+                  value={activiteForm.libelle}
+                  onChange={(e) => setActiviteForm({ ...activiteForm, libelle: e.target.value })}
+                  disabled={activiteDialog.mode === 'view'}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="ordre">Ordre</Label>
+                <Input
+                  id="ordre"
+                  type="number"
+                  value={activiteForm.ordre}
+                  onChange={(e) => setActiviteForm({ ...activiteForm, ordre: parseInt(e.target.value) })}
+                  disabled={activiteDialog.mode === 'view'}
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="is_active"
+                  checked={activiteForm.is_active}
+                  onCheckedChange={(checked) => setActiviteForm({ ...activiteForm, is_active: checked })}
+                  disabled={activiteDialog.mode === 'view'}
+                />
+                <Label htmlFor="is_active">Actif</Label>
+              </div>
+            </div>
+            <DialogFooter>
+              {activiteDialog.mode !== 'view' && (
+                <Button onClick={handleActiviteSubmit}>
+                  {activiteDialog.mode === 'edit' ? 'Modifier' : 'Créer'}
                 </Button>
               )}
             </DialogFooter>
