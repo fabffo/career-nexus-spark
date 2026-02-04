@@ -2079,6 +2079,36 @@ export type Database = {
           },
         ]
       }
+      param_activite: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          libelle: string
+          ordre: number | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          libelle: string
+          ordre?: number | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          libelle?: string
+          ordre?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       param_etapes_recrutement: {
         Row: {
           code: string
