@@ -64,16 +64,15 @@ export default function PrevisionAbonnementsForm({ annee }: PrevisionAbonnements
     },
   });
 
-  // Récupérer les prévisions de l'année précédente
-  const { data: previsionsAnneePrecedente = [] } = useQuery({
-    queryKey: ["previsions-abonnements", annee - 1],
+  // Récupérer les abonnements actifs réels pour l'import
+  const { data: abonnementsActifs = [] } = useQuery({
+    queryKey: ["abonnements-actifs-import"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("previsions_abonnements")
-        .select("*")
-        .eq("annee", annee - 1)
+        .from("abonnements_partenaires")
+        .select("id, nom, montant_mensuel, tva, activite")
         .eq("actif", true)
-        .order("mois");
+        .order("nom");
       if (error) throw error;
       return data || [];
     },
@@ -149,28 +148,48 @@ export default function PrevisionAbonnementsForm({ annee }: PrevisionAbonnements
     onError: () => toast.error("Erreur lors de la suppression"),
   });
 
+  // Convertir le taux TVA texte en nombre
+  const parseTvaRate = (tva: string | null): number => {
+    if (!tva) return 20;
+    const lower = tva.toLowerCase();
+    if (lower.includes("exon") || lower === "exonere") return 0;
+    if (lower.includes("20")) return 20;
+    if (lower.includes("10")) return 10;
+    if (lower.includes("5.5")) return 5.5;
+    if (lower.includes("2.1")) return 2.1;
+    return 20;
+  };
+
   const importMutation = useMutation({
     mutationFn: async () => {
-      const toInsert = previsionsAnneePrecedente.map((p: any) => {
-        const totals = calculateTotals(Number(p.montant_mensuel), Number(p.taux_tva));
-        return {
-          annee,
-          mois: p.mois,
-          nom: p.nom,
-          activite: p.activite,
-          montant_mensuel: p.montant_mensuel,
-          taux_tva: p.taux_tva,
-          total_tva: totals.total_tva,
-          total_ttc: totals.total_ttc,
-        };
+      // Importer les abonnements actifs (1 entrée par mois pour chaque abonnement)
+      const toInsert: any[] = [];
+      abonnementsActifs.forEach((abo: any) => {
+        const tauxTva = parseTvaRate(abo.tva);
+        const montant = Number(abo.montant_mensuel) || 0;
+        // Créer une prévision pour chaque mois (1 à 12)
+        for (let mois = 1; mois <= 12; mois++) {
+          const totals = calculateTotals(montant, tauxTva);
+          toInsert.push({
+            annee,
+            mois,
+            nom: abo.nom,
+            activite: abo.activite,
+            montant_mensuel: montant,
+            taux_tva: tauxTva,
+            total_tva: totals.total_tva,
+            total_ttc: totals.total_ttc,
+          });
+        }
       });
-      if (toInsert.length === 0) throw new Error("Aucune donnée à importer");
+      if (toInsert.length === 0) throw new Error("Aucun abonnement actif à importer");
       const { error } = await supabase.from("previsions_abonnements").insert(toInsert);
       if (error) throw error;
+      return toInsert.length;
     },
-    onSuccess: () => {
+    onSuccess: (count) => {
       queryClient.invalidateQueries({ queryKey: ["previsions-abonnements", annee] });
-      toast.success(`${previsionsAnneePrecedente.length} prévision(s) importée(s) depuis ${annee - 1}`);
+      toast.success(`${count} prévision(s) créée(s) depuis les abonnements actifs`);
     },
     onError: (error: any) => toast.error(error.message || "Erreur lors de l'import"),
   });
@@ -244,19 +263,19 @@ export default function PrevisionAbonnementsForm({ annee }: PrevisionAbonnements
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Prévisions d'Abonnements Mensuels</h3>
         <div className="flex gap-2">
-          {previsionsAnneePrecedente.length > 0 && (
+          {abonnementsActifs.length > 0 && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button size="sm" variant="outline">
                   <Download className="h-4 w-4 mr-2" />
-                  Importer {annee - 1}
+                  Importer abonnements
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Importer depuis {annee - 1}</AlertDialogTitle>
+                  <AlertDialogTitle>Importer les abonnements actifs</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Cette action importera {previsionsAnneePrecedente.length} prévision(s) d'abonnement de l'année {annee - 1}.
+                    Cette action créera des prévisions mensuelles (12 mois) pour chacun des {abonnementsActifs.length} abonnement(s) actif(s).
                     Les prévisions existantes ne seront pas supprimées.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
