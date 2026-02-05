@@ -207,7 +207,8 @@ export default function AnalyseTresorerieAnnuelle() {
           id,
           date_paiement,
           montant,
-          declaration:declarations_charges_sociales(type_charge, nom)
+          declaration:declarations_charges_sociales(type_charge, nom),
+          rapprochement:rapprochements_bancaires(transaction_credit, transaction_debit)
         `)
         .gte("date_paiement", `${annee}-01-01`)
         .lte("date_paiement", `${annee}-12-31`);
