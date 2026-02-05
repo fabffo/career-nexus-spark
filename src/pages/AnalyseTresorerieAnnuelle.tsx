@@ -274,30 +274,46 @@ export default function AnalyseTresorerieAnnuelle() {
         return sum + calculerHT(Number(ttc), tauxTva);
       }, 0);
 
-      // CHARGES SALAIRES (mois effectif)
-      const chargesSalairesMois = chargesSalaries.filter((c: any) => {
+      // CHARGES SALAIRES (mois effectif) - type_charge = "Salaire" ou "SALAIRE"
+      const chargesSalairesMoisFromTable = chargesSalaries.filter((c: any) => {
         const typeCharge = c.type_charge || "SALAIRE";
         const dateEff = getDateEffective(c.date_paiement, typeCharge);
-        return dateEff >= debut && dateEff <= fin && typeCharge === "SALAIRE";
+        return dateEff >= debut && dateEff <= fin && typeCharge.toUpperCase() === "SALAIRE";
       });
-      const totalChargesSalaires = chargesSalairesMois.reduce((sum, c: any) => {
+      
+      // Salaires depuis paiements_declarations_charges
+      const salairesFromDeclarations = paiementsCharges.filter((c: any) => {
+        const typeCharge = c.declaration?.type_charge || "";
+        const dateEff = getDateEffective(c.date_paiement, typeCharge);
+        return dateEff >= debut && dateEff <= fin && typeCharge.toUpperCase() === "SALAIRE";
+      });
+      
+      const totalChargesSalaires = [
+        ...chargesSalairesMoisFromTable,
+        ...salairesFromDeclarations
+      ].reduce((sum, c: any) => {
         const montant = Math.abs(Number(c.montant));
         return sum + (isCredit(c) ? -montant : montant);
       }, 0);
 
-      // CHARGES SOCIALES (mois effectif) - autres types que SALAIRE
-      const chargesSocialesMois = [
-        ...chargesSalaries.filter((c: any) => {
-          const typeCharge = c.type_charge || "";
-          const dateEff = getDateEffective(c.date_paiement, typeCharge);
-          return dateEff >= debut && dateEff <= fin && typeCharge !== "SALAIRE";
-        }),
-        ...paiementsCharges.filter((c: any) => {
-          const dateEff = getDateEffective(c.date_paiement, c.declaration?.type_charge || "");
-          return dateEff >= debut && dateEff <= fin;
-        }),
-      ];
-      const totalChargesSociales = chargesSocialesMois.reduce((sum, c: any) => {
+      // CHARGES SOCIALES (mois effectif) - tous les autres types (CHARGES_SOCIALES, RETRAITE, etc.)
+      const chargesSocialesMoisFromTable = chargesSalaries.filter((c: any) => {
+        const typeCharge = c.type_charge || "";
+        const dateEff = getDateEffective(c.date_paiement, typeCharge);
+        return dateEff >= debut && dateEff <= fin && typeCharge.toUpperCase() !== "SALAIRE";
+      });
+      
+      // Charges sociales depuis paiements_declarations_charges (excluant les salaires)
+      const chargesSocialesFromDeclarations = paiementsCharges.filter((c: any) => {
+        const typeCharge = c.declaration?.type_charge || "";
+        const dateEff = getDateEffective(c.date_paiement, typeCharge);
+        return dateEff >= debut && dateEff <= fin && typeCharge.toUpperCase() !== "SALAIRE";
+      });
+      
+      const totalChargesSociales = [
+        ...chargesSocialesMoisFromTable,
+        ...chargesSocialesFromDeclarations
+      ].reduce((sum, c: any) => {
         return sum + Math.abs(Number(c.montant || 0));
       }, 0);
 
