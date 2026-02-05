@@ -124,7 +124,14 @@ export default function CreateFactureFromCRADialog({
       // Obtenir les informations du client
       const client = craData.mission.contrat.client;
 
-      // Créer la facture
+      // Récupérer la société interne pour l'émetteur
+      const { data: societeInterne } = await supabase
+        .from('societe_interne')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+
+      // Créer la facture avec émetteur = société interne
       const { data: facture, error: factureError } = await supabase
         .from('factures')
         .insert({
@@ -136,8 +143,12 @@ export default function CreateFactureFromCRADialog({
           destinataire_email: client.email || null,
           destinataire_adresse: client.adresse || null,
           destinataire_telephone: client.telephone || null,
-          emetteur_type: 'SOCIETE',
-          emetteur_nom: 'Votre Société', // À adapter selon votre configuration
+          emetteur_type: 'SOCIETE_INTERNE',
+          emetteur_id: societeInterne?.id || null,
+          emetteur_nom: societeInterne?.raison_sociale || 'Votre Société',
+          emetteur_adresse: societeInterne?.adresse || null,
+          emetteur_telephone: societeInterne?.telephone || null,
+          emetteur_email: societeInterne?.email || null,
           date_emission: formData.date_emission,
           date_echeance: formData.date_echeance,
           statut: 'BROUILLON',

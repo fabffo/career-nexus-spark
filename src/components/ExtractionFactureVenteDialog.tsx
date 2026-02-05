@@ -417,17 +417,19 @@ export default function ExtractionFactureVenteDialog({ open, onOpenChange, onSuc
         } = await supabase.auth.getUser();
 
         // 4. Insérer la facture dans la base de données
+        // Emetteur = SOCIETE_INTERNE (Wavy services) pour les factures de vente
         const { error: insertError } = await supabase.from("factures").insert({
           numero_facture: numeroUnique,
           type_facture: "VENTES",
           date_emission: facture.donnees.date_facture || new Date().toISOString().split("T")[0],
           date_echeance: facture.donnees.date_facture || new Date().toISOString().split("T")[0],
-          emetteur_type: "Entreprise",
+          emetteur_type: "SOCIETE_INTERNE",
+          emetteur_id: societe?.id || null,
           emetteur_nom: societe?.raison_sociale || "Votre Entreprise",
-          emetteur_adresse: societe?.adresse,
-          emetteur_telephone: societe?.telephone,
-          emetteur_email: societe?.email,
-          destinataire_type: "Client",
+          emetteur_adresse: societe?.adresse || "",
+          emetteur_telephone: societe?.telephone || "",
+          emetteur_email: societe?.email || "",
+          destinataire_type: "CLIENT",
           destinataire_nom: facture.donnees.client || "Client inconnu",
           total_ht: facture.donnees.montant_ht || 0,
           total_tva: facture.donnees.montant_tva || 0,

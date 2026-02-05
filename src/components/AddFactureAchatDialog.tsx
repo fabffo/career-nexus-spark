@@ -234,15 +234,16 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
       const montantTTC = montantHT + montantTVA;
 
       // Déterminer le type_facture valide pour la base de données
-      let typeFacture = 'ACHATS';
-      if (formData.fournisseur_type === 'FOURNISSEUR_SERVICES') {
-        typeFacture = 'ACHATS_SERVICES';
-      } else if (formData.fournisseur_type === 'FOURNISSEUR_GENERAUX') {
+      // Si fournisseur général → ACHATS_GENERAUX, sinon ACHATS_SERVICES
+      let typeFacture = 'ACHATS_SERVICES'; // Par défaut services
+      if (formData.fournisseur_type === 'FOURNISSEUR_GENERAUX') {
         typeFacture = 'ACHATS_GENERAUX';
+      } else if (formData.fournisseur_type === 'FOURNISSEUR_SERVICES') {
+        typeFacture = 'ACHATS_SERVICES';
       }
-      // Pour PRESTATAIRE et SALARIE, on utilise ACHATS générique car la contrainte BDD ne supporte pas ces types
+      // Pour PRESTATAIRE et SALARIE, on utilise ACHATS_SERVICES comme type par défaut
 
-      // Créer la facture (sans select car les politiques RLS peuvent bloquer la lecture immédiate)
+      // Créer la facture avec société interne comme destinataire
       const { error: factureError } = await supabase
         .from('factures')
         .insert({
@@ -254,11 +255,11 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
           emetteur_id: emetteurId,
           emetteur_nom: emetteurNom,
           destinataire_type: 'SOCIETE_INTERNE',
-          destinataire_id: societeData?.id,
-          destinataire_nom: societeData?.raison_sociale || '',
-          destinataire_adresse: societeData?.adresse,
-          destinataire_telephone: societeData?.telephone,
-          destinataire_email: societeData?.email,
+          destinataire_id: societeData.id,
+          destinataire_nom: societeData.raison_sociale || '',
+          destinataire_adresse: societeData.adresse || '',
+          destinataire_telephone: societeData.telephone || '',
+          destinataire_email: societeData.email || '',
           total_ht: montantHT,
           total_tva: montantTVA,
           total_ttc: montantTTC,

@@ -699,6 +699,13 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
         
         console.log(`📋 Type: ${typeFacture}, ID corrélé: ${emetteurId || 'aucun'}, Score: ${facture.donnees.fournisseur_score || 0}%`);
 
+        // Récupérer la société interne pour le destinataire
+        const { data: societeInterne } = await supabase
+          .from("societe_interne")
+          .select("*")
+          .limit(1)
+          .maybeSingle();
+
         const factureData: any = {
           numero_facture: numeroFacture,
           type_facture: typeFacture,
@@ -707,8 +714,13 @@ export default function ExtractionFactureDialog({ open, onOpenChange, onSuccess 
           emetteur_type: emetteurType,
           emetteur_nom: facture.donnees.fournisseur || "Fournisseur inconnu",
           emetteur_id: emetteurId,
-          destinataire_type: "Entreprise",
-          destinataire_nom: "Votre Entreprise",
+          // Destinataire = Société interne (Wavy services)
+          destinataire_type: "SOCIETE_INTERNE",
+          destinataire_id: societeInterne?.id || null,
+          destinataire_nom: societeInterne?.raison_sociale || "Entreprise",
+          destinataire_adresse: societeInterne?.adresse || "",
+          destinataire_telephone: societeInterne?.telephone || "",
+          destinataire_email: societeInterne?.email || "",
           total_ht: facture.donnees.montant_ht || 0,
           total_tva: facture.donnees.montant_tva || 0,
           total_ttc: facture.donnees.montant_ttc || 0,
