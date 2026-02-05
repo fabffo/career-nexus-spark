@@ -2460,6 +2460,325 @@ export type Database = {
           },
         ]
       }
+      previsions_abonnements: {
+        Row: {
+          actif: boolean | null
+          activite: string | null
+          annee: number
+          created_at: string | null
+          created_by: string | null
+          id: string
+          mois: number
+          montant_mensuel: number | null
+          nom: string
+          notes: string | null
+          taux_tva: number | null
+          total_ttc: number | null
+          total_tva: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          actif?: boolean | null
+          activite?: string | null
+          annee: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          mois: number
+          montant_mensuel?: number | null
+          nom: string
+          notes?: string | null
+          taux_tva?: number | null
+          total_ttc?: number | null
+          total_tva?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          actif?: boolean | null
+          activite?: string | null
+          annee?: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          mois?: number
+          montant_mensuel?: number | null
+          nom?: string
+          notes?: string | null
+          taux_tva?: number | null
+          total_ttc?: number | null
+          total_tva?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      previsions_achats_generaux: {
+        Row: {
+          actif: boolean | null
+          activite: string | null
+          annee: number
+          created_at: string | null
+          created_by: string | null
+          date_echeance: string | null
+          date_emission: string | null
+          fournisseur_id: string | null
+          fournisseur_nom: string | null
+          id: string
+          mois: number
+          notes: string | null
+          taux_tva: number | null
+          total_ht: number | null
+          total_ttc: number | null
+          total_tva: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          actif?: boolean | null
+          activite?: string | null
+          annee: number
+          created_at?: string | null
+          created_by?: string | null
+          date_echeance?: string | null
+          date_emission?: string | null
+          fournisseur_id?: string | null
+          fournisseur_nom?: string | null
+          id?: string
+          mois: number
+          notes?: string | null
+          taux_tva?: number | null
+          total_ht?: number | null
+          total_ttc?: number | null
+          total_tva?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          actif?: boolean | null
+          activite?: string | null
+          annee?: number
+          created_at?: string | null
+          created_by?: string | null
+          date_echeance?: string | null
+          date_emission?: string | null
+          fournisseur_id?: string | null
+          fournisseur_nom?: string | null
+          id?: string
+          mois?: number
+          notes?: string | null
+          taux_tva?: number | null
+          total_ht?: number | null
+          total_ttc?: number | null
+          total_tva?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "previsions_achats_generaux_fournisseur_id_fkey"
+            columns: ["fournisseur_id"]
+            isOneToOne: false
+            referencedRelation: "fournisseurs_generaux"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      previsions_achats_services: {
+        Row: {
+          actif: boolean | null
+          activite: string | null
+          annee: number
+          created_at: string | null
+          created_by: string | null
+          date_echeance: string | null
+          date_emission: string | null
+          fournisseur_id: string | null
+          fournisseur_nom: string | null
+          id: string
+          mois: number
+          notes: string | null
+          prestataire_id: string | null
+          quantite: number | null
+          taux_tva: number | null
+          tjm: number | null
+          total_ht: number | null
+          total_ttc: number | null
+          total_tva: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          actif?: boolean | null
+          activite?: string | null
+          annee: number
+          created_at?: string | null
+          created_by?: string | null
+          date_echeance?: string | null
+          date_emission?: string | null
+          fournisseur_id?: string | null
+          fournisseur_nom?: string | null
+          id?: string
+          mois: number
+          notes?: string | null
+          prestataire_id?: string | null
+          quantite?: number | null
+          taux_tva?: number | null
+          tjm?: number | null
+          total_ht?: number | null
+          total_ttc?: number | null
+          total_tva?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          actif?: boolean | null
+          activite?: string | null
+          annee?: number
+          created_at?: string | null
+          created_by?: string | null
+          date_echeance?: string | null
+          date_emission?: string | null
+          fournisseur_id?: string | null
+          fournisseur_nom?: string | null
+          id?: string
+          mois?: number
+          notes?: string | null
+          prestataire_id?: string | null
+          quantite?: number | null
+          taux_tva?: number | null
+          tjm?: number | null
+          total_ht?: number | null
+          total_ttc?: number | null
+          total_tva?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "previsions_achats_services_fournisseur_id_fkey"
+            columns: ["fournisseur_id"]
+            isOneToOne: false
+            referencedRelation: "fournisseurs_services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "previsions_achats_services_prestataire_id_fkey"
+            columns: ["prestataire_id"]
+            isOneToOne: false
+            referencedRelation: "prestataires"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      previsions_charges_salariales: {
+        Row: {
+          actif: boolean | null
+          annee: number
+          created_at: string | null
+          created_by: string | null
+          id: string
+          mois: number
+          montant: number | null
+          nom: string
+          notes: string | null
+          type_charge: string
+          updated_at: string | null
+        }
+        Insert: {
+          actif?: boolean | null
+          annee: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          mois: number
+          montant?: number | null
+          nom: string
+          notes?: string | null
+          type_charge: string
+          updated_at?: string | null
+        }
+        Update: {
+          actif?: boolean | null
+          annee?: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          mois?: number
+          montant?: number | null
+          nom?: string
+          notes?: string | null
+          type_charge?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      previsions_ventes: {
+        Row: {
+          actif: boolean | null
+          activite: string | null
+          annee: number
+          client_id: string | null
+          client_nom: string | null
+          created_at: string | null
+          created_by: string | null
+          date_echeance: string | null
+          date_emission: string | null
+          id: string
+          mois: number
+          notes: string | null
+          quantite: number | null
+          taux_tva: number | null
+          tjm: number | null
+          total_ht: number | null
+          total_ttc: number | null
+          total_tva: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          actif?: boolean | null
+          activite?: string | null
+          annee: number
+          client_id?: string | null
+          client_nom?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date_echeance?: string | null
+          date_emission?: string | null
+          id?: string
+          mois: number
+          notes?: string | null
+          quantite?: number | null
+          taux_tva?: number | null
+          tjm?: number | null
+          total_ht?: number | null
+          total_ttc?: number | null
+          total_tva?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          actif?: boolean | null
+          activite?: string | null
+          annee?: number
+          client_id?: string | null
+          client_nom?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date_echeance?: string | null
+          date_emission?: string | null
+          id?: string
+          mois?: number
+          notes?: string | null
+          quantite?: number | null
+          taux_tva?: number | null
+          tjm?: number | null
+          total_ht?: number | null
+          total_ttc?: number | null
+          total_tva?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "previsions_ventes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
