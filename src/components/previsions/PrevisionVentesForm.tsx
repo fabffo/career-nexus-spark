@@ -30,18 +30,26 @@ export default function PrevisionVentesForm({ annee }: PrevisionVentesFormProps)
     date_echeance: "",
   });
 
-  // Récupérer les clients
+  // Récupérer les clients avec délai de paiement
   const { data: clients = [] } = useQuery({
-    queryKey: ["clients-select"],
+    queryKey: ["clients-select-with-delai"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("clients")
-        .select("id, raison_sociale")
+        .select("id, raison_sociale, delai_paiement_jours")
         .order("raison_sociale");
       if (error) throw error;
       return data || [];
     },
   });
+
+  // Calcul automatique de la date d'échéance
+  const calculateDateEcheance = (dateEmission: string, delaiJours: number): string => {
+    if (!dateEmission) return "";
+    const date = new Date(dateEmission);
+    date.setDate(date.getDate() + delaiJours);
+    return date.toISOString().split("T")[0];
+  };
 
   // Récupérer les activités
   const { data: activites = [] } = useQuery({
@@ -170,10 +178,28 @@ export default function PrevisionVentesForm({ annee }: PrevisionVentesFormProps)
 
   const handleClientChange = (clientId: string) => {
     const client = clients.find(c => c.id === clientId);
+    const delaiPaiement = client?.delai_paiement_jours ?? 30;
+    setFormData(prev => {
+      const newDateEcheance = prev.date_emission 
+        ? calculateDateEcheance(prev.date_emission, delaiPaiement)
+        : prev.date_echeance;
+      return {
+        ...prev,
+        client_id: clientId,
+        client_nom: client?.raison_sociale || "",
+        date_echeance: newDateEcheance,
+      };
+    });
+  };
+
+  const handleDateEmissionChange = (dateEmission: string) => {
+    const client = clients.find(c => c.id === formData.client_id);
+    const delaiPaiement = client?.delai_paiement_jours ?? 30;
+    const newDateEcheance = calculateDateEcheance(dateEmission, delaiPaiement);
     setFormData(prev => ({
       ...prev,
-      client_id: clientId,
-      client_nom: client?.raison_sociale || "",
+      date_emission: dateEmission,
+      date_echeance: newDateEcheance,
     }));
   };
 
@@ -307,17 +333,21 @@ export default function PrevisionVentesForm({ annee }: PrevisionVentesFormProps)
               <Input
                 type="date"
                 value={formData.date_emission}
-                onChange={(e) => setFormData(prev => ({ ...prev, date_emission: e.target.value }))}
+                onChange={(e) => handleDateEmissionChange(e.target.value)}
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Date échéance</Label>
+              <Label>Date échéance (calculée)</Label>
               <Input
                 type="date"
                 value={formData.date_echeance}
-                onChange={(e) => setFormData(prev => ({ ...prev, date_echeance: e.target.value }))}
+                readOnly
+                className="bg-muted"
               />
+              <p className="text-xs text-muted-foreground">
+                Délai: {clients.find(c => c.id === formData.client_id)?.delai_paiement_jours ?? 30} jours
+              </p>
             </div>
           </div>
 
