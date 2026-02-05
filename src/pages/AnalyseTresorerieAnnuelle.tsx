@@ -506,6 +506,8 @@ export default function AnalyseTresorerieAnnuelle() {
     totalAchatsGeneraux: moisAnalyses.reduce((s, m) => s + m.totalAchatsGeneraux, 0),
     totalAbonnements: moisAnalyses.reduce((s, m) => s + m.totalAbonnements, 0),
     totalCharges: moisAnalyses.reduce((s, m) => s + m.totalCharges, 0),
+    totalSalaires: moisAnalyses.reduce((s, m) => s + m.chargesSalaires, 0),
+    totalChargesSociales: moisAnalyses.reduce((s, m) => s + m.chargesSociales, 0),
     soldeFinal: moisAnalyses[11]?.soldeCompte || 0,
   }), [moisAnalyses]);
 
@@ -562,6 +564,16 @@ export default function AnalyseTresorerieAnnuelle() {
           <CardContent className="pt-4">
             <p className="text-sm text-muted-foreground">Charges Salariales</p>
             <p className="text-xl font-bold text-orange-600">{formatCurrency(stats.totalCharges)}</p>
+            <div className="mt-2 pt-2 border-t border-border text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Salaires</span>
+                <span className="font-medium">{formatCurrency(stats.totalSalaires)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Charges sociales</span>
+                <span className="font-medium">{formatCurrency(stats.totalChargesSociales)}</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
         <Card>
