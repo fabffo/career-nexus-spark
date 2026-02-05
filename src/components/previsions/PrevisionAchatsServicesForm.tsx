@@ -30,26 +30,34 @@ export default function PrevisionAchatsServicesForm({ annee }: PrevisionAchatsSe
     date_echeance: "",
   });
 
-  // Récupérer les fournisseurs de services
+  // Récupérer les fournisseurs de services avec délai de paiement
   const { data: fournisseurs = [] } = useQuery({
-    queryKey: ["fournisseurs-services-select"],
+    queryKey: ["fournisseurs-services-select-with-delai"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("fournisseurs_services")
-        .select("id, raison_sociale")
+        .select("id, raison_sociale, delai_paiement_jours")
         .order("raison_sociale");
       if (error) throw error;
       return data || [];
     },
   });
 
-  // Récupérer les prestataires
+  // Calcul automatique de la date d'échéance
+  const calculateDateEcheance = (dateEmission: string, delaiJours: number): string => {
+    if (!dateEmission) return "";
+    const date = new Date(dateEmission);
+    date.setDate(date.getDate() + delaiJours);
+    return date.toISOString().split("T")[0];
+  };
+
+  // Récupérer les prestataires avec délai de paiement
   const { data: prestataires = [] } = useQuery({
-    queryKey: ["prestataires-select"],
+    queryKey: ["prestataires-select-with-delai"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prestataires")
-        .select("id, nom, prenom")
+        .select("id, nom, prenom, delai_paiement_jours")
         .eq("actif", true)
         .order("nom");
       if (error) throw error;
@@ -186,22 +194,63 @@ export default function PrevisionAchatsServicesForm({ annee }: PrevisionAchatsSe
 
   const handleFournisseurChange = (fournisseurId: string) => {
     const fournisseur = fournisseurs.find(f => f.id === fournisseurId);
-    setFormData(prev => ({
-      ...prev,
-      fournisseur_id: fournisseurId,
-      prestataire_id: "",
-      fournisseur_nom: fournisseur?.raison_sociale || "",
-    }));
+    const delaiPaiement = fournisseur?.delai_paiement_jours ?? 30;
+    setFormData(prev => {
+      const newDateEcheance = prev.date_emission 
+        ? calculateDateEcheance(prev.date_emission, delaiPaiement)
+        : prev.date_echeance;
+      return {
+        ...prev,
+        fournisseur_id: fournisseurId,
+        prestataire_id: "",
+        fournisseur_nom: fournisseur?.raison_sociale || "",
+        date_echeance: newDateEcheance,
+      };
+    });
   };
 
   const handlePrestataireChange = (prestataireId: string) => {
     const prestataire = prestataires.find(p => p.id === prestataireId);
+    const delaiPaiement = prestataire?.delai_paiement_jours ?? 30;
+    setFormData(prev => {
+      const newDateEcheance = prev.date_emission 
+        ? calculateDateEcheance(prev.date_emission, delaiPaiement)
+        : prev.date_echeance;
+      return {
+        ...prev,
+        prestataire_id: prestataireId,
+        fournisseur_id: "",
+        fournisseur_nom: prestataire ? `${prestataire.prenom} ${prestataire.nom}` : "",
+        date_echeance: newDateEcheance,
+      };
+    });
+  };
+
+  const handleDateEmissionChange = (dateEmission: string) => {
+    let delaiPaiement = 30;
+    if (formData.fournisseur_id) {
+      const fournisseur = fournisseurs.find(f => f.id === formData.fournisseur_id);
+      delaiPaiement = fournisseur?.delai_paiement_jours ?? 30;
+    } else if (formData.prestataire_id) {
+      const prestataire = prestataires.find(p => p.id === formData.prestataire_id);
+      delaiPaiement = prestataire?.delai_paiement_jours ?? 30;
+    }
+    const newDateEcheance = calculateDateEcheance(dateEmission, delaiPaiement);
     setFormData(prev => ({
       ...prev,
-      prestataire_id: prestataireId,
-      fournisseur_id: "",
-      fournisseur_nom: prestataire ? `${prestataire.prenom} ${prestataire.nom}` : "",
+      date_emission: dateEmission,
+      date_echeance: newDateEcheance,
     }));
+  };
+
+  const getCurrentDelaiPaiement = (): number => {
+    if (formData.fournisseur_id) {
+      return fournisseurs.find(f => f.id === formData.fournisseur_id)?.delai_paiement_jours ?? 30;
+    }
+    if (formData.prestataire_id) {
+      return prestataires.find(p => p.id === formData.prestataire_id)?.delai_paiement_jours ?? 30;
+    }
+    return 30;
   };
 
   const handleEdit = (prevision: any) => {
@@ -347,12 +396,25 @@ export default function PrevisionAchatsServicesForm({ annee }: PrevisionAchatsSe
             </div>
 
             <div className="space-y-2">
-              <Label>Date échéance</Label>
+              <Label>Date émission</Label>
+              <Input
+                type="date"
+                value={formData.date_emission}
+                onChange={(e) => handleDateEmissionChange(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Date échéance (calculée)</Label>
               <Input
                 type="date"
                 value={formData.date_echeance}
-                onChange={(e) => setFormData(prev => ({ ...prev, date_echeance: e.target.value }))}
+                readOnly
+                className="bg-muted"
               />
+              <p className="text-xs text-muted-foreground">
+                Délai: {getCurrentDelaiPaiement()} jours
+              </p>
             </div>
           </div>
 
