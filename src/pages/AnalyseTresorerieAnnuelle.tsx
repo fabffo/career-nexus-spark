@@ -124,16 +124,25 @@ export default function AnalyseTresorerieAnnuelle() {
     },
   });
 
+  // Récupérer les fournisseurs généraux pour la jointure manuelle
+  const { data: fournisseursGeneraux = [] } = useQuery({
+    queryKey: ["fournisseurs-generaux-activites"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("fournisseurs_generaux")
+        .select("id, activite");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // Factures achats généraux (par date émission = mois en cours)
   const { data: facturesAchatsGeneraux = [] } = useQuery({
     queryKey: ["analyse-tresorerie-achats-generaux", annee],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("factures")
-        .select(`
-          id, numero_facture, emetteur_nom, emetteur_id, total_ht, date_emission,
-          fournisseur_general:fournisseurs_generaux(activite)
-        `)
+        .select("id, numero_facture, emetteur_nom, emetteur_id, total_ht, date_emission, activite")
         .eq("type_facture", "ACHATS_GENERAUX")
         .gte("date_emission", `${annee}-01-01`)
         .lte("date_emission", `${annee}-12-31`);
@@ -256,7 +265,7 @@ export default function AnalyseTresorerieAnnuelle() {
         const date = new Date(f.date_emission);
         return date >= debut && date <= fin;
       });
-      const achatsGenerauxParActivite = groupByActiviteFournisseur(achatsGenerauxMois, activites);
+      const achatsGenerauxParActivite = groupByActiviteFournisseur(achatsGenerauxMois, activites, fournisseursGeneraux);
       const totalAchatsGeneraux = achatsGenerauxMois.reduce((sum, f) => sum + Number(f.total_ht || 0), 0);
 
       // ABONNEMENTS par activité (date transaction = mois en cours)
@@ -342,7 +351,7 @@ export default function AnalyseTresorerieAnnuelle() {
 
     return result;
   }, [annee, facturesVentes, facturesAchatsServices, facturesAchatsGeneraux, 
-      lignesAbonnements, chargesSalaries, paiementsCharges, activites]);
+      lignesAbonnements, chargesSalaries, paiementsCharges, activites, fournisseursGeneraux]);
 
   // Fonction pour grouper par activité
   function groupByActivite(items: any[], partenaireField: string, activites: any[]): DetailParActivite[] {
@@ -370,11 +379,16 @@ export default function AnalyseTresorerieAnnuelle() {
   }
 
   // Fonction pour grouper achats généraux par activité fournisseur
-  function groupByActiviteFournisseur(items: any[], activites: any[]): DetailParActivite[] {
+  function groupByActiviteFournisseur(items: any[], activites: any[], fournisseurs: any[]): DetailParActivite[] {
     const map = new Map<string, DetailParActivite>();
     
+    // Créer un index des fournisseurs pour lookup rapide
+    const fournisseursMap = new Map(fournisseurs.map(f => [f.id, f.activite]));
+    
     items.forEach(item => {
-      const activiteCode = (item.fournisseur_general as any)?.activite || item.activite || "AUTRE";
+      // Chercher l'activité du fournisseur via emetteur_id, sinon utiliser l'activité de la facture
+      const fournisseurActivite = item.emetteur_id ? fournisseursMap.get(item.emetteur_id) : null;
+      const activiteCode = fournisseurActivite || item.activite || "AUTRE";
       const activiteLabel = activites.find(a => a.code === activiteCode)?.libelle || activiteCode;
       
       if (!map.has(activiteCode)) {
