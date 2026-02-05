@@ -277,10 +277,13 @@ export default function AnalyseTresorerieAnnuelle() {
       const abonnementsParActivite = groupByActiviteAbonnement(abonnementsMois, activites);
       const totalAbonnements = abonnementsMois.reduce((sum, lr: any) => {
         // Utiliser TTC directement (montant bancaire réel)
+        // Les crédits (remboursements) sont soustraits
+        const isRemboursement = Number(lr.transaction_credit) > 0;
         const ttc = lr.total_ttc ?? 
-          (Number(lr.transaction_credit) > 0 ? lr.transaction_credit : lr.transaction_debit) ??
+          (isRemboursement ? lr.transaction_credit : lr.transaction_debit) ??
           Math.abs(Number(lr.transaction_montant) || 0);
-        return sum + Math.abs(Number(ttc));
+        const montant = Math.abs(Number(ttc));
+        return sum + (isRemboursement ? -montant : montant);
       }, 0);
 
       // CHARGES SALAIRES (mois effectif) - type_charge = "Salaire" ou "SALAIRE"
