@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,20 +23,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Download, ChevronDown, ChevronRight, Loader2, Settings } from "lucide-react";
-import { format, startOfMonth, endOfMonth, subMonths, getDate } from "date-fns";
-import { fr } from "date-fns/locale";
+import { startOfMonth, endOfMonth, subMonths, getDate } from "date-fns";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import TresorerieSettingsDialog from "@/components/previsions/TresorerieSettingsDialog";
 
 const MOIS_LABELS = [
   "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -97,8 +88,6 @@ export default function AnalyseTresorerieAnnuelle() {
   const [expandedMonths, setExpandedMonths] = useState<number[]>([]);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [showSettings, setShowSettings] = useState(false);
-  const [soldeDebutInput, setSoldeDebutInput] = useState("");
-  const queryClient = useQueryClient();
 
   // Récupérer les paramètres de trésorerie
   const { data: parametresTresorerie } = useQuery({
@@ -113,48 +102,6 @@ export default function AnalyseTresorerieAnnuelle() {
       return data;
     },
   });
-
-  // Mutation pour sauvegarder le solde de début
-  const saveParametresMutation = useMutation({
-    mutationFn: async (soldeDebut: number) => {
-      const { data: existing } = await supabase
-        .from("parametres_tresorerie")
-        .select("id")
-        .eq("annee", annee)
-        .maybeSingle();
-
-      if (existing) {
-        const { error } = await supabase
-          .from("parametres_tresorerie")
-          .update({ solde_debut: soldeDebut })
-          .eq("annee", annee);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("parametres_tresorerie")
-          .insert({ annee, solde_debut: soldeDebut });
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["parametres-tresorerie", annee] });
-      toast.success("Solde de début enregistré");
-      setShowSettings(false);
-    },
-    onError: () => {
-      toast.error("Erreur lors de l'enregistrement");
-    },
-  });
-
-  const handleOpenSettings = () => {
-    setSoldeDebutInput(parametresTresorerie?.solde_debut?.toString() || "0");
-    setShowSettings(true);
-  };
-
-  const handleSaveSettings = () => {
-    const value = parseFloat(soldeDebutInput.replace(/\s/g, "").replace(",", ".")) || 0;
-    saveParametresMutation.mutate(value);
-  };
 
   // Récupérer les activités
   const { data: activites = [] } = useQuery({
@@ -666,7 +613,7 @@ export default function AnalyseTresorerieAnnuelle() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={handleOpenSettings}>
+          <Button variant="outline" onClick={() => setShowSettings(true)}>
             <Settings className="h-4 w-4 mr-2" />
             Paramétrage
           </Button>
@@ -678,36 +625,11 @@ export default function AnalyseTresorerieAnnuelle() {
       </div>
 
       {/* Dialog de paramétrage */}
-      <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Paramétrage Trésorerie {annee}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="solde-debut">Solde de début d'année (€)</Label>
-              <Input
-                id="solde-debut"
-                type="text"
-                value={soldeDebutInput}
-                onChange={(e) => setSoldeDebutInput(e.target.value)}
-                placeholder="Ex: 50000"
-              />
-              <p className="text-xs text-muted-foreground">
-                Solde du compte bancaire au 1er janvier {annee}
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSettings(false)}>
-              Annuler
-            </Button>
-            <Button onClick={handleSaveSettings} disabled={saveParametresMutation.isPending}>
-              {saveParametresMutation.isPending ? "Enregistrement..." : "Enregistrer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TresorerieSettingsDialog
+        open={showSettings}
+        onOpenChange={setShowSettings}
+        annee={annee}
+      />
 
       {/* KPIs annuels */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
