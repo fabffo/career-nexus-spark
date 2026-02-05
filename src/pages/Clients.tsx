@@ -173,47 +173,10 @@ export default function Clients() {
       ),
     },
     {
-      accessorKey: 'secteurActivite',
-      header: 'Secteur d\'activité',
+      accessorKey: 'delai_paiement_jours',
+      header: 'Délai de paiement',
       cell: ({ row }) => (
-        <div className="text-sm text-muted-foreground">{row.original.secteurActivite}</div>
-      ),
-    },
-    {
-      accessorKey: 'email',
-      header: 'Email',
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <Mail className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm">{row.original.email}</span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'telephone',
-      header: 'Téléphone',
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <Phone className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm">{row.original.telephone}</span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'siteWeb',
-      header: 'Site Web',
-      cell: ({ row }) => row.original.siteWeb && (
-        <div className="flex items-center gap-2">
-          <Globe className="h-4 w-4 text-muted-foreground" />
-          <a 
-            href={row.original.siteWeb} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-sm text-primary hover:underline"
-          >
-            Visiter
-          </a>
-        </div>
+        <div className="text-sm">{row.original.delai_paiement_jours || 30} jours</div>
       ),
     },
     {
