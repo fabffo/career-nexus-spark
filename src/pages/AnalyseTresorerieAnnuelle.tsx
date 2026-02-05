@@ -34,10 +34,17 @@ const MOIS_LABELS = [
   "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
 ];
 
+interface DetailItem {
+  libelle: string;
+  montant: number;
+  date: string;
+  isCredit?: boolean; // true = remboursement/crédit (montant positif pour l'entreprise)
+}
+
 interface DetailParActivite {
   activite: string;
   montant: number;
-  details: Array<{ libelle: string; montant: number; date: string }>;
+  details: DetailItem[];
 }
 
 interface MoisAnalyse {
@@ -275,16 +282,8 @@ export default function AnalyseTresorerieAnnuelle() {
         return date >= debut && date <= fin;
       });
       const abonnementsParActivite = groupByActiviteAbonnement(abonnementsMois, activites);
-      const totalAbonnements = abonnementsMois.reduce((sum, lr: any) => {
-        // Utiliser TTC directement (montant bancaire réel)
-        // Les crédits (remboursements) sont soustraits
-        const isRemboursement = Number(lr.transaction_credit) > 0;
-        const ttc = lr.total_ttc ?? 
-          (isRemboursement ? lr.transaction_credit : lr.transaction_debit) ??
-          Math.abs(Number(lr.transaction_montant) || 0);
-        const montant = Math.abs(Number(ttc));
-        return sum + (isRemboursement ? -montant : montant);
-      }, 0);
+      // Le total est la somme des montants nets (crédits déjà soustraits dans le groupement)
+      const totalAbonnements = abonnementsParActivite.reduce((sum, a) => sum + a.montant, 0);
 
       // CHARGES SALAIRES (mois effectif) - type_charge = "Salaire" ou "SALAIRE"
       const chargesSalairesMoisFromTable = chargesSalaries.filter((c: any) => {
@@ -425,21 +424,26 @@ export default function AnalyseTresorerieAnnuelle() {
       
       const entry = map.get(activiteCode)!;
       
+      // Détecter si c'est un crédit (remboursement)
+      const isCredit = Number(item.transaction_credit) > 0;
+      
       // Utiliser TTC directement (montant bancaire réel)
       const ttc = item.total_ttc ?? 
-        (Number(item.transaction_credit) > 0 ? item.transaction_credit : item.transaction_debit) ??
+        (isCredit ? item.transaction_credit : item.transaction_debit) ??
         Math.abs(Number(item.transaction_montant) || 0);
       const montant = Math.abs(Number(ttc));
       
-      entry.montant += montant;
+      // Les crédits sont soustraits du total
+      entry.montant += isCredit ? -montant : montant;
       entry.details.push({
         libelle: item.abonnement?.nom || item.transaction_libelle || "—",
-        montant,
+        montant: isCredit ? -montant : montant,
         date: item.transaction_date,
+        isCredit,
       });
     });
 
-    return Array.from(map.values()).sort((a, b) => b.montant - a.montant);
+    return Array.from(map.values()).sort((a, b) => Math.abs(b.montant) - Math.abs(a.montant));
   }
 
   const toggleMonth = (monthIndex: number) => {
@@ -799,11 +803,13 @@ function DetailSection({
               <span className="font-medium">{formatCurrency(item.montant)}</span>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="pl-4 pt-1 space-y-0.5 text-xs text-muted-foreground">
+              <div className="pl-4 pt-1 space-y-0.5 text-xs">
                 {item.details.slice(0, 5).map((d, j) => (
                   <div key={j} className="flex justify-between">
-                    <span className="truncate max-w-[150px]">{d.libelle}</span>
-                    <span>{formatCurrency(d.montant)}</span>
+                    <span className="truncate max-w-[150px] text-muted-foreground">{d.libelle}</span>
+                    <span className={d.isCredit ? "text-green-600 font-medium" : "text-muted-foreground"}>
+                      {d.isCredit ? "+" : ""}{formatCurrency(d.montant)}
+                    </span>
                   </div>
                 ))}
                 {item.details.length > 5 && (
