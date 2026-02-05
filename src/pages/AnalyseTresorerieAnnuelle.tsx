@@ -100,7 +100,7 @@ export default function AnalyseTresorerieAnnuelle() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("factures")
-        .select("id, numero_facture, destinataire_nom, total_ht, date_echeance, activite")
+        .select("id, numero_facture, destinataire_nom, total_ttc, date_echeance, activite")
         .eq("type_facture", "VENTES")
         .gte("date_echeance", `${annee}-01-01`)
         .lte("date_echeance", `${annee}-12-31`);
@@ -115,7 +115,7 @@ export default function AnalyseTresorerieAnnuelle() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("factures")
-        .select("id, numero_facture, emetteur_nom, total_ht, date_echeance, activite")
+        .select("id, numero_facture, emetteur_nom, total_ttc, date_echeance, activite")
         .eq("type_facture", "ACHATS_SERVICES")
         .gte("date_echeance", `${annee}-01-01`)
         .lte("date_echeance", `${annee}-12-31`);
@@ -142,7 +142,7 @@ export default function AnalyseTresorerieAnnuelle() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("factures")
-        .select("id, numero_facture, emetteur_nom, emetteur_id, total_ht, date_emission, activite")
+        .select("id, numero_facture, emetteur_nom, emetteur_id, total_ttc, date_emission, activite")
         .eq("type_facture", "ACHATS_GENERAUX")
         .gte("date_emission", `${annee}-01-01`)
         .lte("date_emission", `${annee}-12-31`);
@@ -250,7 +250,7 @@ export default function AnalyseTresorerieAnnuelle() {
         return date >= debut && date <= fin;
       });
       const ventesParActivite = groupByActivite(ventesMois, "destinataire_nom", activites);
-      const totalVentes = ventesMois.reduce((sum, f) => sum + Number(f.total_ht || 0), 0);
+      const totalVentes = ventesMois.reduce((sum, f) => sum + Number(f.total_ttc || 0), 0);
 
       // ACHATS SERVICES par activité (date échéance)
       const achatsServicesMois = facturesAchatsServices.filter(f => {
@@ -258,7 +258,7 @@ export default function AnalyseTresorerieAnnuelle() {
         return date >= debut && date <= fin;
       });
       const achatsServicesParActivite = groupByActivite(achatsServicesMois, "emetteur_nom", activites);
-      const totalAchatsServices = achatsServicesMois.reduce((sum, f) => sum + Number(f.total_ht || 0), 0);
+      const totalAchatsServices = achatsServicesMois.reduce((sum, f) => sum + Number(f.total_ttc || 0), 0);
 
       // ACHATS GENERAUX par activité (date émission = mois en cours)
       const achatsGenerauxMois = facturesAchatsGeneraux.filter(f => {
@@ -266,21 +266,20 @@ export default function AnalyseTresorerieAnnuelle() {
         return date >= debut && date <= fin;
       });
       const achatsGenerauxParActivite = groupByActiviteFournisseur(achatsGenerauxMois, activites, fournisseursGeneraux);
-      const totalAchatsGeneraux = achatsGenerauxMois.reduce((sum, f) => sum + Number(f.total_ht || 0), 0);
+      const totalAchatsGeneraux = achatsGenerauxMois.reduce((sum, f) => sum + Number(f.total_ttc || 0), 0);
 
-      // ABONNEMENTS par activité (date transaction = mois en cours)
+      // ABONNEMENTS par activité (date transaction = mois en cours) - TTC
       const abonnementsMois = lignesAbonnements.filter((lr: any) => {
         const date = new Date(lr.transaction_date);
         return date >= debut && date <= fin;
       });
       const abonnementsParActivite = groupByActiviteAbonnement(abonnementsMois, activites);
       const totalAbonnements = abonnementsMois.reduce((sum, lr: any) => {
-        if (lr.total_ht !== null) return sum + Math.abs(Number(lr.total_ht));
+        // Utiliser TTC directement (montant bancaire réel)
         const ttc = lr.total_ttc ?? 
           (Number(lr.transaction_credit) > 0 ? lr.transaction_credit : lr.transaction_debit) ??
           Math.abs(Number(lr.transaction_montant) || 0);
-        const tauxTva = getTauxTva(lr.abonnement?.tva);
-        return sum + calculerHT(Number(ttc), tauxTva);
+        return sum + Math.abs(Number(ttc));
       }, 0);
 
       // CHARGES SALAIRES (mois effectif) - type_charge = "Salaire" ou "SALAIRE"
@@ -353,7 +352,7 @@ export default function AnalyseTresorerieAnnuelle() {
   }, [annee, facturesVentes, facturesAchatsServices, facturesAchatsGeneraux, 
       lignesAbonnements, chargesSalaries, paiementsCharges, activites, fournisseursGeneraux]);
 
-  // Fonction pour grouper par activité
+  // Fonction pour grouper par activité (TTC)
   function groupByActivite(items: any[], partenaireField: string, activites: any[]): DetailParActivite[] {
     const map = new Map<string, DetailParActivite>();
     
@@ -366,7 +365,7 @@ export default function AnalyseTresorerieAnnuelle() {
       }
       
       const entry = map.get(activiteCode)!;
-      const montant = Number(item.total_ht || 0);
+      const montant = Number(item.total_ttc || 0);
       entry.montant += montant;
       entry.details.push({
         libelle: item[partenaireField] || item.numero_facture || "—",
@@ -378,7 +377,7 @@ export default function AnalyseTresorerieAnnuelle() {
     return Array.from(map.values()).sort((a, b) => b.montant - a.montant);
   }
 
-  // Fonction pour grouper achats généraux par activité fournisseur
+  // Fonction pour grouper achats généraux par activité fournisseur (TTC)
   function groupByActiviteFournisseur(items: any[], activites: any[], fournisseurs: any[]): DetailParActivite[] {
     const map = new Map<string, DetailParActivite>();
     
@@ -396,7 +395,7 @@ export default function AnalyseTresorerieAnnuelle() {
       }
       
       const entry = map.get(activiteCode)!;
-      const montant = Number(item.total_ht || 0);
+      const montant = Number(item.total_ttc || 0);
       entry.montant += montant;
       entry.details.push({
         libelle: item.emetteur_nom || item.numero_facture || "—",
@@ -408,7 +407,7 @@ export default function AnalyseTresorerieAnnuelle() {
     return Array.from(map.values()).sort((a, b) => b.montant - a.montant);
   }
 
-  // Fonction pour grouper abonnements par activité
+  // Fonction pour grouper abonnements par activité (TTC)
   function groupByActiviteAbonnement(items: any[], activites: any[]): DetailParActivite[] {
     const map = new Map<string, DetailParActivite>();
     
@@ -422,16 +421,11 @@ export default function AnalyseTresorerieAnnuelle() {
       
       const entry = map.get(activiteCode)!;
       
-      let montant: number;
-      if (item.total_ht !== null) {
-        montant = Math.abs(Number(item.total_ht));
-      } else {
-        const ttc = item.total_ttc ?? 
-          (Number(item.transaction_credit) > 0 ? item.transaction_credit : item.transaction_debit) ??
-          Math.abs(Number(item.transaction_montant) || 0);
-        const tauxTva = getTauxTva(item.abonnement?.tva);
-        montant = calculerHT(Number(ttc), tauxTva);
-      }
+      // Utiliser TTC directement (montant bancaire réel)
+      const ttc = item.total_ttc ?? 
+        (Number(item.transaction_credit) > 0 ? item.transaction_credit : item.transaction_debit) ??
+        Math.abs(Number(item.transaction_montant) || 0);
+      const montant = Math.abs(Number(ttc));
       
       entry.montant += montant;
       entry.details.push({
@@ -468,7 +462,7 @@ export default function AnalyseTresorerieAnnuelle() {
         "Mois": m.moisLabel,
         "Catégorie": "SOLDE DU COMPTE",
         "Activité": "",
-        "Montant HT": m.soldeCompte,
+        "Montant TTC": m.soldeCompte,
       });
       
       m.ventesParActivite.forEach(v => {
@@ -476,7 +470,7 @@ export default function AnalyseTresorerieAnnuelle() {
           "Mois": m.moisLabel,
           "Catégorie": "VENTES SERVICES",
           "Activité": v.activite,
-          "Montant HT": v.montant,
+          "Montant TTC": v.montant,
         });
       });
       
@@ -485,7 +479,7 @@ export default function AnalyseTresorerieAnnuelle() {
           "Mois": m.moisLabel,
           "Catégorie": "ACHATS SERVICES",
           "Activité": a.activite,
-          "Montant HT": a.montant,
+          "Montant TTC": a.montant,
         });
       });
       
@@ -493,14 +487,14 @@ export default function AnalyseTresorerieAnnuelle() {
         "Mois": m.moisLabel,
         "Catégorie": "CHARGES SALAIRES",
         "Activité": "",
-        "Montant HT": m.chargesSalaires,
+        "Montant TTC": m.chargesSalaires,
       });
       
       rows.push({
         "Mois": m.moisLabel,
         "Catégorie": "CHARGES SOCIALES",
         "Activité": "",
-        "Montant HT": m.chargesSociales,
+        "Montant TTC": m.chargesSociales,
       });
       
       m.achatsGenerauxParActivite.forEach(a => {
@@ -508,7 +502,7 @@ export default function AnalyseTresorerieAnnuelle() {
           "Mois": m.moisLabel,
           "Catégorie": "ACHATS GÉNÉRAUX",
           "Activité": a.activite,
-          "Montant HT": a.montant,
+          "Montant TTC": a.montant,
         });
       });
       
@@ -517,7 +511,7 @@ export default function AnalyseTresorerieAnnuelle() {
           "Mois": m.moisLabel,
           "Catégorie": "ABONNEMENTS",
           "Activité": a.activite,
-          "Montant HT": a.montant,
+          "Montant TTC": a.montant,
         });
       });
     });
