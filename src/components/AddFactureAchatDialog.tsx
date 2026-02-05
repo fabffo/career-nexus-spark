@@ -54,6 +54,7 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
   const [formData, setFormData] = useState({
     numero_facture: '',
     date_emission: new Date(),
+    date_echeance: new Date(),
     fournisseur_type: '',
     fournisseur_id: '',
     activite: 'Prestation',
@@ -131,6 +132,7 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
     setFormData({
       numero_facture: '',
       date_emission: new Date(),
+      date_echeance: new Date(),
       fournisseur_type: '',
       fournisseur_id: '',
       activite: 'Prestation',
@@ -250,7 +252,7 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
           numero_facture: formData.numero_facture,
           type_facture: typeFacture,
           date_emission: format(formData.date_emission, 'yyyy-MM-dd'),
-          date_echeance: format(formData.date_emission, 'yyyy-MM-dd'),
+          date_echeance: format(formData.date_echeance, 'yyyy-MM-dd'),
           emetteur_type: emetteurType,
           emetteur_id: emetteurId,
           emetteur_nom: emetteurNom,
@@ -353,6 +355,42 @@ export default function AddFactureAchatDialog({ open, onOpenChange, onSuccess }:
                   onSelect={(date) => date && setFormData({ ...formData, date_emission: date })}
                   locale={fr}
                   initialFocus
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Date d'échéance */}
+          <div className="space-y-2">
+            <Label>
+              Date d'échéance <span className="text-destructive">*</span>
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !formData.date_echeance && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {formData.date_echeance ? (
+                    format(formData.date_echeance, "dd/MM/yyyy", { locale: fr })
+                  ) : (
+                    <span>Sélectionner une date</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={formData.date_echeance}
+                  onSelect={(date) => date && setFormData({ ...formData, date_echeance: date })}
+                  locale={fr}
+                  initialFocus
+                  className="p-3 pointer-events-auto"
                 />
               </PopoverContent>
             </Popover>
