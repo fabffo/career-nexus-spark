@@ -6,8 +6,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Edit2, Save, X } from "lucide-react";
+import { Plus, Trash2, Edit2, Save, X, Download, Copy } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface PrevisionChargesSalarialesFormProps {
   annee: number;
@@ -39,6 +50,21 @@ export default function PrevisionChargesSalarialesForm({ annee }: PrevisionCharg
         .from("previsions_charges_salariales")
         .select("*")
         .eq("annee", annee)
+        .eq("actif", true)
+        .order("mois");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Récupérer les prévisions de l'année précédente
+  const { data: previsionsAnneePrecedente = [] } = useQuery({
+    queryKey: ["previsions-charges-salariales", annee - 1],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("previsions_charges_salariales")
+        .select("*")
+        .eq("annee", annee - 1)
         .eq("actif", true)
         .order("mois");
       if (error) throw error;
@@ -102,6 +128,44 @@ export default function PrevisionChargesSalarialesForm({ annee }: PrevisionCharg
     onError: () => toast.error("Erreur lors de la suppression"),
   });
 
+  const importMutation = useMutation({
+    mutationFn: async () => {
+      const toInsert = previsionsAnneePrecedente.map((p: any) => ({
+        annee,
+        mois: p.mois,
+        nom: p.nom,
+        type_charge: p.type_charge,
+        montant: p.montant,
+      }));
+      if (toInsert.length === 0) throw new Error("Aucune donnée à importer");
+      const { error } = await supabase.from("previsions_charges_salariales").insert(toInsert);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["previsions-charges-salariales", annee] });
+      toast.success(`${previsionsAnneePrecedente.length} prévision(s) importée(s) depuis ${annee - 1}`);
+    },
+    onError: (error: any) => toast.error(error.message || "Erreur lors de l'import"),
+  });
+
+  const copyMutation = useMutation({
+    mutationFn: async (prevision: any) => {
+      const { error } = await supabase.from("previsions_charges_salariales").insert({
+        annee,
+        mois: prevision.mois,
+        nom: `${prevision.nom} (copie)`,
+        type_charge: prevision.type_charge,
+        montant: prevision.montant,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["previsions-charges-salariales", annee] });
+      toast.success("Prévision dupliquée");
+    },
+    onError: () => toast.error("Erreur lors de la copie"),
+  });
+
   const resetForm = () => {
     setFormData({
       mois: 1,
@@ -146,12 +210,39 @@ export default function PrevisionChargesSalarialesForm({ annee }: PrevisionCharg
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Prévisions de Charges Salariales</h3>
-        {!isAdding && (
-          <Button size="sm" onClick={() => setIsAdding(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Ajouter
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {previsionsAnneePrecedente.length > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <Download className="h-4 w-4 mr-2" />
+                  Importer {annee - 1}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Importer depuis {annee - 1}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Cette action importera {previsionsAnneePrecedente.length} prévision(s) de charges salariales de l'année {annee - 1}.
+                    Les prévisions existantes ne seront pas supprimées.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => importMutation.mutate()}>
+                    Importer
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          {!isAdding && (
+            <Button size="sm" onClick={() => setIsAdding(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter
+            </Button>
+          )}
+        </div>
       </div>
 
       {(isAdding || editingId) && (
@@ -230,7 +321,7 @@ export default function PrevisionChargesSalarialesForm({ annee }: PrevisionCharg
             <TableHead>Nom</TableHead>
             <TableHead>Type de charge</TableHead>
             <TableHead className="text-right">Montant</TableHead>
-            <TableHead className="w-[80px]"></TableHead>
+            <TableHead className="w-[120px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -249,10 +340,13 @@ export default function PrevisionChargesSalarialesForm({ annee }: PrevisionCharg
                 <TableCell className="text-right font-medium">{formatCurrency(Number(p.montant))}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(p)}>
+                    <Button variant="ghost" size="icon" onClick={() => copyMutation.mutate(p)} title="Dupliquer">
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(p)} title="Modifier">
                       <Edit2 className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(p.id)}>
+                    <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(p.id)} title="Supprimer">
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
