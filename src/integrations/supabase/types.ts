@@ -2284,6 +2284,33 @@ export type Database = {
         }
         Relationships: []
       }
+      parametres_tresorerie: {
+        Row: {
+          annee: number
+          created_at: string | null
+          created_by: string | null
+          id: string
+          solde_debut: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          annee: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          solde_debut?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          annee?: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          solde_debut?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       postes: {
         Row: {
           client_id: string | null
