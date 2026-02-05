@@ -105,6 +105,31 @@ export default function PaiementsAbonnements() {
   const soldeNetTTC = stats.totalDebitsTTC - stats.totalCreditsTTC;
   const soldeNetHT = stats.totalDebitsHT - stats.totalCreditsHT;
 
+  // Calcul des moyennes par activité (sur l'année sélectionnée)
+  const moyennesParActivite = paiementsRaw.reduce((acc, p) => {
+    const activite = p.abonnement?.activite;
+    if (!activite) return acc;
+    
+    if (!acc[activite]) {
+      acc[activite] = { totalHT: 0, totalTTC: 0, count: 0 };
+    }
+    
+    const isRemb = isRefund(p);
+    const montantHT = getMontantHT(p);
+    const montantTTC = Math.abs(Number(p.montant));
+    
+    if (!isRemb) {
+      acc[activite].totalHT += montantHT;
+      acc[activite].totalTTC += montantTTC;
+      acc[activite].count += 1;
+    }
+    
+    return acc;
+  }, {} as Record<string, { totalHT: number; totalTTC: number; count: number }>);
+
+  // Calculer le nombre de mois pour la moyenne
+  const nbMois = moisSelectionne !== null ? 1 : 12;
+
   const columns: ColumnDef<Paiement>[] = [
     {
       accessorKey: "date_paiement",
@@ -364,6 +389,33 @@ export default function PaiementsAbonnements() {
           </div>
         </Card>
       </div>
+
+      {/* Moyennes par activité */}
+      {Object.keys(moyennesParActivite).length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold mb-3">
+            Moyenne mensuelle par activité ({anneeSelectionnee})
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {Object.entries(moyennesParActivite).map(([activite, data]) => (
+              <Card key={activite} className="p-4">
+                <div className="text-sm text-muted-foreground">
+                  {activitesMap[activite] || activite}
+                </div>
+                <div className="text-lg font-bold">
+                  {(data.totalHT / nbMois).toFixed(2)} € <span className="text-xs text-muted-foreground">HT/mois</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {(data.totalTTC / nbMois).toFixed(2)} € TTC/mois
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {data.count} paiement{data.count > 1 ? 's' : ''}
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       <DataTable
         columns={columns}

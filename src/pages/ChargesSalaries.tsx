@@ -133,6 +133,27 @@ export default function ChargesSalaries() {
     }, {} as Record<string, number>),
   };
 
+  // Calcul des moyennes par type de charge (sur l'année sélectionnée)
+  const moyennesParType = allCharges.reduce((acc, c) => {
+    const type = c.declaration?.type_charge || "AUTRES";
+    const montant = Math.abs(Number(c.montant));
+    const credit = isCredit(c);
+    
+    if (!acc[type]) {
+      acc[type] = { total: 0, count: 0 };
+    }
+    
+    if (!credit) {
+      acc[type].total += montant;
+      acc[type].count += 1;
+    }
+    
+    return acc;
+  }, {} as Record<string, { total: number; count: number }>);
+
+  // Calculer le nombre de mois pour la moyenne
+  const nbMois = moisSelectionne !== null ? 1 : 12;
+
   const columns: ColumnDef<Charge>[] = [
     {
       accessorKey: "date_paiement",
@@ -308,6 +329,30 @@ export default function ChargesSalaries() {
           </Card>
         ))}
       </div>
+
+      {/* Moyennes par type de charge */}
+      {Object.keys(moyennesParType).length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold mb-3">
+            Moyenne mensuelle par type ({anneeSelectionnee})
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {Object.entries(moyennesParType).map(([type, data]) => (
+              <Card key={type} className="p-4 border-primary/20">
+                <div className="text-sm text-muted-foreground">
+                  {TYPE_CHARGE_LABELS[type] || type}
+                </div>
+                <div className="text-lg font-bold">
+                  {(data.total / nbMois).toFixed(2)} € <span className="text-xs text-muted-foreground">/mois</span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {data.count} paiement{data.count > 1 ? 's' : ''}
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       <DataTable
         columns={columns}
