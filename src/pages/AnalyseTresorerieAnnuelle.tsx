@@ -532,16 +532,40 @@ export default function AnalyseTresorerieAnnuelle() {
   };
 
   // Stats globales
-  const stats = useMemo(() => ({
-    totalVentes: moisAnalyses.reduce((s, m) => s + m.totalVentes, 0),
-    totalAchatsServices: moisAnalyses.reduce((s, m) => s + m.totalAchatsServices, 0),
-    totalAchatsGeneraux: moisAnalyses.reduce((s, m) => s + m.totalAchatsGeneraux, 0),
-    totalAbonnements: moisAnalyses.reduce((s, m) => s + m.totalAbonnements, 0),
-    totalCharges: moisAnalyses.reduce((s, m) => s + m.totalCharges, 0),
-    totalSalaires: moisAnalyses.reduce((s, m) => s + m.chargesSalaires, 0),
-    totalChargesSociales: moisAnalyses.reduce((s, m) => s + m.chargesSociales, 0),
-    soldeFinal: moisAnalyses[11]?.soldeCompte || 0,
-  }), [moisAnalyses]);
+  const stats = useMemo(() => {
+    const totalVentes = moisAnalyses.reduce((s, m) => s + m.totalVentes, 0);
+    const totalAchatsServices = moisAnalyses.reduce((s, m) => s + m.totalAchatsServices, 0);
+    const totalAchatsGeneraux = moisAnalyses.reduce((s, m) => s + m.totalAchatsGeneraux, 0);
+    const totalAbonnements = moisAnalyses.reduce((s, m) => s + m.totalAbonnements, 0);
+    const totalCharges = moisAnalyses.reduce((s, m) => s + m.totalCharges, 0);
+    const totalSalaires = moisAnalyses.reduce((s, m) => s + m.chargesSalaires, 0);
+    const totalChargesSociales = moisAnalyses.reduce((s, m) => s + m.chargesSociales, 0);
+    
+    // Solde début = solde janvier - résultat janvier (pour obtenir le solde au 1er janvier)
+    const premierMois = moisAnalyses[0];
+    const soldeDebut = premierMois 
+      ? premierMois.soldeCompte - (premierMois.totalVentes - premierMois.totalAchatsServices - premierMois.totalAchatsGeneraux - premierMois.totalAbonnements - premierMois.totalCharges)
+      : 0;
+    
+    // Résultat des flux = ventes - toutes les charges
+    const resultatFlux = totalVentes - totalAchatsServices - totalAchatsGeneraux - totalAbonnements - totalCharges;
+    
+    // Solde fin = dernier mois ou solde début + résultat
+    const soldeFin = moisAnalyses[11]?.soldeCompte || (soldeDebut + resultatFlux);
+    
+    return {
+      totalVentes,
+      totalAchatsServices,
+      totalAchatsGeneraux,
+      totalAbonnements,
+      totalCharges,
+      totalSalaires,
+      totalChargesSociales,
+      soldeDebut,
+      resultatFlux,
+      soldeFin,
+    };
+  }, [moisAnalyses]);
 
   const isLoading = !activites.length;
 
@@ -622,10 +646,28 @@ export default function AnalyseTresorerieAnnuelle() {
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Solde Final</p>
-            <p className={`text-xl font-bold ${stats.soldeFinal >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-              {formatCurrency(stats.soldeFinal)}
+            <p className="text-sm text-muted-foreground">Solde Trésorerie</p>
+            <p className={`text-xl font-bold ${stats.soldeFin >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+              {formatCurrency(stats.soldeFin)}
             </p>
+            <div className="mt-2 pt-2 border-t border-border text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Solde début</span>
+                <span className="font-medium">{formatCurrency(stats.soldeDebut)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Résultat flux</span>
+                <span className={`font-medium ${stats.resultatFlux >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {stats.resultatFlux >= 0 ? '+' : ''}{formatCurrency(stats.resultatFlux)}
+                </span>
+              </div>
+              <div className="flex justify-between border-t border-border pt-1">
+                <span className="text-muted-foreground font-medium">Solde fin</span>
+                <span className={`font-bold ${stats.soldeFin >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                  {formatCurrency(stats.soldeFin)}
+                </span>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
