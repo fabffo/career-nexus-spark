@@ -98,7 +98,10 @@ export default function FacturesAchats() {
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [selectedTypeFournisseur, setSelectedTypeFournisseur] = useState<string>("all");
+  const [selectedEcheanceYear, setSelectedEcheanceYear] = useState<string>("all");
+  const [selectedEcheanceMonth, setSelectedEcheanceMonth] = useState<string>("all");
   const [availableYears, setAvailableYears] = useState<string[]>([]);
+  const [availableEcheanceYears, setAvailableEcheanceYears] = useState<string[]>([]);
   const [selectedFactureIds, setSelectedFactureIds] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
   const [existingFournisseurs, setExistingFournisseurs] = useState<Set<string>>(new Set());
@@ -115,7 +118,7 @@ export default function FacturesAchats() {
   useEffect(() => {
     fetchFactures();
     fetchFournisseurs();
-  }, [selectedYear, selectedMonth]);
+  }, [selectedYear, selectedMonth, selectedEcheanceYear, selectedEcheanceMonth]);
 
   const fetchFournisseurs = async () => {
     try {
@@ -210,7 +213,7 @@ export default function FacturesAchats() {
       // Récupérer toutes les factures d'achat (ACHATS, ACHATS_GENERAUX, ACHATS_SERVICES, ACHATS_ETAT)
       let query = supabase.from("factures").select("*").in("type_facture", ["ACHATS", "ACHATS_GENERAUX", "ACHATS_SERVICES", "ACHATS_ETAT"]);
 
-      // Filtrer par année et mois si sélectionné
+      // Filtrer par année et mois d'émission si sélectionné
       if (selectedYear !== "all") {
         const yearNum = parseInt(selectedYear);
 
@@ -229,6 +232,25 @@ export default function FacturesAchats() {
         }
       }
 
+      // Filtrer par année et mois d'échéance si sélectionné
+      if (selectedEcheanceYear !== "all") {
+        const yearNum = parseInt(selectedEcheanceYear);
+
+        if (selectedEcheanceMonth !== "all") {
+          // Filtrer par année ET mois d'échéance
+          const monthNum = parseInt(selectedEcheanceMonth);
+          const startDate = `${yearNum}-${monthNum.toString().padStart(2, '0')}-01`;
+          const lastDay = new Date(yearNum, monthNum, 0).getDate();
+          const endDate = `${yearNum}-${monthNum.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+          query = query.gte("date_echeance", startDate).lte("date_echeance", endDate);
+        } else {
+          // Filtrer par année d'échéance uniquement
+          const startDate = `${yearNum}-01-01`;
+          const endDate = `${yearNum}-12-31`;
+          query = query.gte("date_echeance", startDate).lte("date_echeance", endDate);
+        }
+      }
+
       const { data, error } = await query.order("date_emission", { ascending: false });
 
       if (error) throw error;
@@ -239,15 +261,21 @@ export default function FacturesAchats() {
         statut: f.statut as "BROUILLON" | "VALIDEE" | "PAYEE" | "ANNULEE",
       }));
 
-      // Extraire les années disponibles
+      // Extraire les années disponibles pour date d'émission
       const years = new Set<string>();
+      const echeanceYears = new Set<string>();
       facturesData.forEach((f) => {
         if (f.date_emission) {
           const year = new Date(f.date_emission).getFullYear().toString();
           years.add(year);
         }
+        if (f.date_echeance) {
+          const year = new Date(f.date_echeance).getFullYear().toString();
+          echeanceYears.add(year);
+        }
       });
       setAvailableYears(Array.from(years).sort((a, b) => parseInt(b) - parseInt(a)));
+      setAvailableEcheanceYears(Array.from(echeanceYears).sort((a, b) => parseInt(b) - parseInt(a)));
 
       setFactures(facturesData);
 
@@ -993,6 +1021,43 @@ export default function FacturesAchats() {
           <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={selectedYear === "all"}>
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Mois" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les mois</SelectItem>
+              <SelectItem value="1">Janvier</SelectItem>
+              <SelectItem value="2">Février</SelectItem>
+              <SelectItem value="3">Mars</SelectItem>
+              <SelectItem value="4">Avril</SelectItem>
+              <SelectItem value="5">Mai</SelectItem>
+              <SelectItem value="6">Juin</SelectItem>
+              <SelectItem value="7">Juillet</SelectItem>
+              <SelectItem value="8">Août</SelectItem>
+              <SelectItem value="9">Septembre</SelectItem>
+              <SelectItem value="10">Octobre</SelectItem>
+              <SelectItem value="11">Novembre</SelectItem>
+              <SelectItem value="12">Décembre</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="h-6 w-px bg-border mx-1" />
+
+          <Select value={selectedEcheanceYear} onValueChange={setSelectedEcheanceYear}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Échéance année" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Échéance: toutes</SelectItem>
+              {availableEcheanceYears.map((year) => (
+                <SelectItem key={year} value={year}>
+                  Échéance {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedEcheanceMonth} onValueChange={setSelectedEcheanceMonth} disabled={selectedEcheanceYear === "all"}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Mois échéance" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tous les mois</SelectItem>
