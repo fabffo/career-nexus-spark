@@ -66,6 +66,7 @@ import Banques from "./pages/Banques";
 import FacturesEnRetard from "./pages/FacturesEnRetard";
 import PrevisionTresorerie from "./pages/PrevisionTresorerie";
 import AnalyseTresorerieAnnuelle from "./pages/AnalyseTresorerieAnnuelle";
+import DevisPage from "./pages/Devis";
 
 const queryClient = new QueryClient();
 
@@ -138,6 +139,7 @@ const App = () => (
               <Route path="factures" element={<Factures />} />
               <Route path="factures-ventes" element={<FacturesVentes />} />
               <Route path="factures-achats" element={<FacturesAchats />} />
+              <Route path="devis" element={<DevisPage />} />
               <Route path="rapprochement-bancaire" element={<RapprochementBancaire />} />
               <Route path="abonnements-partenaires" element={<AbonnementsPartenaires />} />
               <Route path="paiements-abonnements" element={<PaiementsAbonnements />} />
