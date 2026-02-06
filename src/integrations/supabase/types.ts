@@ -1095,6 +1095,181 @@ export type Database = {
         }
         Relationships: []
       }
+      devis: {
+        Row: {
+          activite: string | null
+          created_at: string | null
+          created_by: string | null
+          date_echeance: string
+          date_emission: string
+          date_validite: string | null
+          destinataire_adresse: string | null
+          destinataire_email: string | null
+          destinataire_id: string | null
+          destinataire_nom: string
+          destinataire_telephone: string | null
+          destinataire_type: string
+          emetteur_adresse: string | null
+          emetteur_email: string | null
+          emetteur_id: string | null
+          emetteur_nom: string
+          emetteur_telephone: string | null
+          emetteur_type: string
+          facture_id: string | null
+          id: string
+          informations_paiement: string | null
+          numero_devis: string
+          reference_societe: string | null
+          statut: string
+          total_ht: number | null
+          total_ttc: number | null
+          total_tva: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          activite?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date_echeance: string
+          date_emission?: string
+          date_validite?: string | null
+          destinataire_adresse?: string | null
+          destinataire_email?: string | null
+          destinataire_id?: string | null
+          destinataire_nom: string
+          destinataire_telephone?: string | null
+          destinataire_type: string
+          emetteur_adresse?: string | null
+          emetteur_email?: string | null
+          emetteur_id?: string | null
+          emetteur_nom: string
+          emetteur_telephone?: string | null
+          emetteur_type: string
+          facture_id?: string | null
+          id?: string
+          informations_paiement?: string | null
+          numero_devis: string
+          reference_societe?: string | null
+          statut?: string
+          total_ht?: number | null
+          total_ttc?: number | null
+          total_tva?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          activite?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date_echeance?: string
+          date_emission?: string
+          date_validite?: string | null
+          destinataire_adresse?: string | null
+          destinataire_email?: string | null
+          destinataire_id?: string | null
+          destinataire_nom?: string
+          destinataire_telephone?: string | null
+          destinataire_type?: string
+          emetteur_adresse?: string | null
+          emetteur_email?: string | null
+          emetteur_id?: string | null
+          emetteur_nom?: string
+          emetteur_telephone?: string | null
+          emetteur_type?: string
+          facture_id?: string | null
+          id?: string
+          informations_paiement?: string | null
+          numero_devis?: string
+          reference_societe?: string | null
+          statut?: string
+          total_ht?: number | null
+          total_ttc?: number | null
+          total_tva?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "devis_facture_id_fkey"
+            columns: ["facture_id"]
+            isOneToOne: false
+            referencedRelation: "factures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      devis_lignes: {
+        Row: {
+          created_at: string | null
+          description: string
+          devis_id: string
+          id: string
+          montant_tva: number | null
+          ordre: number
+          prix_ht: number
+          prix_ttc: number | null
+          prix_unitaire_ht: number
+          quantite: number
+          taux_tva: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          devis_id: string
+          id?: string
+          montant_tva?: number | null
+          ordre?: number
+          prix_ht: number
+          prix_ttc?: number | null
+          prix_unitaire_ht: number
+          quantite?: number
+          taux_tva?: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          devis_id?: string
+          id?: string
+          montant_tva?: number | null
+          ordre?: number
+          prix_ht?: number
+          prix_ttc?: number | null
+          prix_unitaire_ht?: number
+          quantite?: number
+          taux_tva?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "devis_lignes_devis_id_fkey"
+            columns: ["devis_id"]
+            isOneToOne: false
+            referencedRelation: "devis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      devis_sequences: {
+        Row: {
+          created_at: string | null
+          last_number: number
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          last_number?: number
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          created_at?: string | null
+          last_number?: number
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
       echeances_fiscales: {
         Row: {
           created_at: string | null
@@ -3767,6 +3942,7 @@ export type Database = {
         Returns: string
       }
       get_next_contract_number: { Args: { p_year: number }; Returns: string }
+      get_next_devis_numero: { Args: never; Returns: string }
       get_next_facture_numero: {
         Args: { p_type_facture?: string }
         Returns: string

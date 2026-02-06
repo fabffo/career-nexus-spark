@@ -102,6 +102,7 @@ export function Sidebar() {
         { path: '/analyse-financiere', label: 'Analyse Financière', icon: FileText },
         { path: '/analyse-tresorerie', label: 'Analyse Trésorerie', icon: FileText },
         { path: '/prevision-tresorerie', label: 'Prévision Trésorerie', icon: Wallet },
+        { path: '/devis', label: 'Devis', icon: FileText },
         { path: '/factures', label: 'Toutes les factures', icon: FileText },
         { path: '/factures-ventes', label: 'Factures de vente', icon: FileText },
         { path: '/factures-achats', label: 'Factures d\'achat', icon: FileText },
