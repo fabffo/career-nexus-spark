@@ -4496,6 +4496,41 @@ export default function RapprochementBancaire() {
     window.URL.revokeObjectURL(url);
   };
 
+  const exportNonRapproches = () => {
+    const filtered = rapprochements.filter(r => r.status === "uncertain" || r.status === "unmatched");
+    if (filtered.length === 0) {
+      toast({ title: "Aucune donnée", description: "Aucune transaction incertaine ou non rapprochée à exporter" });
+      return;
+    }
+    const csv = Papa.unparse(
+      filtered.map((r) => ({
+        "Numéro de ligne": r.numero_ligne || r.transaction.numero_ligne || "",
+        Date: format(new Date(r.transaction.date), "dd/MM/yyyy"),
+        Libellé: r.transaction.libelle,
+        Débit: r.transaction.debit || "",
+        Crédit: r.transaction.credit || "",
+        Statut: r.status === "uncertain" ? "Incertain" : "Non rapproché",
+        Partenaire: r.facture?.partenaire_nom || r.fournisseur_info?.nom || r.abonnement_info?.nom || (r.declaration_info ? `${r.declaration_info.nom} (${r.declaration_info.organisme})` : "") || "",
+        "Type Partenaire": getPartenaireType(r),
+        Notes: r.notes || "",
+      })),
+      { delimiter: ";" }
+    );
+
+    const bom = "\uFEFF";
+    const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `rapprochement_non_rapproches_${format(new Date(), "yyyy-MM-dd")}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    toast({ title: "Export réussi", description: `${filtered.length} transaction(s) incertaine(s) / non rapprochée(s) exportée(s)` });
+  };
+
   // Fonction pour extraire le nom du partenaire d'un rapprochement
   const getPartenaireName = (r: Rapprochement): string => {
     return (
@@ -5074,7 +5109,16 @@ export default function RapprochementBancaire() {
                   </Button>
                   <Button onClick={exportResults} variant="outline" size="sm">
                     <Download className="h-4 w-4 mr-2" />
-                    Exporter
+                    Exporter tout
+                  </Button>
+                  <Button 
+                    onClick={exportNonRapproches} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={rapprochements.filter(r => r.status === "uncertain" || r.status === "unmatched").length === 0}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Exporter non rapprochés
                   </Button>
                   <Button 
                     onClick={handleValidateRapprochement} 
