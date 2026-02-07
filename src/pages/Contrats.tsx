@@ -56,7 +56,6 @@ export default function Contrats() {
     fournisseur_services_id: undefined as string | undefined,
     fournisseur_general_id: undefined as string | undefined,
     client_lie_id: undefined as string | undefined,
-    montant: '',
     description: '',
     piece_jointe_url: '',
     reference_client: [] as ReferenceClientLigne[],
@@ -247,7 +246,6 @@ export default function Contrats() {
       const dataToSubmit = {
         ...formData,
         numero_contrat: finalNumeroContrat, // Utiliser le numéro généré
-        montant: formData.montant ? parseFloat(formData.montant) : undefined,
         piece_jointe_url: pieceJointeUrl,
         date_fin: formData.date_fin || undefined, // Convertir chaîne vide en undefined
         // Nettoyer les IDs non utilisés selon le type
@@ -376,7 +374,6 @@ export default function Contrats() {
       fournisseur_services_id: undefined,
       fournisseur_general_id: undefined,
       client_lie_id: undefined,
-      montant: '',
       description: '',
       piece_jointe_url: '',
       reference_client: [],
@@ -412,7 +409,6 @@ export default function Contrats() {
       fournisseur_services_id: contrat.fournisseur_services_id,
       fournisseur_general_id: contrat.fournisseur_general_id,
       client_lie_id: contrat.client_lie_id,
-      montant: contrat.montant?.toString() || '',
       description: contrat.description || '',
       piece_jointe_url: contrat.piece_jointe_url || '',
       reference_client: refClient,
@@ -513,10 +509,16 @@ export default function Contrats() {
       cell: ({ row }) => getContratParty(row.original),
     },
     {
-      accessorKey: "montant",
+      id: "montant_total",
       header: "Montant",
-      cell: ({ row }) =>
-        row.original.montant ? `${row.original.montant.toLocaleString('fr-FR')} €` : '-',
+      cell: ({ row }) => {
+        const refs = row.original.reference_client;
+        if (Array.isArray(refs) && refs.length > 0) {
+          const total = refs.reduce((sum: number, r: any) => sum + (r.montant || 0), 0);
+          return `${total.toLocaleString('fr-FR')} €`;
+        }
+        return '-';
+      },
     },
     {
       accessorKey: "date_debut",
@@ -950,17 +952,7 @@ export default function Contrats() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="montant">Montant (€)</Label>
-                <Input
-                  id="montant"
-                  type="number"
-                  step="0.01"
-                  value={formData.montant}
-                  onChange={(e) => setFormData({ ...formData, montant: e.target.value })}
-                />
-              </div>
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="tva_id">TVA</Label>
                 <Select 
