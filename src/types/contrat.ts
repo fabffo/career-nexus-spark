@@ -2,6 +2,11 @@
 export type ContratType = 'CLIENT' | 'PRESTATAIRE' | 'FOURNISSEUR_SERVICES' | 'FOURNISSEUR_GENERAL' | 'FOURNISSEUR_ETAT_ORGANISME' | 'SALARIE';
 export type ContratStatut = 'BROUILLON' | 'ACTIF' | 'TERMINE' | 'ANNULE' | 'ARCHIVE';
 
+export interface ReferenceClientLigne {
+  reference: string;
+  montant: number;
+}
+
 export interface Contrat {
   id: string;
   numero_contrat: string;

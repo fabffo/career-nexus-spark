@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { FileUploadField } from '@/components/FileUploadField';
-import { ContratType, ContratStatut } from '@/types/contrat';
+import { ContratType, ContratStatut, ReferenceClientLigne } from '@/types/contrat';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -59,7 +59,7 @@ export default function Contrats() {
     montant: '',
     description: '',
     piece_jointe_url: '',
-    reference_client: '',
+    reference_client: [] as ReferenceClientLigne[],
     tva_id: 'e8357902-a99c-4c97-b0c5-aea42059f735' as string | undefined,
   });
 
@@ -257,8 +257,10 @@ export default function Contrats() {
         fournisseur_general_id: formData.type === 'FOURNISSEUR_GENERAL' ? formData.fournisseur_general_id : undefined,
         // Client lié pour les contrats fournisseurs
         client_lie_id: formData.type !== 'CLIENT' ? formData.client_lie_id : undefined,
-        // Référence client uniquement pour les contrats clients
-        reference_client: formData.type === 'CLIENT' ? (formData.reference_client || undefined) : undefined,
+        // Référence client uniquement pour les contrats clients (jsonb)
+        reference_client: formData.type === 'CLIENT' && formData.reference_client.length > 0 
+          ? formData.reference_client 
+          : undefined,
       };
 
       if (isAvenant && selectedContrat) {
@@ -361,7 +363,6 @@ export default function Contrats() {
   };
 
   const resetForm = async () => {
-    // Utiliser un numéro temporaire pour l'affichage
     setFormData({
       numero_contrat: getTemporaryNumeroContrat(),
       type: 'CLIENT',
@@ -378,7 +379,7 @@ export default function Contrats() {
       montant: '',
       description: '',
       piece_jointe_url: '',
-      reference_client: '',
+      reference_client: [],
       tva_id: 'e8357902-a99c-4c97-b0c5-aea42059f735',
     });
     setPieceJointeFile(null);
@@ -389,6 +390,15 @@ export default function Contrats() {
 
   const openEditDialog = (contrat: any) => {
     setSelectedContrat(contrat);
+    // Parse reference_client from jsonb
+    let refClient: ReferenceClientLigne[] = [];
+    if (contrat.reference_client) {
+      if (Array.isArray(contrat.reference_client)) {
+        refClient = contrat.reference_client;
+      } else if (typeof contrat.reference_client === 'string') {
+        refClient = [{ reference: contrat.reference_client, montant: contrat.montant || 0 }];
+      }
+    }
     setFormData({
       numero_contrat: contrat.numero_contrat,
       type: contrat.type,
@@ -405,7 +415,7 @@ export default function Contrats() {
       montant: contrat.montant?.toString() || '',
       description: contrat.description || '',
       piece_jointe_url: contrat.piece_jointe_url || '',
-      reference_client: contrat.reference_client || '',
+      reference_client: refClient,
       tva_id: contrat.tva_id || 'e8357902-a99c-4c97-b0c5-aea42059f735',
     });
     setIsEditMode(true);
@@ -773,13 +783,61 @@ export default function Contrats() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="reference_client">Référence Client</Label>
-                  <Input
-                    id="reference_client"
-                    value={formData.reference_client}
-                    onChange={(e) => setFormData({ ...formData, reference_client: e.target.value })}
-                    placeholder="Ex: REF-2025-001"
-                  />
+                  <Label>Références Client</Label>
+                  <div className="space-y-2">
+                    {formData.reference_client.map((ref, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <Input
+                          value={ref.reference}
+                          onChange={(e) => {
+                            const updated = [...formData.reference_client];
+                            updated[idx] = { ...updated[idx], reference: e.target.value };
+                            setFormData({ ...formData, reference_client: updated });
+                          }}
+                          placeholder="Ex: BDC PO150827 B SIRA Accompagnement RH"
+                          className="flex-1"
+                        />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={ref.montant}
+                          onChange={(e) => {
+                            const updated = [...formData.reference_client];
+                            updated[idx] = { ...updated[idx], montant: parseFloat(e.target.value) || 0 };
+                            setFormData({ ...formData, reference_client: updated });
+                          }}
+                          placeholder="Montant"
+                          className="w-32"
+                        />
+                        <span className="text-sm text-muted-foreground">€</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            const updated = formData.reference_client.filter((_, i) => i !== idx);
+                            setFormData({ ...formData, reference_client: updated });
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setFormData({
+                          ...formData,
+                          reference_client: [...formData.reference_client, { reference: '', montant: 0 }]
+                        });
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Ajouter une référence
+                    </Button>
+                  </div>
                 </div>
               </>
             )}
@@ -1016,10 +1074,17 @@ export default function Contrats() {
               </div>
 
               {/* Référence client - uniquement pour les contrats clients */}
-              {selectedContrat.type === 'CLIENT' && selectedContrat.reference_client && (
+              {selectedContrat.type === 'CLIENT' && selectedContrat.reference_client && Array.isArray(selectedContrat.reference_client) && selectedContrat.reference_client.length > 0 && (
                 <div>
-                  <Label className="text-muted-foreground">Référence Client</Label>
-                  <p className="font-medium">{selectedContrat.reference_client}</p>
+                  <Label className="text-muted-foreground">Références Client</Label>
+                  <div className="space-y-1 mt-1">
+                    {selectedContrat.reference_client.map((ref: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-center p-2 border rounded">
+                        <span className="font-medium">{ref.reference}</span>
+                        <span className="text-muted-foreground">{ref.montant?.toLocaleString('fr-FR')} €</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
