@@ -56,7 +56,7 @@ export default function AddFactureDialog({
     destinataire_email: '',
     informations_paiement: '',
     reference_societe: '',
-    statut: 'BROUILLON' as 'BROUILLON' | 'VALIDEE' | 'PAYEE' | 'ANNULEE',
+    statut: 'VALIDEE' as 'BROUILLON' | 'VALIDEE' | 'PAYEE' | 'ANNULEE',
     activite: 'Prestation',
   });
 
@@ -106,7 +106,7 @@ export default function AddFactureDialog({
         destinataire_email: '',
         informations_paiement: '',
         reference_societe: '',
-        statut: 'BROUILLON',
+        statut: 'VALIDEE',
         activite: 'Prestation',
       });
       setLignes([{ ordre: 1, description: '', quantite: 1, prix_unitaire_ht: 0, prix_ht: 0, taux_tva: 20, montant_tva: 0, prix_ttc: 0 }]);
@@ -132,7 +132,7 @@ export default function AddFactureDialog({
       destinataire_email: '',
       informations_paiement: '',
       reference_societe: '',
-      statut: 'BROUILLON',
+      statut: 'VALIDEE',
       activite: 'Prestation',
     };
     
@@ -263,7 +263,7 @@ export default function AddFactureDialog({
               destinataire_email: '',
               informations_paiement: infoPaiement.trim() || '',
               reference_societe: societe.siren || '',
-              statut: initialData.statut || 'BROUILLON' as const,
+              statut: initialData.statut || 'VALIDEE' as const,
               activite: (initialData as any).activite || 'Prestation',
             };
             
@@ -302,7 +302,7 @@ export default function AddFactureDialog({
             destinataire_email: '',
             informations_paiement: infoPaiement.trim() || '',
             reference_societe: societe.siren || '',
-            statut: 'BROUILLON' as const,
+            statut: 'VALIDEE' as const,
             activite: 'Prestation',
           };
           
