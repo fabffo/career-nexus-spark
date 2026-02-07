@@ -94,9 +94,17 @@ export const getReferenceClientForInvoice = async (input: ClientRefLookupInput):
     return null;
   }
 
-  const ref = (data || [])
+  // reference_client is now jsonb: [{reference: string, montant: number}, ...]
+  const refs = (data || [])
     .map((row) => row.reference_client)
-    .find((v) => typeof v === "string" && v.trim().length > 0);
+    .filter((v): v is any[] => Array.isArray(v) && v.length > 0);
 
-  return ref ?? null;
+  if (refs.length > 0) {
+    const firstRef = refs[0][0];
+    if (firstRef && typeof firstRef.reference === 'string' && firstRef.reference.trim().length > 0) {
+      return firstRef.reference;
+    }
+  }
+
+  return null;
 };
