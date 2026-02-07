@@ -26,8 +26,13 @@ const TYPE_CHARGE_LABELS = {
 };
 
 const PARTENAIRE_TYPE_LABELS: Record<string, string> = {
-  salarie: "Salarié",
-  fournisseur_etat: "Fournisseur État"
+  SALARIE: "Salarié",
+  FOURNISSEUR_ETAT_ORGANISME: "Fournisseur État",
+  CLIENT: "Client",
+  PRESTATAIRE: "Prestataire",
+  BANQUE: "Banque",
+  FOURNISSEUR_GENERAL: "Fournisseur général",
+  FOURNISSEUR_SERVICES: "Fournisseur de services",
 };
 
 type Declaration = {
@@ -64,20 +69,55 @@ export default function DeclarationsChargesSociales() {
       const enriched = await Promise.all((data || []).map(async (d) => {
         let partenaire_label = '';
         if (d.partenaire_type && d.partenaire_id) {
-          if (d.partenaire_type === 'salarie') {
+          if (d.partenaire_type === 'SALARIE') {
             const { data: salarie } = await supabase
               .from('salaries')
               .select('nom, prenom')
               .eq('id', d.partenaire_id)
               .single();
             if (salarie) partenaire_label = `${salarie.prenom} ${salarie.nom}`;
-          } else if (d.partenaire_type === 'fournisseur_etat') {
+          } else if (d.partenaire_type === 'FOURNISSEUR_ETAT_ORGANISME') {
             const { data: fournisseur } = await supabase
               .from('fournisseurs_etat_organismes')
               .select('raison_sociale')
               .eq('id', d.partenaire_id)
               .single();
             if (fournisseur) partenaire_label = fournisseur.raison_sociale;
+          } else if (d.partenaire_type === 'CLIENT') {
+            const { data: client } = await supabase
+              .from('clients')
+              .select('raison_sociale')
+              .eq('id', d.partenaire_id)
+              .single();
+            if (client) partenaire_label = client.raison_sociale;
+          } else if (d.partenaire_type === 'PRESTATAIRE') {
+            const { data: presta } = await supabase
+              .from('prestataires')
+              .select('nom, prenom')
+              .eq('id', d.partenaire_id)
+              .single();
+            if (presta) partenaire_label = `${presta.prenom} ${presta.nom}`;
+          } else if (d.partenaire_type === 'FOURNISSEUR_GENERAL') {
+            const { data: fg } = await supabase
+              .from('fournisseurs_generaux')
+              .select('raison_sociale')
+              .eq('id', d.partenaire_id)
+              .single();
+            if (fg) partenaire_label = fg.raison_sociale;
+          } else if (d.partenaire_type === 'FOURNISSEUR_SERVICES') {
+            const { data: fs } = await supabase
+              .from('fournisseurs_services')
+              .select('raison_sociale')
+              .eq('id', d.partenaire_id)
+              .single();
+            if (fs) partenaire_label = fs.raison_sociale;
+          } else if (d.partenaire_type === 'BANQUE') {
+            const { data: banque } = await supabase
+              .from('banques')
+              .select('raison_sociale')
+              .eq('id', d.partenaire_id)
+              .single();
+            if (banque) partenaire_label = banque.raison_sociale;
           }
         }
         return { ...d, partenaire_label };
