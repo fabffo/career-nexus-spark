@@ -522,25 +522,32 @@ export default function AddFactureDialog({
     setLignes(prev => prev.map((ligne, i) => {
       if (i !== index) return ligne;
       
-      // Si on sélectionne un contrat client
+      // Si on sélectionne une référence contrat client (format: contratId::index)
       if (field === 'contrat_id') {
-        const contrat = clientContrats.find(c => c.id === value);
+        const [contratId, refIndexStr] = (value as string).split('::');
+        const contrat = clientContrats.find(c => c.id === contratId);
         if (contrat) {
-          const prixUnitaire = contrat.montant || 0;
+          const refIndex = parseInt(refIndexStr);
+          const refs = Array.isArray(contrat.reference_client) ? contrat.reference_client : [];
+          const ref = refs[refIndex];
           const tauxTva = contrat.tva?.taux || 20;
-          const quantite = ligne.quantite || 1;
-          const prixHt = quantite * prixUnitaire;
-          const montantTva = prixHt * tauxTva / 100;
           
-          return {
-            ...ligne,
-            description: contrat.reference_client || `Contrat ${contrat.numero_contrat}`,
-            prix_unitaire_ht: prixUnitaire,
-            prix_ht: prixHt,
-            taux_tva: tauxTva,
-            montant_tva: montantTva,
-            prix_ttc: prixHt + montantTva
-          };
+          if (ref) {
+            const prixUnitaire = ref.montant || 0;
+            const quantite = ligne.quantite || 1;
+            const prixHt = quantite * prixUnitaire;
+            const montantTva = prixHt * tauxTva / 100;
+            
+            return {
+              ...ligne,
+              description: ref.reference || `Contrat ${contrat.numero_contrat}`,
+              prix_unitaire_ht: prixUnitaire,
+              prix_ht: prixHt,
+              taux_tva: tauxTva,
+              montant_tva: montantTva,
+              prix_ttc: prixHt + montantTva
+            };
+          }
         }
       }
 
@@ -955,29 +962,47 @@ export default function AddFactureDialog({
                             </div>
                           </CommandEmpty>
                           {formData.type_facture === 'VENTES' ? (
-                            <CommandGroup heading="Contrats clients">
-                              {clientContrats.map((contrat) => (
-                                <CommandItem
-                                  key={contrat.id}
-                                  value={contrat.reference_client || contrat.numero_contrat}
-                                  onSelect={() => updateLigne(index, "contrat_id", contrat.id)}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      ligne.description === (contrat.reference_client || `Contrat ${contrat.numero_contrat}`) ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  <div className="flex flex-col">
-                                    <span className="font-medium">
-                                      {contrat.reference_client || contrat.numero_contrat}
-                                    </span>
-                                    <span className="text-xs text-muted-foreground">
-                                      N° {contrat.numero_contrat} - {contrat.montant ? `${contrat.montant.toLocaleString('fr-FR')}€ HT` : 'Montant non défini'} - TVA {contrat.tva?.taux || 20}%
-                                    </span>
-                                  </div>
-                                </CommandItem>
-                              ))}
+                            <CommandGroup heading="Références contrats clients">
+                              {clientContrats.flatMap((contrat) => {
+                                const refs = Array.isArray(contrat.reference_client) ? contrat.reference_client : [];
+                                if (refs.length === 0) {
+                                  // Fallback: show contract without references
+                                  return [(
+                                    <CommandItem
+                                      key={contrat.id}
+                                      value={contrat.numero_contrat}
+                                      onSelect={() => updateLigne(index, "description", `Contrat ${contrat.numero_contrat}`)}
+                                    >
+                                      <div className="flex flex-col">
+                                        <span className="font-medium">Contrat {contrat.numero_contrat}</span>
+                                        <span className="text-xs text-muted-foreground">
+                                          {contrat.montant ? `${contrat.montant.toLocaleString('fr-FR')}€ HT` : 'Montant non défini'} - TVA {contrat.tva?.taux || 20}%
+                                        </span>
+                                      </div>
+                                    </CommandItem>
+                                  )];
+                                }
+                                return refs.map((ref: any, refIdx: number) => (
+                                  <CommandItem
+                                    key={`${contrat.id}::${refIdx}`}
+                                    value={`${ref.reference} ${contrat.numero_contrat}`}
+                                    onSelect={() => updateLigne(index, "contrat_id", `${contrat.id}::${refIdx}`)}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        ligne.description === ref.reference ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">{ref.reference}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        N° {contrat.numero_contrat} - {ref.montant ? `${ref.montant.toLocaleString('fr-FR')}€ HT` : '-'} - TVA {contrat.tva?.taux || 20}%
+                                      </span>
+                                    </div>
+                                  </CommandItem>
+                                ));
+                              })}
                             </CommandGroup>
                           ) : (
                             <CommandGroup heading="Missions en cours">

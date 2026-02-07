@@ -137,9 +137,19 @@ export default function ContratsClients() {
     {
       accessorKey: 'reference_client',
       header: 'Réf. Client',
-      cell: ({ row }) => (
-        <div>{(row.original as any).reference_client || '-'}</div>
-      )
+      cell: ({ row }) => {
+        const refs = (row.original as any).reference_client;
+        if (!refs || !Array.isArray(refs) || refs.length === 0) return <div>-</div>;
+        return (
+          <div className="space-y-0.5">
+            {refs.map((ref: any, idx: number) => (
+              <div key={idx} className="text-xs">
+                {ref.reference} ({ref.montant?.toLocaleString('fr-FR')}€)
+              </div>
+            ))}
+          </div>
+        );
+      }
     },
     {
       accessorKey: 'date_debut',
@@ -283,10 +293,17 @@ export default function ContratsClients() {
                 </p>
               </div>
 
-              {(selectedContrat as any).reference_client && (
+              {(selectedContrat as any).reference_client && Array.isArray((selectedContrat as any).reference_client) && (selectedContrat as any).reference_client.length > 0 && (
                 <div>
-                  <Label className="text-muted-foreground">Référence Client</Label>
-                  <p className="font-medium">{(selectedContrat as any).reference_client}</p>
+                  <Label className="text-muted-foreground">Références Client</Label>
+                  <div className="space-y-1 mt-1">
+                    {(selectedContrat as any).reference_client.map((ref: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-center p-2 border rounded">
+                        <span className="font-medium">{ref.reference}</span>
+                        <span className="text-muted-foreground">{ref.montant?.toLocaleString('fr-FR')} €</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 

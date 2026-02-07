@@ -756,7 +756,7 @@ export type Database = {
           parent_id: string | null
           piece_jointe_url: string | null
           prestataire_id: string | null
-          reference_client: string | null
+          reference_client: Json | null
           salarie_id: string | null
           statut: Database["public"]["Enums"]["contrat_statut"]
           tva_id: string | null
@@ -781,7 +781,7 @@ export type Database = {
           parent_id?: string | null
           piece_jointe_url?: string | null
           prestataire_id?: string | null
-          reference_client?: string | null
+          reference_client?: Json | null
           salarie_id?: string | null
           statut?: Database["public"]["Enums"]["contrat_statut"]
           tva_id?: string | null
@@ -806,7 +806,7 @@ export type Database = {
           parent_id?: string | null
           piece_jointe_url?: string | null
           prestataire_id?: string | null
-          reference_client?: string | null
+          reference_client?: Json | null
           salarie_id?: string | null
           statut?: Database["public"]["Enums"]["contrat_statut"]
           tva_id?: string | null
