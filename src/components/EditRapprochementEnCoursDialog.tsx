@@ -56,6 +56,7 @@ interface EditRapprochementEnCoursDialogProps {
   onAbonnementSelect?: (abonnementId: string | null) => void;
   onDeclarationSelect?: (declarationId: string | null) => void;
   isHistorique?: boolean; // Pour distinguer les transactions validées de celles en cours
+  alreadyMatchedFactureIds?: Set<string>; // IDs de factures déjà rapprochées par d'autres lignes
 }
 
 export default function EditRapprochementEnCoursDialog({
@@ -69,6 +70,7 @@ export default function EditRapprochementEnCoursDialog({
   onAbonnementSelect,
   onDeclarationSelect,
   isHistorique = false,
+  alreadyMatchedFactureIds,
 }: EditRapprochementEnCoursDialogProps) {
   const [status, setStatus] = useState<"matched" | "unmatched" | "uncertain">("unmatched");
   const [selectedFactureIds, setSelectedFactureIds] = useState<string[]>([]);
@@ -309,7 +311,12 @@ export default function EditRapprochementEnCoursDialog({
     ...(((rapprochement as any)?.factureIds as string[]) ?? []),
     ...(rapprochement?.facture ? [rapprochement.facture.id] : []),
   ]);
-  const facturesDisponibles = allFactures.filter((f) => !f.numero_rapprochement || linkedIds.has(f.id));
+  const facturesDisponibles = allFactures.filter((f) => {
+    // Exclure les factures déjà rapprochées par d'autres lignes du même fichier
+    if (alreadyMatchedFactureIds?.has(f.id)) return false;
+    // Inclure si pas de numero_rapprochement OU si c'est une facture liée à cette ligne
+    return !f.numero_rapprochement || linkedIds.has(f.id);
+  });
 
   // Filtrer les factures de ventes et d'achats
   const facturesVentes = facturesDisponibles.filter((f) => {

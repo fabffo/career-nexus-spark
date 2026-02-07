@@ -6554,6 +6554,20 @@ export default function RapprochementBancaire() {
         rapprochement={selectedEnCoursRapprochement}
         factures={factures}
         isHistorique={false}
+        alreadyMatchedFactureIds={(() => {
+          // Collecter les IDs de factures déjà rapprochées par d'AUTRES lignes
+          const currentKey = selectedEnCoursRapprochement ? getTransactionKey(selectedEnCoursRapprochement.transaction) : null;
+          const ids = new Set<string>();
+          rapprochements.forEach(r => {
+            if (getTransactionKey(r.transaction) === currentKey) return; // Exclure la ligne en cours
+            if (r.status !== 'matched') return;
+            if (r.facture?.id) ids.add(r.facture.id);
+            if ((r as any).factureIds) {
+              ((r as any).factureIds as string[]).forEach(id => ids.add(id));
+            }
+          });
+          return ids;
+        })()}
         onStatusChange={(newStatus) => {
           if (selectedEnCoursRapprochement) {
             const key = getTransactionKey(selectedEnCoursRapprochement.transaction);
