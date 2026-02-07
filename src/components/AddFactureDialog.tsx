@@ -36,6 +36,7 @@ export default function AddFactureDialog({
   const [fournisseursEtat, setFournisseursEtat] = useState<any[]>([]);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [typesMission, setTypesMission] = useState<any[]>([]);
+  const [clientContrats, setClientContrats] = useState<any[]>([]);
   
   const [formData, setFormData] = useState({
     type_facture: 'VENTES' as TypeFacture,
@@ -462,7 +463,7 @@ export default function AddFactureDialog({
     }
   };
 
-  const handleDestinataireClientChange = (id: string) => {
+  const handleDestinataireClientChange = async (id: string) => {
     const client = clients.find(c => c.id === id);
     if (client) {
       // Calculer la date d'échéance en ajoutant le délai de paiement du client
@@ -480,6 +481,21 @@ export default function AddFactureDialog({
         destinataire_email: client.email || '',
         date_echeance: dateEcheance.toISOString().split('T')[0],
       }));
+
+      // Charger les contrats actifs de ce client avec leur TVA
+      try {
+        const { data: contratsData } = await (supabase as any)
+          .from('contrats')
+          .select('*, tva:tva_id(*)')
+          .eq('client_id', id)
+          .eq('type', 'CLIENT')
+          .in('statut', ['ACTIF', 'BROUILLON'])
+          .order('created_at', { ascending: false });
+        setClientContrats(contratsData || []);
+      } catch (error) {
+        console.error('Erreur chargement contrats client:', error);
+        setClientContrats([]);
+      }
     }
   };
 
@@ -502,11 +518,33 @@ export default function AddFactureDialog({
     }
   };
 
-  const updateLigne = (index: number, field: keyof FactureLigne | 'mission_id', value: any) => {
+  const updateLigne = (index: number, field: keyof FactureLigne | 'mission_id' | 'contrat_id', value: any) => {
     setLignes(prev => prev.map((ligne, i) => {
       if (i !== index) return ligne;
       
-      // Si on sélectionne une mission
+      // Si on sélectionne un contrat client
+      if (field === 'contrat_id') {
+        const contrat = clientContrats.find(c => c.id === value);
+        if (contrat) {
+          const prixUnitaire = contrat.montant || 0;
+          const tauxTva = contrat.tva?.taux || 20;
+          const quantite = ligne.quantite || 1;
+          const prixHt = quantite * prixUnitaire;
+          const montantTva = prixHt * tauxTva / 100;
+          
+          return {
+            ...ligne,
+            description: contrat.reference_client || `Contrat ${contrat.numero_contrat}`,
+            prix_unitaire_ht: prixUnitaire,
+            prix_ht: prixHt,
+            taux_tva: tauxTva,
+            montant_tva: montantTva,
+            prix_ttc: prixHt + montantTva
+          };
+        }
+      }
+
+      // Si on sélectionne une mission (pour achats)
       if (field === 'mission_id' && value !== 'custom') {
         const mission = missions.find(m => m.id === value);
         if (mission) {
@@ -892,14 +930,14 @@ export default function AddFactureDialog({
                           role="combobox"
                           className="w-full justify-between text-left font-normal"
                         >
-                          {ligne.description || "Sélectionner une mission ou saisir librement..."}
+                          {ligne.description || (formData.type_facture === 'VENTES' ? "Sélectionner un contrat ou saisir librement..." : "Sélectionner une mission ou saisir librement...")}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-full p-0">
                         <Command>
                           <CommandInput 
-                            placeholder="Rechercher une mission ou saisir librement..." 
+                            placeholder={formData.type_facture === 'VENTES' ? "Rechercher un contrat ou saisir librement..." : "Rechercher une mission ou saisir librement..."} 
                             value={ligne.description}
                             onValueChange={(value) => updateLigne(index, "description", value)}
                           />
@@ -907,7 +945,7 @@ export default function AddFactureDialog({
                             <div className="p-2 text-sm">
                               {formData.type_facture === 'VENTES' && !formData.destinataire_id ? (
                                 <span className="text-muted-foreground">
-                                  Sélectionnez d'abord un client pour voir les missions disponibles
+                                  Sélectionnez d'abord un client pour voir les contrats disponibles
                                 </span>
                               ) : (
                                 <span>
@@ -916,35 +954,62 @@ export default function AddFactureDialog({
                               )}
                             </div>
                           </CommandEmpty>
-                          <CommandGroup heading="Missions en cours">
-                            {getFilteredMissions().map((mission) => (
-                              <CommandItem
-                                key={mission.id}
-                                value={mission.titre}
-                                onSelect={() => updateLigne(index, "mission_id", mission.id)}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    ligne.description?.includes(mission.titre) ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{mission.titre}</span>
-                                  {mission.contrat?.client && (
+                          {formData.type_facture === 'VENTES' ? (
+                            <CommandGroup heading="Contrats clients">
+                              {clientContrats.map((contrat) => (
+                                <CommandItem
+                                  key={contrat.id}
+                                  value={contrat.reference_client || contrat.numero_contrat}
+                                  onSelect={() => updateLigne(index, "contrat_id", contrat.id)}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      ligne.description === (contrat.reference_client || `Contrat ${contrat.numero_contrat}`) ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">
+                                      {contrat.reference_client || contrat.numero_contrat}
+                                    </span>
                                     <span className="text-xs text-muted-foreground">
-                                      Client: {mission.contrat.client.raison_sociale}
+                                      N° {contrat.numero_contrat} - {contrat.montant ? `${contrat.montant.toLocaleString('fr-FR')}€ HT` : 'Montant non défini'} - TVA {contrat.tva?.taux || 20}%
                                     </span>
-                                  )}
-                                  {mission.prix_ht && (
-                                    <span className="text-sm text-muted-foreground">
-                                      {mission.prix_ht}€ HT - TVA {mission.tva?.taux || mission.taux_tva || 20}%
-                                    </span>
-                                  )}
-                                </div>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          ) : (
+                            <CommandGroup heading="Missions en cours">
+                              {getFilteredMissions().map((mission) => (
+                                <CommandItem
+                                  key={mission.id}
+                                  value={mission.titre}
+                                  onSelect={() => updateLigne(index, "mission_id", mission.id)}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      ligne.description?.includes(mission.titre) ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{mission.titre}</span>
+                                    {mission.contrat?.client && (
+                                      <span className="text-xs text-muted-foreground">
+                                        Client: {mission.contrat.client.raison_sociale}
+                                      </span>
+                                    )}
+                                    {mission.prix_ht && (
+                                      <span className="text-sm text-muted-foreground">
+                                        {mission.prix_ht}€ HT - TVA {mission.tva?.taux || mission.taux_tva || 20}%
+                                      </span>
+                                    )}
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          )}
                         </Command>
                       </PopoverContent>
                     </Popover>

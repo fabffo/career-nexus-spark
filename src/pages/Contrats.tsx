@@ -41,6 +41,7 @@ export default function Contrats() {
   const [prestataires, setPrestataires] = useState<any[]>([]);
   const [fournisseursServices, setFournisseursServices] = useState<any[]>([]);
   const [fournisseursGeneraux, setFournisseursGeneraux] = useState<any[]>([]);
+  const [tvaList, setTvaList] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     numero_contrat: '',
@@ -58,7 +59,8 @@ export default function Contrats() {
     montant: '',
     description: '',
     piece_jointe_url: '',
-    reference_client: ''
+    reference_client: '',
+    tva_id: 'e8357902-a99c-4c97-b0c5-aea42059f735' as string | undefined,
   });
 
   useEffect(() => {
@@ -105,9 +107,10 @@ export default function Contrats() {
       if (contratsError) throw contratsError;
 
       // Charger les autres données séparément pour les selects
-      const [clientsData, prestatairesData] = await Promise.all([
+      const [clientsData, prestatairesData, tvaData] = await Promise.all([
         clientService.getAll(),
-        prestataireService.getAll()
+        prestataireService.getAll(),
+        supabase.from('tva').select('*').order('taux').then(r => r.data || []),
       ]);
       
       // Charger les fournisseurs avec gestion d'erreur
@@ -178,6 +181,7 @@ export default function Contrats() {
       setPrestataires(prestatairesData);
       setFournisseursServices(fournisseursServicesData);
       setFournisseursGeneraux(fournisseursGenerauxData);
+      setTvaList(tvaData);
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
       toast.error('Impossible de charger les données');
@@ -374,7 +378,8 @@ export default function Contrats() {
       montant: '',
       description: '',
       piece_jointe_url: '',
-      reference_client: ''
+      reference_client: '',
+      tva_id: 'e8357902-a99c-4c97-b0c5-aea42059f735',
     });
     setPieceJointeFile(null);
     setSelectedContrat(null);
@@ -400,7 +405,8 @@ export default function Contrats() {
       montant: contrat.montant?.toString() || '',
       description: contrat.description || '',
       piece_jointe_url: contrat.piece_jointe_url || '',
-      reference_client: contrat.reference_client || ''
+      reference_client: contrat.reference_client || '',
+      tva_id: contrat.tva_id || 'e8357902-a99c-4c97-b0c5-aea42059f735',
     });
     setIsEditMode(true);
     setIsAvenant(false);
@@ -420,6 +426,7 @@ export default function Contrats() {
       fournisseur_services_id: contrat.fournisseur_services_id,
       fournisseur_general_id: contrat.fournisseur_general_id,
       client_lie_id: contrat.client_lie_id,
+      tva_id: contrat.tva_id || 'e8357902-a99c-4c97-b0c5-aea42059f735',
       description: `Avenant au contrat ${contrat.numero_contrat}`,
     });
     setIsEditMode(false);
@@ -885,7 +892,7 @@ export default function Contrats() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="montant">Montant (€)</Label>
                 <Input
@@ -895,6 +902,24 @@ export default function Contrats() {
                   value={formData.montant}
                   onChange={(e) => setFormData({ ...formData, montant: e.target.value })}
                 />
+              </div>
+              <div>
+                <Label htmlFor="tva_id">TVA</Label>
+                <Select 
+                  value={formData.tva_id || ''}
+                  onValueChange={(value) => setFormData({ ...formData, tva_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner la TVA" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tvaList.map(tva => (
+                      <SelectItem key={tva.id} value={tva.id}>
+                        {tva.libelle}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="statut">Statut</Label>
@@ -1023,11 +1048,17 @@ export default function Contrats() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label className="text-muted-foreground">Montant</Label>
                   <p className="font-medium">
                     {selectedContrat.montant ? `${selectedContrat.montant.toLocaleString('fr-FR')} €` : '-'}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">TVA</Label>
+                  <p className="font-medium">
+                    {tvaList.find(t => t.id === selectedContrat.tva_id)?.libelle || '-'}
                   </p>
                 </div>
                 <div>

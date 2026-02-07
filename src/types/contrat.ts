@@ -17,6 +17,7 @@ export interface Contrat {
   fournisseur_general_id?: string;
   fournisseur_etat_organisme_id?: string;
   client_lie_id?: string;
+  tva_id?: string;
   montant?: number;
   description?: string;
   piece_jointe_url?: string;

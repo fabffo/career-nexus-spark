@@ -759,6 +759,7 @@ export type Database = {
           reference_client: string | null
           salarie_id: string | null
           statut: Database["public"]["Enums"]["contrat_statut"]
+          tva_id: string | null
           type: Database["public"]["Enums"]["contrat_type"]
           updated_at: string | null
           version: string
@@ -783,6 +784,7 @@ export type Database = {
           reference_client?: string | null
           salarie_id?: string | null
           statut?: Database["public"]["Enums"]["contrat_statut"]
+          tva_id?: string | null
           type: Database["public"]["Enums"]["contrat_type"]
           updated_at?: string | null
           version?: string
@@ -807,6 +809,7 @@ export type Database = {
           reference_client?: string | null
           salarie_id?: string | null
           statut?: Database["public"]["Enums"]["contrat_statut"]
+          tva_id?: string | null
           type?: Database["public"]["Enums"]["contrat_type"]
           updated_at?: string | null
           version?: string
@@ -866,6 +869,13 @@ export type Database = {
             columns: ["salarie_id"]
             isOneToOne: false
             referencedRelation: "salaries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrats_tva_id_fkey"
+            columns: ["tva_id"]
+            isOneToOne: false
+            referencedRelation: "tva"
             referencedColumns: ["id"]
           },
         ]
