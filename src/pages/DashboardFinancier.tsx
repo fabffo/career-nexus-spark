@@ -754,6 +754,15 @@ export default function DashboardFinancier() {
         return fournisseurToClientMap[fournisseurId];
       }
       
+      // Cas 3: Fallback - essayer de trouver un prestataire par nom (cas où emetteur_type est incorrect)
+      if (f.emetteur_nom) {
+        const nomNormalise = f.emetteur_nom.trim().toUpperCase();
+        const prestIdByName = nomToPrestataireId[nomNormalise];
+        if (prestIdByName && prestataireToClientMap[prestIdByName]) {
+          return prestataireToClientMap[prestIdByName];
+        }
+      }
+      
       return undefined;
     };
 
