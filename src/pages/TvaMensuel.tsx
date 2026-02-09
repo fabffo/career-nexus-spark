@@ -8,7 +8,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { Receipt, RefreshCcw, Save, CheckCircle } from "lucide-react";
+import { Receipt, RefreshCcw, Save, CheckCircle, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 
@@ -649,6 +650,74 @@ export default function TvaMensuel() {
     }
   };
 
+  const handleExportExcel = () => {
+    const typeLabels: Record<TypeOperation, string> = {
+      'VENTES': 'Vente',
+      'ACHAT_GENERAUX': 'Achat Généraux',
+      'ACHAT_SERVICES': 'Achat Services',
+      'ABONNEMENT': 'Abonnement',
+      'CHARGES_SOCIALES': 'Charges Sociales',
+    };
+
+    const fmt = (v: number) => Number(v.toFixed(2));
+
+    const rows = lignes.map(l => ({
+      Date: l.date_operation ? format(new Date(l.date_operation), "dd/MM/yyyy", { locale: fr }) : "",
+      Libellé: l.libelle,
+      Facture: l.numero_facture || "",
+      Type: typeLabels[l.type_operation] || l.type_operation,
+      "Type Partenaire": l.type_partenaire || "",
+      Partenaire: l.partenaire_nom || "",
+      "Montant HT": fmt(l.montant_ht),
+      "TVA Déductible": fmt(l.tva_deductible),
+      "TVA Collectée": fmt(l.tva_collectee),
+    }));
+
+    // Ligne vide de séparation
+    rows.push({ Date: "", Libellé: "", Facture: "", Type: "", "Type Partenaire": "", Partenaire: "", "Montant HT": 0, "TVA Déductible": 0, "TVA Collectée": 0 });
+
+    // Totaux
+    rows.push({
+      Date: "",
+      Libellé: "TVA Collectée",
+      Facture: "",
+      Type: "",
+      "Type Partenaire": "",
+      Partenaire: "",
+      "Montant HT": 0,
+      "TVA Déductible": 0,
+      "TVA Collectée": fmt(stats.tva_collectee),
+    });
+    rows.push({
+      Date: "",
+      Libellé: "TVA Déductible",
+      Facture: "",
+      Type: "",
+      "Type Partenaire": "",
+      Partenaire: "",
+      "Montant HT": 0,
+      "TVA Déductible": fmt(stats.tva_deductible),
+      "TVA Collectée": 0,
+    });
+    rows.push({
+      Date: "",
+      Libellé: "TVA À PAYER",
+      Facture: "",
+      Type: "",
+      "Type Partenaire": "",
+      Partenaire: "",
+      "Montant HT": 0,
+      "TVA Déductible": 0,
+      "TVA Collectée": fmt(stats.tva_a_payer),
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    const nomMois = getMonthName(selectedMonth);
+    XLSX.utils.book_append_sheet(wb, ws, `TVA ${nomMois} ${selectedYear}`);
+    XLSX.writeFile(wb, `tva_mensuel_${selectedYear}_${selectedMonth.padStart(2, '0')}.xlsx`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -790,6 +859,15 @@ export default function TvaMensuel() {
               Résumé TVA - {getMonthName(selectedMonth)} {selectedYear}
             </h2>
             <div className="flex gap-2">
+              <Button
+                onClick={handleExportExcel}
+                disabled={lignes.length === 0}
+                variant="outline"
+                size="sm"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export Excel
+              </Button>
               <Button
                 onClick={recalculerTVAFromLignesRapprochement}
                 disabled={isRecalculating || entete?.statut === 'VALIDE'}
