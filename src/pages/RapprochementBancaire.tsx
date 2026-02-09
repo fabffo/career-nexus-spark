@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter, History, Clock, Pencil, Trash2, Settings, Plus, Edit, Trash, Power, PowerOff, Users, CreditCard, Search, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeftRight } from "lucide-react";
+import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Link as LinkIcon, Check, Filter, History, Clock, Pencil, Trash2, Settings, Plus, Edit, Trash, Power, PowerOff, Users, CreditCard, Search, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeftRight, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { RapprochementTypeIndicatorCompact } from "@/components/RapprochementTypeIndicator";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import RapprochementInverseDialog from "@/components/RapprochementInverseDialog"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { getFournisseurTypeFromAchatType } from "@/types/partenaire";
+import RapprochementAnnuelTab from "@/components/rapprochement/RapprochementAnnuelTab";
 
 interface TransactionBancaire {
   date: string;
@@ -116,7 +117,7 @@ interface RegleRapprochement {
 }
 
 export default function RapprochementBancaire() {
-  const [activeTab, setActiveTab] = useState<"en_cours" | "historique" | "parametres">("en_cours");
+  const [activeTab, setActiveTab] = useState<"en_cours" | "historique" | "annuel" | "parametres">("en_cours");
   const [transactions, setTransactions] = useState<TransactionBancaire[]>([]);
   const [rapprochements, setRapprochements] = useState<Rapprochement[]>([]);
   const [loading, setLoading] = useState(false);
@@ -4899,8 +4900,8 @@ export default function RapprochementBancaire() {
       </div>
 
       {/* Onglets principaux */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "en_cours" | "historique" | "parametres")}>
-        <TabsList className="grid w-full max-w-2xl grid-cols-3">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "en_cours" | "historique" | "annuel" | "parametres")}>
+        <TabsList className="grid w-full max-w-3xl grid-cols-4">
           <TabsTrigger value="en_cours" className="gap-2">
             <Clock className="h-4 w-4" />
             En cours
@@ -4908,6 +4909,10 @@ export default function RapprochementBancaire() {
           <TabsTrigger value="historique" className="gap-2">
             <History className="h-4 w-4" />
             Historique
+          </TabsTrigger>
+          <TabsTrigger value="annuel" className="gap-2">
+            <Calendar className="h-4 w-4" />
+            Annuel
           </TabsTrigger>
           <TabsTrigger value="parametres" className="gap-2">
             <Settings className="h-4 w-4" />
@@ -6210,6 +6215,11 @@ export default function RapprochementBancaire() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Contenu: Annuel */}
+        <TabsContent value="annuel" className="space-y-6 mt-6">
+          <RapprochementAnnuelTab />
         </TabsContent>
 
         {/* Contenu: Paramètres */}
