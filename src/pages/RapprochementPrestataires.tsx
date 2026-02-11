@@ -53,8 +53,8 @@ interface GroupeRapprochement {
   ventes: { id: string; numero: string; ttc: number; rapprochee: boolean }[];
   totalAchatTTC: number;
   totalVenteTTC: number;
-  allVentesRapprochees: boolean;
-  statutPaiement: "payable" | "en_attente";
+  allSolde: boolean;
+  statutPaiement: "solde" | "non_solde";
 }
 
 const MONTHS = [
@@ -220,8 +220,8 @@ export default function RapprochementPrestataires() {
             })),
             totalAchatTTC: 0,
             totalVenteTTC: uniqueVentes.reduce((s, v) => s + (v.total_ttc || 0), 0),
-            allVentesRapprochees: uniqueVentes.length > 0 && uniqueVentes.every(v => !!v.numero_rapprochement || v.statut === "PAYEE"),
-            statutPaiement: "en_attente",
+            allSolde: false,
+            statutPaiement: "non_solde",
           });
         }
 
@@ -234,9 +234,12 @@ export default function RapprochementPrestataires() {
       }
     }
 
-    // Finalize statut
+    // Finalize statut: SOLDÉ si TOUTES les factures (achats ET ventes) sont rapprochées
     for (const g of groupMap.values()) {
-      g.statutPaiement = g.allVentesRapprochees ? "payable" : "en_attente";
+      const allAchatsRapproches = g.achats.length > 0 && g.achats.every(a => a.rapproche);
+      const allVentesRapprochees = g.ventes.length > 0 && g.ventes.every(v => v.rapprochee);
+      g.allSolde = allAchatsRapproches && allVentesRapprochees;
+      g.statutPaiement = g.allSolde ? "solde" : "non_solde";
     }
 
     return [...groupMap.values()].sort((a, b) => {
@@ -272,9 +275,9 @@ export default function RapprochementPrestataires() {
   const kpis = useMemo(() => {
     const totalAchat = filteredGroupes.reduce((s, g) => s + g.totalAchatTTC, 0);
     const totalVente = filteredGroupes.reduce((s, g) => s + g.totalVenteTTC, 0);
-    const totalPayable = filteredGroupes.filter(g => g.statutPaiement === "payable").reduce((s, g) => s + g.totalAchatTTC, 0);
-    const totalEnAttente = filteredGroupes.filter(g => g.statutPaiement === "en_attente").reduce((s, g) => s + g.totalAchatTTC, 0);
-    return { totalAchat, totalVente, totalPayable, totalEnAttente, marge: totalVente - totalAchat };
+    const totalSolde = filteredGroupes.filter(g => g.statutPaiement === "solde").reduce((s, g) => s + g.totalAchatTTC, 0);
+    const totalNonSolde = filteredGroupes.filter(g => g.statutPaiement === "non_solde").reduce((s, g) => s + g.totalAchatTTC, 0);
+    return { totalAchat, totalVente, totalSolde, totalNonSolde, marge: totalVente - totalAchat };
   }, [filteredGroupes]);
 
   const monthlyChartData = useMemo(() => {
@@ -291,14 +294,14 @@ export default function RapprochementPrestataires() {
   }, [filteredGroupes]);
 
   const prestataireChartData = useMemo(() => {
-    const map = new Map<string, { prestataire: string; payable: number; enAttente: number }>();
+    const map = new Map<string, { prestataire: string; solde: number; nonSolde: number }>();
     for (const g of filteredGroupes) {
-      if (!map.has(g.prestataire)) map.set(g.prestataire, { prestataire: g.prestataire, payable: 0, enAttente: 0 });
+      if (!map.has(g.prestataire)) map.set(g.prestataire, { prestataire: g.prestataire, solde: 0, nonSolde: 0 });
       const e = map.get(g.prestataire)!;
-      if (g.statutPaiement === "payable") e.payable += g.totalAchatTTC;
-      else e.enAttente += g.totalAchatTTC;
+      if (g.statutPaiement === "solde") e.solde += g.totalAchatTTC;
+      else e.nonSolde += g.totalAchatTTC;
     }
-    return [...map.values()].sort((a, b) => (b.payable + b.enAttente) - (a.payable + a.enAttente)).slice(0, 15);
+    return [...map.values()].sort((a, b) => (b.solde + b.nonSolde) - (a.solde + a.nonSolde)).slice(0, 15);
   }, [filteredGroupes]);
 
   const fmt = (v: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(v);
@@ -321,7 +324,7 @@ export default function RapprochementPrestataires() {
           "N° Facture Vente": v?.numero || "",
           "Vente TTC": v ? Number(v.ttc.toFixed(2)) : "",
           "Vente Rapprochée": v ? (v.rapprochee ? "Oui" : "Non") : "",
-          Statut: i === 0 ? (g.statutPaiement === "payable" ? "Payable" : "En attente") : "",
+          Statut: i === 0 ? (g.statutPaiement === "solde" ? "SOLDÉ" : "NON SOLDÉ") : "",
         });
       }
     }
@@ -363,8 +366,8 @@ export default function RapprochementPrestataires() {
             <div className="flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-emerald-500" />
               <div>
-                <p className="text-xs text-muted-foreground">Total Payable</p>
-                <p className="text-lg font-bold text-emerald-600">{fmt(kpis.totalPayable)}</p>
+                <p className="text-xs text-muted-foreground">Total Soldé</p>
+                <p className="text-lg font-bold text-emerald-600">{fmt(kpis.totalSolde)}</p>
               </div>
             </div>
           </CardContent>
@@ -372,10 +375,10 @@ export default function RapprochementPrestataires() {
         <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-amber-500" />
+              <AlertTriangle className="h-5 w-5 text-red-500" />
               <div>
-                <p className="text-xs text-muted-foreground">En Attente</p>
-                <p className="text-lg font-bold text-amber-600">{fmt(kpis.totalEnAttente)}</p>
+                <p className="text-xs text-muted-foreground">Non Soldé</p>
+                <p className="text-lg font-bold text-red-600">{fmt(kpis.totalNonSolde)}</p>
               </div>
             </div>
           </CardContent>
@@ -455,8 +458,8 @@ export default function RapprochementPrestataires() {
               <SelectTrigger className="w-[150px] h-9"><SelectValue placeholder="Statut" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous statuts</SelectItem>
-                <SelectItem value="payable">Payable</SelectItem>
-                <SelectItem value="en_attente">En attente</SelectItem>
+                <SelectItem value="solde">Soldé</SelectItem>
+                <SelectItem value="non_solde">Non soldé</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -477,13 +480,13 @@ export default function RapprochementPrestataires() {
                   <CardTitle className="text-sm font-semibold">
                     {g.moisLabel} {g.annee} — <span className="text-primary">{g.client}</span> — {g.prestataire}
                   </CardTitle>
-                  {g.statutPaiement === "payable" ? (
+                  {g.statutPaiement === "solde" ? (
                     <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px]">
-                      <CheckCircle className="h-3 w-3 mr-1" /> Payable
+                      <CheckCircle className="h-3 w-3 mr-1" /> SOLDÉ
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="border-amber-400 text-amber-600 text-[10px]">
-                      <Clock className="h-3 w-3 mr-1" /> En attente
+                    <Badge variant="outline" className="border-red-400 text-red-600 text-[10px]">
+                      <AlertTriangle className="h-3 w-3 mr-1" /> NON SOLDÉ
                     </Badge>
                   )}
                 </div>
@@ -613,8 +616,8 @@ export default function RapprochementPrestataires() {
                   <YAxis type="category" dataKey="prestataire" tick={{ fontSize: 10 }} width={120} />
                   <Tooltip formatter={(v: number) => fmt(v)} />
                   <Legend />
-                  <Bar dataKey="payable" name="Payable" fill="hsl(142, 76%, 36%)" stackId="a" />
-                  <Bar dataKey="enAttente" name="En attente" fill="hsl(38, 92%, 50%)" stackId="a" />
+                  <Bar dataKey="solde" name="Soldé" fill="hsl(142, 76%, 36%)" stackId="a" />
+                  <Bar dataKey="nonSolde" name="Non soldé" fill="hsl(0, 84%, 60%)" stackId="a" />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
