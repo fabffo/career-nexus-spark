@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { Download, Search, CheckCircle, AlertTriangle, TrendingUp, FileDown } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -50,7 +52,7 @@ export default function RapprochementVentes() {
   const [loading, setLoading] = useState(true);
 
   const [filterMois, setFilterMois] = useState<string>("all");
-  const [filterAnnee, setFilterAnnee] = useState<string>(String(new Date().getFullYear()));
+  const [filterAnnees, setFilterAnnees] = useState<string[]>([String(new Date().getFullYear())]);
   const [filterClient, setFilterClient] = useState<string>("all");
   const [filterStatut, setFilterStatut] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -135,7 +137,7 @@ export default function RapprochementVentes() {
 
   const filteredGroupes = useMemo(() => {
     let filtered = groupes;
-    if (filterAnnee !== "all") filtered = filtered.filter(g => String(g.annee) === filterAnnee);
+    if (filterAnnees.length > 0) filtered = filtered.filter(g => filterAnnees.includes(String(g.annee)));
     if (filterMois !== "all") filtered = filtered.filter(g => String(g.mois) === filterMois);
     if (filterClient !== "all") filtered = filtered.filter(g => g.client === filterClient);
     if (searchTerm) {
@@ -165,7 +167,7 @@ export default function RapprochementVentes() {
     }
 
     return filtered;
-  }, [groupes, filterAnnee, filterMois, filterClient, filterStatut, searchTerm]);
+  }, [groupes, filterAnnees, filterMois, filterClient, filterStatut, searchTerm]);
 
   const kpis = useMemo(() => {
     const totalHT = filteredGroupes.reduce((s, g) => s + g.totalHT, 0);
@@ -226,7 +228,7 @@ export default function RapprochementVentes() {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Rapprochement Ventes");
-    XLSX.writeFile(wb, `rapprochement_ventes_${filterAnnee}.xlsx`);
+    XLSX.writeFile(wb, `rapprochement_ventes_${filterAnnees.join("-")}.xlsx`);
   };
 
   const handleExportCsv = () => {
@@ -255,7 +257,7 @@ export default function RapprochementVentes() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `rapprochement_ventes_${filterAnnee}.csv`;
+    link.download = `rapprochement_ventes_${filterAnnees.join("-")}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -358,13 +360,38 @@ export default function RapprochementVentes() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder="Rechercher..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 h-9" />
             </div>
-            <Select value={filterAnnee} onValueChange={setFilterAnnee}>
-              <SelectTrigger className="w-[100px] h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes</SelectItem>
-                {uniqueAnnees.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="w-[160px] h-9 justify-start text-sm font-normal">
+                  {filterAnnees.length === 0 ? "Toutes années" : filterAnnees.length === 1 ? filterAnnees[0] : `${filterAnnees.length} années`}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[180px] p-2" align="start">
+                <div className="flex flex-col gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="justify-start text-xs"
+                    onClick={() => setFilterAnnees([])}
+                  >
+                    Toutes les années
+                  </Button>
+                  {uniqueAnnees.map(a => (
+                    <label key={a} className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-accent rounded text-sm">
+                      <Checkbox
+                        checked={filterAnnees.includes(a)}
+                        onCheckedChange={(checked) => {
+                          setFilterAnnees(prev =>
+                            checked ? [...prev, a].sort().reverse() : prev.filter(x => x !== a)
+                          );
+                        }}
+                      />
+                      {a}
+                    </label>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
             <Select value={filterMois} onValueChange={setFilterMois}>
               <SelectTrigger className="w-[130px] h-9"><SelectValue placeholder="Mois" /></SelectTrigger>
               <SelectContent>
