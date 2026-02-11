@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Contrat } from '@/types/contrat';
-import { contratService } from '@/services/contratService';
+import { contratService, prestataireService } from '@/services/contratService';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2, Eye, Copy, FileCheck, XCircle, Archive, FileText } from 'lucide-react';
@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom';
 
 export default function ContratsClients() {
   const [contrats, setContrats] = useState<Contrat[]>([]);
+  const [prestataires, setPrestataires] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedContrat, setSelectedContrat] = useState<Contrat | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -24,6 +25,7 @@ export default function ContratsClients() {
 
   useEffect(() => {
     loadContrats();
+    prestataireService.getAll().then(setPrestataires).catch(console.error);
   }, []);
 
   const loadContrats = async () => {
@@ -142,11 +144,14 @@ export default function ContratsClients() {
         if (!refs || !Array.isArray(refs) || refs.length === 0) return <div>-</div>;
         return (
           <div className="space-y-0.5">
-            {refs.map((ref: any, idx: number) => (
-              <div key={idx} className="text-xs">
-                {ref.reference} ({ref.montant?.toLocaleString('fr-FR')}€)
-              </div>
-            ))}
+            {refs.map((ref: any, idx: number) => {
+              const presta = ref.prestataire_id ? prestataires.find((p: any) => p.id === ref.prestataire_id) : null;
+              return (
+                <div key={idx} className="text-xs">
+                  {ref.reference} {presta ? `[${presta.nom} ${presta.prenom}]` : ''} ({ref.montant?.toLocaleString('fr-FR')}€)
+                </div>
+              );
+            })}
           </div>
         );
       }
@@ -297,12 +302,18 @@ export default function ContratsClients() {
                 <div>
                   <Label className="text-muted-foreground">Références Client</Label>
                   <div className="space-y-1 mt-1">
-                    {(selectedContrat as any).reference_client.map((ref: any, idx: number) => (
-                      <div key={idx} className="flex justify-between items-center p-2 border rounded">
-                        <span className="font-medium">{ref.reference}</span>
-                        <span className="text-muted-foreground">{ref.montant?.toLocaleString('fr-FR')} €</span>
-                      </div>
-                    ))}
+                    {(selectedContrat as any).reference_client.map((ref: any, idx: number) => {
+                      const presta = ref.prestataire_id ? prestataires.find((p: any) => p.id === ref.prestataire_id) : null;
+                      return (
+                        <div key={idx} className="flex justify-between items-center p-2 border rounded">
+                          <div>
+                            <span className="font-medium">{ref.reference}</span>
+                            {presta && <span className="text-sm text-muted-foreground ml-2">[{presta.nom} {presta.prenom}]</span>}
+                          </div>
+                          <span className="text-muted-foreground">{ref.montant?.toLocaleString('fr-FR')} €</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

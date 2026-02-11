@@ -5,6 +5,7 @@ export type ContratStatut = 'BROUILLON' | 'ACTIF' | 'TERMINE' | 'ANNULE' | 'ARCH
 export interface ReferenceClientLigne {
   reference: string;
   montant: number;
+  prestataire_id?: string;
 }
 
 export interface Contrat {
