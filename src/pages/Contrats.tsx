@@ -801,7 +801,7 @@ export default function Contrats() {
                   <Label>Références Client</Label>
                   <div className="space-y-2">
                     {formData.reference_client.map((ref, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
+                      <div key={idx} className="flex items-center gap-2 flex-wrap">
                         <Input
                           value={ref.reference}
                           onChange={(e) => {
@@ -809,9 +809,29 @@ export default function Contrats() {
                             updated[idx] = { ...updated[idx], reference: e.target.value };
                             setFormData({ ...formData, reference_client: updated });
                           }}
-                          placeholder="Ex: BDC PO150827 B SIRA Accompagnement RH"
-                          className="flex-1"
+                          placeholder="Référence"
+                          className="flex-1 min-w-[180px]"
                         />
+                        <Select
+                          value={ref.prestataire_id || 'none'}
+                          onValueChange={(value) => {
+                            const updated = [...formData.reference_client];
+                            updated[idx] = { ...updated[idx], prestataire_id: value === 'none' ? undefined : value };
+                            setFormData({ ...formData, reference_client: updated });
+                          }}
+                        >
+                          <SelectTrigger className="w-48">
+                            <SelectValue placeholder="Prestataire" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Aucun prestataire</SelectItem>
+                            {prestataires.map(p => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.nom} {p.prenom}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <Input
                           type="number"
                           step="0.01"
