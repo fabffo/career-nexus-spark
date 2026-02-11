@@ -67,6 +67,7 @@ import FacturesEnRetard from "./pages/FacturesEnRetard";
 import PrevisionTresorerie from "./pages/PrevisionTresorerie";
 import AnalyseTresorerieAnnuelle from "./pages/AnalyseTresorerieAnnuelle";
 import DevisPage from "./pages/Devis";
+import RapprochementPrestataires from "./pages/RapprochementPrestataires";
 
 const queryClient = new QueryClient();
 
@@ -164,6 +165,7 @@ const App = () => (
               <Route path="factures-en-retard" element={<FacturesEnRetard />} />
               <Route path="prevision-tresorerie" element={<PrevisionTresorerie />} />
               <Route path="analyse-tresorerie" element={<AnalyseTresorerieAnnuelle />} />
+              <Route path="rapprochement-prestataires" element={<RapprochementPrestataires />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />
