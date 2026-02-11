@@ -78,8 +78,10 @@ export default function Contrats() {
       // Ouvrir le dialog de création
       resetForm();
       setIsDialogOpen(true);
-      // Nettoyer l'URL
-      setSearchParams({});
+      // Nettoyer l'URL mais garder returnTo
+      const newParams: Record<string, string> = {};
+      if (returnTo) newParams.returnTo = returnTo;
+      setSearchParams(newParams);
     } else if ((editId || viewId) && contrats.length > 0) {
       const contratId = editId || viewId;
       const contrat = contrats.find(c => c.id === contratId);
@@ -90,8 +92,10 @@ export default function Contrats() {
         } else if (viewId) {
           openViewDialog(contrat);
         }
-        // Nettoyer l'URL après avoir ouvert le dialog
-        setSearchParams({});
+        // Nettoyer l'URL mais garder returnTo
+        const newParams: Record<string, string> = {};
+        if (returnTo) newParams.returnTo = returnTo;
+        setSearchParams(newParams);
       }
     }
   }, [searchParams, contrats]);
