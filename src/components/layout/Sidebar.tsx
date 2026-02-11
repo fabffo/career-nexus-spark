@@ -108,6 +108,7 @@ export function Sidebar() {
         { path: '/factures-en-retard', label: 'Factures en Retard', icon: AlertTriangle },
         { path: '/rapprochement-bancaire', label: 'Rapprochement bancaire', icon: FileText },
         { path: '/rapprochement-prestataires', label: 'Rapprochement Prestataires', icon: FileText },
+        { path: '/rapprochement-ventes', label: 'Rapprochement Ventes', icon: FileText },
         { path: '/abonnements-partenaires', label: 'Abonnements Partenaires', icon: FileText },
         { path: '/paiements-abonnements', label: 'Paiements Abonnements', icon: FileText },
         { path: '/charges-salaries', label: 'Charges Salariales', icon: FileText },
