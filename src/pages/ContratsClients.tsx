@@ -105,7 +105,7 @@ export default function ContratsClients() {
   };
 
   const openEditDialog = (contrat: Contrat) => {
-    navigate(`/contrats?edit=${contrat.id}`);
+    navigate(`/contrats?edit=${contrat.id}&returnTo=/contrats-clients`);
   };
 
   const getStatutBadgeVariant = (statut: string) => {
@@ -254,7 +254,7 @@ export default function ContratsClients() {
           <h1 className="text-3xl font-bold">Contrats Clients</h1>
           <p className="text-muted-foreground">Gérez vos contrats avec les clients</p>
         </div>
-        <Button onClick={() => navigate('/contrats?new=true')}>
+        <Button onClick={() => navigate('/contrats?new=true&returnTo=/contrats-clients')}>
           <Plus className="mr-2 h-4 w-4" />
           Nouveau contrat
         </Button>
