@@ -251,18 +251,61 @@ export default function RapprochementPrestataires() {
       }
     }
 
-    // Finalize statut: SOLDÉ si TOUTES les factures (achats ET ventes) sont rapprochées
+    // Merge groups by client+period: if multiple prestataires for same client+period, combine them
+    const clientPeriodMap = new Map<string, GroupeRapprochement[]>();
     for (const g of groupMap.values()) {
-      const allAchatsRapproches = g.achats.length > 0 && g.achats.every(a => a.rapproche);
-      const allVentesRapprochees = g.ventes.length === 0 || g.ventes.every(v => v.rapprochee);
-      g.allSolde = allAchatsRapproches && allVentesRapprochees;
-      g.statutPaiement = g.allSolde ? "solde" : "non_solde";
+      const cpKey = `${g.client}|${g.annee}-${g.mois}`;
+      if (!clientPeriodMap.has(cpKey)) clientPeriodMap.set(cpKey, []);
+      clientPeriodMap.get(cpKey)!.push(g);
     }
 
-    return [...groupMap.values()].sort((a, b) => {
+    const mergedGroups: GroupeRapprochement[] = [];
+    for (const groups of clientPeriodMap.values()) {
+      if (groups.length > 1) {
+        // Multiple prestataires for same client+period → merge
+        const merged: GroupeRapprochement = {
+          key: groups.map(g => g.key).join("||"),
+          prestataire: "Prestataires",
+          client: groups[0].client,
+          mois: groups[0].mois,
+          annee: groups[0].annee,
+          moisLabel: groups[0].moisLabel,
+          achats: [],
+          ventes: [],
+          totalAchatTTC: 0,
+          totalVenteTTC: 0,
+          allSolde: false,
+          statutPaiement: "non_solde",
+        };
+        const seenAchatIds = new Set<string>();
+        const seenVenteIds = new Set<string>();
+        for (const g of groups) {
+          for (const a of g.achats) {
+            if (!seenAchatIds.has(a.id)) { seenAchatIds.add(a.id); merged.achats.push(a); merged.totalAchatTTC += a.ttc; }
+          }
+          for (const v of g.ventes) {
+            if (!seenVenteIds.has(v.id)) { seenVenteIds.add(v.id); merged.ventes.push(v); merged.totalVenteTTC += v.ttc; }
+          }
+        }
+        const allAchatsRapproches = merged.achats.length > 0 && merged.achats.every(a => a.rapproche);
+        const allVentesRapprochees = merged.ventes.length === 0 || merged.ventes.every(v => v.rapprochee);
+        merged.allSolde = allAchatsRapproches && allVentesRapprochees;
+        merged.statutPaiement = merged.allSolde ? "solde" : "non_solde";
+        mergedGroups.push(merged);
+      } else {
+        const g = groups[0];
+        const allAchatsRapproches = g.achats.length > 0 && g.achats.every(a => a.rapproche);
+        const allVentesRapprochees = g.ventes.length === 0 || g.ventes.every(v => v.rapprochee);
+        g.allSolde = allAchatsRapproches && allVentesRapprochees;
+        g.statutPaiement = g.allSolde ? "solde" : "non_solde";
+        mergedGroups.push(g);
+      }
+    }
+
+    return mergedGroups.sort((a, b) => {
       if (a.annee !== b.annee) return a.annee - b.annee;
       if (a.mois !== b.mois) return a.mois - b.mois;
-      return a.prestataire.localeCompare(b.prestataire);
+      return a.client.localeCompare(b.client);
     });
   }, [facturesAchats, facturesVentes, contrats, clients]);
 
