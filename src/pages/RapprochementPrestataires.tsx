@@ -237,7 +237,7 @@ export default function RapprochementPrestataires() {
     // Finalize statut: SOLDÉ si TOUTES les factures (achats ET ventes) sont rapprochées
     for (const g of groupMap.values()) {
       const allAchatsRapproches = g.achats.length > 0 && g.achats.every(a => a.rapproche);
-      const allVentesRapprochees = g.ventes.length > 0 && g.ventes.every(v => v.rapprochee);
+      const allVentesRapprochees = g.ventes.length === 0 || g.ventes.every(v => v.rapprochee);
       g.allSolde = allAchatsRapproches && allVentesRapprochees;
       g.statutPaiement = g.allSolde ? "solde" : "non_solde";
     }
