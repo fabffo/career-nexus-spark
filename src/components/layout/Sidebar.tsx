@@ -65,7 +65,6 @@ export function Sidebar() {
       icon: FileText,
       category: 'contrats',
       items: [
-        { path: '/contrats', label: 'Tous les contrats', icon: FileText },
         { path: '/contrats-clients', label: 'Contrats Clients', icon: FileText },
         { path: '/contrats-fournisseurs', label: 'Contrats Fournisseurs', icon: FileText },
         { path: '/contrats-salaries', label: 'Contrats Salariés', icon: FileText },
