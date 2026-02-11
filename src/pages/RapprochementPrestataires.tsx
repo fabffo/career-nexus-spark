@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,8 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Search, CheckCircle, Clock, AlertTriangle, TrendingUp } from "lucide-react";
+import { Download, Search, CheckCircle, Clock, AlertTriangle, TrendingUp, FileDown } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import * as XLSX from "xlsx";
 
@@ -71,6 +76,9 @@ export default function RapprochementPrestataires() {
   const [contrats, setContrats] = useState<ContratRow[]>([]);
   const [clients, setClients] = useState<{ id: string; raison_sociale: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [csvDialogOpen, setCsvDialogOpen] = useState(false);
+  const [csvIncludeAchats, setCsvIncludeAchats] = useState(true);
+  const [csvIncludeVentes, setCsvIncludeVentes] = useState(true);
 
   const [filterMois, setFilterMois] = useState<string>("all");
   const [filterAnnee, setFilterAnnee] = useState<string>(String(new Date().getFullYear()));
@@ -397,6 +405,60 @@ export default function RapprochementPrestataires() {
     XLSX.writeFile(wb, `rapprochement_prestataires_${filterAnnee}.xlsx`);
   };
 
+  const handleExportCsv = () => {
+    if (!csvIncludeAchats && !csvIncludeVentes) {
+      toast({ title: "Erreur", description: "Sélectionnez au moins Achats ou Ventes", variant: "destructive" });
+      return;
+    }
+
+    const rows: string[] = [];
+    const headers: string[] = ["Client", "Prestataire", "Mois", "Année"];
+    if (csvIncludeAchats) headers.push("N° Facture Achat", "Achat TTC", "Rapproché");
+    if (csvIncludeVentes) headers.push("N° Facture Vente", "Vente TTC", "Rapprochée");
+    headers.push("Statut");
+    rows.push(headers.join(";"));
+
+    for (const g of filteredGroupes) {
+      const achatLines = csvIncludeAchats ? g.achats : [];
+      const venteLines = csvIncludeVentes ? g.ventes : [];
+      const maxLines = Math.max(achatLines.length, venteLines.length, 1);
+
+      for (let i = 0; i < maxLines; i++) {
+        const cols: string[] = [
+          i === 0 ? g.client.replace(/;/g, ",") : "",
+          i === 0 ? g.prestataire.replace(/;/g, ",") : "",
+          i === 0 ? g.moisLabel : "",
+          i === 0 ? String(g.annee) : "",
+        ];
+        if (csvIncludeAchats) {
+          const a = achatLines[i];
+          cols.push(a?.numero || "", a ? a.ttc.toFixed(2).replace(".", ",") : "", a ? (a.rapproche ? "Oui" : "Non") : "");
+        }
+        if (csvIncludeVentes) {
+          const v = venteLines[i];
+          cols.push(v?.numero || "", v ? v.ttc.toFixed(2).replace(".", ",") : "", v ? (v.rapprochee ? "Oui" : "Non") : "");
+        }
+        cols.push(i === 0 ? (g.statutPaiement === "solde" ? "SOLDÉ" : "NON SOLDÉ") : "");
+        rows.push(cols.join(";"));
+      }
+    }
+
+    const typeLabel = csvIncludeAchats && csvIncludeVentes ? "achats_ventes" : csvIncludeAchats ? "achats" : "ventes";
+    const csvContent = "\uFEFF" + rows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `rapprochement_prestataires_${typeLabel}_${filterAnnee}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({ title: "Export CSV", description: `${filteredGroupes.length} groupe(s) exporté(s)` });
+    setCsvDialogOpen(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -413,10 +475,41 @@ export default function RapprochementPrestataires() {
           <h1 className="text-2xl font-bold">Rapprochement Prestataires</h1>
           <p className="text-sm text-muted-foreground">Pilotage des paiements prestataires en fonction des encaissements clients</p>
         </div>
-        <Button onClick={handleExportExcel} disabled={filteredGroupes.length === 0} variant="outline" size="sm">
-          <Download className="h-4 w-4 mr-2" />
-          Export Excel
-        </Button>
+        <div className="flex items-center gap-2">
+          <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" disabled={filteredGroupes.length === 0}>
+                <FileDown className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Export CSV des factures</DialogTitle>
+                <DialogDescription>Choisissez les types de factures à inclure dans l'export.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="csv-achats" checked={csvIncludeAchats} onCheckedChange={(v) => setCsvIncludeAchats(!!v)} />
+                  <label htmlFor="csv-achats" className="text-sm font-medium cursor-pointer">Factures d'achat</label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="csv-ventes" checked={csvIncludeVentes} onCheckedChange={(v) => setCsvIncludeVentes(!!v)} />
+                  <label htmlFor="csv-ventes" className="text-sm font-medium cursor-pointer">Factures de vente</label>
+                </div>
+                <p className="text-xs text-muted-foreground">{filteredGroupes.length} groupe(s) seront exportés selon les filtres actifs.</p>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setCsvDialogOpen(false)}>Annuler</Button>
+                <Button onClick={handleExportCsv} disabled={!csvIncludeAchats && !csvIncludeVentes}>Exporter</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Button onClick={handleExportExcel} disabled={filteredGroupes.length === 0} variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Export Excel
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}
