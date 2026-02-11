@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Contrat } from '@/types/contrat';
 import { contratService, prestataireService } from '@/services/contratService';
+import { salarieService } from '@/services/salarieService';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit, Trash2, Eye, Copy, FileCheck, XCircle, Archive, FileText } from 'lucide-react';
@@ -25,7 +26,19 @@ export default function ContratsClients() {
 
   useEffect(() => {
     loadContrats();
-    prestataireService.getAll().then(setPrestataires).catch(console.error);
+    // Charger prestataires + salariés avec rôle PRESTATAIRE
+    Promise.all([
+      prestataireService.getAll(),
+      salarieService.getAll(),
+    ]).then(([prestas, salaries]) => {
+      const salariesPrestataires = (salaries || [])
+        .filter(s => s.role === 'PRESTATAIRE')
+        .map(s => ({ ...s, _isSalarie: true }));
+      setPrestataires([
+        ...prestas.map(p => ({ ...p, _isSalarie: false })),
+        ...salariesPrestataires,
+      ]);
+    }).catch(console.error);
   }, []);
 
   const loadContrats = async () => {
@@ -145,10 +158,11 @@ export default function ContratsClients() {
         return (
           <div className="space-y-0.5">
             {refs.map((ref: any, idx: number) => {
-              const presta = ref.prestataire_id ? prestataires.find((p: any) => p.id === ref.prestataire_id) : null;
+              const prestaId = ref.prestataire_id?.startsWith('sal_') ? ref.prestataire_id.slice(4) : ref.prestataire_id;
+              const presta = prestaId ? prestataires.find((p: any) => p.id === prestaId) : null;
               return (
                 <div key={idx} className="text-xs">
-                  {ref.reference} {presta ? `[${presta.nom} ${presta.prenom}]` : ''} ({ref.montant?.toLocaleString('fr-FR')}€)
+                  {ref.reference} {presta ? `[${presta.nom} ${presta.prenom}${presta._isSalarie ? ' - Salarié' : ''}]` : ''} ({ref.montant?.toLocaleString('fr-FR')}€)
                 </div>
               );
             })}
@@ -303,12 +317,13 @@ export default function ContratsClients() {
                   <Label className="text-muted-foreground">Références Client</Label>
                   <div className="space-y-1 mt-1">
                     {(selectedContrat as any).reference_client.map((ref: any, idx: number) => {
-                      const presta = ref.prestataire_id ? prestataires.find((p: any) => p.id === ref.prestataire_id) : null;
+                      const prestaId = ref.prestataire_id?.startsWith('sal_') ? ref.prestataire_id.slice(4) : ref.prestataire_id;
+                      const presta = prestaId ? prestataires.find((p: any) => p.id === prestaId) : null;
                       return (
                         <div key={idx} className="flex justify-between items-center p-2 border rounded">
                           <div>
                             <span className="font-medium">{ref.reference}</span>
-                            {presta && <span className="text-sm text-muted-foreground ml-2">[{presta.nom} {presta.prenom}]</span>}
+                            {presta && <span className="text-sm text-muted-foreground ml-2">[{presta.nom} {presta.prenom}{presta._isSalarie ? ' - Salarié' : ''}]</span>}
                           </div>
                           <span className="text-muted-foreground">{ref.montant?.toLocaleString('fr-FR')} €</span>
                         </div>
