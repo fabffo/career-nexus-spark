@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,6 +24,8 @@ import { ColumnDef } from '@tanstack/react-table';
 
 export default function Contrats() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const returnTo = searchParams.get('returnTo');
   const [contrats, setContrats] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatuts, setSelectedStatuts] = useState<ContratStatut[]>(['BROUILLON', 'ACTIF']);
@@ -279,7 +281,11 @@ export default function Contrats() {
 
       setIsDialogOpen(false);
       resetForm();
-      loadData();
+      if (returnTo) {
+        navigate(returnTo);
+      } else {
+        loadData();
+      }
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
       toast.error('Erreur lors de la sauvegarde');
@@ -714,7 +720,10 @@ export default function Contrats() {
       </Card>
 
       {/* Dialog de création/modification */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={(open) => {
+        setIsDialogOpen(open);
+        if (!open && returnTo) navigate(returnTo);
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
