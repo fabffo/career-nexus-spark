@@ -138,7 +138,6 @@ export default function RapprochementVentes() {
     if (filterAnnee !== "all") filtered = filtered.filter(g => String(g.annee) === filterAnnee);
     if (filterMois !== "all") filtered = filtered.filter(g => String(g.mois) === filterMois);
     if (filterClient !== "all") filtered = filtered.filter(g => g.client === filterClient);
-    if (filterStatut !== "all") filtered = filtered.filter(g => g.statut === filterStatut);
     if (searchTerm) {
       const s = searchTerm.toLowerCase();
       filtered = filtered.filter(g =>
@@ -146,6 +145,25 @@ export default function RapprochementVentes() {
         g.factures.some(f => f.numero.toLowerCase().includes(s))
       );
     }
+
+    // Filter invoices within each group based on statut filter
+    if (filterStatut !== "all") {
+      filtered = filtered.map(g => {
+        const filteredFactures = filterStatut === "soldé"
+          ? g.factures.filter(f => f.rapprochee)
+          : g.factures.filter(f => !f.rapprochee);
+        if (filteredFactures.length === 0) return null;
+        return {
+          ...g,
+          factures: filteredFactures,
+          totalHT: filteredFactures.reduce((s, f) => s + f.ht, 0),
+          totalTVA: filteredFactures.reduce((s, f) => s + f.tva, 0),
+          totalTTC: filteredFactures.reduce((s, f) => s + f.ttc, 0),
+          statut: filterStatut as "soldé" | "non_soldé",
+        };
+      }).filter((g): g is GroupeVente => g !== null);
+    }
+
     return filtered;
   }, [groupes, filterAnnee, filterMois, filterClient, filterStatut, searchTerm]);
 
