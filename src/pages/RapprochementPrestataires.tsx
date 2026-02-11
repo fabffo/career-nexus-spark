@@ -20,14 +20,29 @@ interface FactureRow {
   type_facture: string;
   emetteur_nom: string;
   emetteur_type: string;
+  emetteur_id: string | null;
   destinataire_nom: string;
   destinataire_type: string;
+  destinataire_id: string | null;
+  fournisseur_id: string | null;
   date_emission: string;
   total_ht: number | null;
   total_ttc: number | null;
   numero_rapprochement: string | null;
   statut: string | null;
   activite: string | null;
+}
+
+interface ContratRow {
+  id: string;
+  type: string;
+  client_lie_id: string | null;
+  fournisseur_services_id: string | null;
+  prestataire_id: string | null;
+  statut: string;
+  client_lie?: { id: string; raison_sociale: string } | null;
+  fournisseur_services?: { id: string; raison_sociale: string } | null;
+  prestataire?: { id: string; nom: string; prenom: string } | null;
 }
 
 interface LigneRapprochement {
@@ -59,6 +74,8 @@ export default function RapprochementPrestataires() {
   const { toast } = useToast();
   const [facturesAchats, setFacturesAchats] = useState<FactureRow[]>([]);
   const [facturesVentes, setFacturesVentes] = useState<FactureRow[]>([]);
+  const [contrats, setContrats] = useState<ContratRow[]>([]);
+  const [clients, setClients] = useState<{ id: string; raison_sociale: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -84,24 +101,41 @@ export default function RapprochementPrestataires() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [achatsRes, ventesRes] = await Promise.all([
+      const [achatsRes, ventesRes, contratsRes, clientsRes] = await Promise.all([
         supabase
           .from("factures")
-          .select("id, numero_facture, type_facture, emetteur_nom, emetteur_type, destinataire_nom, destinataire_type, date_emission, total_ht, total_ttc, numero_rapprochement, statut, activite")
+          .select("id, numero_facture, type_facture, emetteur_nom, emetteur_type, emetteur_id, destinataire_nom, destinataire_type, destinataire_id, fournisseur_id, date_emission, total_ht, total_ttc, numero_rapprochement, statut, activite")
           .in("type_facture", ["ACHATS_SERVICES"])
           .order("date_emission", { ascending: false }),
         supabase
           .from("factures")
-          .select("id, numero_facture, type_facture, emetteur_nom, emetteur_type, destinataire_nom, destinataire_type, date_emission, total_ht, total_ttc, numero_rapprochement, statut, activite")
+          .select("id, numero_facture, type_facture, emetteur_nom, emetteur_type, emetteur_id, destinataire_nom, destinataire_type, destinataire_id, fournisseur_id, date_emission, total_ht, total_ttc, numero_rapprochement, statut, activite")
           .eq("type_facture", "VENTES")
           .order("date_emission", { ascending: false }),
+        (supabase as any)
+          .from("contrats")
+          .select(`
+            id, type, statut, client_lie_id, fournisseur_services_id, prestataire_id,
+            client_lie:client_lie_id(id, raison_sociale),
+            fournisseur_services:fournisseurs_services(id, raison_sociale),
+            prestataire:prestataires(id, nom, prenom)
+          `)
+          .in("type", ["FOURNISSEUR_SERVICES", "CLIENT"])
+          .in("statut", ["ACTIF", "TERMINE"]),
+        supabase
+          .from("clients")
+          .select("id, raison_sociale"),
       ]);
 
       if (achatsRes.error) throw achatsRes.error;
       if (ventesRes.error) throw ventesRes.error;
+      if (contratsRes.error) throw contratsRes.error;
+      if (clientsRes.error) throw clientsRes.error;
 
       setFacturesAchats((achatsRes.data || []) as FactureRow[]);
       setFacturesVentes((ventesRes.data || []) as FactureRow[]);
+      setContrats((contratsRes.data || []) as ContratRow[]);
+      setClients(clientsRes.data || []);
     } catch (err: any) {
       toast({ title: "Erreur", description: err.message, variant: "destructive" });
     } finally {
@@ -109,15 +143,76 @@ export default function RapprochementPrestataires() {
     }
   };
 
-  // Build the reconciliation lines
+  // Build the reconciliation lines using contracts to link achats → prestataire → client → ventes
   const lignes = useMemo<LigneRapprochement[]>(() => {
-    // Group sales by client + month for matching
-    const ventesIndex = new Map<string, FactureRow[]>();
+    // Build contract lookup: fournisseur_services_id → client info
+    // A fournisseur contract links a fournisseur (with prestataires) to a client (client_lie_id)
+    const fournisseurToClients = new Map<string, { clientId: string; clientNom: string }[]>();
+    const prestataireToClients = new Map<string, { clientId: string; clientNom: string }[]>();
+
+    for (const c of contrats) {
+      if (c.type === "FOURNISSEUR_SERVICES" && c.client_lie_id && c.client_lie) {
+        const clientInfo = { clientId: c.client_lie.id, clientNom: c.client_lie.raison_sociale };
+        
+        // Map by fournisseur_services_id
+        if (c.fournisseur_services_id) {
+          if (!fournisseurToClients.has(c.fournisseur_services_id)) fournisseurToClients.set(c.fournisseur_services_id, []);
+          const existing = fournisseurToClients.get(c.fournisseur_services_id)!;
+          if (!existing.some(e => e.clientId === clientInfo.clientId)) existing.push(clientInfo);
+        }
+        
+        // Map by prestataire_id
+        if (c.prestataire_id) {
+          if (!prestataireToClients.has(c.prestataire_id)) prestataireToClients.set(c.prestataire_id, []);
+          const existing = prestataireToClients.get(c.prestataire_id)!;
+          if (!existing.some(e => e.clientId === clientInfo.clientId)) existing.push(clientInfo);
+        }
+      }
+    }
+
+    // Also build a name-based lookup for fournisseurs and prestataires
+    const fournisseurNomToClients = new Map<string, { clientId: string; clientNom: string }[]>();
+    for (const c of contrats) {
+      if (c.type === "FOURNISSEUR_SERVICES" && c.client_lie_id && c.client_lie) {
+        const clientInfo = { clientId: c.client_lie.id, clientNom: c.client_lie.raison_sociale };
+        
+        if (c.fournisseur_services?.raison_sociale) {
+          const nom = c.fournisseur_services.raison_sociale.toUpperCase();
+          if (!fournisseurNomToClients.has(nom)) fournisseurNomToClients.set(nom, []);
+          const existing = fournisseurNomToClients.get(nom)!;
+          if (!existing.some(e => e.clientId === clientInfo.clientId)) existing.push(clientInfo);
+        }
+        if (c.prestataire) {
+          const nom = `${c.prestataire.nom} ${c.prestataire.prenom}`.toUpperCase().trim();
+          if (!fournisseurNomToClients.has(nom)) fournisseurNomToClients.set(nom, []);
+          const existing = fournisseurNomToClients.get(nom)!;
+          if (!existing.some(e => e.clientId === clientInfo.clientId)) existing.push(clientInfo);
+          // Also by nom only
+          const nomOnly = c.prestataire.nom.toUpperCase().trim();
+          if (!fournisseurNomToClients.has(nomOnly)) fournisseurNomToClients.set(nomOnly, []);
+          const existingNom = fournisseurNomToClients.get(nomOnly)!;
+          if (!existingNom.some(e => e.clientId === clientInfo.clientId)) existingNom.push(clientInfo);
+        }
+      }
+    }
+
+    // Index sales by client_id + period
+    const ventesByClientPeriod = new Map<string, FactureRow[]>();
+    // Also index by client name + period as fallback
+    const ventesByClientNomPeriod = new Map<string, FactureRow[]>();
     for (const v of facturesVentes) {
       const d = new Date(v.date_emission);
-      const key = `${v.destinataire_nom}|${d.getFullYear()}-${d.getMonth() + 1}`;
-      if (!ventesIndex.has(key)) ventesIndex.set(key, []);
-      ventesIndex.get(key)!.push(v);
+      const period = `${d.getFullYear()}-${d.getMonth() + 1}`;
+      
+      if (v.destinataire_id) {
+        const key = `${v.destinataire_id}|${period}`;
+        if (!ventesByClientPeriod.has(key)) ventesByClientPeriod.set(key, []);
+        ventesByClientPeriod.get(key)!.push(v);
+      }
+      
+      const keyNom = `${v.destinataire_nom.toUpperCase()}|${period}`;
+      if (!ventesByClientNomPeriod.has(keyNom)) ventesByClientNomPeriod.set(keyNom, []);
+      ventesByClientNomPeriod.get(keyNom)!.push(v);
     }
 
     const result: LigneRapprochement[] = [];
@@ -128,31 +223,43 @@ export default function RapprochementPrestataires() {
       const annee = d.getFullYear();
       const prestataire = achat.emetteur_nom;
       const achatRapproche = !!achat.numero_rapprochement || achat.statut === "PAYEE";
+      const period = `${annee}-${mois}`;
 
-      // Try to find matching sales invoice for same month
-      // We look through all clients for this month to find potential matches
-      const matchedVentes: FactureRow[] = [];
-      for (const [key, ventes] of ventesIndex) {
-        const [, period] = key.split("|");
-        if (period === `${annee}-${mois}`) {
-          matchedVentes.push(...ventes);
+      // Find client(s) linked via contracts
+      let linkedClients: { clientId: string; clientNom: string }[] = [];
+
+      // 1. Try by fournisseur_id on the invoice
+      if (achat.fournisseur_id && fournisseurToClients.has(achat.fournisseur_id)) {
+        linkedClients = fournisseurToClients.get(achat.fournisseur_id)!;
+      }
+      // 2. Try by emetteur_id as prestataire
+      if (linkedClients.length === 0 && achat.emetteur_id && prestataireToClients.has(achat.emetteur_id)) {
+        linkedClients = prestataireToClients.get(achat.emetteur_id)!;
+      }
+      // 3. Fallback: try by emetteur_nom
+      if (linkedClients.length === 0) {
+        const nomUpper = prestataire.toUpperCase().trim();
+        if (fournisseurNomToClients.has(nomUpper)) {
+          linkedClients = fournisseurNomToClients.get(nomUpper)!;
         }
       }
 
-      if (matchedVentes.length > 0) {
-        // Create a line for each matching sale
-        // But to avoid duplication, use only the first unmatched sale or group
-        const usedVenteIds = new Set<string>();
-        
-        // Try to find the best match (same amount or closest)
-        let bestVente = matchedVentes.find(v => !usedVenteIds.has(v.id) && Math.abs((v.total_ttc || 0)) >= Math.abs(achat.total_ttc || 0));
-        if (!bestVente) bestVente = matchedVentes.find(v => !usedVenteIds.has(v.id));
+      if (linkedClients.length > 0) {
+        // For each linked client, find matching sales invoice
+        for (const { clientId, clientNom } of linkedClients) {
+          // Try by client ID first
+          let matchedVentes = ventesByClientPeriod.get(`${clientId}|${period}`) || [];
+          // Fallback by client name
+          if (matchedVentes.length === 0) {
+            matchedVentes = ventesByClientNomPeriod.get(`${clientNom.toUpperCase()}|${period}`) || [];
+          }
 
-        if (bestVente) {
-          const venteRapprochee = !!bestVente.numero_rapprochement || bestVente.statut === "PAYEE";
+          const bestVente = matchedVentes.length > 0 ? matchedVentes[0] : null;
+          const venteRapprochee = bestVente ? (!!bestVente.numero_rapprochement || bestVente.statut === "PAYEE") : false;
+
           result.push({
             prestataire,
-            client: bestVente.destinataire_nom,
+            client: clientNom,
             mois,
             annee,
             moisLabel: MONTHS[mois - 1],
@@ -160,31 +267,15 @@ export default function RapprochementPrestataires() {
             numeroFactureAchat: achat.numero_facture,
             achatTTC: achat.total_ttc || 0,
             achatRapproche,
-            factureVenteId: bestVente.id,
-            numeroFactureVente: bestVente.numero_facture,
-            venteTTC: bestVente.total_ttc || 0,
+            factureVenteId: bestVente?.id || null,
+            numeroFactureVente: bestVente?.numero_facture || null,
+            venteTTC: bestVente?.total_ttc || 0,
             venteRapprochee,
             statutPaiement: venteRapprochee ? "payable" : "en_attente",
           });
-        } else {
-          result.push({
-            prestataire,
-            client: "-",
-            mois,
-            annee,
-            moisLabel: MONTHS[mois - 1],
-            factureAchatId: achat.id,
-            numeroFactureAchat: achat.numero_facture,
-            achatTTC: achat.total_ttc || 0,
-            achatRapproche,
-            factureVenteId: null,
-            numeroFactureVente: null,
-            venteTTC: 0,
-            venteRapprochee: false,
-            statutPaiement: "en_attente",
-          });
         }
       } else {
+        // No contract link found
         result.push({
           prestataire,
           client: "-",
@@ -205,7 +296,7 @@ export default function RapprochementPrestataires() {
     }
 
     return result;
-  }, [facturesAchats, facturesVentes]);
+  }, [facturesAchats, facturesVentes, contrats, clients]);
 
   // Get unique values for filters
   const uniquePrestataires = useMemo(() => [...new Set(lignes.map(l => l.prestataire))].sort(), [lignes]);
