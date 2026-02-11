@@ -36,10 +36,12 @@ interface ContratRow {
   client_lie_id: string | null;
   fournisseur_services_id: string | null;
   prestataire_id: string | null;
+  salarie_id: string | null;
   statut: string;
   client_lie?: { id: string; raison_sociale: string } | null;
   fournisseur_services?: { id: string; raison_sociale: string } | null;
   prestataire?: { id: string; nom: string; prenom: string } | null;
+  salarie?: { id: string; nom: string; prenom: string } | null;
 }
 
 interface GroupeRapprochement {
@@ -98,12 +100,13 @@ export default function RapprochementPrestataires() {
         (supabase as any)
           .from("contrats")
           .select(`
-            id, type, statut, client_lie_id, fournisseur_services_id, prestataire_id,
+            id, type, statut, client_lie_id, fournisseur_services_id, prestataire_id, salarie_id,
             client_lie:client_lie_id(id, raison_sociale),
             fournisseur_services:fournisseurs_services(id, raison_sociale),
-            prestataire:prestataires(id, nom, prenom)
+            prestataire:prestataires(id, nom, prenom),
+            salarie:salaries(id, nom, prenom)
           `)
-          .in("type", ["FOURNISSEUR_SERVICES", "CLIENT"])
+          .in("type", ["FOURNISSEUR_SERVICES", "PRESTATAIRE", "SALARIE", "CLIENT"])
           .in("statut", ["ACTIF", "TERMINE"]),
         supabase.from("clients").select("id, raison_sociale"),
       ]);
@@ -138,14 +141,28 @@ export default function RapprochementPrestataires() {
     };
 
     for (const c of contrats) {
-      if (c.type === "FOURNISSEUR_SERVICES" && c.client_lie_id && c.client_lie) {
-        const info = { clientId: c.client_lie.id, clientNom: c.client_lie.raison_sociale };
+      if (!c.client_lie_id || !c.client_lie) continue;
+      const info = { clientId: c.client_lie.id, clientNom: c.client_lie.raison_sociale };
+
+      if (c.type === "FOURNISSEUR_SERVICES") {
         if (c.fournisseur_services_id) addToMap(fournisseurToClients, c.fournisseur_services_id, info);
         if (c.prestataire_id) addToMap(prestataireToClients, c.prestataire_id, info);
         if (c.fournisseur_services?.raison_sociale) addToMap(fournisseurNomToClients, c.fournisseur_services.raison_sociale.toUpperCase(), info);
         if (c.prestataire) {
           addToMap(fournisseurNomToClients, `${c.prestataire.nom} ${c.prestataire.prenom}`.toUpperCase().trim(), info);
           addToMap(fournisseurNomToClients, c.prestataire.nom.toUpperCase().trim(), info);
+        }
+      } else if (c.type === "PRESTATAIRE") {
+        if (c.prestataire_id) addToMap(prestataireToClients, c.prestataire_id, info);
+        if (c.prestataire) {
+          addToMap(fournisseurNomToClients, `${c.prestataire.nom} ${c.prestataire.prenom}`.toUpperCase().trim(), info);
+          addToMap(fournisseurNomToClients, c.prestataire.nom.toUpperCase().trim(), info);
+        }
+      } else if (c.type === "SALARIE") {
+        if (c.salarie_id) addToMap(prestataireToClients, c.salarie_id, info);
+        if (c.salarie) {
+          addToMap(fournisseurNomToClients, `${c.salarie.nom} ${c.salarie.prenom}`.toUpperCase().trim(), info);
+          addToMap(fournisseurNomToClients, c.salarie.nom.toUpperCase().trim(), info);
         }
       }
     }
