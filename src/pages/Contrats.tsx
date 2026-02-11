@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, FileText, Edit, Trash2, Eye, Copy, Download, FileCheck, XCircle, Archive } from 'lucide-react';
 import { contratService, prestataireService, fournisseurServicesService, fournisseurGeneralService } from '@/services/contratService';
+import { salarieService } from '@/services/salarieService';
 import { clientService } from '@/services';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -112,11 +113,21 @@ export default function Contrats() {
       if (contratsError) throw contratsError;
 
       // Charger les autres données séparément pour les selects
-      const [clientsData, prestatairesData, tvaData] = await Promise.all([
+      const [clientsData, prestatairesData, salariesData, tvaData] = await Promise.all([
         clientService.getAll(),
         prestataireService.getAll(),
+        salarieService.getAll(),
         supabase.from('tva').select('*').order('taux').then(r => r.data || []),
       ]);
+      
+      // Fusionner prestataires + salariés avec rôle PRESTATAIRE
+      const salariesPrestataires = (salariesData || [])
+        .filter(s => s.role === 'PRESTATAIRE')
+        .map(s => ({ ...s, _isSalarie: true }));
+      const mergedPrestataires = [
+        ...prestatairesData.map(p => ({ ...p, _isSalarie: false })),
+        ...salariesPrestataires,
+      ];
       
       // Charger les fournisseurs avec gestion d'erreur
       let fournisseursServicesData: any[] = [];
@@ -183,7 +194,7 @@ export default function Contrats() {
       
       setContrats(contratsWithRelations);
       setClients(clientsData);
-      setPrestataires(prestatairesData);
+      setPrestataires(mergedPrestataires);
       setFournisseursServices(fournisseursServicesData);
       setFournisseursGeneraux(fournisseursGenerauxData);
       setTvaList(tvaData);
@@ -826,8 +837,8 @@ export default function Contrats() {
                           <SelectContent>
                             <SelectItem value="none">Aucun prestataire</SelectItem>
                             {prestataires.map(p => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.nom} {p.prenom}
+                              <SelectItem key={`${p._isSalarie ? 'sal' : 'prest'}-${p.id}`} value={`${p._isSalarie ? 'sal_' : ''}${p.id}`}>
+                                {p.nom} {p.prenom}{p._isSalarie ? ' (Salarié)' : ''}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -888,7 +899,7 @@ export default function Contrats() {
                     <SelectValue placeholder="Sélectionner un prestataire" />
                   </SelectTrigger>
                   <SelectContent>
-                    {prestataires.map(prestataire => (
+                    {prestataires.filter(p => !p._isSalarie).map(prestataire => (
                       <SelectItem key={prestataire.id} value={prestataire.id}>
                         {prestataire.nom} {prestataire.prenom}
                       </SelectItem>
