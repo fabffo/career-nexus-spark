@@ -27,6 +27,7 @@ interface LigneAnnuelle {
   abonnement_id: string | null;
   declaration_charge_id: string | null;
   facture_id: string | null;
+  numero_facture: string | null;
   notes: string | null;
   statut: string;
   fichier_rapprochement_id: string | null;
@@ -84,7 +85,7 @@ export default function RapprochementAnnuelTab() {
 
       const { data, error } = await supabase
         .from("lignes_rapprochement")
-        .select("id, numero_ligne, transaction_date, transaction_libelle, transaction_debit, transaction_credit, transaction_montant, fournisseur_detecte_nom, fournisseur_detecte_type, fournisseur_detecte_id, total_ht, total_tva, total_ttc, abonnement_id, declaration_charge_id, facture_id, notes, statut, fichier_rapprochement_id")
+        .select("id, numero_ligne, transaction_date, transaction_libelle, transaction_debit, transaction_credit, transaction_montant, fournisseur_detecte_nom, fournisseur_detecte_type, fournisseur_detecte_id, total_ht, total_tva, total_ttc, abonnement_id, declaration_charge_id, facture_id, numero_facture, notes, statut, fichier_rapprochement_id")
         .gte("transaction_date", dateDebut)
         .lte("transaction_date", dateFin)
         .order("transaction_date", { ascending: true });
@@ -197,6 +198,7 @@ export default function RapprochementAnnuelTab() {
       Libellé: l.transaction_libelle,
       Débit: Number(l.transaction_debit) || 0,
       Crédit: Number(l.transaction_credit) || 0,
+      "N° Facture": l.numero_facture || "",
       Partenaire: l.fournisseur_detecte_nom || "",
       "Type Partenaire": TYPE_LABELS[l.fournisseur_detecte_type || ""] || l.fournisseur_detecte_type || "",
       "Total HT": Number(l.total_ht) || 0,
@@ -213,6 +215,7 @@ export default function RapprochementAnnuelTab() {
       Libellé: "TOTAL",
       Débit: totals.debit,
       Crédit: totals.credit,
+      "N° Facture": "",
       Partenaire: "",
       "Type Partenaire": "",
       "Total HT": totals.ht,
@@ -356,6 +359,9 @@ export default function RapprochementAnnuelTab() {
                 <TableHead className="w-[100px] text-right cursor-pointer" onClick={() => handleSort("transaction_credit")}>
                   <div className="flex items-center justify-end gap-1">Crédit <SortIcon col="transaction_credit" /></div>
                 </TableHead>
+                <TableHead className="w-[120px] cursor-pointer" onClick={() => handleSort("numero_facture")}>
+                  <div className="flex items-center gap-1">N° Facture <SortIcon col="numero_facture" /></div>
+                </TableHead>
                 <TableHead className="w-[150px] cursor-pointer" onClick={() => handleSort("fournisseur_detecte_nom")}>
                   <div className="flex items-center gap-1">Partenaire <SortIcon col="fournisseur_detecte_nom" /></div>
                 </TableHead>
@@ -375,13 +381,13 @@ export default function RapprochementAnnuelTab() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                   <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                     Chargement...
                   </TableCell>
                 </TableRow>
               ) : paginatedLignes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                     Aucune opération trouvée pour {annee}
                   </TableCell>
                 </TableRow>
@@ -398,6 +404,9 @@ export default function RapprochementAnnuelTab() {
                     </TableCell>
                     <TableCell className="text-xs text-right text-green-600">
                       {Number(l.transaction_credit) > 0 ? formatMontant(Number(l.transaction_credit)) : "-"}
+                    </TableCell>
+                    <TableCell className="text-xs font-mono truncate max-w-[120px]" title={l.numero_facture || ""}>
+                      {l.numero_facture || "-"}
                     </TableCell>
                     <TableCell className="text-xs truncate max-w-[150px]" title={l.fournisseur_detecte_nom || ""}>
                       {l.fournisseur_detecte_nom || "-"}
@@ -438,7 +447,7 @@ export default function RapprochementAnnuelTab() {
                   </TableCell>
                   <TableCell className="text-xs text-right text-red-600">{formatMontant(totals.debit)}</TableCell>
                   <TableCell className="text-xs text-right text-green-600">{formatMontant(totals.credit)}</TableCell>
-                  <TableCell colSpan={2}></TableCell>
+                  <TableCell colSpan={3}></TableCell>
                   <TableCell className="text-xs text-right font-bold">{formatMontant(totals.ht)}</TableCell>
                   <TableCell className="text-xs text-right font-bold">{formatMontant(totals.tva)}</TableCell>
                   <TableCell className="text-xs text-right font-bold">{formatMontant(totals.ttc)}</TableCell>
