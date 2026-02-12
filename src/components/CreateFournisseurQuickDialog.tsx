@@ -7,6 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+interface ParamActivite {
+  code: string;
+  libelle: string;
+}
+
 interface CreateFournisseurQuickDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -26,12 +31,14 @@ export default function CreateFournisseurQuickDialog({
   initialData 
 }: CreateFournisseurQuickDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [activites, setActivites] = useState<ParamActivite[]>([]);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
     type: '' as 'GENERAL' | 'SERVICE' | '',
     raison_sociale: '',
     secteur_activite: '',
+    activite: '',
     adresse: '',
     telephone: '',
     email: '',
@@ -43,6 +50,7 @@ export default function CreateFournisseurQuickDialog({
       type: '',
       raison_sociale: '',
       secteur_activite: '',
+      activite: '',
       adresse: '',
       telephone: '',
       email: '',
@@ -51,13 +59,24 @@ export default function CreateFournisseurQuickDialog({
   };
 
   useEffect(() => {
+    const fetchActivites = async () => {
+      const { data } = await supabase
+        .from("param_activite")
+        .select("code, libelle")
+        .order("libelle");
+      if (data) setActivites(data);
+    };
+    fetchActivites();
+  }, []);
+
+  useEffect(() => {
     if (open) {
       if (initialData) {
-        // Préremplir avec les données initiales si présentes
         setFormData({
           type: '',
           raison_sociale: initialData.raison_sociale || '',
           secteur_activite: '',
+          activite: '',
           adresse: initialData.adresse || '',
           telephone: initialData.telephone || '',
           email: initialData.email || '',
@@ -86,16 +105,21 @@ export default function CreateFournisseurQuickDialog({
     try {
       const table = formData.type === 'GENERAL' ? 'fournisseurs_generaux' : 'fournisseurs_services';
       
-      const { data, error } = await supabase
-        .from(table)
-        .insert({
+      const insertData: any = {
           raison_sociale: formData.raison_sociale,
           secteur_activite: formData.secteur_activite || null,
           adresse: formData.adresse || null,
           telephone: formData.telephone || null,
           email: formData.email || null,
           site_web: formData.site_web || null,
-        })
+        };
+      if (formData.activite) {
+        insertData.activite = formData.activite;
+      }
+
+      const { data, error } = await supabase
+        .from(table)
+        .insert(insertData)
         .select('id')
         .single();
 
@@ -171,6 +195,24 @@ export default function CreateFournisseurQuickDialog({
               onChange={(e) => setFormData({ ...formData, secteur_activite: e.target.value })}
               placeholder="Ex: Informatique, Conseil, etc."
             />
+          </div>
+
+          {/* Activité */}
+          <div className="space-y-2">
+            <Label>Activité</Label>
+            <Select
+              value={formData.activite}
+              onValueChange={(value) => setFormData({ ...formData, activite: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner une activité" />
+              </SelectTrigger>
+              <SelectContent>
+                {activites.map((a) => (
+                  <SelectItem key={a.code} value={a.code}>{a.libelle}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Adresse */}
