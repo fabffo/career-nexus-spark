@@ -6538,23 +6538,25 @@ export default function RapprochementBancaire() {
         fichierId={selectedHistoriqueFichierId}
         onSuccess={async () => {
           // Sauvegarder l'ID du fichier actuellement sélectionné
-          const currentFichierId = selectedFichier?.id;
+          const currentFichierId = selectedHistoriqueFichierId || selectedFichier?.id;
           
           await loadFactures();
           await loadFichiersRapprochement();
           
-          // Restaurer le fichier sélectionné après le rechargement
-          if (currentFichierId) {
-            setFichiersRapprochement(prev => {
-              const fichierToRestore = prev.find(f => f.id === currentFichierId);
-              if (fichierToRestore) {
-                setSelectedFichier(fichierToRestore);
-              }
-              return prev;
-            });
-          }
-          
           setEditHistoriqueDialogOpen(false);
+          
+          // Restaurer le fichier sélectionné après le rechargement (via useEffect-like timeout)
+          if (currentFichierId) {
+            setTimeout(() => {
+              setFichiersRapprochement(prev => {
+                const fichierToRestore = prev.find(f => f.id === currentFichierId);
+                if (fichierToRestore) {
+                  setSelectedFichier(fichierToRestore);
+                }
+                return prev;
+              });
+            }, 100);
+          }
         }}
       />
 
