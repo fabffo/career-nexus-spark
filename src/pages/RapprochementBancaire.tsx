@@ -617,7 +617,7 @@ export default function RapprochementBancaire() {
     }
   };
 
-  const loadFichiersRapprochement = async () => {
+  const loadFichiersRapprochement = async (): Promise<FichierRapprochement[]> => {
     try {
       const { data, error } = await supabase
         .from("fichiers_rapprochement")
@@ -744,7 +744,9 @@ export default function RapprochementBancaire() {
         };
       }));
 
-      setFichiersRapprochement(enrichedFiles as unknown as FichierRapprochement[]);
+      const result = enrichedFiles as unknown as FichierRapprochement[];
+      setFichiersRapprochement(result);
+      return result;
     } catch (error) {
       console.error("Erreur chargement fichiers rapprochement:", error);
       toast({
@@ -752,6 +754,7 @@ export default function RapprochementBancaire() {
         description: "Impossible de charger l'historique des rapprochements",
         variant: "destructive",
       });
+      return [];
     }
   };
 
@@ -1099,19 +1102,14 @@ export default function RapprochementBancaire() {
       // Recharger les fichiers et factures pour s'assurer que tout est à jour
       console.log("🔄 Rechargement des données...");
       await loadFactures();
-      await loadFichiersRapprochement();
+      const reloadedFiles = await loadFichiersRapprochement();
       
       // Re-sélectionner le fichier courant pour forcer la mise à jour de l'interface
-      setTimeout(() => {
-        setFichiersRapprochement(prev => {
-          const fichierActualise = prev.find(f => f.id === fichierId);
-          if (fichierActualise && selectedFichier?.id === fichierId) {
-            setSelectedFichier(fichierActualise);
-            console.log("✅ Fichier courant re-sélectionné");
-          }
-          return prev;
-        });
-      }, 100);
+      const fichierActualise = reloadedFiles.find(f => f.id === fichierId);
+      if (fichierActualise && selectedFichier?.id === fichierId) {
+        setSelectedFichier(fichierActualise);
+        console.log("✅ Fichier courant re-sélectionné");
+      }
       
       console.log("✅ Dé-rapprochement terminé avec succès");
 
@@ -6541,22 +6539,17 @@ export default function RapprochementBancaire() {
           const currentFichierId = selectedHistoriqueFichierId || selectedFichier?.id;
           
           await loadFactures();
-          await loadFichiersRapprochement();
+          const reloadedFiles = await loadFichiersRapprochement();
+          
+          // Restaurer le fichier sélectionné directement depuis les données rechargées
+          if (currentFichierId) {
+            const fichierToRestore = reloadedFiles.find(f => f.id === currentFichierId);
+            if (fichierToRestore) {
+              setSelectedFichier(fichierToRestore);
+            }
+          }
           
           setEditHistoriqueDialogOpen(false);
-          
-          // Restaurer le fichier sélectionné après le rechargement (via useEffect-like timeout)
-          if (currentFichierId) {
-            setTimeout(() => {
-              setFichiersRapprochement(prev => {
-                const fichierToRestore = prev.find(f => f.id === currentFichierId);
-                if (fichierToRestore) {
-                  setSelectedFichier(fichierToRestore);
-                }
-                return prev;
-              });
-            }, 100);
-          }
         }}
       />
 
