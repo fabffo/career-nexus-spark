@@ -369,14 +369,26 @@ export default function RapprochementBancaire() {
 
   const loadFactures = async (): Promise<FactureMatch[]> => {
     try {
-      const { data: facturesData, error } = await supabase
-        .from("factures")
-        .select("*")
-        .in("statut", ["VALIDEE", "PAYEE"]);
+      // Paginer pour dépasser la limite de 1000 lignes par défaut
+      let allData: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
+      while (hasMore) {
+        const { data: page, error } = await supabase
+          .from("factures")
+          .select("*")
+          .in("statut", ["VALIDEE", "PAYEE"])
+          .range(from, from + pageSize - 1);
 
-      const facturesFormatted: FactureMatch[] = (facturesData || []).map((f) => ({
+        if (error) throw error;
+        allData = allData.concat(page || []);
+        hasMore = (page?.length ?? 0) === pageSize;
+        from += pageSize;
+      }
+
+      const facturesFormatted: FactureMatch[] = allData.map((f) => ({
         id: f.id,
         numero_facture: f.numero_facture,
         type_facture: f.type_facture as "VENTES" | "ACHATS",
