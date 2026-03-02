@@ -90,11 +90,12 @@ export default function ViewFactureDialog({
   const handleDownload = async () => {
     try {
       const isAchat = (facture.type_facture || "").startsWith("ACHATS");
+      const hasOriginalFile = !!facture.reference_societe;
 
-      // Pour les factures d'achat, télécharger le fichier depuis le storage (PDF originel)
-      if (isAchat) {
+      // Si un fichier original existe (achat OU vente avec PDF uploadé), le télécharger depuis le storage
+      if (hasOriginalFile) {
         if (!facture.reference_societe) {
-          alert("Aucun fichier n'a été uploadé pour cette facture d'achat.");
+          alert("Aucun fichier n'a été uploadé pour cette facture.");
           return;
         }
 
