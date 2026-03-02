@@ -592,25 +592,55 @@ export default function FacturesVentes() {
 
     for (const factureId of Array.from(selectedFactureIds)) {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-facture-pdf`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session?.access_token}`,
-            },
-            body: JSON.stringify({ facture_id: factureId }),
-          }
-        );
-
-        if (!response.ok) throw new Error('Erreur lors de la génération du PDF');
-
-        const blob = await response.blob();
         const facture = factures.find(f => f.id === factureId);
-
         if (!facture) throw new Error("Facture introuvable dans la liste");
+
+        let blob: Blob;
+        let extension = "pdf";
+
+        // Si un fichier original existe (PDF uploadé), le télécharger depuis le storage
+        if (facture.reference_societe) {
+          let bucket = "factures";
+          let filePath = facture.reference_societe;
+
+          if (filePath.startsWith("http")) {
+            if (filePath.includes("candidats-files")) {
+              bucket = "candidats-files";
+              const match = filePath.match(/candidats-files\/(.+)$/);
+              if (match) filePath = match[1];
+            } else if (filePath.includes("factures")) {
+              bucket = "factures";
+              const match = filePath.match(/factures\/(.+)$/);
+              if (match) filePath = match[1];
+            }
+          }
+
+          if (filePath.startsWith("factures/")) {
+            filePath = filePath.replace(/^factures\//, "");
+          }
+
+          const { data: storageData, error: storageError } = await supabase.storage.from(bucket).download(filePath);
+          if (storageError || !storageData) throw storageError || new Error("Aucune donnée reçue");
+          blob = storageData;
+          extension = filePath.split(".").pop() || "pdf";
+        } else {
+          // Sinon, générer le PDF via la edge function
+          const { data: { session } } = await supabase.auth.getSession();
+          const response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-facture-pdf`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session?.access_token}`,
+              },
+              body: JSON.stringify({ facture_id: factureId }),
+            }
+          );
+
+          if (!response.ok) throw new Error('Erreur lors de la génération du PDF');
+          blob = await response.blob();
+        }
 
         const dateEmission = facture.date_emission ? new Date(facture.date_emission) : null;
         const anneeMois = dateEmission
@@ -626,7 +656,7 @@ export default function FacturesVentes() {
         const societeNom = cleanString(facture.emetteur_nom || "Societe");
         const clientNom = cleanString(facture.destinataire_nom || "Client");
         const datePart = anneeMois ? `_${anneeMois}` : "";
-        const filename = `${facture.numero_facture || factureId}_${societeNom}_${clientNom}${refPart}${datePart}.pdf`;
+        const filename = `${facture.numero_facture || factureId}_${societeNom}_${clientNom}${refPart}${datePart}.${extension}`;
         
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -636,7 +666,6 @@ export default function FacturesVentes() {
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-        
         successCount++;
         
         // Petit délai entre chaque téléchargement pour éviter de bloquer le navigateur
