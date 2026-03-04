@@ -5,12 +5,58 @@ export type ClientRefLookupInput = {
   destinataire_nom?: string | null;
 };
 
+export type StorageFileReference = {
+  bucket: string;
+  filePath: string;
+  extension: string;
+};
+
 export const cleanFilenameSegment = (value: string | null | undefined) => {
   if (!value) return "";
   return value
     .replace(/[/\\?%*:|"<>]/g, "-")
     .replace(/\s+/g, "_")
     .trim();
+};
+
+export const parseStorageFileReference = (
+  rawReference: string | null | undefined,
+  defaultBucket = "factures"
+): StorageFileReference | null => {
+  const raw = (rawReference || "").trim();
+  if (!raw) return null;
+
+  let bucket = defaultBucket;
+  let filePath = raw;
+
+  if (/^https?:\/\//i.test(raw)) {
+    if (raw.includes("/candidats-files/")) {
+      bucket = "candidats-files";
+      const match = raw.match(/candidats-files\/(.+)$/);
+      filePath = match?.[1] || "";
+    } else if (raw.includes("/factures/")) {
+      bucket = "factures";
+      const match = raw.match(/factures\/(.+)$/);
+      filePath = match?.[1] || "";
+    } else {
+      return null;
+    }
+  } else {
+    if (raw.startsWith("candidats-files/")) {
+      bucket = "candidats-files";
+      filePath = raw.replace(/^candidats-files\//, "");
+    } else if (raw.startsWith("factures/")) {
+      bucket = "factures";
+      filePath = raw.replace(/^factures\//, "");
+    }
+  }
+
+  // Un SIREN/identifiant brut (ex: 834114837) ne doit pas être considéré comme un fichier storage.
+  const looksLikeStoredFile = filePath.includes("/") || /\.[a-zA-Z0-9]{2,8}$/.test(filePath);
+  if (!filePath || !looksLikeStoredFile) return null;
+
+  const extension = filePath.split(".").pop()?.toLowerCase() || "pdf";
+  return { bucket, filePath, extension };
 };
 
 const tryFindClientIdByName = async (nameRaw: string): Promise<string | null> => {
