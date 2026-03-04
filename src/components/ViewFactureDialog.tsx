@@ -90,41 +90,15 @@ export default function ViewFactureDialog({
   const handleDownload = async () => {
     try {
       const isAchat = (facture.type_facture || "").startsWith("ACHATS");
-      const hasOriginalFile = !!facture.reference_societe;
+      const storageRef = parseStorageFileReference(facture.reference_societe);
 
-      // Si un fichier original existe (achat OU vente avec PDF uploadé), le télécharger depuis le storage
-      if (hasOriginalFile) {
-        if (!facture.reference_societe) {
-          alert("Aucun fichier n'a été uploadé pour cette facture.");
-          return;
-        }
+      // Si un vrai fichier original existe, on le privilégie
+      if (storageRef) {
+        console.log("Téléchargement depuis bucket:", storageRef.bucket, "chemin:", storageRef.filePath);
 
-        console.log("Téléchargement facture achat, chemin:", facture.reference_societe);
-
-        let bucket = "factures";
-        let filePath = facture.reference_societe;
-
-        // Normaliser si on reçoit une URL complète
-        if (filePath.startsWith("http")) {
-          if (filePath.includes("candidats-files")) {
-            bucket = "candidats-files";
-            const match = filePath.match(/candidats-files\/(.+)$/);
-            if (match) filePath = match[1];
-          } else if (filePath.includes("factures")) {
-            bucket = "factures";
-            const match = filePath.match(/factures\/(.+)$/);
-            if (match) filePath = match[1];
-          }
-        }
-
-        // Normaliser si on reçoit un chemin préfixé
-        if (filePath.startsWith("factures/")) {
-          filePath = filePath.replace(/^factures\//, "");
-        }
-
-        console.log("Téléchargement depuis bucket:", bucket, "chemin:", filePath);
-
-        const { data, error } = await supabase.storage.from(bucket).download(filePath);
+        const { data, error } = await supabase.storage
+          .from(storageRef.bucket)
+          .download(storageRef.filePath);
 
         if (error) {
           console.error("Erreur storage download:", error);
@@ -135,15 +109,18 @@ export default function ViewFactureDialog({
         const downloadUrl = window.URL.createObjectURL(data);
         const link = document.createElement("a");
         link.href = downloadUrl;
-
-        // Extraire l'extension du fichier original
-        const extension = filePath.split(".").pop() || "pdf";
-        link.download = `facture_${facture.numero_facture}.${extension}`;
+        link.download = `facture_${facture.numero_facture}.${storageRef.extension}`;
 
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(downloadUrl);
+        return;
+      }
+
+      // Pour les achats: pas de fallback de génération si aucun vrai fichier source
+      if (isAchat) {
+        alert("Aucun fichier original n'est disponible pour cette facture d'achat.");
         return;
       }
 
