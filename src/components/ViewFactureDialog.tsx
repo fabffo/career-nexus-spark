@@ -94,28 +94,33 @@ export default function ViewFactureDialog({
 
       // Si un vrai fichier original existe, on le privilégie
       if (storageRef) {
-        console.log("Téléchargement depuis bucket:", storageRef.bucket, "chemin:", storageRef.filePath);
+        try {
+          console.log("Téléchargement depuis bucket:", storageRef.bucket, "chemin:", storageRef.filePath);
 
-        const { data, error } = await supabase.storage
-          .from(storageRef.bucket)
-          .download(storageRef.filePath);
+          const { data, error } = await supabase.storage
+            .from(storageRef.bucket)
+            .download(storageRef.filePath);
 
-        if (error) {
-          console.error("Erreur storage download:", error);
-          throw error;
+          if (error) {
+            console.error("Erreur storage download:", error);
+            throw error;
+          }
+          if (!data) throw new Error("Aucune donnée reçue");
+
+          const downloadUrl = window.URL.createObjectURL(data);
+          const link = document.createElement("a");
+          link.href = downloadUrl;
+          link.download = `facture_${facture.numero_facture}.${storageRef.extension}`;
+
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(downloadUrl);
+          return;
+        } catch (storageDownloadError) {
+          if (isAchat) throw storageDownloadError;
+          console.warn("Fichier original introuvable, fallback génération PDF", storageDownloadError);
         }
-        if (!data) throw new Error("Aucune donnée reçue");
-
-        const downloadUrl = window.URL.createObjectURL(data);
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-        link.download = `facture_${facture.numero_facture}.${storageRef.extension}`;
-
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(downloadUrl);
-        return;
       }
 
       // Pour les achats: pas de fallback de génération si aucun vrai fichier source
