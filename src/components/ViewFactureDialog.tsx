@@ -26,6 +26,7 @@ export default function ViewFactureDialog({
     if (open && facture) {
       fetchLignes();
       fetchSocieteInterne();
+    }
   }, [open, facture]);
 
 
