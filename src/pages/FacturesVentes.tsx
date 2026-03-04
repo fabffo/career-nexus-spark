@@ -598,33 +598,41 @@ export default function FacturesVentes() {
         let blob: Blob;
         let extension = "pdf";
 
-        // Si un fichier original existe (PDF uploadé), le télécharger depuis le storage
-        if (facture.reference_societe) {
-          let bucket = "factures";
-          let filePath = facture.reference_societe;
+        // Priorité au fichier original si c'est une vraie référence storage, sinon fallback génération PDF
+        const storageRef = parseStorageFileReference(facture.reference_societe);
+        if (storageRef) {
+          try {
+            const { data: storageData, error: storageError } = await supabase.storage
+              .from(storageRef.bucket)
+              .download(storageRef.filePath);
 
-          if (filePath.startsWith("http")) {
-            if (filePath.includes("candidats-files")) {
-              bucket = "candidats-files";
-              const match = filePath.match(/candidats-files\/(.+)$/);
-              if (match) filePath = match[1];
-            } else if (filePath.includes("factures")) {
-              bucket = "factures";
-              const match = filePath.match(/factures\/(.+)$/);
-              if (match) filePath = match[1];
+            if (storageError || !storageData) {
+              throw storageError || new Error("Aucune donnée reçue");
             }
-          }
 
-          if (filePath.startsWith("factures/")) {
-            filePath = filePath.replace(/^factures\//, "");
-          }
+            blob = storageData;
+            extension = storageRef.extension;
+          } catch (storageDownloadError) {
+            console.warn(`Téléchargement du fichier original impossible pour ${facture.numero_facture}, fallback génération PDF`, storageDownloadError);
 
-          const { data: storageData, error: storageError } = await supabase.storage.from(bucket).download(filePath);
-          if (storageError || !storageData) throw storageError || new Error("Aucune donnée reçue");
-          blob = storageData;
-          extension = filePath.split(".").pop() || "pdf";
+            const { data: { session } } = await supabase.auth.getSession();
+            const response = await fetch(
+              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-facture-pdf`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${session?.access_token}`,
+                },
+                body: JSON.stringify({ facture_id: factureId }),
+              }
+            );
+
+            if (!response.ok) throw new Error('Erreur lors de la génération du PDF');
+            blob = await response.blob();
+          }
         } else {
-          // Sinon, générer le PDF via la edge function
+          // Référence absente/invalide (ex: identifiant métier), on génère le PDF
           const { data: { session } } = await supabase.auth.getSession();
           const response = await fetch(
             `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-facture-pdf`,
