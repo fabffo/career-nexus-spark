@@ -655,16 +655,11 @@ export default function FacturesVentes() {
           ? `${dateEmission.getFullYear()}${String(dateEmission.getMonth() + 1).padStart(2, "0")}`
           : "";
 
-        const refClient = await getReferenceClientForInvoice({
-          destinataire_id: facture.destinataire_id,
-          destinataire_nom: facture.destinataire_nom,
-        });
-        const refPart = refClient ? `_${cleanString(refClient)}` : "";
 
         const societeNom = cleanString(facture.emetteur_nom || "Societe");
         const clientNom = cleanString(facture.destinataire_nom || "Client");
         const datePart = anneeMois ? `_${anneeMois}` : "";
-        const filename = `${facture.numero_facture || factureId}_${societeNom}_${clientNom}${refPart}${datePart}.${extension}`;
+        const filename = `${facture.numero_facture || factureId}_${societeNom}_${clientNom}${datePart}.${extension}`;
         
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
