@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Download, Printer } from "lucide-react";
 import type { Facture, FactureLigne } from "@/pages/Factures";
-import { cleanFilenameSegment, getReferenceClientForInvoice, parseStorageFileReference } from "@/lib/factures/invoiceDownloadUtils";
+import { cleanFilenameSegment, parseStorageFileReference } from "@/lib/factures/invoiceDownloadUtils";
 
 interface ViewFactureDialogProps {
   open: boolean;
