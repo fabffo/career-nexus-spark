@@ -138,16 +138,26 @@ export default function ViewFactureDialog({
       const link = document.createElement("a");
       link.href = url;
       
-      // Construire le nom de fichier: n°facture_NomSociété_NomClient_RefClient_AnnéeMois
+      // Construire le nom de fichier avec la description de la première ligne comme référence
       const dateEmission = new Date(facture.date_emission);
       const anneeMois = `${dateEmission.getFullYear()}${String(dateEmission.getMonth() + 1).padStart(2, '0')}`;
       
       const cleanString = (str: string | null | undefined) => cleanFilenameSegment(str);
       
+      // Récupérer la première ligne de la facture pour la référence
+      const { data: premiereLigne } = await supabase
+        .from('facture_lignes')
+        .select('description')
+        .eq('facture_id', facture.id)
+        .order('ordre', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      
       const societeNom = cleanString(societeInterne?.raison_sociale || facture.emetteur_nom);
       const clientNom = cleanString(facture.destinataire_nom);
+      const refPart = premiereLigne?.description ? `_${cleanString(premiereLigne.description)}` : '';
       
-      link.download = `${facture.numero_facture}_${societeNom}_${clientNom}_${anneeMois}.pdf`;
+      link.download = `${facture.numero_facture}_${societeNom}_${clientNom}${refPart}_${anneeMois}.pdf`;
       
       document.body.appendChild(link);
       link.click();

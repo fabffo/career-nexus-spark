@@ -655,11 +655,20 @@ export default function FacturesVentes() {
           ? `${dateEmission.getFullYear()}${String(dateEmission.getMonth() + 1).padStart(2, "0")}`
           : "";
 
+        // Récupérer la description de la première ligne comme référence
+        const { data: premiereLigne } = await supabase
+          .from('facture_lignes')
+          .select('description')
+          .eq('facture_id', factureId)
+          .order('ordre', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        const refPart = premiereLigne?.description ? `_${cleanString(premiereLigne.description)}` : "";
 
         const societeNom = cleanString(facture.emetteur_nom || "Societe");
         const clientNom = cleanString(facture.destinataire_nom || "Client");
         const datePart = anneeMois ? `_${anneeMois}` : "";
-        const filename = `${facture.numero_facture || factureId}_${societeNom}_${clientNom}${datePart}.${extension}`;
+        const filename = `${facture.numero_facture || factureId}_${societeNom}_${clientNom}${refPart}${datePart}.${extension}`;
         
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
