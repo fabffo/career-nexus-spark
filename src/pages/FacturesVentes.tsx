@@ -6,7 +6,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { cleanFilenameSegment, getReferenceClientForInvoice } from "@/lib/factures/invoiceDownloadUtils";
+import { cleanFilenameSegment, getReferenceClientForInvoice, parseStorageFileReference } from "@/lib/factures/invoiceDownloadUtils";
 import AddFactureDialog from "@/components/AddFactureDialog";
 import EditFactureDialog from "@/components/EditFactureDialog";
 import ViewFactureDialog from "@/components/ViewFactureDialog";
