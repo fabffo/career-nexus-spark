@@ -364,11 +364,19 @@ export default function EditFactureDialog({
   const calculateTotals = () => {
     const total_ht = lignes.reduce((sum, ligne) => sum + (ligne.prix_ht || 0), 0);
     const total_tva = lignes.reduce((sum, ligne) => {
+      if (ligne.montant_tva != null && ligne.montant_tva !== undefined) {
+        return sum + ligne.montant_tva;
+      }
       const ht = ligne.prix_ht || 0;
       const tva = ligne.taux_tva || 0;
       return sum + (ht * tva / 100);
     }, 0);
-    const total_ttc = total_ht + total_tva;
+    const total_ttc = lignes.reduce((sum, ligne) => {
+      if (ligne.prix_ttc != null && ligne.prix_ttc !== undefined) {
+        return sum + ligne.prix_ttc;
+      }
+      return sum + (ligne.prix_ht || 0) + ((ligne.prix_ht || 0) * (ligne.taux_tva || 0) / 100);
+    }, 0);
     
     return { total_ht, total_tva, total_ttc };
   };
