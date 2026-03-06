@@ -370,14 +370,33 @@ export default function EditFactureDialog({
       const parsedValue = numericFields.includes(field as string) ? (parseFloat(value) || 0) : value;
       const updatedLigne = { ...ligne, [field]: parsedValue };
       
-      // Recalculer les montants si quantité ou prix unitaire HT change (pas quand on édite directement prix_ht)
+      // Recalculer les montants si quantité ou prix unitaire HT change
       if (field === 'quantite' || field === 'prix_unitaire_ht') {
         const quantite = field === 'quantite' ? parseFloat(value) || 0 : updatedLigne.quantite;
         const prixUnitaire = field === 'prix_unitaire_ht' ? parseFloat(value) || 0 : updatedLigne.prix_unitaire_ht;
         updatedLigne.prix_ht = quantite * prixUnitaire;
       }
+
+      // Si on modifie manuellement la TVA en €, recalculer le taux et le TTC
+      if (field === 'montant_tva') {
+        const prixHt = updatedLigne.prix_ht || 0;
+        const montantTva = parseFloat(value) || 0;
+        updatedLigne.montant_tva = montantTva;
+        updatedLigne.taux_tva = prixHt > 0 ? (montantTva / prixHt) * 100 : 0;
+        updatedLigne.prix_ttc = prixHt + montantTva;
+      }
+
+      // Si on modifie manuellement le TTC, recalculer la TVA et le taux
+      if (field === 'prix_ttc') {
+        const prixHt = updatedLigne.prix_ht || 0;
+        const prixTtc = parseFloat(value) || 0;
+        const montantTva = prixTtc - prixHt;
+        updatedLigne.prix_ttc = prixTtc;
+        updatedLigne.montant_tva = montantTva;
+        updatedLigne.taux_tva = prixHt > 0 ? (montantTva / prixHt) * 100 : 0;
+      }
       
-      // Recalculer TVA et TTC si prix HT ou taux TVA change
+      // Recalculer TVA et TTC si HT ou taux change
       if (field === 'quantite' || field === 'prix_unitaire_ht' || field === 'taux_tva' || field === 'prix_ht') {
         const prixHt = updatedLigne.prix_ht || 0;
         const tauxTva = field === 'taux_tva' ? parseFloat(value) || 0 : updatedLigne.taux_tva;
@@ -1004,13 +1023,7 @@ export default function EditFactureDialog({
                         type="number"
                         step="0.01"
                         value={ligne.montant_tva || 0}
-                        onChange={(e) => {
-                          const newTva = parseFloat(e.target.value) || 0;
-                          setLignes(prev => prev.map((l, i) => {
-                            if (i !== index) return l;
-                            return { ...l, montant_tva: newTva, prix_ttc: (l.prix_ht || 0) + newTva };
-                          }));
-                        }}
+                        onChange={(e) => updateLigne(index, "montant_tva", e.target.value)}
                         placeholder="0.00"
                       />
                     ) : (
@@ -1030,14 +1043,7 @@ export default function EditFactureDialog({
                         type="number"
                         step="0.01"
                         value={ligne.prix_ttc || 0}
-                        onChange={(e) => {
-                          const newTtc = parseFloat(e.target.value) || 0;
-                          const ht = ligne.prix_ht || 0;
-                          setLignes(prev => prev.map((l, i) => {
-                            if (i !== index) return l;
-                            return { ...l, prix_ttc: newTtc, montant_tva: newTtc - ht };
-                          }));
-                        }}
+                        onChange={(e) => updateLigne(index, "prix_ttc", e.target.value)}
                         placeholder="0.00"
                       />
                     ) : (
