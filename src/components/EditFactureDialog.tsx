@@ -450,6 +450,9 @@ export default function EditFactureDialog({
         activite: formData.activite,
         informations_paiement: formData.informations_paiement,
         reference_societe: formData.reference_societe,
+        total_ht: totals.total_ht,
+        total_tva: totals.total_tva,
+        total_ttc: totals.total_ttc,
       };
 
       // Pour les factures d'achat, permettre la modification de type, date_emission, emetteur_nom, emetteur_id
