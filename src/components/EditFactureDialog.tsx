@@ -390,6 +390,14 @@ export default function EditFactureDialog({
   };
 
   const calculateTotals = () => {
+    if (lignes.length === 0) {
+      return {
+        total_ht: Number(formData.total_ht || 0),
+        total_tva: Number(formData.total_tva || 0),
+        total_ttc: Number(formData.total_ttc || 0),
+      };
+    }
+
     const total_ht = lignes.reduce((sum, ligne) => sum + (ligne.prix_ht || 0), 0);
     const total_tva = lignes.reduce((sum, ligne) => {
       if (ligne.montant_tva != null && ligne.montant_tva !== undefined) {
