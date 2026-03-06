@@ -237,12 +237,20 @@ export default function EditFactureDialog({
         .order('ordre');
 
       if (error) throw error;
-      // Mapper les données avec les valeurs par défaut pour les colonnes manquantes
+
       const lignesWithDefaults = (data || []).map((ligne: any) => ({
         ...ligne,
         quantite: ligne.quantite || 1,
-        prix_unitaire_ht: ligne.prix_unitaire_ht || ligne.prix_ht || 0
+        prix_unitaire_ht: ligne.prix_unitaire_ht || ligne.prix_ht || 0,
+        montant_tva: ligne.montant_tva ?? ((ligne.prix_ht || 0) * (ligne.taux_tva || 0) / 100),
+        prix_ttc: ligne.prix_ttc ?? ((ligne.prix_ht || 0) + ((ligne.prix_ht || 0) * (ligne.taux_tva || 0) / 100)),
       }));
+
+      if (lignesWithDefaults.length === 0 && isAchatType(facture.type_facture as string)) {
+        setLignes([buildFallbackAchatLigne(facture)]);
+        return;
+      }
+
       setLignes(lignesWithDefaults);
     } catch (error) {
       console.error('Erreur lors du chargement des lignes:', error);
