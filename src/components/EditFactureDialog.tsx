@@ -50,6 +50,24 @@ const getTypeFactureFromEmetteurType = (emetteurType: EmetteurTypeAchat): string
   return 'ACHATS_GENERAUX';
 };
 
+const buildFallbackAchatLigne = (invoice: Facture): FactureLigne => {
+  const ht = Number(invoice.total_ht || 0);
+  const tva = Number(invoice.total_tva || 0);
+  const ttc = Number(invoice.total_ttc || ht + tva);
+  const taux = ht > 0 ? (tva / ht) * 100 : 20;
+
+  return {
+    ordre: 1,
+    description: "Ajustement manuel",
+    quantite: 1,
+    prix_unitaire_ht: ht,
+    prix_ht: ht,
+    taux_tva: Number.isFinite(taux) ? taux : 20,
+    montant_tva: tva,
+    prix_ttc: ttc,
+  };
+};
+
 export default function EditFactureDialog({ 
   open, 
   onOpenChange, 
@@ -219,12 +237,20 @@ export default function EditFactureDialog({
         .order('ordre');
 
       if (error) throw error;
-      // Mapper les données avec les valeurs par défaut pour les colonnes manquantes
+
       const lignesWithDefaults = (data || []).map((ligne: any) => ({
         ...ligne,
         quantite: ligne.quantite || 1,
-        prix_unitaire_ht: ligne.prix_unitaire_ht || ligne.prix_ht || 0
+        prix_unitaire_ht: ligne.prix_unitaire_ht || ligne.prix_ht || 0,
+        montant_tva: ligne.montant_tva ?? ((ligne.prix_ht || 0) * (ligne.taux_tva || 0) / 100),
+        prix_ttc: ligne.prix_ttc ?? ((ligne.prix_ht || 0) + ((ligne.prix_ht || 0) * (ligne.taux_tva || 0) / 100)),
       }));
+
+      if (lignesWithDefaults.length === 0 && isAchatType(facture.type_facture as string)) {
+        setLignes([buildFallbackAchatLigne(facture)]);
+        return;
+      }
+
       setLignes(lignesWithDefaults);
     } catch (error) {
       console.error('Erreur lors du chargement des lignes:', error);
@@ -364,6 +390,14 @@ export default function EditFactureDialog({
   };
 
   const calculateTotals = () => {
+    if (lignes.length === 0) {
+      return {
+        total_ht: Number(formData.total_ht || 0),
+        total_tva: Number(formData.total_tva || 0),
+        total_ttc: Number(formData.total_ttc || 0),
+      };
+    }
+
     const total_ht = lignes.reduce((sum, ligne) => sum + (ligne.prix_ht || 0), 0);
     const total_tva = lignes.reduce((sum, ligne) => {
       if (ligne.montant_tva != null && ligne.montant_tva !== undefined) {
@@ -416,6 +450,9 @@ export default function EditFactureDialog({
         activite: formData.activite,
         informations_paiement: formData.informations_paiement,
         reference_societe: formData.reference_societe,
+        total_ht: totals.total_ht,
+        total_tva: totals.total_tva,
+        total_ttc: totals.total_ttc,
       };
 
       // Pour les factures d'achat, permettre la modification de type, date_emission, emetteur_nom, emetteur_id
