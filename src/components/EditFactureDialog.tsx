@@ -340,9 +340,11 @@ export default function EditFactureDialog({
         }
       }
       
-      const updatedLigne = { ...ligne, [field]: value };
+      const numericFields = ['quantite', 'prix_unitaire_ht', 'prix_ht', 'taux_tva', 'montant_tva', 'prix_ttc', 'ordre'];
+      const parsedValue = numericFields.includes(field as string) ? (parseFloat(value) || 0) : value;
+      const updatedLigne = { ...ligne, [field]: parsedValue };
       
-      // Recalculer les montants si quantité ou prix unitaire HT change
+      // Recalculer les montants si quantité ou prix unitaire HT change (pas quand on édite directement prix_ht)
       if (field === 'quantite' || field === 'prix_unitaire_ht') {
         const quantite = field === 'quantite' ? parseFloat(value) || 0 : updatedLigne.quantite;
         const prixUnitaire = field === 'prix_unitaire_ht' ? parseFloat(value) || 0 : updatedLigne.prix_unitaire_ht;
