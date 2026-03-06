@@ -50,6 +50,24 @@ const getTypeFactureFromEmetteurType = (emetteurType: EmetteurTypeAchat): string
   return 'ACHATS_GENERAUX';
 };
 
+const buildFallbackAchatLigne = (invoice: Facture): FactureLigne => {
+  const ht = Number(invoice.total_ht || 0);
+  const tva = Number(invoice.total_tva || 0);
+  const ttc = Number(invoice.total_ttc || ht + tva);
+  const taux = ht > 0 ? (tva / ht) * 100 : 20;
+
+  return {
+    ordre: 1,
+    description: "Ajustement manuel",
+    quantite: 1,
+    prix_unitaire_ht: ht,
+    prix_ht: ht,
+    taux_tva: Number.isFinite(taux) ? taux : 20,
+    montant_tva: tva,
+    prix_ttc: ttc,
+  };
+};
+
 export default function EditFactureDialog({ 
   open, 
   onOpenChange, 
