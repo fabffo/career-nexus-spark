@@ -468,6 +468,8 @@ export default function EditFactureDialog({
               prix_unitaire_ht: ligne.prix_unitaire_ht,
               prix_ht: ligne.prix_ht,
               taux_tva: ligne.taux_tva,
+              montant_tva: ligne.montant_tva || null,
+              prix_ttc: ligne.prix_ttc || null,
             })
             .eq('id', ligne.id);
 
