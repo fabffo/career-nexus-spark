@@ -928,32 +928,75 @@ export default function EditFactureDialog({
 
                   <div>
                     <Label>Montant HT (€)</Label>
-                    <Input
-                      type="text"
-                      value={ligne.prix_ht.toFixed(2)}
-                      disabled
-                      className="bg-muted"
-                    />
+                    {isAchatType(facture.type_facture as string) ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={ligne.prix_ht}
+                        onChange={(e) => updateLigne(index, "prix_ht", e.target.value)}
+                        placeholder="0.00"
+                      />
+                    ) : (
+                      <Input
+                        type="text"
+                        value={ligne.prix_ht.toFixed(2)}
+                        disabled
+                        className="bg-muted"
+                      />
+                    )}
                   </div>
 
                   <div>
                     <Label>Montant TVA (€)</Label>
-                    <Input
-                      type="text"
-                      value={(ligne.montant_tva || 0).toFixed(2)}
-                      disabled
-                      className="bg-muted"
-                    />
+                    {isAchatType(facture.type_facture as string) ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={ligne.montant_tva || 0}
+                        onChange={(e) => {
+                          const newTva = parseFloat(e.target.value) || 0;
+                          setLignes(prev => prev.map((l, i) => {
+                            if (i !== index) return l;
+                            return { ...l, montant_tva: newTva, prix_ttc: (l.prix_ht || 0) + newTva };
+                          }));
+                        }}
+                        placeholder="0.00"
+                      />
+                    ) : (
+                      <Input
+                        type="text"
+                        value={(ligne.montant_tva || 0).toFixed(2)}
+                        disabled
+                        className="bg-muted"
+                      />
+                    )}
                   </div>
 
                   <div>
                     <Label>Montant TTC (€)</Label>
-                    <Input
-                      type="text"
-                      value={(ligne.prix_ttc || 0).toFixed(2)}
-                      disabled
-                      className="bg-muted"
-                    />
+                    {isAchatType(facture.type_facture as string) ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={ligne.prix_ttc || 0}
+                        onChange={(e) => {
+                          const newTtc = parseFloat(e.target.value) || 0;
+                          const ht = ligne.prix_ht || 0;
+                          setLignes(prev => prev.map((l, i) => {
+                            if (i !== index) return l;
+                            return { ...l, prix_ttc: newTtc, montant_tva: newTtc - ht };
+                          }));
+                        }}
+                        placeholder="0.00"
+                      />
+                    ) : (
+                      <Input
+                        type="text"
+                        value={(ligne.prix_ttc || 0).toFixed(2)}
+                        disabled
+                        className="bg-muted"
+                      />
+                    )}
                   </div>
                 </div>
 
