@@ -119,7 +119,7 @@ export default function FacturesAchats() {
   useEffect(() => {
     fetchFactures();
     fetchFournisseurs();
-  }, [selectedYear, selectedMonth, selectedEcheanceYear, selectedEcheanceMonth]);
+  }, [selectedYear, selectedMonth, selectedEcheanceYear, selectedEcheanceMonth, selectedRapprochement]);
 
   const fetchFournisseurs = async () => {
     try {
