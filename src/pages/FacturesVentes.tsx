@@ -210,6 +210,13 @@ export default function FacturesVentes() {
           return selectedEcheanceMonths.includes(month);
         });
       }
+
+      // Filtrer par statut de rapprochement
+      if (selectedRapprochement === "rapprochee") {
+        facturesData = facturesData.filter(f => !!f.numero_rapprochement || f.statut === "PAYEE");
+      } else if (selectedRapprochement === "non_rapprochee") {
+        facturesData = facturesData.filter(f => !f.numero_rapprochement && f.statut !== "PAYEE");
+      }
       
       // Extraire les années disponibles pour date émission
       const years = new Set<string>();
