@@ -1098,6 +1098,17 @@ export default function FacturesAchats() {
             </SelectContent>
           </Select>
 
+          <Select value={selectedRapprochement} onValueChange={setSelectedRapprochement}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Rapprochement" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes</SelectItem>
+              <SelectItem value="rapprochee">Rapprochées</SelectItem>
+              <SelectItem value="non_rapprochee">Non rapprochées</SelectItem>
+            </SelectContent>
+          </Select>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline">Colonnes</Button>
