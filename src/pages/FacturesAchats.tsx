@@ -256,11 +256,18 @@ export default function FacturesAchats() {
 
       if (error) throw error;
 
-      const facturesData = (data || []).map((f) => ({
+      let facturesData = (data || []).map((f) => ({
         ...f,
         type_facture: f.type_facture as "VENTES" | "ACHATS",
         statut: f.statut as "BROUILLON" | "VALIDEE" | "PAYEE" | "ANNULEE",
       }));
+
+      // Filtrer par statut de rapprochement
+      if (selectedRapprochement === "rapprochee") {
+        facturesData = facturesData.filter(f => !!f.numero_rapprochement || f.statut === "PAYEE");
+      } else if (selectedRapprochement === "non_rapprochee") {
+        facturesData = facturesData.filter(f => !f.numero_rapprochement && f.statut !== "PAYEE");
+      }
 
       // Extraire les années disponibles pour date d'émission
       const years = new Set<string>();
