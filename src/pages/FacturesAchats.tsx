@@ -98,6 +98,7 @@ export default function FacturesAchats() {
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [selectedTypeFournisseur, setSelectedTypeFournisseur] = useState<string>("all");
+  const [selectedRapprochement, setSelectedRapprochement] = useState<string>("all");
   const [selectedEcheanceYear, setSelectedEcheanceYear] = useState<string>("all");
   const [selectedEcheanceMonth, setSelectedEcheanceMonth] = useState<string>("all");
   const [availableYears, setAvailableYears] = useState<string[]>([]);
@@ -118,7 +119,7 @@ export default function FacturesAchats() {
   useEffect(() => {
     fetchFactures();
     fetchFournisseurs();
-  }, [selectedYear, selectedMonth, selectedEcheanceYear, selectedEcheanceMonth]);
+  }, [selectedYear, selectedMonth, selectedEcheanceYear, selectedEcheanceMonth, selectedRapprochement]);
 
   const fetchFournisseurs = async () => {
     try {
@@ -255,11 +256,18 @@ export default function FacturesAchats() {
 
       if (error) throw error;
 
-      const facturesData = (data || []).map((f) => ({
+      let facturesData = (data || []).map((f) => ({
         ...f,
         type_facture: f.type_facture as "VENTES" | "ACHATS",
         statut: f.statut as "BROUILLON" | "VALIDEE" | "PAYEE" | "ANNULEE",
       }));
+
+      // Filtrer par statut de rapprochement
+      if (selectedRapprochement === "rapprochee") {
+        facturesData = facturesData.filter(f => !!f.numero_rapprochement || f.statut === "PAYEE");
+      } else if (selectedRapprochement === "non_rapprochee") {
+        facturesData = facturesData.filter(f => !f.numero_rapprochement && f.statut !== "PAYEE");
+      }
 
       // Extraire les années disponibles pour date d'émission
       const years = new Set<string>();
@@ -1087,6 +1095,17 @@ export default function FacturesAchats() {
               <SelectItem value="ETAT_ORGANISMES">État & Organismes</SelectItem>
               <SelectItem value="PRESTATAIRE">Prestataire</SelectItem>
               <SelectItem value="SALARIE">Salarié</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedRapprochement} onValueChange={setSelectedRapprochement}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Rapprochement" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes</SelectItem>
+              <SelectItem value="rapprochee">Rapprochées</SelectItem>
+              <SelectItem value="non_rapprochee">Non rapprochées</SelectItem>
             </SelectContent>
           </Select>
 

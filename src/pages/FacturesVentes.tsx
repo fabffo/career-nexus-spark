@@ -121,6 +121,7 @@ export default function FacturesVentes() {
   const [selectedEcheanceYear, setSelectedEcheanceYear] = useState<string>("all");
   const [selectedEcheanceMonths, setSelectedEcheanceMonths] = useState<string[]>([]);
   const [availableEcheanceYears, setAvailableEcheanceYears] = useState<string[]>([]);
+  const [selectedRapprochement, setSelectedRapprochement] = useState<string>("all");
   const [selectedFactureIds, setSelectedFactureIds] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
   const [selectedActivite, setSelectedActivite] = useState<string>("all");
@@ -137,7 +138,7 @@ export default function FacturesVentes() {
 
   useEffect(() => {
     fetchFactures();
-  }, [selectedYear, selectedMonths, selectedActivite, selectedEcheanceYear, selectedEcheanceMonths]);
+  }, [selectedYear, selectedMonths, selectedActivite, selectedEcheanceYear, selectedEcheanceMonths, selectedRapprochement]);
 
   const fetchFactures = async () => {
     setLoading(true);
@@ -208,6 +209,13 @@ export default function FacturesVentes() {
           const month = (new Date(f.date_echeance).getMonth() + 1).toString();
           return selectedEcheanceMonths.includes(month);
         });
+      }
+
+      // Filtrer par statut de rapprochement
+      if (selectedRapprochement === "rapprochee") {
+        facturesData = facturesData.filter(f => !!f.numero_rapprochement || f.statut === "PAYEE");
+      } else if (selectedRapprochement === "non_rapprochee") {
+        facturesData = facturesData.filter(f => !f.numero_rapprochement && f.statut !== "PAYEE");
       }
       
       // Extraire les années disponibles pour date émission
@@ -1392,6 +1400,17 @@ export default function FacturesVentes() {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+
+        <Select value={selectedRapprochement} onValueChange={setSelectedRapprochement}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Rapprochement" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toutes</SelectItem>
+            <SelectItem value="rapprochee">Rapprochées</SelectItem>
+            <SelectItem value="non_rapprochee">Non rapprochées</SelectItem>
+          </SelectContent>
+        </Select>
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
