@@ -98,6 +98,7 @@ export default function FacturesAchats() {
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [selectedTypeFournisseur, setSelectedTypeFournisseur] = useState<string>("all");
+  const [selectedRapprochement, setSelectedRapprochement] = useState<string>("all");
   const [selectedEcheanceYear, setSelectedEcheanceYear] = useState<string>("all");
   const [selectedEcheanceMonth, setSelectedEcheanceMonth] = useState<string>("all");
   const [availableYears, setAvailableYears] = useState<string[]>([]);
