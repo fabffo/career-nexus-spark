@@ -138,7 +138,7 @@ export default function FacturesVentes() {
 
   useEffect(() => {
     fetchFactures();
-  }, [selectedYear, selectedMonths, selectedActivite, selectedEcheanceYear, selectedEcheanceMonths]);
+  }, [selectedYear, selectedMonths, selectedActivite, selectedEcheanceYear, selectedEcheanceMonths, selectedRapprochement]);
 
   const fetchFactures = async () => {
     setLoading(true);
