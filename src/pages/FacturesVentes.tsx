@@ -121,6 +121,7 @@ export default function FacturesVentes() {
   const [selectedEcheanceYear, setSelectedEcheanceYear] = useState<string>("all");
   const [selectedEcheanceMonths, setSelectedEcheanceMonths] = useState<string[]>([]);
   const [availableEcheanceYears, setAvailableEcheanceYears] = useState<string[]>([]);
+  const [selectedRapprochement, setSelectedRapprochement] = useState<string>("all");
   const [selectedFactureIds, setSelectedFactureIds] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
   const [selectedActivite, setSelectedActivite] = useState<string>("all");
