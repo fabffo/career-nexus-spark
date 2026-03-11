@@ -97,7 +97,7 @@ export default function RapprochementDetailDialog({
               transaction_montant: totalTTC,
               notes: `N° rapprochement : ${factureRef.numero_rapprochement}`,
             },
-            factures: allFactures,
+            factures: (allFactures || []) as any,
             isAvoirInterne: true,
           });
         } else {
