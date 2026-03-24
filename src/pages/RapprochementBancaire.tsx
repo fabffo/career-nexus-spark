@@ -3920,7 +3920,7 @@ export default function RapprochementBancaire() {
 
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Vérifier si ces dates sont déjà rapprochées
+      // Vérifier si ces dates sont déjà rapprochées (mode complément autorisé)
       const { data: checkData, error: checkError } = await supabase
         .rpc('check_dates_already_reconciled', {
           p_date_debut: dateDebut,
@@ -3929,23 +3929,14 @@ export default function RapprochementBancaire() {
 
       if (checkError) {
         console.error("Erreur lors de la vérification:", checkError);
-        toast({
-          title: "Erreur",
-          description: "Erreur lors de la vérification des dates",
-          variant: "destructive",
-        });
-        return;
+        // Ne pas bloquer, continuer la validation
       }
 
+      let isComplement = false;
       if (checkData && checkData.length > 0 && checkData[0].is_reconciled) {
         const numeroExistant = checkData[0].numero_rapprochement;
-        toast({
-          title: "Dates déjà rapprochées",
-          description: `Les dates du ${format(new Date(dateDebut), 'dd/MM/yyyy', { locale: fr })} au ${format(new Date(dateFin), 'dd/MM/yyyy', { locale: fr })} sont déjà rapprochées par le rapprochement ${numeroExistant}`,
-          variant: "destructive",
-        });
-        setIsValidating(false);
-        return;
+        isComplement = true;
+        console.log(`📋 Mode complément: dates déjà partiellement couvertes par ${numeroExistant}`);
       }
 
       // Générer le numéro de rapprochement
