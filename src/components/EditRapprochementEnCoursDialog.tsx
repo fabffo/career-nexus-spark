@@ -236,24 +236,66 @@ export default function EditRapprochementEnCoursDialog({
   const loadAssociatedFactures = async (numeroLigne: string) => {
     setLoadingAssociated(true);
     try {
-      // 1. Chercher le rapprochement bancaire avec ses relations
+      // 1. D'abord chercher dans lignes_rapprochement (source de vérité)
+      const { data: ligneData, error: ligneError } = await supabase
+        .from('lignes_rapprochement')
+        .select(`
+          id,
+          facture_id,
+          factures_ids,
+          abonnement_id,
+          declaration_charge_id,
+          abonnements_partenaires (id, nom, montant_mensuel),
+          declarations_charges_sociales (id, nom, organisme, periodicite)
+        `)
+        .eq('numero_ligne', numeroLigne)
+        .maybeSingle();
+
+      if (ligneError) throw ligneError;
+
+      if (ligneData) {
+        // Charger l'abonnement associé si présent
+        if (ligneData.abonnement_id && ligneData.abonnements_partenaires) {
+          setSelectedAbonnementId(ligneData.abonnement_id);
+        }
+        // Charger la déclaration associée si présente
+        if (ligneData.declaration_charge_id && ligneData.declarations_charges_sociales) {
+          setSelectedDeclarationId(ligneData.declaration_charge_id);
+        }
+
+        // Collecter les IDs de factures depuis facture_id et factures_ids
+        const factureIds = new Set<string>();
+        if (ligneData.facture_id) factureIds.add(ligneData.facture_id);
+        if (ligneData.factures_ids && Array.isArray(ligneData.factures_ids)) {
+          ligneData.factures_ids.forEach((id: string) => factureIds.add(id));
+        }
+
+        if (factureIds.size > 0) {
+          const { data: facturesData, error: facturesError } = await supabase
+            .from('factures')
+            .select('*')
+            .in('id', Array.from(factureIds));
+          if (facturesError) throw facturesError;
+          
+          const loaded = facturesData || [];
+          setAssociatedFactures(loaded);
+          setSelectedFactureIds(loaded.map((f: any) => f.id));
+        } else {
+          setAssociatedFactures([]);
+        }
+        setLoadingAssociated(false);
+        return;
+      }
+
+      // 2. Fallback: chercher dans rapprochements_bancaires (ancien système)
       const { data: rapprochementData, error: rapprochementError } = await supabase
         .from('rapprochements_bancaires')
         .select(`
           id,
           abonnement_id,
           declaration_charge_id,
-          abonnements_partenaires (
-            id,
-            nom,
-            montant_mensuel
-          ),
-          declarations_charges_sociales (
-            id,
-            nom,
-            organisme,
-            periodicite
-          )
+          abonnements_partenaires (id, nom, montant_mensuel),
+          declarations_charges_sociales (id, nom, organisme, periodicite)
         `)
         .eq('numero_ligne', numeroLigne)
         .maybeSingle();
@@ -265,17 +307,13 @@ export default function EditRapprochementEnCoursDialog({
         return;
       }
 
-      // Charger l'abonnement associé si présent
       if (rapprochementData.abonnement_id && rapprochementData.abonnements_partenaires) {
         setSelectedAbonnementId(rapprochementData.abonnement_id);
       }
-
-      // Charger la déclaration associée si présente
       if (rapprochementData.declaration_charge_id && rapprochementData.declarations_charges_sociales) {
         setSelectedDeclarationId(rapprochementData.declaration_charge_id);
       }
 
-      // 2. Chercher toutes les factures liées via rapprochements_factures
       const { data: liaisonsFactures, error: liaisonsError } = await supabase
         .from('rapprochements_factures')
         .select('facture_id')
@@ -290,7 +328,6 @@ export default function EditRapprochementEnCoursDialog({
           .from('factures')
           .select('*')
           .in('id', factureIds);
-
         if (facturesError) throw facturesError;
         setAssociatedFactures(facturesData || []);
       } else {
