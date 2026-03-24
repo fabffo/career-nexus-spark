@@ -1191,6 +1191,59 @@ export default function RapprochementBancaire() {
     }
   };
 
+  // Fonction pour filtrer les doublons avec les fichiers VALIDE existants
+  const filterDuplicateTransactions = async (transactionsParsed: TransactionBancaire[]): Promise<{ filtered: TransactionBancaire[]; duplicatesCount: number; complementOf: string | null }> => {
+    try {
+      // Trouver les dates min/max des nouvelles transactions
+      const dates = transactionsParsed.map(t => new Date(t.date));
+      const dateDebut = format(new Date(Math.min(...dates.map(d => d.getTime()))), 'yyyy-MM-dd');
+      const dateFin = format(new Date(Math.max(...dates.map(d => d.getTime()))), 'yyyy-MM-dd');
+
+      // Chercher les fichiers VALIDE qui couvrent des dates dans cette plage
+      const { data: fichiersValides } = await supabase
+        .from('fichiers_rapprochement')
+        .select('id, numero_rapprochement, date_debut, date_fin')
+        .eq('statut', 'VALIDE')
+        .or(`date_debut.lte.${dateFin},date_fin.gte.${dateDebut}`);
+
+      if (!fichiersValides || fichiersValides.length === 0) {
+        return { filtered: transactionsParsed, duplicatesCount: 0, complementOf: null };
+      }
+
+      // Charger toutes les lignes existantes de ces fichiers
+      const fichierIds = fichiersValides.map(f => f.id);
+      const { data: lignesExistantes } = await supabase
+        .from('lignes_rapprochement')
+        .select('transaction_date, transaction_libelle, transaction_debit, transaction_credit')
+        .in('fichier_rapprochement_id', fichierIds);
+
+      if (!lignesExistantes || lignesExistantes.length === 0) {
+        return { filtered: transactionsParsed, duplicatesCount: 0, complementOf: null };
+      }
+
+      // Créer un set de clés pour les transactions existantes
+      const existingKeys = new Set(
+        lignesExistantes.map(l => 
+          `${l.transaction_date}|${(l.transaction_libelle || '').trim()}|${l.transaction_debit || 0}|${l.transaction_credit || 0}`
+        )
+      );
+
+      // Filtrer les doublons
+      const filtered = transactionsParsed.filter(t => {
+        const key = `${t.date}|${t.libelle.trim()}|${t.debit || 0}|${t.credit || 0}`;
+        return !existingKeys.has(key);
+      });
+
+      const duplicatesCount = transactionsParsed.length - filtered.length;
+      const complementOf = duplicatesCount > 0 ? fichiersValides[0].numero_rapprochement : null;
+
+      return { filtered, duplicatesCount, complementOf };
+    } catch (error) {
+      console.error("Erreur lors de la vérification des doublons:", error);
+      return { filtered: transactionsParsed, duplicatesCount: 0, complementOf: null };
+    }
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -1208,6 +1261,55 @@ export default function RapprochementBancaire() {
       const fileName = file.name.toLowerCase();
       const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
 
+      // Fonction commune pour traiter les transactions après parsing
+      const processTransactions = async (transactionsParsed: TransactionBancaire[]) => {
+        // ⭐ Filtrer les doublons avec les fichiers VALIDE existants
+        const { filtered, duplicatesCount, complementOf } = await filterDuplicateTransactions(transactionsParsed);
+        
+        if (filtered.length === 0) {
+          toast({
+            title: "Aucune nouvelle transaction",
+            description: `Toutes les ${transactionsParsed.length} transactions existent déjà dans des rapprochements validés.`,
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
+        if (duplicatesCount > 0) {
+          toast({
+            title: "Import partiel - Complément",
+            description: `${filtered.length} nouvelles transactions importées. ${duplicatesCount} transactions déjà rapprochées ont été ignorées${complementOf ? ` (complément de ${complementOf})` : ''}.`,
+          });
+          console.log(`📋 Complément: ${filtered.length} nouvelles / ${duplicatesCount} doublons ignorés`);
+        }
+
+        setTransactions(filtered);
+
+        // Créer des rapprochements NON rapprochés
+        console.log("📥 Import sans rapprochement automatique...");
+        const rapprochementsResult: Rapprochement[] = filtered.map(transaction => ({
+          transaction,
+          facture: null,
+          score: 0,
+          status: "unmatched" as const,
+          isManual: false,
+          numero_ligne: transaction.numero_ligne,
+        }));
+        console.log("✅ Toutes les lignes importées comme non rapprochées:", rapprochementsResult.length);
+        setRapprochements(rapprochementsResult);
+
+        // Créer automatiquement un fichier EN_COURS
+        await createFichierEnCours(filtered, rapprochementsResult);
+
+        toast({
+          title: "Fichier importé",
+          description: `${filtered.length} transactions importées${duplicatesCount > 0 ? ` (${duplicatesCount} doublons ignorés)` : ''}`,
+        });
+
+        setLoading(false);
+      };
+
       if (isExcel) {
         // Parser Excel
         const reader = new FileReader();
@@ -1219,7 +1321,7 @@ export default function RapprochementBancaire() {
             const worksheet = workbook.Sheets[sheetName];
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
 
-            console.log("Excel data:", jsonData.slice(0, 5)); // Debug
+            console.log("Excel data:", jsonData.slice(0, 5));
 
             // Trouver la ligne d'en-tête
             let headerRow = 0;
@@ -1235,7 +1337,7 @@ export default function RapprochementBancaire() {
             }
 
             const headers = jsonData[headerRow].map((h: any) => String(h).trim());
-            console.log("Headers found:", headers); // Debug
+            console.log("Headers found:", headers);
 
             const transactionsParsed: TransactionBancaire[] = [];
             
@@ -1248,7 +1350,6 @@ export default function RapprochementBancaire() {
                 rowObj[header] = row[index];
               });
 
-              // Trouver les colonnes
               const dateValue = rowObj.DATE || rowObj.date || rowObj.Date || row[0];
               const libelleValue = rowObj.LIBELLE || rowObj.libelle || rowObj.Libelle || row[1];
               const debitValue = rowObj.Débit || rowObj.DEBIT || rowObj.debit || rowObj["Débit"] || row[2];
@@ -1256,10 +1357,8 @@ export default function RapprochementBancaire() {
 
               if (!dateValue) continue;
 
-              // Convertir la date Excel si nécessaire
               let date: Date | null = null;
               if (typeof dateValue === 'number') {
-                // Date Excel (nombre de jours depuis 1900-01-01)
                 const excelDate = XLSX.SSF.parse_date_code(dateValue);
                 if (excelDate && typeof excelDate === 'object' && 'y' in excelDate) {
                   date = new Date(
@@ -1278,7 +1377,6 @@ export default function RapprochementBancaire() {
               const credit = parseAmount(String(creditValue || "0"));
               const montant = credit > 0 ? credit : -debit;
 
-              // Générer le numero_ligne unique au format RL-YYYYMMDD-RANDOM-INDEX
               const dateStr = format(date, "yyyyMMdd");
               const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
               const indexPart = (i - headerRow).toString().padStart(5, '0');
@@ -1294,32 +1392,9 @@ export default function RapprochementBancaire() {
               });
             }
 
-            console.log("Transactions parsed:", transactionsParsed.length); // Debug
+            console.log("Transactions parsed:", transactionsParsed.length);
+            await processTransactions(transactionsParsed);
 
-            setTransactions(transactionsParsed);
-
-            // Créer des rapprochements NON rapprochés (pas de matching automatique)
-            console.log("📥 Import sans rapprochement automatique...");
-            const rapprochementsResult: Rapprochement[] = transactionsParsed.map(transaction => ({
-              transaction,
-              facture: null,
-              score: 0,
-              status: "unmatched" as const,
-              isManual: false,
-              numero_ligne: transaction.numero_ligne,
-            }));
-            console.log("✅ Toutes les lignes importées comme non rapprochées:", rapprochementsResult.length);
-            setRapprochements(rapprochementsResult);
-
-            // Créer automatiquement un fichier EN_COURS
-            await createFichierEnCours(transactionsParsed, rapprochementsResult);
-
-            toast({
-              title: "Fichier importé",
-              description: `${transactionsParsed.length} transactions importées`,
-            });
-
-            setLoading(false);
           } catch (error) {
             console.error("Erreur parsing Excel:", error);
             toast({
@@ -1347,7 +1422,6 @@ export default function RapprochementBancaire() {
                 const credit = parseAmount(row.Crédit || row.CREDIT || row.credit || "0");
                 const montant = credit > 0 ? credit : -debit;
 
-                // Générer le numero_ligne unique au format RL-YYYYMMDD-RANDOM-INDEX
                 const dateFormatted = format(date, "yyyyMMdd");
                 const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
                 const indexPart = (index + 1).toString().padStart(5, '0');
@@ -1364,30 +1438,7 @@ export default function RapprochementBancaire() {
               })
               .filter((t): t is TransactionBancaire => t !== null);
 
-            setTransactions(transactionsParsed);
-
-            // Créer des rapprochements NON rapprochés (pas de matching automatique)
-            console.log("📥 Import sans rapprochement automatique...");
-            const rapprochementsResult: Rapprochement[] = transactionsParsed.map(transaction => ({
-              transaction,
-              facture: null,
-              score: 0,
-              status: "unmatched" as const,
-              isManual: false,
-              numero_ligne: transaction.numero_ligne,
-            }));
-            console.log("✅ Toutes les lignes importées comme non rapprochées:", rapprochementsResult.length);
-            setRapprochements(rapprochementsResult);
-
-            // Créer automatiquement un fichier EN_COURS
-            await createFichierEnCours(transactionsParsed, rapprochementsResult);
-
-            toast({
-              title: "Fichier importé",
-              description: `${transactionsParsed.length} transactions importées`,
-            });
-
-            setLoading(false);
+            await processTransactions(transactionsParsed);
           },
           error: (error) => {
             console.error("Erreur parsing CSV:", error);
@@ -3869,7 +3920,7 @@ export default function RapprochementBancaire() {
 
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Vérifier si ces dates sont déjà rapprochées
+      // Vérifier si ces dates sont déjà rapprochées (mode complément autorisé)
       const { data: checkData, error: checkError } = await supabase
         .rpc('check_dates_already_reconciled', {
           p_date_debut: dateDebut,
@@ -3878,23 +3929,14 @@ export default function RapprochementBancaire() {
 
       if (checkError) {
         console.error("Erreur lors de la vérification:", checkError);
-        toast({
-          title: "Erreur",
-          description: "Erreur lors de la vérification des dates",
-          variant: "destructive",
-        });
-        return;
+        // Ne pas bloquer, continuer la validation
       }
 
+      let isComplement = false;
       if (checkData && checkData.length > 0 && checkData[0].is_reconciled) {
         const numeroExistant = checkData[0].numero_rapprochement;
-        toast({
-          title: "Dates déjà rapprochées",
-          description: `Les dates du ${format(new Date(dateDebut), 'dd/MM/yyyy', { locale: fr })} au ${format(new Date(dateFin), 'dd/MM/yyyy', { locale: fr })} sont déjà rapprochées par le rapprochement ${numeroExistant}`,
-          variant: "destructive",
-        });
-        setIsValidating(false);
-        return;
+        isComplement = true;
+        console.log(`📋 Mode complément: dates déjà partiellement couvertes par ${numeroExistant}`);
       }
 
       // Générer le numéro de rapprochement
@@ -4425,8 +4467,8 @@ export default function RapprochementBancaire() {
       };
 
       toast({
-        title: "✅ Rapprochement validé",
-        description: `${numeroRapprochement} : ${statsFinales.total} transactions (${statsFinales.matched} rapprochées, ${statsFinales.unmatched} non rapprochées)`,
+        title: isComplement ? "✅ Complément validé" : "✅ Rapprochement validé",
+        description: `${numeroRapprochement} : ${statsFinales.total} transactions (${statsFinales.matched} rapprochées, ${statsFinales.unmatched} non rapprochées)${isComplement ? ' — Complément de mois' : ''}`,
       });
 
       // Recharger les factures pour mettre à jour le statut
