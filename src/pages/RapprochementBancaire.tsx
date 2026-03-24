@@ -4467,8 +4467,8 @@ export default function RapprochementBancaire() {
       };
 
       toast({
-        title: "✅ Rapprochement validé",
-        description: `${numeroRapprochement} : ${statsFinales.total} transactions (${statsFinales.matched} rapprochées, ${statsFinales.unmatched} non rapprochées)`,
+        title: isComplement ? "✅ Complément validé" : "✅ Rapprochement validé",
+        description: `${numeroRapprochement} : ${statsFinales.total} transactions (${statsFinales.matched} rapprochées, ${statsFinales.unmatched} non rapprochées)${isComplement ? ' — Complément de mois' : ''}`,
       });
 
       // Recharger les factures pour mettre à jour le statut
