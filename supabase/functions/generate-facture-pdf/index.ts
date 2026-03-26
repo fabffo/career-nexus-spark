@@ -108,13 +108,17 @@ serve(async (req) => {
     const leftMargin = 50;
     const rightMargin = 545;
 
+    // Déterminer si c'est un avoir
+    const isAvoir = (facture.total_ttc ?? 0) < 0 || facture.numero_facture?.startsWith('AVOIR-');
+    const titreDocument = isAvoir ? "AVOIR" : "FACTURE";
+
     // Titre
-    page.drawText("FACTURE", {
+    page.drawText(titreDocument, {
       x: leftMargin,
       y,
       size: 20,
       font: boldFont,
-      color: rgb(0, 0, 0),
+      color: isAvoir ? rgb(0.8, 0.2, 0) : rgb(0, 0, 0),
     });
 
     // Numéro de facture
@@ -323,6 +327,20 @@ serve(async (req) => {
       font,
       color: rgb(0, 0, 0),
     });
+
+    // Pour les avoirs, afficher la référence à la facture d'origine
+    if (isAvoir && facture.informations_paiement) {
+      y -= 5;
+      const avoirInfo = facture.informations_paiement.split('\n')[0] || '';
+      page.drawText(avoirInfo, {
+        x: leftMargin,
+        y,
+        size: 9,
+        font,
+        color: rgb(0.6, 0.2, 0),
+      });
+      y -= 20;
+    }
 
     y -= 40;
 
