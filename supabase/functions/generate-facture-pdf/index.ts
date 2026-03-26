@@ -328,6 +328,20 @@ serve(async (req) => {
       color: rgb(0, 0, 0),
     });
 
+    // Pour les avoirs, afficher la référence à la facture d'origine
+    if (isAvoir && facture.informations_paiement) {
+      y -= 5;
+      const avoirInfo = facture.informations_paiement.split('\n')[0] || '';
+      page.drawText(avoirInfo, {
+        x: leftMargin,
+        y,
+        size: 9,
+        font,
+        color: rgb(0.6, 0.2, 0),
+      });
+      y -= 20;
+    }
+
     y -= 40;
 
     // Tableau des lignes (7 colonnes comme dans la visualisation)
