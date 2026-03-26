@@ -606,9 +606,11 @@ export default function FacturesVentes() {
         let blob: Blob;
         let extension = "pdf";
 
-        // Priorité au fichier original si c'est une vraie référence storage, sinon fallback génération PDF
+        // Pour les avoirs, vérifier que le fichier stocké correspond bien à l'avoir et non à la facture d'origine
+        const isAvoir = (facture.total_ttc ?? 0) < 0 || facture.numero_facture?.startsWith('AVOIR-');
         const storageRef = parseStorageFileReference(facture.reference_societe);
-        if (storageRef) {
+        const storageMatchesInvoice = storageRef && (!isAvoir || (facture.reference_societe || '').toLowerCase().includes(facture.numero_facture?.replace('FAC-V-', '')?.replace('FAC-A-', '') || '___'));
+        if (storageRef && storageMatchesInvoice) {
           try {
             const { data: storageData, error: storageError } = await supabase.storage
               .from(storageRef.bucket)
