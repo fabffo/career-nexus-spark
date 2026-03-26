@@ -108,13 +108,17 @@ serve(async (req) => {
     const leftMargin = 50;
     const rightMargin = 545;
 
+    // Déterminer si c'est un avoir
+    const isAvoir = (facture.total_ttc ?? 0) < 0 || facture.numero_facture?.startsWith('AVOIR-');
+    const titreDocument = isAvoir ? "AVOIR" : "FACTURE";
+
     // Titre
-    page.drawText("FACTURE", {
+    page.drawText(titreDocument, {
       x: leftMargin,
       y,
       size: 20,
       font: boldFont,
-      color: rgb(0, 0, 0),
+      color: isAvoir ? rgb(0.8, 0.2, 0) : rgb(0, 0, 0),
     });
 
     // Numéro de facture
