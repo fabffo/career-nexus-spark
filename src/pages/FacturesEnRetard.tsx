@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ColumnDef } from "@tanstack/react-table";
 import { format, differenceInDays, parseISO, isAfter, isBefore, isEqual } from "date-fns";
 import { fr } from "date-fns/locale";
-import { AlertTriangle, Clock, CalendarX, TrendingDown, RefreshCw, ArrowUpRight, ArrowDownLeft, CalendarIcon, X, Filter, Users } from "lucide-react";
+import { AlertTriangle, Clock, CalendarX, TrendingDown, RefreshCw, ArrowUpRight, ArrowDownLeft, CalendarIcon, X, Filter, Users, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Types
