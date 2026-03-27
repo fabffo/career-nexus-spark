@@ -425,6 +425,7 @@ function FacturesContent({
   setSelectedClientIds,
 }: FacturesContentProps) {
 
+
   const toggleClient = (clientId: string) => {
     if (!setSelectedClientIds) return;
     if (selectedClientIds.includes(clientId)) {
@@ -442,6 +443,40 @@ function FacturesContent({
   const clearAllClients = () => {
     if (!setSelectedClientIds) return;
     setSelectedClientIds([]);
+  };
+
+  const handleExportCsv = () => {
+    if (facturesFiltrees.length === 0) return;
+
+    const BOM = '\uFEFF';
+    const headers = ['N° Facture', 'Partenaire', 'Type Partenaire', 'Date Émission', 'Date Échéance', 'Montant TTC', 'Jours de Retard', 'Tranche'];
+    const typeLabels: Record<string, string> = {
+      CLIENT: 'Client',
+      FOURNISSEUR_SERVICES: 'Fournisseur services',
+      FOURNISSEUR_GENERAL: 'Fournisseur général',
+      PRESTATAIRE: 'Prestataire',
+      SALARIE: 'Salarié',
+    };
+
+    const rows = facturesFiltrees.map(f => [
+      f.numero_facture,
+      f.partenaire_nom,
+      typeLabels[f.partenaire_type] || f.partenaire_type,
+      format(parseISO(f.date_emission), 'dd/MM/yyyy'),
+      format(parseISO(f.date_echeance), 'dd/MM/yyyy'),
+      f.total_ttc.toFixed(2).replace('.', ','),
+      String(f.jours_retard),
+      f.tranche_retard,
+    ]);
+
+    const csvContent = BOM + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `factures_en_retard_${typeLabel.toLowerCase()}_${format(new Date(), 'yyyyMMdd')}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   // Calculer les stats par client pour l'onglet Ventes
