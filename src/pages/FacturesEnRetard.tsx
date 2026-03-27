@@ -594,6 +594,8 @@ function FacturesContent({
                   Export CSV ({facturesFiltrees.length})
                 </Button>
               </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Client multi-select filter - only for Ventes */}
                 {showClientFilter && setSelectedClientIds && (
                   <Popover>
                     <PopoverTrigger asChild>
