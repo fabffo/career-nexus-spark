@@ -333,27 +333,28 @@ export default function TvaMensuel() {
       const lastDay = new Date(year, month, 0).getDate();
       const endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
 
-      // Charger le fichier de rapprochement validé
-      const { data: fichier, error: fichierError } = await supabase
+      // Charger TOUS les fichiers de rapprochement validés qui couvrent ce mois
+      // Un fichier est pertinent si ses dates chevauchent le mois sélectionné
+      const { data: fichiers, error: fichierError } = await supabase
         .from("fichiers_rapprochement")
         .select("id")
         .eq("statut", "VALIDE")
-        .gte("date_debut", startDate)
-        .lte("date_fin", endDate)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .lte("date_debut", endDate)
+        .gte("date_fin", startDate)
+        .order("date_debut", { ascending: true });
 
       if (fichierError) throw fichierError;
 
-      if (!fichier) {
+      if (!fichiers || fichiers.length === 0) {
         setLignes([]);
         setStats({ tva_collectee: 0, tva_deductible: 0, tva_a_payer: 0 });
         setHasUnsavedChanges(false);
         return;
       }
 
-      // Charger les lignes de rapprochement avec leurs associations
+      const fichierIds = fichiers.map(f => f.id);
+
+      // Charger les lignes de rapprochement de TOUS les fichiers, filtrées par dates du mois
       const { data: lignesRapprochement, error: lignesError } = await supabase
         .from("lignes_rapprochement")
         .select(`
@@ -361,7 +362,9 @@ export default function TvaMensuel() {
           abonnements_partenaires (id, nom, type),
           declarations_charges_sociales (id, nom, organisme)
         `)
-        .eq("fichier_rapprochement_id", fichier.id)
+        .in("fichier_rapprochement_id", fichierIds)
+        .gte("transaction_date", startDate)
+        .lte("transaction_date", endDate)
         .order("transaction_date", { ascending: true });
 
       if (lignesError) throw lignesError;
