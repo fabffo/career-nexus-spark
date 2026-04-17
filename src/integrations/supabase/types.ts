@@ -2235,6 +2235,63 @@ export type Database = {
           },
         ]
       }
+      paiements_abonnements_justificatifs: {
+        Row: {
+          abonnement_id: string
+          annee: number | null
+          created_at: string
+          created_by: string | null
+          document_url: string
+          id: string
+          ligne_rapprochement_id: string | null
+          nom_fichier: string
+          notes: string | null
+          portee: string
+          updated_at: string
+        }
+        Insert: {
+          abonnement_id: string
+          annee?: number | null
+          created_at?: string
+          created_by?: string | null
+          document_url: string
+          id?: string
+          ligne_rapprochement_id?: string | null
+          nom_fichier: string
+          notes?: string | null
+          portee: string
+          updated_at?: string
+        }
+        Update: {
+          abonnement_id?: string
+          annee?: number | null
+          created_at?: string
+          created_by?: string | null
+          document_url?: string
+          id?: string
+          ligne_rapprochement_id?: string | null
+          nom_fichier?: string
+          notes?: string | null
+          portee?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paiements_abonnements_justificatifs_abonnement_id_fkey"
+            columns: ["abonnement_id"]
+            isOneToOne: false
+            referencedRelation: "abonnements_partenaires"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paiements_abonnements_justificatifs_ligne_rapprochement_id_fkey"
+            columns: ["ligne_rapprochement_id"]
+            isOneToOne: false
+            referencedRelation: "lignes_rapprochement"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       paiements_declarations_charges: {
         Row: {
           created_at: string | null
