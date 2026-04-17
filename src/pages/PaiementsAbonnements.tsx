@@ -442,7 +442,7 @@ export default function PaiementsAbonnements() {
       </div>
 
       {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Total paiements</div>
           <div className="text-2xl font-bold">{stats.countDebits}</div>
@@ -468,6 +468,19 @@ export default function PaiementsAbonnements() {
           </div>
           <div className={`text-sm ${soldeNetTTC > 0 ? "text-red-600" : soldeNetTTC < 0 ? "text-green-600" : "text-muted-foreground"}`}>
             {soldeNetTTC.toFixed(2)} € TTC
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground">Justificatifs</div>
+          <div className="flex items-center gap-2 mt-1">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <span className="text-lg font-bold text-green-600">{justifCounts.ok}</span>
+            <span className="text-xs text-muted-foreground">OK</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-orange-500" />
+            <span className="text-sm font-semibold text-orange-600">{justifCounts.missing}</span>
+            <span className="text-xs text-muted-foreground">manquants</span>
           </div>
         </Card>
       </div>
