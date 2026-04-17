@@ -159,6 +159,8 @@ export default function RapprochementBancaire() {
   const [typePartenaireFilterHistorique, setTypePartenaireFilterHistorique] = useState<string>("all");
   const [currentPageHistorique, setCurrentPageHistorique] = useState(1);
   const [itemsPerPageHistorique, setItemsPerPageHistorique] = useState(20);
+  const [filterAnneeHistorique, setFilterAnneeHistorique] = useState<string>("all");
+  const [filterMoisHistorique, setFilterMoisHistorique] = useState<string>("all");
   
   // États pour le dialogue de rapprochement inverse
   const [inverseDialogOpen, setInverseDialogOpen] = useState(false);
