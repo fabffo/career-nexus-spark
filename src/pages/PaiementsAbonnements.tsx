@@ -30,6 +30,13 @@ export default function PaiementsAbonnements() {
   const [moisSelectionne, setMoisSelectionne] = useState<number | null>(null);
   const [activiteFilter, setActiviteFilter] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [justifFilter, setJustifFilter] = useState<"all" | "ok" | "missing">("all");
+  const [openJustif, setOpenJustif] = useState<{
+    ligneId: string;
+    abonnementId: string;
+    abonnementNom: string;
+    datePaiement: string;
+  } | null>(null);
 
   // Charger les activités pour le mapping
   const { data: activitesOptions = [] } = useQuery({
