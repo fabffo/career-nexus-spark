@@ -71,12 +71,38 @@ export default function PaiementsAbonnements() {
     moisSelectionne,
   });
 
-  // Appliquer les filtres Activité et Type
+  // Charger en bulk tous les justificatifs des abonnements concernés
+  const abonnementIds = useMemo(
+    () => paiementsRaw.map((p) => p.abonnement?.id).filter(Boolean) as string[],
+    [paiementsRaw],
+  );
+  const { data: justificatifs = [] } = useJustificatifsBulk(abonnementIds);
+
+  // Helper : justificatif applicable à une ligne
+  const getJustifFor = (p: Paiement) =>
+    pickJustificatifForLine(justificatifs, p.abonnement?.id, p.id, p.date_paiement);
+
+  // Appliquer les filtres Activité, Type et Justificatif
   const paiements = paiementsRaw.filter((p) => {
     if (activiteFilter && p.abonnement?.activite !== activiteFilter) return false;
     if (typeFilter && p.abonnement?.type !== typeFilter) return false;
+    if (justifFilter !== "all") {
+      const has = !!getJustifFor(p);
+      if (justifFilter === "ok" && !has) return false;
+      if (justifFilter === "missing" && has) return false;
+    }
     return true;
   });
+
+  // Compteurs globaux justificatifs
+  const justifCounts = paiementsRaw.reduce(
+    (acc, p) => {
+      if (getJustifFor(p)) acc.ok += 1;
+      else acc.missing += 1;
+      return acc;
+    },
+    { ok: 0, missing: 0 },
+  );
 
   // Fonction pour calculer le montant HT d'un paiement
   const getMontantHT = (p: Paiement): number => {
