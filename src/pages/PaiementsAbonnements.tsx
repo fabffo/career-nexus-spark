@@ -429,6 +429,15 @@ export default function PaiementsAbonnements() {
               </option>
             ))}
           </select>
+          <select
+            value={justifFilter}
+            onChange={(e) => setJustifFilter(e.target.value as "all" | "ok" | "missing")}
+            className="border rounded-md px-4 py-2 bg-background"
+          >
+            <option value="all">Tous justificatifs</option>
+            <option value="ok">Avec justificatif</option>
+            <option value="missing">Sans justificatif</option>
+          </select>
         </div>
       </div>
 
