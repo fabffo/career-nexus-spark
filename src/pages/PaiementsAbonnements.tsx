@@ -1,13 +1,20 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
+import { CheckCircle2, AlertCircle, FileText } from "lucide-react";
 import { usePaiementsAbonnements } from "@/features/paiementsAbonnements/usePaiementsAbonnements";
 import type { PaiementAbonnementRow as Paiement } from "@/features/paiementsAbonnements/types";
 import { getDisplayAmount, getTauxTva, isRefund } from "@/features/paiementsAbonnements/utils";
+import {
+  useJustificatifsBulk,
+  pickJustificatifForLine,
+} from "@/features/paiementsAbonnements/useJustificatifs";
+import { JustificatifPaiementDialog } from "@/components/paiementsAbonnements/JustificatifPaiementDialog";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -23,6 +30,13 @@ export default function PaiementsAbonnements() {
   const [moisSelectionne, setMoisSelectionne] = useState<number | null>(null);
   const [activiteFilter, setActiviteFilter] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [justifFilter, setJustifFilter] = useState<"all" | "ok" | "missing">("all");
+  const [openJustif, setOpenJustif] = useState<{
+    ligneId: string;
+    abonnementId: string;
+    abonnementNom: string;
+    datePaiement: string;
+  } | null>(null);
 
   // Charger les activités pour le mapping
   const { data: activitesOptions = [] } = useQuery({
@@ -57,12 +71,38 @@ export default function PaiementsAbonnements() {
     moisSelectionne,
   });
 
-  // Appliquer les filtres Activité et Type
+  // Charger en bulk tous les justificatifs des abonnements concernés
+  const abonnementIds = useMemo(
+    () => paiementsRaw.map((p) => p.abonnement?.id).filter(Boolean) as string[],
+    [paiementsRaw],
+  );
+  const { data: justificatifs = [] } = useJustificatifsBulk(abonnementIds);
+
+  // Helper : justificatif applicable à une ligne
+  const getJustifFor = (p: Paiement) =>
+    pickJustificatifForLine(justificatifs, p.abonnement?.id, p.id, p.date_paiement);
+
+  // Appliquer les filtres Activité, Type et Justificatif
   const paiements = paiementsRaw.filter((p) => {
     if (activiteFilter && p.abonnement?.activite !== activiteFilter) return false;
     if (typeFilter && p.abonnement?.type !== typeFilter) return false;
+    if (justifFilter !== "all") {
+      const has = !!getJustifFor(p);
+      if (justifFilter === "ok" && !has) return false;
+      if (justifFilter === "missing" && has) return false;
+    }
     return true;
   });
+
+  // Compteurs globaux justificatifs
+  const justifCounts = paiementsRaw.reduce(
+    (acc, p) => {
+      if (getJustifFor(p)) acc.ok += 1;
+      else acc.missing += 1;
+      return acc;
+    },
+    { ok: 0, missing: 0 },
+  );
 
   // Fonction pour calculer le montant HT d'un paiement
   const getMontantHT = (p: Paiement): number => {
@@ -276,6 +316,39 @@ export default function PaiementsAbonnements() {
       ),
     },
     {
+      id: "justificatif",
+      header: "Justificatif",
+      cell: ({ row }) => {
+        const p = row.original;
+        const j = getJustifFor(p);
+        const aboId = p.abonnement?.id;
+        if (!aboId) return <span className="text-muted-foreground">-</span>;
+        return (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2"
+            onClick={() =>
+              setOpenJustif({
+                ligneId: p.id,
+                abonnementId: aboId,
+                abonnementNom: p.abonnement?.nom || "",
+                datePaiement: p.date_paiement,
+              })
+            }
+            title={j ? `${j.nom_fichier} (${j.portee})` : "Aucun justificatif"}
+          >
+            {j ? (
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+            ) : (
+              <AlertCircle className="h-4 w-4 text-orange-500" />
+            )}
+            <FileText className="h-4 w-4 ml-1 text-muted-foreground" />
+          </Button>
+        );
+      },
+    },
+    {
       accessorKey: "notes",
       header: "Notes",
       cell: ({ row }) => (
@@ -356,11 +429,20 @@ export default function PaiementsAbonnements() {
               </option>
             ))}
           </select>
+          <select
+            value={justifFilter}
+            onChange={(e) => setJustifFilter(e.target.value as "all" | "ok" | "missing")}
+            className="border rounded-md px-4 py-2 bg-background"
+          >
+            <option value="all">Tous justificatifs</option>
+            <option value="ok">Avec justificatif</option>
+            <option value="missing">Sans justificatif</option>
+          </select>
         </div>
       </div>
 
       {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Total paiements</div>
           <div className="text-2xl font-bold">{stats.countDebits}</div>
@@ -386,6 +468,19 @@ export default function PaiementsAbonnements() {
           </div>
           <div className={`text-sm ${soldeNetTTC > 0 ? "text-red-600" : soldeNetTTC < 0 ? "text-green-600" : "text-muted-foreground"}`}>
             {soldeNetTTC.toFixed(2)} € TTC
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground">Justificatifs</div>
+          <div className="flex items-center gap-2 mt-1">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <span className="text-lg font-bold text-green-600">{justifCounts.ok}</span>
+            <span className="text-xs text-muted-foreground">OK</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-orange-500" />
+            <span className="text-sm font-semibold text-orange-600">{justifCounts.missing}</span>
+            <span className="text-xs text-muted-foreground">manquants</span>
           </div>
         </Card>
       </div>
@@ -422,6 +517,17 @@ export default function PaiementsAbonnements() {
         data={paiements || []}
         searchPlaceholder="Rechercher un paiement..."
       />
+
+      {openJustif && (
+        <JustificatifPaiementDialog
+          open={!!openJustif}
+          onOpenChange={(o) => !o && setOpenJustif(null)}
+          ligneId={openJustif.ligneId}
+          abonnementId={openJustif.abonnementId}
+          abonnementNom={openJustif.abonnementNom}
+          datePaiement={openJustif.datePaiement}
+        />
+      )}
     </div>
   );
 }
