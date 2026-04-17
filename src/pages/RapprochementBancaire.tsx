@@ -6342,7 +6342,8 @@ export default function RapprochementBancaire() {
                     </Card>
                   ))}
                 </div>
-              )}
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
