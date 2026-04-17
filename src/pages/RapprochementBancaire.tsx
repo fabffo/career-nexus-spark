@@ -159,6 +159,8 @@ export default function RapprochementBancaire() {
   const [typePartenaireFilterHistorique, setTypePartenaireFilterHistorique] = useState<string>("all");
   const [currentPageHistorique, setCurrentPageHistorique] = useState(1);
   const [itemsPerPageHistorique, setItemsPerPageHistorique] = useState(20);
+  const [filterAnneeHistorique, setFilterAnneeHistorique] = useState<string>("all");
+  const [filterMoisHistorique, setFilterMoisHistorique] = useState<string>("all");
   
   // États pour le dialogue de rapprochement inverse
   const [inverseDialogOpen, setInverseDialogOpen] = useState(false);
@@ -5706,9 +5708,85 @@ export default function RapprochementBancaire() {
                   <History className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">Aucun rapprochement validé pour le moment</p>
                 </div>
-              ) : (
+              ) : (() => {
+                const anneesDisponibles = Array.from(
+                  new Set(fichiersRapprochement.map(f => new Date(f.date_debut).getFullYear()))
+                ).sort((a, b) => b - a);
+                const moisLabels = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+                const fichiersFiltres = fichiersRapprochement.filter(f => {
+                  if (filterAnneeHistorique === "all" && filterMoisHistorique === "all") return true;
+                  const debut = new Date(f.date_debut);
+                  const fin = new Date(f.date_fin);
+                  if (filterAnneeHistorique !== "all") {
+                    const annee = parseInt(filterAnneeHistorique);
+                    if (filterMoisHistorique !== "all") {
+                      const mois = parseInt(filterMoisHistorique);
+                      const moisDebut = new Date(annee, mois, 1);
+                      const moisFin = new Date(annee, mois + 1, 0);
+                      return debut <= moisFin && fin >= moisDebut;
+                    }
+                    return debut.getFullYear() === annee || fin.getFullYear() === annee;
+                  }
+                  if (filterMoisHistorique !== "all") {
+                    const mois = parseInt(filterMoisHistorique);
+                    return debut.getMonth() === mois || fin.getMonth() === mois;
+                  }
+                  return true;
+                });
+                return (
                 <div className="space-y-4">
-                  {fichiersRapprochement.map((fichier) => (
+                  {/* Filtres Année / Mois */}
+                  <div className="flex items-center gap-4 flex-wrap pb-2 border-b">
+                    <div className="flex items-center gap-2">
+                      <Filter className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Filtrer par période :</span>
+                    </div>
+                    <Select value={filterAnneeHistorique} onValueChange={(v) => { setFilterAnneeHistorique(v); setSelectedFichier(null); }}>
+                      <SelectTrigger className="w-[140px] h-9">
+                        <SelectValue placeholder="Année" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Toutes années</SelectItem>
+                        {anneesDisponibles.map(a => (
+                          <SelectItem key={a} value={String(a)}>{a}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={filterMoisHistorique} onValueChange={(v) => { setFilterMoisHistorique(v); setSelectedFichier(null); }}>
+                      <SelectTrigger className="w-[160px] h-9">
+                        <SelectValue placeholder="Mois" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tous les mois</SelectItem>
+                        {moisLabels.map((label, idx) => (
+                          <SelectItem key={idx} value={String(idx)}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {(filterAnneeHistorique !== "all" || filterMoisHistorique !== "all") && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setFilterAnneeHistorique("all");
+                            setFilterMoisHistorique("all");
+                            setSelectedFichier(null);
+                          }}
+                        >
+                          Réinitialiser
+                        </Button>
+                        <span className="text-sm text-muted-foreground ml-auto">
+                          {fichiersFiltres.length} rapprochement{fichiersFiltres.length > 1 ? "s" : ""}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  {fichiersFiltres.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      Aucun rapprochement pour la période sélectionnée
+                    </div>
+                  ) : fichiersFiltres.map((fichier) => (
                     <Card key={fichier.id} className="hover:bg-muted/50 transition-colors cursor-pointer"
                       onClick={() => setSelectedFichier(selectedFichier?.id === fichier.id ? null : fichier)}
                     >
@@ -6264,7 +6342,8 @@ export default function RapprochementBancaire() {
                     </Card>
                   ))}
                 </div>
-              )}
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
