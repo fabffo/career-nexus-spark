@@ -1,13 +1,20 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
+import { CheckCircle2, AlertCircle, FileText } from "lucide-react";
 import { usePaiementsAbonnements } from "@/features/paiementsAbonnements/usePaiementsAbonnements";
 import type { PaiementAbonnementRow as Paiement } from "@/features/paiementsAbonnements/types";
 import { getDisplayAmount, getTauxTva, isRefund } from "@/features/paiementsAbonnements/utils";
+import {
+  useJustificatifsBulk,
+  pickJustificatifForLine,
+} from "@/features/paiementsAbonnements/useJustificatifs";
+import { JustificatifPaiementDialog } from "@/components/paiementsAbonnements/JustificatifPaiementDialog";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
