@@ -517,6 +517,17 @@ export default function PaiementsAbonnements() {
         data={paiements || []}
         searchPlaceholder="Rechercher un paiement..."
       />
+
+      {openJustif && (
+        <JustificatifPaiementDialog
+          open={!!openJustif}
+          onOpenChange={(o) => !o && setOpenJustif(null)}
+          ligneId={openJustif.ligneId}
+          abonnementId={openJustif.abonnementId}
+          abonnementNom={openJustif.abonnementNom}
+          datePaiement={openJustif.datePaiement}
+        />
+      )}
     </div>
   );
 }
