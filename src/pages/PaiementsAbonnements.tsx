@@ -316,6 +316,39 @@ export default function PaiementsAbonnements() {
       ),
     },
     {
+      id: "justificatif",
+      header: "Justificatif",
+      cell: ({ row }) => {
+        const p = row.original;
+        const j = getJustifFor(p);
+        const aboId = p.abonnement?.id;
+        if (!aboId) return <span className="text-muted-foreground">-</span>;
+        return (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2"
+            onClick={() =>
+              setOpenJustif({
+                ligneId: p.id,
+                abonnementId: aboId,
+                abonnementNom: p.abonnement?.nom || "",
+                datePaiement: p.date_paiement,
+              })
+            }
+            title={j ? `${j.nom_fichier} (${j.portee})` : "Aucun justificatif"}
+          >
+            {j ? (
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+            ) : (
+              <AlertCircle className="h-4 w-4 text-orange-500" />
+            )}
+            <FileText className="h-4 w-4 ml-1 text-muted-foreground" />
+          </Button>
+        );
+      },
+    },
+    {
       accessorKey: "notes",
       header: "Notes",
       cell: ({ row }) => (
