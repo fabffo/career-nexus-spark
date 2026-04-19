@@ -215,17 +215,21 @@ export function JustificatifPaiementDialog({
                       {PORTEE_LABELS[j.portee]}
                       {j.portee === "ANNUEL" && ` ${j.annee}`}
                     </Badge>
-                    <span className="truncate text-sm">{j.nom_fichier}</span>
+                    <span className="truncate text-sm">
+                      {j.nom_fichier || (j.notes ?? "Exempté")}
+                    </span>
                   </div>
                   <div className="flex gap-1">
-                    <Button size="sm" variant="ghost" onClick={() => downloadJustificatif(j)}>
-                      <Download className="h-4 w-4" />
-                    </Button>
+                    {j.document_url && (
+                      <Button size="sm" variant="ghost" onClick={() => downloadJustificatif(j)}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => {
-                        if (confirm(`Supprimer "${j.nom_fichier}" ?`)) del.mutate(j);
+                        if (confirm(`Supprimer "${j.nom_fichier || "ce marqueur"}" ?`)) del.mutate(j);
                       }}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
