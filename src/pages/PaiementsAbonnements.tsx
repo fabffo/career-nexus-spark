@@ -179,6 +179,7 @@ export default function PaiementsAbonnements() {
     },
     {
       id: "abonnement",
+      accessorFn: (row) => row.abonnement?.nom || "",
       header: "Abonnement",
       cell: ({ row }) => (
         <span className="font-medium">{row.original.abonnement?.nom || "-"}</span>
@@ -186,6 +187,10 @@ export default function PaiementsAbonnements() {
     },
     {
       id: "activite",
+      accessorFn: (row) => {
+        const code = row.abonnement?.activite;
+        return code ? (activitesMap[code] || code) : "";
+      },
       header: "Activité",
       cell: ({ row }) => {
         const activite = row.original.abonnement?.activite;
@@ -197,6 +202,10 @@ export default function PaiementsAbonnements() {
     },
     {
       id: "type",
+      accessorFn: (row) => {
+        const t = row.abonnement?.type;
+        return t ? (TYPE_LABELS[t] || t) : "";
+      },
       header: "Type",
       cell: ({ row }) => {
         const type = row.original.abonnement?.type;
@@ -207,6 +216,17 @@ export default function PaiementsAbonnements() {
     },
     {
       id: "montant_ht",
+      accessorFn: (row) => {
+        if (row.stored_total_ht !== null && row.stored_total_ht !== undefined) {
+          return Math.abs(Number(row.stored_total_ht));
+        }
+        const ttc = Math.abs(Number(row.montant));
+        const tvaStr = row.abonnement?.tva;
+        if (!tvaStr) return ttc;
+        const taux = getTauxTva(tvaStr);
+        return ttc / (1 + taux / 100);
+      },
+      sortingFn: "basic",
       header: "Montant HT",
       cell: ({ row }) => {
         const refund = isRefund(row.original);
