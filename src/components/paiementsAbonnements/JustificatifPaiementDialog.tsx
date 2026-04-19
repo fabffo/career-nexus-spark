@@ -20,12 +20,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Download, FileText, Loader2, Trash2, Upload } from "lucide-react";
+import { Download, FileText, Loader2, Trash2, Upload, BadgeCheck } from "lucide-react";
 import {
   downloadJustificatif,
   pickJustificatifForLine,
   useDeleteJustificatif,
   useJustificatifsAbonnement,
+  useMarkExempte,
   useUploadJustificatif,
   type JustificatifPortee,
 } from "@/features/paiementsAbonnements/useJustificatifs";
@@ -43,12 +44,14 @@ const PORTEE_LABELS: Record<JustificatifPortee, string> = {
   GLOBAL: "Global (toutes lignes)",
   ANNUEL: "Annuel (toute l'année)",
   MENSUEL: "Mensuel (cette ligne uniquement)",
+  EXEMPTE: "Pas de justificatif requis",
 };
 
 const PORTEE_BADGE: Record<JustificatifPortee, string> = {
   GLOBAL: "bg-purple-100 text-purple-800 hover:bg-purple-100",
   ANNUEL: "bg-blue-100 text-blue-800 hover:bg-blue-100",
   MENSUEL: "bg-green-100 text-green-800 hover:bg-green-100",
+  EXEMPTE: "bg-slate-200 text-slate-800 hover:bg-slate-200",
 };
 
 export function JustificatifPaiementDialog({
@@ -68,6 +71,7 @@ export function JustificatifPaiementDialog({
   const { data: justifs = [], isLoading } = useJustificatifsAbonnement(abonnementId);
   const upload = useUploadJustificatif();
   const del = useDeleteJustificatif();
+  const markExempte = useMarkExempte();
 
   const applicable = pickJustificatifForLine(justifs, abonnementId, ligneId, datePaiement);
 
