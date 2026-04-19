@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-export type JustificatifPortee = "GLOBAL" | "ANNUEL" | "MENSUEL";
+export type JustificatifPortee = "GLOBAL" | "ANNUEL" | "MENSUEL" | "EXEMPTE";
 
 export type JustificatifRow = {
   id: string;
@@ -10,8 +10,8 @@ export type JustificatifRow = {
   portee: JustificatifPortee;
   annee: number | null;
   ligne_rapprochement_id: string | null;
-  document_url: string;
-  nom_fichier: string;
+  document_url: string | null;
+  nom_fichier: string | null;
   notes: string | null;
   created_at: string;
 };
@@ -68,12 +68,48 @@ export function pickJustificatifForLine(
   if (!abonnementId) return null;
   const annee = new Date(dateIso).getFullYear();
   const candidates = justificatifs.filter((j) => j.abonnement_id === abonnementId);
+  // Priorité : EXEMPTE (par ligne) > MENSUEL > ANNUEL > GLOBAL
+  const exempte = candidates.find((j) => j.portee === "EXEMPTE" && j.ligne_rapprochement_id === ligneId);
+  if (exempte) return exempte;
   const mensuel = candidates.find((j) => j.portee === "MENSUEL" && j.ligne_rapprochement_id === ligneId);
   if (mensuel) return mensuel;
   const annuel = candidates.find((j) => j.portee === "ANNUEL" && j.annee === annee);
   if (annuel) return annuel;
   const global = candidates.find((j) => j.portee === "GLOBAL");
   return global || null;
+}
+
+/**
+ * Crée un marqueur "Pas de justificatif requis" pour une ligne.
+ */
+export function useMarkExempte() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: {
+      abonnement_id: string;
+      ligne_rapprochement_id: string;
+      notes?: string | null;
+    }) => {
+      const { error } = await supabase
+        .from("paiements_abonnements_justificatifs")
+        .insert({
+          abonnement_id: params.abonnement_id,
+          portee: "EXEMPTE",
+          annee: null,
+          ligne_rapprochement_id: params.ligne_rapprochement_id,
+          document_url: null,
+          nom_fichier: null,
+          notes: params.notes ?? "Pas de justificatif requis",
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Ligne marquée comme exemptée");
+      qc.invalidateQueries({ queryKey: ["paj-justificatifs"] });
+      qc.invalidateQueries({ queryKey: ["paj-justificatifs-bulk"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Erreur"),
+  });
 }
 
 export function useUploadJustificatif() {
@@ -123,7 +159,9 @@ export function useDeleteJustificatif() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (justif: JustificatifRow) => {
-      await supabase.storage.from(BUCKET).remove([justif.document_url]);
+      if (justif.document_url) {
+        await supabase.storage.from(BUCKET).remove([justif.document_url]);
+      }
       const { error } = await supabase
         .from("paiements_abonnements_justificatifs")
         .delete()
@@ -140,6 +178,10 @@ export function useDeleteJustificatif() {
 }
 
 export async function downloadJustificatif(justif: JustificatifRow) {
+  if (!justif.document_url || !justif.nom_fichier) {
+    toast.error("Aucun fichier associé (ligne exemptée)");
+    return;
+  }
   try {
     const { data, error } = await supabase.storage.from(BUCKET).download(justif.document_url);
     if (error) throw error;
