@@ -264,7 +264,9 @@ export default function PaiementsAbonnements() {
       },
     },
     {
-      accessorKey: "montant",
+      id: "montant_ttc",
+      accessorFn: (row) => getDisplayAmount(row),
+      sortingFn: "basic",
       header: "Montant TTC",
       cell: ({ row }) => {
         const displayAmount = getDisplayAmount(row.original);
@@ -278,6 +280,18 @@ export default function PaiementsAbonnements() {
     },
     {
       id: "tva",
+      accessorFn: (row) => {
+        if (row.stored_total_tva !== null && row.stored_total_tva !== undefined) {
+          return Math.abs(Number(row.stored_total_tva));
+        }
+        const tvaStr = row.abonnement?.tva;
+        if (!tvaStr) return 0;
+        const taux = getTauxTva(tvaStr);
+        if (taux === 0) return 0;
+        const ttc = Math.abs(Number(row.montant));
+        return ttc - ttc / (1 + taux / 100);
+      },
+      sortingFn: "basic",
       header: "TVA",
       cell: ({ row }) => {
         const refund = isRefund(row.original);
@@ -316,6 +330,7 @@ export default function PaiementsAbonnements() {
     },
     {
       id: "type_operation",
+      accessorFn: (row) => (isRefund(row) ? "Remboursement" : "Paiement"),
       header: "Type",
       cell: ({ row }) => {
         const refund = isRefund(row.original);
@@ -328,6 +343,7 @@ export default function PaiementsAbonnements() {
     },
     {
       id: "rapprochement",
+      accessorFn: (row) => row.rapprochement?.transaction_libelle || "",
       header: "Rapprochement",
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground max-w-xs truncate block">
