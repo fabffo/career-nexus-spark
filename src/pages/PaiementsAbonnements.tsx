@@ -336,10 +336,16 @@ export default function PaiementsAbonnements() {
                 datePaiement: p.date_paiement,
               })
             }
-            title={j ? `${j.nom_fichier} (${j.portee})` : "Aucun justificatif"}
+            title={
+              j
+                ? j.portee === "EXEMPTE"
+                  ? `Pas de justificatif requis${j.notes ? ` — ${j.notes}` : ""}`
+                  : `${j.nom_fichier} (${j.portee})`
+                : "Aucun justificatif"
+            }
           >
             {j ? (
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <CheckCircle2 className={`h-4 w-4 ${j.portee === "EXEMPTE" ? "text-slate-500" : "text-green-600"}`} />
             ) : (
               <AlertCircle className="h-4 w-4 text-orange-500" />
             )}

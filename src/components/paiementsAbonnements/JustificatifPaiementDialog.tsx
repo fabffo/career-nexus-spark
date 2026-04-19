@@ -20,12 +20,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Download, FileText, Loader2, Trash2, Upload } from "lucide-react";
+import { Download, FileText, Loader2, Trash2, Upload, BadgeCheck } from "lucide-react";
 import {
   downloadJustificatif,
   pickJustificatifForLine,
   useDeleteJustificatif,
   useJustificatifsAbonnement,
+  useMarkExempte,
   useUploadJustificatif,
   type JustificatifPortee,
 } from "@/features/paiementsAbonnements/useJustificatifs";
@@ -43,12 +44,14 @@ const PORTEE_LABELS: Record<JustificatifPortee, string> = {
   GLOBAL: "Global (toutes lignes)",
   ANNUEL: "Annuel (toute l'année)",
   MENSUEL: "Mensuel (cette ligne uniquement)",
+  EXEMPTE: "Pas de justificatif requis",
 };
 
 const PORTEE_BADGE: Record<JustificatifPortee, string> = {
   GLOBAL: "bg-purple-100 text-purple-800 hover:bg-purple-100",
   ANNUEL: "bg-blue-100 text-blue-800 hover:bg-blue-100",
   MENSUEL: "bg-green-100 text-green-800 hover:bg-green-100",
+  EXEMPTE: "bg-slate-200 text-slate-800 hover:bg-slate-200",
 };
 
 export function JustificatifPaiementDialog({
@@ -68,6 +71,7 @@ export function JustificatifPaiementDialog({
   const { data: justifs = [], isLoading } = useJustificatifsAbonnement(abonnementId);
   const upload = useUploadJustificatif();
   const del = useDeleteJustificatif();
+  const markExempte = useMarkExempte();
 
   const applicable = pickJustificatifForLine(justifs, abonnementId, ligneId, datePaiement);
 
@@ -108,15 +112,42 @@ export function JustificatifPaiementDialog({
                   {PORTEE_LABELS[applicable.portee]}
                   {applicable.portee === "ANNUEL" && ` ${applicable.annee}`}
                 </Badge>
-                <span className="truncate text-sm">{applicable.nom_fichier}</span>
+                <span className="truncate text-sm">
+                  {applicable.nom_fichier || (applicable.notes ?? "Exempté")}
+                </span>
               </div>
-              <Button size="sm" variant="outline" onClick={() => downloadJustificatif(applicable)}>
-                <Download className="h-4 w-4 mr-1" /> Télécharger
-              </Button>
+              {applicable.document_url && (
+                <Button size="sm" variant="outline" onClick={() => downloadJustificatif(applicable)}>
+                  <Download className="h-4 w-4 mr-1" /> Télécharger
+                </Button>
+              )}
             </div>
           ) : (
             <div className="text-sm text-muted-foreground">Aucun justificatif disponible.</div>
           )}
+        </div>
+
+        {/* Marquer comme exempté (cette ligne uniquement) */}
+        <div className="rounded-md border p-3 bg-muted/10">
+          <div className="text-sm font-medium mb-1">Pas de justificatif requis</div>
+          <p className="text-xs text-muted-foreground mb-2">
+            Marquer cette ligne comme valide sans téléverser de fichier.
+          </p>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={markExempte.isPending}
+            onClick={() =>
+              markExempte.mutate({
+                abonnement_id: abonnementId,
+                ligne_rapprochement_id: ligneId,
+                notes: notes || null,
+              })
+            }
+          >
+            <BadgeCheck className="h-4 w-4 mr-1" />
+            Marquer comme "Pas de justificatif requis"
+          </Button>
         </div>
 
         {/* Ajouter */}
@@ -184,17 +215,21 @@ export function JustificatifPaiementDialog({
                       {PORTEE_LABELS[j.portee]}
                       {j.portee === "ANNUEL" && ` ${j.annee}`}
                     </Badge>
-                    <span className="truncate text-sm">{j.nom_fichier}</span>
+                    <span className="truncate text-sm">
+                      {j.nom_fichier || (j.notes ?? "Exempté")}
+                    </span>
                   </div>
                   <div className="flex gap-1">
-                    <Button size="sm" variant="ghost" onClick={() => downloadJustificatif(j)}>
-                      <Download className="h-4 w-4" />
-                    </Button>
+                    {j.document_url && (
+                      <Button size="sm" variant="ghost" onClick={() => downloadJustificatif(j)}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => {
-                        if (confirm(`Supprimer "${j.nom_fichier}" ?`)) del.mutate(j);
+                        if (confirm(`Supprimer "${j.nom_fichier || "ce marqueur"}" ?`)) del.mutate(j);
                       }}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />

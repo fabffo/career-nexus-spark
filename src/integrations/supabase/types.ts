@@ -2241,10 +2241,10 @@ export type Database = {
           annee: number | null
           created_at: string
           created_by: string | null
-          document_url: string
+          document_url: string | null
           id: string
           ligne_rapprochement_id: string | null
-          nom_fichier: string
+          nom_fichier: string | null
           notes: string | null
           portee: string
           updated_at: string
@@ -2254,10 +2254,10 @@ export type Database = {
           annee?: number | null
           created_at?: string
           created_by?: string | null
-          document_url: string
+          document_url?: string | null
           id?: string
           ligne_rapprochement_id?: string | null
-          nom_fichier: string
+          nom_fichier?: string | null
           notes?: string | null
           portee: string
           updated_at?: string
@@ -2267,10 +2267,10 @@ export type Database = {
           annee?: number | null
           created_at?: string
           created_by?: string | null
-          document_url?: string
+          document_url?: string | null
           id?: string
           ligne_rapprochement_id?: string | null
-          nom_fichier?: string
+          nom_fichier?: string | null
           notes?: string | null
           portee?: string
           updated_at?: string
