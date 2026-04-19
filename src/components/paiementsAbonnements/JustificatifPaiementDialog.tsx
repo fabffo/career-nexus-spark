@@ -112,15 +112,42 @@ export function JustificatifPaiementDialog({
                   {PORTEE_LABELS[applicable.portee]}
                   {applicable.portee === "ANNUEL" && ` ${applicable.annee}`}
                 </Badge>
-                <span className="truncate text-sm">{applicable.nom_fichier}</span>
+                <span className="truncate text-sm">
+                  {applicable.nom_fichier || (applicable.notes ?? "Exempté")}
+                </span>
               </div>
-              <Button size="sm" variant="outline" onClick={() => downloadJustificatif(applicable)}>
-                <Download className="h-4 w-4 mr-1" /> Télécharger
-              </Button>
+              {applicable.document_url && (
+                <Button size="sm" variant="outline" onClick={() => downloadJustificatif(applicable)}>
+                  <Download className="h-4 w-4 mr-1" /> Télécharger
+                </Button>
+              )}
             </div>
           ) : (
             <div className="text-sm text-muted-foreground">Aucun justificatif disponible.</div>
           )}
+        </div>
+
+        {/* Marquer comme exempté (cette ligne uniquement) */}
+        <div className="rounded-md border p-3 bg-muted/10">
+          <div className="text-sm font-medium mb-1">Pas de justificatif requis</div>
+          <p className="text-xs text-muted-foreground mb-2">
+            Marquer cette ligne comme valide sans téléverser de fichier.
+          </p>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={markExempte.isPending}
+            onClick={() =>
+              markExempte.mutate({
+                abonnement_id: abonnementId,
+                ligne_rapprochement_id: ligneId,
+                notes: notes || null,
+              })
+            }
+          >
+            <BadgeCheck className="h-4 w-4 mr-1" />
+            Marquer comme "Pas de justificatif requis"
+          </Button>
         </div>
 
         {/* Ajouter */}
