@@ -259,6 +259,44 @@ export default function RapprochementPrestataires() {
       }
     }
 
+    // Second pass: create groups for ventes that haven't been matched to any achat group
+    // (i.e. sales invoices for periods/clients with no corresponding purchase invoice)
+    for (const v of facturesVentes) {
+      if (usedVenteIds.has(v.id)) continue;
+      const d = new Date(v.date_emission);
+      const mois = d.getMonth() + 1;
+      const annee = d.getFullYear();
+      const period = `${annee}-${mois}`;
+      const clientNom = v.destinataire_nom || "-";
+      const groupKey = `(Sans achat)|${clientNom}|${period}`;
+
+      if (!groupMap.has(groupKey)) {
+        groupMap.set(groupKey, {
+          key: groupKey,
+          prestataire: "(Sans achat)",
+          client: clientNom,
+          mois,
+          annee,
+          moisLabel: MONTHS[mois - 1],
+          achats: [],
+          ventes: [],
+          totalAchatTTC: 0,
+          totalVenteTTC: 0,
+          allSolde: false,
+          statutPaiement: "non_solde",
+        });
+      }
+      const group = groupMap.get(groupKey)!;
+      group.ventes.push({
+        id: v.id,
+        numero: v.numero_facture,
+        ttc: v.total_ttc || 0,
+        rapprochee: !!v.numero_rapprochement || v.statut === "PAYEE",
+      });
+      group.totalVenteTTC += v.total_ttc || 0;
+      usedVenteIds.add(v.id);
+    }
+
     // Merge groups by client+period: if multiple prestataires for same client+period, combine them
     const clientPeriodMap = new Map<string, GroupeRapprochement[]>();
     for (const g of groupMap.values()) {
