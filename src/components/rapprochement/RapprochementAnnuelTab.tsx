@@ -161,7 +161,7 @@ export default function RapprochementAnnuelTab() {
     }
 
     return result;
-  }, [lignes, selectedPartenaire, searchTerm, sortColumn, sortDirection]);
+  }, [lignes, selectedPartenaire, selectedStatut, searchTerm, sortColumn, sortDirection]);
 
   const totals = useMemo(() => {
     return filteredLignes.reduce(
