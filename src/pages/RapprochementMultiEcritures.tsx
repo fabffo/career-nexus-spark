@@ -242,9 +242,21 @@ export default function RapprochementMultiEcritures() {
       const { error: insError } = await supabase.from("paiements_factures_multi").insert(rows);
       if (insError) throw insError;
 
+      // Synchroniser rapprochements_bancaires pour visibilité dans l'historique
+      for (const s of Array.from(selectedLignes.values())) {
+        const { error: updErr } = await supabase
+          .from("rapprochements_bancaires")
+          .update({
+            facture_id: selectedFacture.id,
+            notes: `MULTI: ${Number(s.montant_alloue).toFixed(2)} € sur facture ${selectedFacture.numero_facture}`,
+          })
+          .eq("id", s.ligne.id);
+        if (updErr) throw updErr;
+      }
+
       toast({
         title: "Rapprochement enregistré",
-        description: `${rows.length} écriture(s) liée(s). Statut : ${statutFacture}`,
+        description: `${rows.length} écriture(s) liée(s) et synchronisée(s). Statut : ${statutFacture}`,
       });
 
       // Recharger
@@ -263,6 +275,10 @@ export default function RapprochementMultiEcritures() {
   const handleDeleteAll = async () => {
     if (!selectedFacture) return;
     if (!confirm("Supprimer tous les rapprochements multi-écritures de cette facture ?")) return;
+
+    // Récupérer les ids des lignes liées avant suppression
+    const ligneIds = existingPaiements.map((p) => p.ligne_rapprochement_id);
+
     const { error } = await supabase
       .from("paiements_factures_multi")
       .delete()
@@ -271,6 +287,16 @@ export default function RapprochementMultiEcritures() {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
       return;
     }
+
+    // Désynchroniser rapprochements_bancaires
+    if (ligneIds.length > 0) {
+      await supabase
+        .from("rapprochements_bancaires")
+        .update({ facture_id: null, notes: null })
+        .in("id", ligneIds)
+        .eq("facture_id", selectedFacture.id);
+    }
+
     setSelectedLignes(new Map());
     setExistingPaiements([]);
     toast({ title: "Rapprochements supprimés" });
