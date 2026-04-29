@@ -43,11 +43,16 @@ interface SelectedLigne {
 export default function RapprochementMultiEcritures() {
   const [factures, setFactures] = useState<FactureAchat[]>([]);
   const [searchFacture, setSearchFacture] = useState("");
+  const [factureDateFrom, setFactureDateFrom] = useState("");
+  const [factureDateTo, setFactureDateTo] = useState("");
+  const [factureFournisseur, setFactureFournisseur] = useState("");
   const [selectedFacture, setSelectedFacture] = useState<FactureAchat | null>(null);
   const [existingPaiements, setExistingPaiements] = useState<PaiementMulti[]>([]);
 
   const [lignes, setLignes] = useState<LigneRapprochement[]>([]);
   const [searchLigne, setSearchLigne] = useState("");
+  const [ligneDateFrom, setLigneDateFrom] = useState("");
+  const [ligneDateTo, setLigneDateTo] = useState("");
   const [selectedLignes, setSelectedLignes] = useState<Map<string, SelectedLigne>>(new Map());
 
   const [loading, setLoading] = useState(false);
@@ -135,32 +140,47 @@ export default function RapprochementMultiEcritures() {
     })();
   }, [selectedFacture, lignes]);
 
+  const fournisseurs = useMemo(() => {
+    const set = new Set<string>();
+    factures.forEach((f) => f.destinataire_nom && set.add(f.destinataire_nom));
+    return Array.from(set).sort();
+  }, [factures]);
+
   const filteredFactures = useMemo(() => {
-    if (!searchFacture) return factures.slice(0, 50);
     const q = searchFacture.toLowerCase();
-    return factures
-      .filter(
-        (f) =>
+    let res = factures.filter((f) => {
+      if (factureFournisseur && f.destinataire_nom !== factureFournisseur) return false;
+      if (factureDateFrom && f.date_emission < factureDateFrom) return false;
+      if (factureDateTo && f.date_emission > factureDateTo) return false;
+      if (q) {
+        return (
           f.numero_facture?.toLowerCase().includes(q) ||
           f.destinataire_nom?.toLowerCase().includes(q) ||
           String(f.total_ttc).includes(q)
-      )
-      .slice(0, 50);
-  }, [factures, searchFacture]);
+        );
+      }
+      return true;
+    });
+    return res.slice(0, 50);
+  }, [factures, searchFacture, factureFournisseur, factureDateFrom, factureDateTo]);
 
   const filteredLignes = useMemo(() => {
-    if (!searchLigne) return lignes.slice(0, 100);
     const q = searchLigne.toLowerCase();
-    return lignes
-      .filter(
-        (l) =>
+    let res = lignes.filter((l) => {
+      if (ligneDateFrom && l.transaction_date < ligneDateFrom) return false;
+      if (ligneDateTo && l.transaction_date > ligneDateTo) return false;
+      if (q) {
+        return (
           l.numero_ligne?.toLowerCase().includes(q) ||
           l.transaction_libelle?.toLowerCase().includes(q) ||
           String(l.transaction_debit).includes(q) ||
           String(l.transaction_credit).includes(q)
-      )
-      .slice(0, 100);
-  }, [lignes, searchLigne]);
+        );
+      }
+      return true;
+    });
+    return res.slice(0, 100);
+  }, [lignes, searchLigne, ligneDateFrom, ligneDateTo]);
 
   const totalAlloue = useMemo(() => {
     return Array.from(selectedLignes.values()).reduce((sum, s) => sum + (Number(s.montant_alloue) || 0), 0);
@@ -281,6 +301,38 @@ export default function RapprochementMultiEcritures() {
                 className="pl-9"
               />
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Date du</Label>
+                <Input type="date" value={factureDateFrom} onChange={(e) => setFactureDateFrom(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">Date au</Label>
+                <Input type="date" value={factureDateTo} onChange={(e) => setFactureDateTo(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Fournisseur</Label>
+              <select
+                value={factureFournisseur}
+                onChange={(e) => setFactureFournisseur(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Tous les fournisseurs</option>
+                {fournisseurs.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            </div>
+            {(factureDateFrom || factureDateTo || factureFournisseur) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setFactureDateFrom(""); setFactureDateTo(""); setFactureFournisseur(""); }}
+              >
+                Réinitialiser les filtres
+              </Button>
+            )}
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -371,6 +423,25 @@ export default function RapprochementMultiEcritures() {
                 disabled={!selectedFacture}
               />
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Date du</Label>
+                <Input type="date" value={ligneDateFrom} onChange={(e) => setLigneDateFrom(e.target.value)} disabled={!selectedFacture} />
+              </div>
+              <div>
+                <Label className="text-xs">Date au</Label>
+                <Input type="date" value={ligneDateTo} onChange={(e) => setLigneDateTo(e.target.value)} disabled={!selectedFacture} />
+              </div>
+            </div>
+            {(ligneDateFrom || ligneDateTo) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setLigneDateFrom(""); setLigneDateTo(""); }}
+              >
+                Réinitialiser les filtres
+              </Button>
+            )}
             <div className="max-h-80 overflow-auto border rounded-md">
               <Table>
                 <TableHeader>
