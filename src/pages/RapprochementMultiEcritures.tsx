@@ -242,16 +242,29 @@ export default function RapprochementMultiEcritures() {
       const { error: insError } = await supabase.from("paiements_factures_multi").insert(rows);
       if (insError) throw insError;
 
-      // Synchroniser rapprochements_bancaires pour visibilité dans l'historique
+      // Synchroniser lignes_rapprochement (table source de l'historique)
+      // On retrouve la ligne d'historique via numero_ligne (clé fonctionnelle commune)
       for (const s of Array.from(selectedLignes.values())) {
-        const { error: updErr } = await supabase
+        // 1) màj rapprochements_bancaires (compat)
+        await supabase
           .from("rapprochements_bancaires")
           .update({
             facture_id: selectedFacture.id,
             notes: `MULTI: ${Number(s.montant_alloue).toFixed(2)} € sur facture ${selectedFacture.numero_facture}`,
           })
           .eq("id", s.ligne.id);
-        if (updErr) throw updErr;
+
+        // 2) màj lignes_rapprochement (visible dans Rapprochement bancaire historique)
+        const { error: updHistErr } = await supabase
+          .from("lignes_rapprochement")
+          .update({
+            facture_id: selectedFacture.id,
+            statut: "matched",
+            notes: `MULTI: ${Number(s.montant_alloue).toFixed(2)} € sur facture ${selectedFacture.numero_facture}`,
+            numero_facture: selectedFacture.numero_facture,
+          })
+          .eq("numero_ligne", s.ligne.numero_ligne);
+        if (updHistErr) throw updHistErr;
       }
 
       toast({
