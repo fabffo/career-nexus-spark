@@ -423,6 +423,25 @@ export default function RapprochementMultiEcritures() {
                 disabled={!selectedFacture}
               />
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Date du</Label>
+                <Input type="date" value={ligneDateFrom} onChange={(e) => setLigneDateFrom(e.target.value)} disabled={!selectedFacture} />
+              </div>
+              <div>
+                <Label className="text-xs">Date au</Label>
+                <Input type="date" value={ligneDateTo} onChange={(e) => setLigneDateTo(e.target.value)} disabled={!selectedFacture} />
+              </div>
+            </div>
+            {(ligneDateFrom || ligneDateTo) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setLigneDateFrom(""); setLigneDateTo(""); }}
+              >
+                Réinitialiser les filtres
+              </Button>
+            )}
             <div className="max-h-80 overflow-auto border rounded-md">
               <Table>
                 <TableHeader>
