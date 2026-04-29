@@ -132,6 +132,10 @@ export default function RapprochementAnnuelTab() {
       });
     }
 
+    if (selectedStatut !== "all") {
+      result = result.filter((l) => (l.statut || "").toLowerCase() === selectedStatut);
+    }
+
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       result = result.filter(
