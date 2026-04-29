@@ -301,6 +301,38 @@ export default function RapprochementMultiEcritures() {
                 className="pl-9"
               />
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Date du</Label>
+                <Input type="date" value={factureDateFrom} onChange={(e) => setFactureDateFrom(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">Date au</Label>
+                <Input type="date" value={factureDateTo} onChange={(e) => setFactureDateTo(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Fournisseur</Label>
+              <select
+                value={factureFournisseur}
+                onChange={(e) => setFactureFournisseur(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Tous les fournisseurs</option>
+                {fournisseurs.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            </div>
+            {(factureDateFrom || factureDateTo || factureFournisseur) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setFactureDateFrom(""); setFactureDateTo(""); setFactureFournisseur(""); }}
+              >
+                Réinitialiser les filtres
+              </Button>
+            )}
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin" />
