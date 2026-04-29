@@ -272,6 +272,18 @@ export default function RapprochementAnnuelTab() {
               </Select>
             </div>
 
+            <Select value={selectedStatut} onValueChange={(v) => { setSelectedStatut(v); setCurrentPage(1); }}>
+              <SelectTrigger className="w-[170px]">
+                <SelectValue placeholder="Tous les statuts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                <SelectItem value="matched">Rapproché</SelectItem>
+                <SelectItem value="uncertain">Incertain</SelectItem>
+                <SelectItem value="unmatched">Non rapproché</SelectItem>
+              </SelectContent>
+            </Select>
+
             <div className="relative flex-1 min-w-[150px] max-w-[300px]">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
