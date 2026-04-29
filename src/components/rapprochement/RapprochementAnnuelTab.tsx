@@ -61,6 +61,7 @@ export default function RapprochementAnnuelTab() {
   const [loading, setLoading] = useState(false);
   const [partenaires, setPartenaires] = useState<Partenaire[]>([]);
   const [selectedPartenaire, setSelectedPartenaire] = useState<string>("all");
+  const [selectedStatut, setSelectedStatut] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortColumn, setSortColumn] = useState<string | null>("transaction_date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
