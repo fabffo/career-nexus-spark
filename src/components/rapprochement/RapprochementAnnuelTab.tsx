@@ -442,12 +442,14 @@ export default function RapprochementAnnuelTab() {
                       <Badge
                         variant="outline"
                         className={`text-[10px] ${
-                          l.statut === "RAPPROCHE" ? "bg-green-100 text-green-800" :
-                          l.statut === "PARTIEL" ? "bg-yellow-100 text-yellow-800" :
+                          l.statut === "matched" || l.statut === "RAPPROCHE" ? "bg-green-100 text-green-800" :
+                          l.statut === "uncertain" || l.statut === "PARTIEL" ? "bg-yellow-100 text-yellow-800" :
                           "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {l.statut === "RAPPROCHE" ? "Rapproché" :
+                        {l.statut === "matched" || l.statut === "RAPPROCHE" ? "Rapproché" :
+                         l.statut === "uncertain" ? "Incertain" :
+                         l.statut === "unmatched" ? "Non rapproché" :
                          l.statut === "PARTIEL" ? "Partiel" :
                          l.statut === "EN_ATTENTE" ? "En attente" :
                          l.statut}
