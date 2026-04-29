@@ -140,32 +140,47 @@ export default function RapprochementMultiEcritures() {
     })();
   }, [selectedFacture, lignes]);
 
+  const fournisseurs = useMemo(() => {
+    const set = new Set<string>();
+    factures.forEach((f) => f.destinataire_nom && set.add(f.destinataire_nom));
+    return Array.from(set).sort();
+  }, [factures]);
+
   const filteredFactures = useMemo(() => {
-    if (!searchFacture) return factures.slice(0, 50);
     const q = searchFacture.toLowerCase();
-    return factures
-      .filter(
-        (f) =>
+    let res = factures.filter((f) => {
+      if (factureFournisseur && f.destinataire_nom !== factureFournisseur) return false;
+      if (factureDateFrom && f.date_emission < factureDateFrom) return false;
+      if (factureDateTo && f.date_emission > factureDateTo) return false;
+      if (q) {
+        return (
           f.numero_facture?.toLowerCase().includes(q) ||
           f.destinataire_nom?.toLowerCase().includes(q) ||
           String(f.total_ttc).includes(q)
-      )
-      .slice(0, 50);
-  }, [factures, searchFacture]);
+        );
+      }
+      return true;
+    });
+    return res.slice(0, 50);
+  }, [factures, searchFacture, factureFournisseur, factureDateFrom, factureDateTo]);
 
   const filteredLignes = useMemo(() => {
-    if (!searchLigne) return lignes.slice(0, 100);
     const q = searchLigne.toLowerCase();
-    return lignes
-      .filter(
-        (l) =>
+    let res = lignes.filter((l) => {
+      if (ligneDateFrom && l.transaction_date < ligneDateFrom) return false;
+      if (ligneDateTo && l.transaction_date > ligneDateTo) return false;
+      if (q) {
+        return (
           l.numero_ligne?.toLowerCase().includes(q) ||
           l.transaction_libelle?.toLowerCase().includes(q) ||
           String(l.transaction_debit).includes(q) ||
           String(l.transaction_credit).includes(q)
-      )
-      .slice(0, 100);
-  }, [lignes, searchLigne]);
+        );
+      }
+      return true;
+    });
+    return res.slice(0, 100);
+  }, [lignes, searchLigne, ligneDateFrom, ligneDateTo]);
 
   const totalAlloue = useMemo(() => {
     return Array.from(selectedLignes.values()).reduce((sum, s) => sum + (Number(s.montant_alloue) || 0), 0);
