@@ -301,13 +301,25 @@ export default function RapprochementMultiEcritures() {
       return;
     }
 
-    // Désynchroniser rapprochements_bancaires
+    // Désynchroniser rapprochements_bancaires + lignes_rapprochement (historique)
     if (ligneIds.length > 0) {
+      const numerosLignes = lignes
+        .filter((l) => ligneIds.includes(l.id))
+        .map((l) => l.numero_ligne);
+
       await supabase
         .from("rapprochements_bancaires")
         .update({ facture_id: null, notes: null })
         .in("id", ligneIds)
         .eq("facture_id", selectedFacture.id);
+
+      if (numerosLignes.length > 0) {
+        await supabase
+          .from("lignes_rapprochement")
+          .update({ facture_id: null, statut: "unmatched", notes: null, numero_facture: null })
+          .in("numero_ligne", numerosLignes)
+          .eq("facture_id", selectedFacture.id);
+      }
     }
 
     setSelectedLignes(new Map());
