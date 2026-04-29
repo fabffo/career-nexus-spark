@@ -43,11 +43,16 @@ interface SelectedLigne {
 export default function RapprochementMultiEcritures() {
   const [factures, setFactures] = useState<FactureAchat[]>([]);
   const [searchFacture, setSearchFacture] = useState("");
+  const [factureDateFrom, setFactureDateFrom] = useState("");
+  const [factureDateTo, setFactureDateTo] = useState("");
+  const [factureFournisseur, setFactureFournisseur] = useState("");
   const [selectedFacture, setSelectedFacture] = useState<FactureAchat | null>(null);
   const [existingPaiements, setExistingPaiements] = useState<PaiementMulti[]>([]);
 
   const [lignes, setLignes] = useState<LigneRapprochement[]>([]);
   const [searchLigne, setSearchLigne] = useState("");
+  const [ligneDateFrom, setLigneDateFrom] = useState("");
+  const [ligneDateTo, setLigneDateTo] = useState("");
   const [selectedLignes, setSelectedLignes] = useState<Map<string, SelectedLigne>>(new Map());
 
   const [loading, setLoading] = useState(false);
