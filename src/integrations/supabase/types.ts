@@ -2343,6 +2343,54 @@ export type Database = {
           },
         ]
       }
+      paiements_factures_multi: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          facture_id: string
+          id: string
+          ligne_rapprochement_id: string
+          montant_alloue: number
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          facture_id: string
+          id?: string
+          ligne_rapprochement_id: string
+          montant_alloue: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          facture_id?: string
+          id?: string
+          ligne_rapprochement_id?: string
+          montant_alloue?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paiements_factures_multi_facture_id_fkey"
+            columns: ["facture_id"]
+            isOneToOne: false
+            referencedRelation: "factures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paiements_factures_multi_ligne_rapprochement_id_fkey"
+            columns: ["ligne_rapprochement_id"]
+            isOneToOne: false
+            referencedRelation: "rapprochements_bancaires"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       param_activite: {
         Row: {
           code: string
