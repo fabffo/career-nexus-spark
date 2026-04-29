@@ -242,16 +242,29 @@ export default function RapprochementMultiEcritures() {
       const { error: insError } = await supabase.from("paiements_factures_multi").insert(rows);
       if (insError) throw insError;
 
-      // Synchroniser rapprochements_bancaires pour visibilité dans l'historique
+      // Synchroniser lignes_rapprochement (table source de l'historique)
+      // On retrouve la ligne d'historique via numero_ligne (clé fonctionnelle commune)
       for (const s of Array.from(selectedLignes.values())) {
-        const { error: updErr } = await supabase
+        // 1) màj rapprochements_bancaires (compat)
+        await supabase
           .from("rapprochements_bancaires")
           .update({
             facture_id: selectedFacture.id,
             notes: `MULTI: ${Number(s.montant_alloue).toFixed(2)} € sur facture ${selectedFacture.numero_facture}`,
           })
           .eq("id", s.ligne.id);
-        if (updErr) throw updErr;
+
+        // 2) màj lignes_rapprochement (visible dans Rapprochement bancaire historique)
+        const { error: updHistErr } = await supabase
+          .from("lignes_rapprochement")
+          .update({
+            facture_id: selectedFacture.id,
+            statut: "matched",
+            notes: `MULTI: ${Number(s.montant_alloue).toFixed(2)} € sur facture ${selectedFacture.numero_facture}`,
+            numero_facture: selectedFacture.numero_facture,
+          })
+          .eq("numero_ligne", s.ligne.numero_ligne);
+        if (updHistErr) throw updHistErr;
       }
 
       toast({
@@ -288,13 +301,25 @@ export default function RapprochementMultiEcritures() {
       return;
     }
 
-    // Désynchroniser rapprochements_bancaires
+    // Désynchroniser rapprochements_bancaires + lignes_rapprochement (historique)
     if (ligneIds.length > 0) {
+      const numerosLignes = lignes
+        .filter((l) => ligneIds.includes(l.id))
+        .map((l) => l.numero_ligne);
+
       await supabase
         .from("rapprochements_bancaires")
         .update({ facture_id: null, notes: null })
         .in("id", ligneIds)
         .eq("facture_id", selectedFacture.id);
+
+      if (numerosLignes.length > 0) {
+        await supabase
+          .from("lignes_rapprochement")
+          .update({ facture_id: null, statut: "unmatched", notes: null, numero_facture: null })
+          .in("numero_ligne", numerosLignes)
+          .eq("facture_id", selectedFacture.id);
+      }
     }
 
     setSelectedLignes(new Map());
