@@ -133,7 +133,13 @@ export default function RapprochementAnnuelTab() {
     }
 
     if (selectedStatut !== "all") {
-      result = result.filter((l) => (l.statut || "").toLowerCase() === selectedStatut);
+      result = result.filter((l) => {
+        const s = (l.statut || "").toLowerCase();
+        if (selectedStatut === "unmatched_or_uncertain") {
+          return s === "unmatched" || s === "uncertain" || s === "" || s === "partiel" || s === "en_attente";
+        }
+        return s === selectedStatut;
+      });
     }
 
     if (searchTerm) {
@@ -281,6 +287,7 @@ export default function RapprochementAnnuelTab() {
                 <SelectItem value="matched">Rapproché</SelectItem>
                 <SelectItem value="uncertain">Incertain</SelectItem>
                 <SelectItem value="unmatched">Non rapproché</SelectItem>
+                <SelectItem value="unmatched_or_uncertain">Non rapproché ou Incertain</SelectItem>
               </SelectContent>
             </Select>
 
